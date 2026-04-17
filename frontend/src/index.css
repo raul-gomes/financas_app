@@ -1,0 +1,178 @@
+
+@import 'primereact/resources/themes/lara-light-blue/theme.css';
+@import 'primereact/resources/primereact.min.css';
+@import 'primeicons/primeicons.css';
+
+/* PrimeReact custom styles to match design system */
+.p-card {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.p-button {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.p-button:hover {
+  background: hsl(var(--primary)/0.9);
+}
+
+.p-datatable {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+}
+
+.p-datatable .p-datatable-header {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  border-color: hsl(var(--border));
+}
+
+.p-datatable .p-datatable-tbody > tr {
+  border-color: hsl(var(--border));
+}
+
+.p-tag {
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+
+.p-progressbar {
+  background: hsl(var(--secondary));
+}
+
+.p-progressbar .p-progressbar-value {
+  background: hsl(var(--primary));
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Financial Dashboard Design System - Neutral and Pastel Colors */
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 210 15% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 15% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 15% 20%;
+
+    /* Enhanced Financial Colors - More Vibrant */
+    --primary: 200 35% 55%;
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 200 35% 65%;
+
+    --secondary: 220 20% 90%;
+    --secondary-foreground: 210 25% 30%;
+
+    --muted: 220 20% 92%;
+    --muted-foreground: 215 25% 45%;
+
+    --accent: 155 40% 55%;
+    --accent-foreground: 0 0% 98%;
+
+    --success: 155 40% 55%;
+    --success-foreground: 0 0% 98%;
+    --success-light: 155 40% 92%;
+
+    --warning: 45 75% 60%;
+    --warning-foreground: 0 0% 98%;
+
+    --destructive: 0 45% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --destructive-light: 0 45% 92%;
+
+    --border: 220 20% 88%;
+    --input: 220 20% 88%;
+    --ring: 200 35% 55%;
+
+    --radius: 0.5rem;
+
+    /* Subtle Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(155 25% 70%));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(220 14% 96%));
+
+    /* Subtle Shadows */
+    --shadow-elegant: 0 4px 15px -3px hsl(var(--foreground) / 0.07);
+    --shadow-card: 0 2px 8px -2px hsl(var(--foreground) / 0.05);
+    --shadow-glow: 0 0 30px hsl(var(--primary-glow) / 0.1);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222 15% 8%;
+    --foreground: 210 40% 95%;
+
+    --card: 222 15% 8%;
+    --card-foreground: 210 40% 95%;
+
+    --popover: 222 15% 8%;
+    --popover-foreground: 210 40% 95%;
+
+    --primary: 200 15% 55%;
+    --primary-foreground: 222 15% 8%;
+    --primary-glow: 200 15% 65%;
+
+    --secondary: 217 20% 15%;
+    --secondary-foreground: 210 40% 95%;
+
+    --muted: 217 20% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 155 25% 50%;
+    --accent-foreground: 210 40% 98%;
+
+    --success: 155 25% 50%;
+    --success-foreground: 210 40% 98%;
+    --success-light: 155 25% 12%;
+
+    --warning: 45 85% 55%;
+    --warning-foreground: 210 40% 98%;
+
+    --destructive: 0 35% 55%;
+    --destructive-foreground: 210 40% 98%;
+    --destructive-light: 0 35% 12%;
+
+    --border: 217 20% 15%;
+    --input: 217 20% 15%;
+    --ring: 200 15% 55%;
+
+    /* Dark mode gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(155 25% 60%));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(217 20% 12%));
+
+    /* Dark mode shadows */
+    --shadow-elegant: 0 4px 15px -3px hsl(0 0% 0% / 0.2);
+    --shadow-card: 0 2px 8px -2px hsl(0 0% 0% / 0.3);
+    --shadow-glow: 0 0 30px hsl(var(--primary-glow) / 0.2);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
