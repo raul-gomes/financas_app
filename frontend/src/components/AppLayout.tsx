@@ -1,7 +1,7 @@
 // src/components/AppLayout.tsx
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { DollarSign, BarChart3, TrendingUp } from 'lucide-react';
+import { DollarSign, BarChart3, TrendingUp, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function AppLayout() {
@@ -35,7 +35,7 @@ export function AppLayout() {
             </NavLink>
             <NavLink to="/limits" className={linkClass}>
               <Button variant="ghost" size="sm" className="flex items-center gap-1">
-                <TrendingUp className="h-4 w-4" />Limites
+                <Settings className="h-4 w-4" />Configurações
               </Button>
             </NavLink>
           </nav>

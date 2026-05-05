@@ -10,6 +10,7 @@ import {
   CategoryBreakdown
 } from '@/types/financial';
 import { FinancialService } from '@/services/financialService';
+import { ContaRecorrenteService } from '@/services/contaRecorrenteService';
 import { BarChart3, ChevronDown, Calendar as CalendarIcon, Settings, TrendingUp, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -34,6 +35,9 @@ const Financial = () => {
   const loadData = useCallback(async () => {
     try {
       const naturezaFilter = selectedEntityType === 'all' ? undefined : selectedEntityType;
+
+      await ContaRecorrenteService.generate(selectedDateRange.from, selectedDateRange.to)
+        .catch(() => {});
 
       const [summary, yearly, categories, incomes] = await Promise.all([
         FinancialService.getFinancialSummary(
@@ -203,6 +207,7 @@ const Financial = () => {
                 dateRange={selectedDateRange}
                 selectedEntityType={selectedEntityType}
                 onEntityTypeChange={setSelectedEntityType}
+                onReload={loadData}
               />
             </div>
           </div>

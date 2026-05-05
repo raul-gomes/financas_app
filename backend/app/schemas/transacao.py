@@ -22,6 +22,7 @@ class TipoPagamento(str, Enum):
     PIX = 'pix'
     TRANSFERENCIA = 'transferencia'
     DINHEIRO = 'dinheiro'
+    BOLETO = 'boleto'
 
 
 class TransacaoBase(BaseModel):

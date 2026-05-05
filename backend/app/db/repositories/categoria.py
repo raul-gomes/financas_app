@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update as sql_update
+from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 
 from app.core.database import get_session
@@ -11,6 +12,7 @@ from app.db.models.categoria import CategoriaORM
 from app.db.repositories.subcategoria import SubcategoriaRepository
 from app.schemas.categorias import CategoriaCreate, CategoriaUpdate
 from app.logger import log_database_operation
+
 
 class CategoriaRepository:
     """
@@ -23,11 +25,24 @@ class CategoriaRepository:
         self.sub_repo = SubcategoriaRepository(db)
 
     async def get_by_id(self, id: int) -> Optional[CategoriaORM]:
-        result = await self.db.execute(select(self.model).where(self.model.id == id))
-        return result.scalars().first()
+        """
+        Busca uma categoria pelo ID.
+        """
+        log = log_database_operation(operation="read", collection="categorias", categoria_id=id)
+        result = await self.db.execute(
+            select(self.model).options(selectinload(self.model.subcategorias)).where(self.model.id == id)
+        )
+        categoria = result.scalars().first()
+        if categoria:
+            log.info(f"Categoria {id} encontrada")
+        else:
+            log.warning(f"Categoria {id} não encontrada")
+        return categoria
 
     async def get_by_nome(self, nome: str) -> Optional[CategoriaORM]:
-        result = await self.db.execute(select(self.model).where(self.model.categoria_nome == nome))
+        result = await self.db.execute(
+            select(self.model).options(selectinload(self.model.subcategorias)).where(self.model.categoria_nome == nome)
+        )
         return result.scalars().first()
     
     async def create(self, obj_in: CategoriaCreate) -> CategoriaORM:
@@ -45,12 +60,14 @@ class CategoriaRepository:
             if obj_in.subcategorias:
                 await self.sub_repo.create_many(instance.id, obj_in.subcategorias)
 
-            # Recarrega categoria completa
-            result = await self.db.execute(select(self.model).where(self.model.id == instance.id))
-            categoria = result.scalars().first()
-            log.info(f"Categoria {categoria.id} criada")
-            return categoria
-
+            log.info(f"Categoria {instance.id} criada")
+            
+            # Recarrega categoria completa com subcategorias
+            result = await self.db.execute(
+                select(self.model).options(selectinload(self.model.subcategorias)).where(self.model.id == instance.id)
+            )
+            return result.scalars().first()
+            
         except IntegrityError as e:
             await self.db.rollback()
             if "categorias.categoria_nome" in str(e):
@@ -70,24 +87,11 @@ class CategoriaRepository:
         Recupera todas as categorias, incluindo subcategorias.
         """
         log = log_database_operation(operation="read_all", collection="categorias")
-        stmt = select(self.model).order_by(self.model.categoria_nome)
+        stmt = select(self.model).options(selectinload(self.model.subcategorias)).order_by(self.model.categoria_nome)
         result = await self.db.execute(stmt)
         categorias = result.unique().scalars().all()
         log.info(f"{len(categorias)} categorias recuperadas")
         return categorias
-
-    async def get_by_id(self, id: int) -> Optional[CategoriaORM]:
-        """
-        Busca uma categoria pelo ID.
-        """
-        log = log_database_operation(operation="read", collection="categorias", categoria_id=id)
-        result = await self.db.execute(select(self.model).where(self.model.id == id))
-        categoria = result.scalars().first()
-        if categoria:
-            log.info(f"Categoria {id} encontrada")
-        else:
-            log.warning(f"Categoria {id} não encontrada")
-        return categoria
 
     async def update(self, id: int, obj_in: CategoriaUpdate) -> Optional[CategoriaORM]:
         categoria = await self.get_by_id(id)
@@ -126,8 +130,10 @@ class CategoriaRepository:
             await self.sub_repo.create_many(categoria.id, new_subs)
 
         # 4) Recarrega e retorna
-        await self.db.refresh(categoria)
-        return categoria
+        result = await self.db.execute(
+            select(self.model).options(selectinload(self.model.subcategorias)).where(self.model.id == id)
+        )
+        return result.scalars().first()
 
     async def delete(self, id: int) -> Optional[CategoriaORM]:
         """

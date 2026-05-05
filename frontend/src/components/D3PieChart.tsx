@@ -5,6 +5,7 @@ interface PieChartData {
   category: string;
   value: number;
   color: string;
+  limit?: number; // Novo campo opcional
 }
 
 interface D3PieChartProps {
@@ -43,6 +44,20 @@ export function D3PieChart({ data, width = 400, height = 300 }: D3PieChartProps)
       .innerRadius(radius * 0.7)
       .outerRadius(radius * 0.7);
 
+    // Tooltip
+    const tooltip = d3.select('body').append('div')
+      .attr('class', 'tooltip')
+      .style('position', 'absolute')
+      .style('visibility', 'hidden')
+      .style('background', 'hsl(var(--card))')
+      .style('border', '1px solid hsl(var(--border))')
+      .style('border-radius', '8px')
+      .style('padding', '8px')
+      .style('font-size', '12px')
+      .style('box-shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1)')
+      .style('z-index', '1000')
+      .style('pointer-events', 'none');
+
     const arcs = g.selectAll('.arc')
       .data(pie(data))
       .enter()
@@ -55,11 +70,58 @@ export function D3PieChart({ data, width = 400, height = 300 }: D3PieChartProps)
       .attr('stroke', 'white')
       .attr('stroke-width', 2)
       .style('opacity', 0.8)
-      .on('mouseover', function() {
-        d3.select(this).style('opacity', 1);
+      .style('cursor', 'pointer')
+      .on('mouseover', function(event, d: any) {
+        d3.select(this)
+          .transition()
+          .duration(200)
+          .style('opacity', 1)
+          .attr('transform', 'scale(1.05)');
+
+        const formatCurrency = (amount: number) => {
+          return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(amount);
+        };
+
+        const totalSpent = d.data.value;
+        const limit = d.data.limit || 0;
+        const diff = limit - totalSpent;
+        const percentage = ((totalSpent / d3.sum(data, d => d.value)) * 100).toFixed(1);
+
+        let statusHtml = '';
+        if (limit > 0) {
+            if (diff >= 0) {
+                statusHtml = `<div class="text-success mt-1">Faltam ${formatCurrency(diff)} para o limite</div>`;
+            } else {
+                statusHtml = `<div class="text-destructive mt-1">Extrapolou ${formatCurrency(Math.abs(diff))} do limite</div>`;
+            }
+        }
+
+        tooltip
+          .style('visibility', 'visible')
+          .html(`
+            <div class="space-y-1">
+              <div class="font-bold border-b pb-1 mb-1">${d.data.category}</div>
+              <div>Gasto: ${formatCurrency(totalSpent)} (${percentage}%)</div>
+              ${limit > 0 ? `<div class="text-muted-foreground">Limite: ${formatCurrency(limit)}</div>` : ''}
+              ${statusHtml}
+            </div>
+          `);
+      })
+      .on('mousemove', function(event) {
+        tooltip
+          .style('top', (event.pageY - 10) + 'px')
+          .style('left', (event.pageX + 10) + 'px');
       })
       .on('mouseout', function() {
-        d3.select(this).style('opacity', 0.8);
+        d3.select(this)
+          .transition()
+          .duration(200)
+          .style('opacity', 0.8)
+          .attr('transform', 'scale(1)');
+        tooltip.style('visibility', 'hidden');
       });
 
     arcs.append('text')
@@ -67,11 +129,17 @@ export function D3PieChart({ data, width = 400, height = 300 }: D3PieChartProps)
       .attr('text-anchor', 'middle')
       .attr('font-size', '12px')
       .attr('font-weight', 'bold')
-      .attr('fill', 'hsl(var(--foreground))')
+      .attr('fill', 'white') // Texto branco sobre as cores
+      .style('pointer-events', 'none')
       .text(d => {
         const percentage = ((d.data.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
-        return `${percentage}%`;
+        return parseFloat(percentage) > 5 ? `${percentage}%` : '';
       });
+
+    // Cleanup function
+    return () => {
+      d3.selectAll('.tooltip').remove();
+    };
 
   }, [data, width, height]);
 

@@ -160,7 +160,7 @@ class TransacaoRepository:
                 inst = TransacaoORM(
                     valor=obj_in.valor,
                     descricao=obj_in.descricao,
-                    parcela=obj_in.parcelas,
+                    parcela=obj_in.parcela,
                     total_parcelas=obj_in.total_parcelas,
                     data_transacao=obj_in.data_transacao,
                     tipo=obj_in.tipo.value,
@@ -272,3 +272,33 @@ class TransacaoRepository:
         await self.db.delete(trans)
         await self.db.commit()
         return trans
+
+    async def create_from_extracto(
+        self,
+        valor: float,
+        descricao: str,
+        data_transacao: datetime,
+        tipo: str,
+        natureza: str,
+        forma_pagamento: str,
+        categoria_id: int,
+        subcategoria_id: int,
+    ) -> TransacaoORM:
+        group_id = uuid4()
+        inst = TransacaoORM(
+            valor=valor,
+            descricao=descricao,
+            parcela=1,
+            total_parcelas=1,
+            data_transacao=data_transacao,
+            tipo=tipo,
+            natureza=natureza,
+            forma_pagamento=forma_pagamento,
+            categoria_id=categoria_id,
+            subcategoria_id=subcategoria_id,
+            group_id=group_id,
+        )
+        self.db.add(inst)
+        await self.db.commit()
+        await self.db.refresh(inst)
+        return inst

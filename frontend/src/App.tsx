@@ -9,6 +9,8 @@ import Index from "./pages/Index";
 import Financial from "./pages/Financial";
 import Investments from "./pages/Investments";
 import Limits from "./pages/Limits";
+import RecurrentBills from "./pages/RecurrentBills";
+import BankExtract from "./pages/BankExtract";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +28,8 @@ const App = () => (
             <Route path="/financial" element={<Financial />} />
             <Route path="/investments" element={<Investments />} />
             <Route path="/limits" element={<Limits />} />
+            <Route path="/recorrentes" element={<RecurrentBills />} />
+            <Route path="/extrato-bancario" element={<BankExtract />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

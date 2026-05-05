@@ -44,11 +44,11 @@ class SubcategoriaRepository:
             raise HTTPException(status_code=400, detail="Erro ao criar subcategoria")
 
     async def create_many(self, categoria_id: int, subs: List[SubcategoriaCreate]):
-        stmt = insert(self.model).values([
-            {'subcategoria_nome': s.subcategoria_nome, 'categoria_id': categoria_id}
+        sub_objs = [
+            self.model(subcategoria_nome=s.subcategoria_nome, categoria_id=categoria_id)
             for s in subs
-        ])
-        await self.db.execute(stmt)
+        ]
+        self.db.add_all(sub_objs)
         await self.db.commit()
 
     async def get_by_categoria(self, categoria_id: int) -> List[SubcategoriaORM]:

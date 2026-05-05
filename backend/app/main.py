@@ -8,6 +8,8 @@ from .routes.transacoes_routes import router as trasacoes_router
 from .routes.categorias_routes import router as categorias_router
 from .routes.dashboard_routes import router as dashboard_router
 from .routes.limits_routes import router as limits_router
+from .routes.contas_recorrentes_routes import router as recorrentes_router
+from .routes.extracto_routes import router as extracto_router
 
 app = FastAPI(
     title="API Financeira",
@@ -27,6 +29,8 @@ app.include_router(trasacoes_router)
 app.include_router(categorias_router)
 app.include_router(dashboard_router)
 app.include_router(limits_router)
+app.include_router(recorrentes_router)
+app.include_router(extracto_router)
 
 @app.get('/', tags=['Root'])
 async def root():

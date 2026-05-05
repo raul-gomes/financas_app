@@ -9,10 +9,12 @@ import {
   MoreVertical,
   Edit,
   Trash2,
+  FileText,
 } from 'lucide-react';
 import { Transaction, MonthlyBalance } from '@/types/financial';
 import { AddTransactionDialog } from './AddTransactionDialog';
 import { EditTransactionDialog } from './EditTransactionDialog';
+import { ExtratoDialog } from './ExtratoDialog';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -26,6 +28,7 @@ interface TransactionListProps {
   dateRange: { from: Date; to: Date };
   selectedEntityType: 'all' | 'pf' | 'pj';
   onEntityTypeChange: (type: 'all' | 'pf' | 'pj') => void;
+  onReload?: () => void;
 }
 
 export function TransactionList({
@@ -37,9 +40,11 @@ export function TransactionList({
   dateRange,
   selectedEntityType,
   onEntityTypeChange,
+  onReload,
 }: TransactionListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [extratoOpen, setExtratoOpen] = useState(false);
   const { toast } = useToast();
 
   const formatCurrency = (amount: number) =>
@@ -120,6 +125,14 @@ export function TransactionList({
           >
             <Plus className="h-4 w-4 mr-1" />
             Nova
+          </Button>
+          <Button
+            onClick={() => setExtratoOpen(true)}
+            variant="outline"
+            size="sm"
+          >
+            <FileText className="h-4 w-4 mr-1" />
+            Extrato
           </Button>
         </div>
       </div>
@@ -204,6 +217,12 @@ export function TransactionList({
           }}
         />
       )}
+
+      <ExtratoDialog
+        open={extratoOpen}
+        onOpenChange={setExtratoOpen}
+        onImported={() => onReload?.()}
+      />
     </div>
   );
 }

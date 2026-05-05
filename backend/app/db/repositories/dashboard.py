@@ -103,11 +103,11 @@ class DashboardRepository:
 
         mensal_cat = await self.db.execute(
             select(CategoriaORM)
-            .where(CategoriaORM.id == 1)
+            .where(func.lower(CategoriaORM.categoria_nome) == 'mensal')
         )
 
         mensal_obj = mensal_cat.scalars().first()
-        limite_mensal = mensal_obj.limite if mensal_obj else 0.0
+        limite_mensal = mensal_obj.limite if mensal_obj else 1000.0
 
         return RendimentoPeriodoResponse(limite=limite_mensal, meses=meses_data)
     
@@ -161,7 +161,7 @@ class DashboardRepository:
         )
 
         mensal_obj = mensal_cat.scalars().first()
-        limite_mensal = mensal_obj.limite if mensal_obj else 0.0
+        limite_mensal = mensal_obj.limite if mensal_obj else 1000.0
     
         return ExtratoResponse(
             entradas=entradas,

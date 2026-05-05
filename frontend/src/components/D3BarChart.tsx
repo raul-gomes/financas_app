@@ -7,9 +7,16 @@ interface D3BarChartProps {
   width?: number;
   height?: number;
   monthlyGoal?: number;
+  onBarClick?: (month: string) => void;
 }
 
-export function D3BarChart({ data, width = 800, height = 350, monthlyGoal = 0 }: D3BarChartProps) {
+export function D3BarChart({ 
+  data, 
+  width = 800, 
+  height = 350, 
+  monthlyGoal = 0,
+  onBarClick
+}: D3BarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -91,8 +98,9 @@ export function D3BarChart({ data, width = 800, height = 350, monthlyGoal = 0 }:
         .attr('x2', innerWidth)
         .attr('y1', yScale(monthlyGoal))
         .attr('y2', yScale(monthlyGoal))
-        .attr('stroke', 'hsl(var(--destructive))')
-        .attr('stroke-width', 2);
+        .attr('stroke', '#ef4444') // Vermelho proeminente
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '5,5');
 
       // Goal line label
       g.append('text')
@@ -152,10 +160,12 @@ export function D3BarChart({ data, width = 800, height = 350, monthlyGoal = 0 }:
       .style('padding', '8px')
       .style('font-size', '12px')
       .style('box-shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1)')
-      .style('z-index', '1000');
+      .style('z-index', '1000')
+      .style('pointer-events', 'none');
 
-    // Add hover effects
+    // Add hover and click effects
     g.selectAll('.income-bar, .expense-bar')
+      .style('cursor', 'pointer')
       .on('mouseover', function(event, d: any) {
         const formatCurrency = (amount: number) => {
           return new Intl.NumberFormat('pt-BR', {
@@ -173,7 +183,8 @@ export function D3BarChart({ data, width = 800, height = 350, monthlyGoal = 0 }:
           .html(`
             <div>
               <strong>Mês: ${d.month}</strong><br/>
-              ${type}: ${formatCurrency(value)}
+              ${type}: ${formatCurrency(value)}<br/>
+              <span class="text-[10px] text-muted-foreground">Clique para detalhes</span>
             </div>
           `);
       })
@@ -184,6 +195,11 @@ export function D3BarChart({ data, width = 800, height = 350, monthlyGoal = 0 }:
       })
       .on('mouseout', function() {
         tooltip.style('visibility', 'hidden');
+      })
+      .on('click', function(event, d: any) {
+        if (onBarClick) {
+          onBarClick(d.month);
+        }
       });
 
     // Cleanup function
