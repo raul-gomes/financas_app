@@ -110,6 +110,8 @@ async def generate_recurrent_transactions(
         geradas, detalhes = await repo.generate_pending_transactions(payload)
         log.info(f"{geradas} transacoes recorrentes geradas")
         return GenerateResponse(geradas=geradas, detalhes=detalhes)
+    except HTTPException:
+        raise
     except Exception as e:
-        log.error(f"Erro ao gerar transacoes recorrentes: {e}")
-        raise HTTPException(status_code=500, detail="Erro interno ao gerar transacoes recorrentes")
+        log.error(f"Erro ao gerar transacoes recorrentes: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro interno ao gerar transacoes recorrentes: {str(e)}")

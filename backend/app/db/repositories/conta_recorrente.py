@@ -1,6 +1,6 @@
 from typing import List, Optional
 from datetime import datetime
-from uuid import uuid4, UUID
+from uuid import uuid4
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -121,43 +121,73 @@ class ContaRecorrenteRepository:
                     current_date = current_date + relativedelta(months=1)
                     continue
 
-                already_exists = await self._check_transaction_exists(conta.group_id, year, month)
+                try:
+                    already_exists = await self._check_transaction_exists(conta.group_id, year, month)
+                except Exception as e:
+                    log.error(f"Erro ao verificar transacao existente para {conta.descricao}: {e}")
+                    already_exists = True
+                    from dateutil.relativedelta import relativedelta
+                    current_date = current_date.replace(day=1) + relativedelta(months=1)
+                    continue
+
                 if not already_exists:
-                    transacao = TransacaoORM(
-                        valor=conta.valor,
-                        descricao=conta.descricao,
-                        parcela=1,
-                        total_parcelas=1,
-                        data_transacao=transacao_date,
-                        tipo="saida",
-                        natureza=conta.natureza,
-                        forma_pagamento=conta.forma_pagamento,
-                        categoria_id=conta.categoria_id,
-                        subcategoria_id=conta.subcategoria_id,
-                        group_id=UUID(conta.group_id),
-                    )
-                    self.db.add(transacao)
-                    geradas += 1
-                    detalhes.append(
-                        f"{conta.descricao} - R$ {conta.valor:.2f} em {transacao_date.strftime('%d/%m/%Y')}"
-                    )
+                    try:
+                        transacao = TransacaoORM(
+                            valor=conta.valor,
+                            descricao=conta.descricao,
+                            parcela=1,
+                            total_parcelas=1,
+                            data_transacao=transacao_date,
+                            tipo="saida",
+                            natureza=conta.natureza,
+                            forma_pagamento=conta.forma_pagamento,
+                            categoria_id=conta.categoria_id,
+                            subcategoria_id=conta.subcategoria_id,
+                            group_id=str(conta.group_id),
+                        )
+                        self.db.add(transacao)
+                        geradas += 1
+                        detalhes.append(
+                            f"{conta.descricao} - R$ {conta.valor:.2f} em {transacao_date.strftime('%d/%m/%Y')}"
+                        )
+                    except Exception as e:
+                        log.error(f"Erro ao gerar transacao recorrente para {conta.descricao}: {e}")
+                        continue
 
                 from dateutil.relativedelta import relativedelta
                 current_date = current_date.replace(day=1) + relativedelta(months=1)
 
         if geradas > 0:
-            await self.db.commit()
-            log.info(f"{geradas} transacoes recorrentes geradas")
+            try:
+                await self.db.commit()
+                log.info(f"{geradas} transacoes recorrentes geradas")
+            except Exception as e:
+                await self.db.rollback()
+                log.error(f"Erro ao commit transacoes recorrentes: {e}", exc_info=True)
+                raise
 
         return geradas, detalhes
 
     async def _check_transaction_exists(self, group_id: str, year: int, month: int) -> bool:
+        try:
+            gid_str = str(group_id)
+        except (ValueError, AttributeError):
+            return False
+
+        if month < 12:
+            next_month_start = datetime(year, month + 1, 1)
+        else:
+            next_month_start = datetime(year + 1, 1, 1)
+
         stmt = select(TransacaoORM.id).where(
             and_(
-                TransacaoORM.group_id == UUID(group_id),
+                TransacaoORM.group_id == gid_str,
                 TransacaoORM.data_transacao >= datetime(year, month, 1),
-                TransacaoORM.data_transacao < datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1),
+                TransacaoORM.data_transacao < next_month_start,
             )
         )
-        result = await self.db.execute(stmt)
-        return result.scalars().first() is not None
+        try:
+            result = await self.db.execute(stmt)
+            return result.scalars().first() is not None
+        except Exception:
+            return False

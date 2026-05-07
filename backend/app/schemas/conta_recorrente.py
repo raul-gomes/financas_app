@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -14,6 +14,13 @@ class ContaRecorrenteBase(BaseModel):
     data_inicio: datetime
     data_fim: Optional[datetime] = None
     ativo: bool = True
+
+    @field_validator('data_inicio', 'data_fim', mode='after')
+    @classmethod
+    def strip_timezone(cls, v):
+        if v is not None and v.tzinfo is not None:
+            return v.replace(tzinfo=None)
+        return v
 
 
 class ContaRecorrenteCreate(ContaRecorrenteBase):
@@ -45,6 +52,13 @@ class ContaRecorrenteResponse(ContaRecorrenteBase):
 class GenerateRequest(BaseModel):
     data_inicio: datetime
     data_final: datetime
+
+    @field_validator('data_inicio', 'data_final', mode='after')
+    @classmethod
+    def strip_timezone(cls, v):
+        if v is not None and v.tzinfo is not None:
+            return v.replace(tzinfo=None)
+        return v
 
 
 class GenerateResponse(BaseModel):
