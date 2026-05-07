@@ -7,19 +7,19 @@ from enum import Enum
 from app.schemas.transacao import NaturezaTransacao, TipoPagamento, TipoTransacao
 
 class TransacaoExtrato(BaseModel):
-    id: int = Field(..., description="ID da transação")
-    valor: float = Field(..., description="Valor da transação")
-    descricao: str = Field(..., description="Descrição da transação")
-    parcelas: Optional[int] = Field(None, description="Parcelas, se houver")
-    total_parcelas: Optional[int] = Field(None, description="Total de parcelas")
-    data_transacao: datetime = Field(..., description="Data e hora da transação")
-    tipo: TipoTransacao = Field(..., description="Tipo: entrada ou saida")
-    natureza_transacao: NaturezaTransacao = Field(..., description="Natureza: pf ou pj")
-    forma_pagamento: TipoPagamento = Field(..., description="Forma de pagamento")
-    categoria: str = Field(..., description="Nome da categoria")
-    subcategoria: str = Field(..., description="Nome da subcategoria")
-    data_criacao: datetime = Field(..., description="Timestamp de criação")
-    data_atualizacao: datetime = Field(..., description="Timestamp de atualização")
+    id: int
+    tipo: TipoTransacao
+    valor: float
+    descricao: str
+    categoria_id: int
+    subcategoria_id: int
+    categoria_nome: str
+    subcategoria_nome: str
+    forma_pagamento: TipoPagamento
+    parcela: Optional[int]
+    total_parcelas: Optional[int]
+    natureza: NaturezaTransacao
+    data_transacao: datetime
 
     class Config:
         from_attributes = True

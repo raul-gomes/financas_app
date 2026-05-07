@@ -26,12 +26,12 @@ class DashboardRepository:
             select(TransacaoORM)
             .where(TransacaoORM.data_transacao >= data_inicio)
             .where(TransacaoORM.data_transacao <= data_final)
-            .where(TransacaoORM.natureza == NaturezaTransacao(natureza))
-            .where(TransacaoORM.tipo == tipo.value)
-            .options(
-                selectinload(TransacaoORM.categoria),
-                selectinload(TransacaoORM.subcategoria),
-            )
+        )
+        if natureza != 'all':
+            stmt = stmt.where(TransacaoORM.natureza == NaturezaTransacao(natureza))
+        stmt = stmt.where(TransacaoORM.tipo == tipo.value).options(
+            selectinload(TransacaoORM.categoria),
+            selectinload(TransacaoORM.subcategoria),
         )
 
         result = await self.db.execute(stmt)
@@ -87,8 +87,9 @@ class DashboardRepository:
                 select(TransacaoORM)
                 .where(TransacaoORM.data_transacao >= first)
                 .where(TransacaoORM.data_transacao <= last)
-                .where(TransacaoORM.natureza == natureza)
             )
+            if natureza != 'all':
+                stmt = stmt.where(TransacaoORM.natureza == natureza)
 
             result = await self.db.execute(stmt)
             transacoes = result.unique().scalars().all()
@@ -123,13 +124,13 @@ class DashboardRepository:
             select(TransacaoORM)
             .where(TransacaoORM.data_transacao >= data_inicio)
             .where(TransacaoORM.data_transacao <= data_final)
-            .where(TransacaoORM.natureza == natureza)
-            .options(
-                selectinload(TransacaoORM.categoria),
-                selectinload(TransacaoORM.subcategoria)
-            )
-            .order_by(TransacaoORM.data_transacao.desc())
         )
+        if natureza != 'all':
+            stmt = stmt.where(TransacaoORM.natureza == natureza)
+        stmt = stmt.options(
+            selectinload(TransacaoORM.categoria),
+            selectinload(TransacaoORM.subcategoria)
+        ).order_by(TransacaoORM.data_transacao.desc())
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
     
@@ -139,18 +140,18 @@ class DashboardRepository:
         txs = [
             TransacaoExtrato(
                 id=t.id,
+                tipo=t.tipo,
                 valor=t.valor,
                 descricao=t.descricao,
+                categoria_id=t.categoria_id,
+                subcategoria_id=t.subcategoria_id,
+                categoria_nome=t.categoria.categoria_nome if t.categoria else "",
+                subcategoria_nome=t.subcategoria.subcategoria_nome if t.subcategoria else "",
+                forma_pagamento=t.forma_pagamento,
                 parcela=t.parcela,
                 total_parcelas=t.total_parcelas,
+                natureza=t.natureza,
                 data_transacao=t.data_transacao,
-                tipo=t.tipo,
-                natureza_transacao=t.natureza,
-                forma_pagamento=t.forma_pagamento,
-                categoria=t.categoria.categoria_nome if t.categoria else "",
-                subcategoria=t.subcategoria.subcategoria_nome if t.subcategoria else "",
-                data_criacao=t.data_criacao,
-                data_atualizacao=t.data_atualizacao,
             )
             for t in transacoes
         ]
@@ -223,7 +224,11 @@ class DashboardRepository:
                 select(TransacaoORM)
                 .where(TransacaoORM.data_transacao >= data_inicio)
                 .where(TransacaoORM.data_transacao <= data_final)
-                .where(TransacaoORM.natureza == natureza)
+            )
+            if natureza != 'all':
+                stmt_transacoes = stmt_transacoes.where(TransacaoORM.natureza == natureza)
+            stmt_transacoes = (
+                stmt_transacoes
                 .where(TransacaoORM.categoria_id == categoria.id)
                 .where(TransacaoORM.tipo == "entrada")
                 .options(selectinload(TransacaoORM.subcategoria))

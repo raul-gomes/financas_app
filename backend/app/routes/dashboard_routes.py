@@ -32,7 +32,7 @@ def parse_date(date_str: str, field_name: str) -> datetime:
 async def extrato_financeiro(
     data_inicio: str = Query(..., description="Data inicial DD/MM/YYYY"),
     data_final: str = Query(..., description="Data final DD/MM/YYYY"),
-    natureza: str = Query(..., description="Natureza jurídica: pf ou pj"),
+    natureza: str = Query(default='pf', description="Natureza jurídica: pf, pj ou all"),
     db: AsyncSession = Depends(get_session)
 ):
     api_logger = log_api_request("GET", "/dashboard/extrato")
@@ -63,7 +63,7 @@ async def extrato_financeiro(
 )
 async def rendimento_periodo(
     ano: int = Query(..., description="Ano para agregação (YYYY)"),
-    natureza: str = Query(..., description="Natureza jurídica: pf ou pj"),
+    natureza: str = Query(default='pf', description="Natureza jurídica: pf, pj ou all"),
     db: AsyncSession = Depends(get_session)
 ):
     api_logger = log_api_request("GET", "/dashboard/rendimento-periodo")
@@ -85,7 +85,7 @@ async def rendimento_periodo(
 async def gastos_por_categoria(
     data_inicio: str = Query(..., description="Data inicial DD/MM/YYYY"),
     data_final: str = Query(..., description="Data final DD/MM/YYYY"),
-    natureza: str = Query(..., description="Natureza jurídica: pf ou pj"),
+    natureza: str = Query(default='pf', description="Natureza jurídica: pf, pj ou all"),
     tipo: Literal["entrada", "saida"] = Query(..., description="Tipo de transação"),
     db: AsyncSession = Depends(get_session),
 ):
@@ -132,7 +132,7 @@ async def opcoes_categorias(
 async def entradas_por_categoria(
     data_inicio: str = Query(..., description='Data inicial DD/MM/YYYY'),
     data_final: str = Query(..., description='Data final DD/MM/YYYY'),
-    natureza: str = Query(..., description='Natureza jurídica: pf ou pj'),
+    natureza: str = Query(default='pf', description='Natureza jurídica: pf, pj ou all'),
     db: AsyncSession = Depends(get_session)
 ):
     api_logger = log_api_request('GET', '/dashboard/entradas-por-categoria')
