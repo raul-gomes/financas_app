@@ -32,11 +32,11 @@ class TransacaoBase(BaseModel):
     total_parcelas: Optional[int] = Field(None, ge=1)
     data_transacao: datetime = Field(...)
 
-    @field_validator('parcela')
-    def check_parcelas(cls, v: int, info: ValidationInfo) -> int:
-        total = info.data.get('total_parcelas')
-        if v is not None and total is not None and v > total:
-            raise ValueError('Parcelas não podem exceder total_parcelas')
+    @field_validator('data_transacao', mode='after')
+    @classmethod
+    def strip_timezone(cls, v):
+        if v is not None and v.tzinfo is not None:
+            return v.replace(tzinfo=None)
         return v
 
 

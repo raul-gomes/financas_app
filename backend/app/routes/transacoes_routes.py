@@ -32,8 +32,8 @@ async def create_transacao(
     except HTTPException:
         raise
     except Exception as e:
-        log.error(f"Erro interno ao criar transação: {e}")
-        raise HTTPException(status_code=500, detail="Erro interno")
+        log.error(f"Erro interno ao criar transação: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 
 

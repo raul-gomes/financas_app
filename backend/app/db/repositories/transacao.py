@@ -116,7 +116,7 @@ class TransacaoRepository:
 
     async def create(self, obj_in: TransacaoCreate) -> TransacaoORM:
         log = log_database_operation(operation="create", collection="transacoes", payload=obj_in.model_dump())
-        group_id = uuid4()
+        group_id = str(uuid4())
 
         # 1) Categoria: se id não informado, busca ou cria por nome
         if obj_in.categoria_id is not None:
@@ -152,7 +152,7 @@ class TransacaoRepository:
 
         # 3) Cria a transação usando os IDs resolvidos
         try:
-            if (obj_in.forma_pagamento == TipoPagamento.CREDITO and obj_in.total_parcelas > 1):
+            if (obj_in.forma_pagamento == TipoPagamento.CREDITO and obj_in.total_parcelas is not None and obj_in.total_parcelas > 1):
                 transacoes = await self._create_transacaoes_parceladas(obj_in, group_id, categoria.id, sub.id)
                 log.info(f"Transação {group_id} criada, com {len(transacoes)} parcelas")
                 return transacoes[0]
@@ -171,15 +171,22 @@ class TransacaoRepository:
                     group_id=group_id
                 )
 
-
             self.db.add(inst)
             await self.db.commit()
-            await self.db.refresh(inst)
+            try:
+                await self.db.refresh(inst)
+            except Exception as refresh_err:
+                log.error(f"Erro ao refresh transação: {refresh_err}")
+                inst = await self.get_by_id(inst.id) or inst
             log.info(f"Transação {inst.id} criada")
             return inst
         except IntegrityError:
             await self.db.rollback()
-            raise HTTPException(status_code=400, detail="Erro ao criar transação")
+            raise HTTPException(status_code=400, detail="Erro ao criar transação (integridade)")
+        except Exception as e:
+            await self.db.rollback()
+            log.error(f"Erro inesperado ao criar transação: {type(e).__name__}: {e}", exc_info=True)
+            raise
 
     async def get_all(
         self,
@@ -284,7 +291,7 @@ class TransacaoRepository:
         categoria_id: int,
         subcategoria_id: int,
     ) -> TransacaoORM:
-        group_id = uuid4()
+        group_id = str(uuid4())
         inst = TransacaoORM(
             valor=valor,
             descricao=descricao,
