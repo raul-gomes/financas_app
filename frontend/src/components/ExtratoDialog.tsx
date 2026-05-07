@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Upload, FileText, CheckCircle, AlertCircle, X } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -35,7 +36,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         try {
             const result = await ExtractoService.upload(selectedFile)
             setUploadResult(result)
-            setTransactions(result.transacoes.map(t => ({ ...t, categoria_id: undefined, subcategoria_id: undefined })))
+            setTransactions(result.transacoes.map(t => ({ ...t, categoria_id: undefined, subcategoria_id: undefined, forma_pagamento: t.forma_pagamento || 'pix', natureza: t.natureza || 'pf' })))
         } catch {
             toast({ title: 'Erro', description: 'Falha ao processar o extrato. Verifique o formato do arquivo.', variant: 'destructive' })
         } finally {
@@ -49,16 +50,26 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         if (droppedFile) handleFileSelect(droppedFile)
     }
 
-    const handleCategoryChange = (index: number, categoria: string) => {
-        const catObj = categoryOptions?.opcoes.find(c => c.categoria === categoria)
+    const handleDescricaoChange = (index: number, descricao: string) => {
+        setTransactions(prev => prev.map((t, i) => i === index ? { ...t, descricao } : t))
+    }
+
+    const handleCategoryChange = (index: number, catId: number) => {
+        const catObj = categoryOptions?.opcoes.find(c => c.id === catId)
         const subObj = catObj?.subcategorias[0]
         setTransactions(prev => prev.map((t, i) => i === index ? { ...t, categoria_id: catObj?.id, subcategoria_id: subObj?.id } : t))
     }
 
-    const handleSubcategoryChange = (index: number, subcategoria: string) => {
-        const catId = transactions[index].categoria_id
-        const subObj = categoryOptions?.opcoes.find(c => c.id === catId)?.subcategorias.find(s => s.nome === subcategoria)
-        setTransactions(prev => prev.map((t, i) => i === index ? { ...t, subcategoria_id: subObj?.id } : t))
+    const handleSubcategoryChange = (index: number, subId: number) => {
+        setTransactions(prev => prev.map((t, i) => i === index ? { ...t, subcategoria_id: subId } : t))
+    }
+
+    const handleFormaPagamentoChange = (index: number, forma: string) => {
+        setTransactions(prev => prev.map((t, i) => i === index ? { ...t, forma_pagamento: forma } : t))
+    }
+
+    const handleNaturezaChange = (index: number, natureza: string) => {
+        setTransactions(prev => prev.map((t, i) => i === index ? { ...t, natureza } : t))
     }
 
     const handleConfirm = async () => {
@@ -71,7 +82,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         const confirmPayload: ConfirmTransaction[] = transactions.map(t => ({
             data: t.data, descricao: t.descricao, valor: t.valor, tipo: t.tipo,
             categoria_id: t.categoria_id!, subcategoria_id: t.subcategoria_id!,
-            forma_pagamento: 'pix', natureza: 'pf',
+            forma_pagamento: t.forma_pagamento || 'pix', natureza: t.natureza || 'pf',
         }))
         try {
             const result = await ExtractoService.confirm({ transacoes: confirmPayload })
@@ -141,8 +152,8 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-                <DialogHeader className="flex-shrink-0">
+            <DialogContent className="max-w-7xl">
+                <DialogHeader>
                     <div className="flex justify-between items-center">
                         <div>
                             <DialogTitle>Revisar Extrato</DialogTitle>
@@ -160,7 +171,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                     </div>
                 </DialogHeader>
 
-                <div className="grid grid-cols-3 gap-4 flex-shrink-0">
+                <div className="grid grid-cols-3 gap-4 mt-4">
                     <div className="bg-card rounded-lg p-4 border border-border">
                         <p className="text-sm text-muted-foreground">Total</p>
                         <p className="text-2xl font-bold">{uploadResult.total}</p>
@@ -175,15 +186,17 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto min-h-0">
-                    <div className="bg-card rounded-lg border border-border overflow-hidden">
+                <div className="mt-4 max-h-[60vh] overflow-y-auto">
+                    <div className="bg-card rounded-lg border border-border">
                         <table className="w-full">
-                            <thead className="bg-muted/50 border-b border-border sticky top-0 z-10">
+                            <thead className="bg-muted/50 border-b border-border">
                                 <tr>
                                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Data</th>
                                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Descricao</th>
                                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Valor</th>
                                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Tipo</th>
+                                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Forma Pagamento</th>
+                                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Natureza</th>
                                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Categoria</th>
                                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Subcategoria</th>
                                 </tr>
@@ -194,7 +207,14 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                     return (
                                         <tr key={index} className="hover:bg-muted/30">
                                             <td className="px-4 py-3 text-sm text-foreground">{trans.data}</td>
-                                            <td className="px-4 py-3 text-sm text-foreground max-w-xs truncate">{trans.descricao}</td>
+                                            <td className="px-4 py-3">
+                                                <input
+                                                    type="text"
+                                                    value={trans.descricao}
+                                                    onChange={(e) => handleDescricaoChange(index, e.target.value)}
+                                                    className="w-full text-sm bg-transparent border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
+                                                />
+                                            </td>
                                             <td className={`px-4 py-3 text-sm font-medium ${trans.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
                                                 {trans.tipo === 'saida' ? '-' : ''}{formatCurrency(trans.valor)}
                                             </td>
@@ -206,19 +226,45 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3">
+                                                <Select value={trans.forma_pagamento} onValueChange={(v) => handleFormaPagamentoChange(index, v)}>
+                                                    <SelectTrigger className="h-8 text-sm">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="pix">PIX</SelectItem>
+                                                        <SelectItem value="debito">Debito</SelectItem>
+                                                        <SelectItem value="credito">Credito</SelectItem>
+                                                        <SelectItem value="transferencia">Transferencia</SelectItem>
+                                                        <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                                                        <SelectItem value="boleto">Boleto</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <Select value={trans.natureza} onValueChange={(v) => handleNaturezaChange(index, v)}>
+                                                    <SelectTrigger className="h-8 text-sm">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="pf">PF</SelectItem>
+                                                        <SelectItem value="pj">PJ</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </td>
+                                            <td className="px-4 py-3">
                                                 {catObj && catObj.categoria ? (
                                                     <span className="text-sm text-foreground">{catObj.categoria}</span>
                                                 ) : (
-                                                    <select
-                                                        className="text-sm border border-border rounded px-2 py-1 bg-transparent"
-                                                        value=""
-                                                        onChange={(e) => handleCategoryChange(index, e.target.value)}
-                                                    >
-                                                        <option value="">Selecionar...</option>
-                                                        {categoryOptions?.opcoes.map(cat => (
-                                                            <option key={cat.id} value={cat.categoria}>{cat.categoria}</option>
-                                                        ))}
-                                                    </select>
+                                                    <Select onValueChange={(v) => handleCategoryChange(index, parseInt(v))}>
+                                                        <SelectTrigger className="h-8 text-sm">
+                                                            <SelectValue placeholder="Selecionar..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {categoryOptions?.opcoes.map(cat => (
+                                                                <SelectItem key={cat.id} value={String(cat.id)}>{cat.categoria}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
                                                 )}
                                             </td>
                                             <td className="px-4 py-3">
@@ -227,16 +273,16 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                                         {catObj?.subcategorias.find(s => s.id === trans.subcategoria_id)?.nome}
                                                     </span>
                                                 ) : catObj ? (
-                                                    <select
-                                                        className="text-sm border border-border rounded px-2 py-1 bg-transparent"
-                                                        value=""
-                                                        onChange={(e) => handleSubcategoryChange(index, e.target.value)}
-                                                    >
-                                                        <option value="">Selecionar...</option>
-                                                        {catObj.subcategorias.map(sub => (
-                                                            <option key={sub.id} value={sub.nome}>{sub.nome}</option>
-                                                        ))}
-                                                    </select>
+                                                    <Select onValueChange={(v) => handleSubcategoryChange(index, parseInt(v))}>
+                                                        <SelectTrigger className="h-8 text-sm">
+                                                            <SelectValue placeholder="Selecionar..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {catObj.subcategorias.map(sub => (
+                                                                <SelectItem key={sub.id} value={String(sub.id)}>{sub.nome}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
                                                 ) : (
                                                     <span className="text-sm text-muted-foreground">-</span>
                                                 )}

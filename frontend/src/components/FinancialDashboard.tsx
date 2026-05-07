@@ -4,24 +4,8 @@ import { Tag } from 'primereact/tag';
 import { ProgressBar } from 'primereact/progressbar';
 import { D3BarChart } from './D3BarChart';
 import { IncomeChart } from './IncomeChart';
-import { TrendingUp, DollarSign, PiggyBank, Target, BarChart, Info } from 'lucide-react';
+import { TrendingUp, DollarSign, PiggyBank, Target, BarChart } from 'lucide-react';
 import { YearlyData, CategoryExpense, CategoryBreakdown, Transaction } from '@/types/financial';
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 
 interface FinancialDashboardProps {
   yearlyData: YearlyData[];
@@ -31,7 +15,8 @@ interface FinancialDashboardProps {
   currentMonthExpenses: number;
   dateRange: { from: Date, to: Date };
   transactions: (Transaction & { id: string })[];
-  incomeBreakdown: any
+  incomeBreakdown: any;
+  onMonthSelect?: (monthIndex: number, year: number) => void;
 }
 
 export function FinancialDashboard({
@@ -42,13 +27,19 @@ export function FinancialDashboard({
   monthlyGoal,
   currentMonthExpenses,
   dateRange,
-  transactions
+  transactions,
+  onMonthSelect
 }: FinancialDashboardProps) {
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
-
   const handleBarClick = (month: string) => {
-    console.log("Mês selecionado no gráfico:", month);
-    setSelectedMonth(month);
+    const monthMap: Record<string, number> = {
+      'Jan': 0, 'Fev': 1, 'Mar': 2, 'Abr': 3, 'Mai': 4, 'Jun': 5,
+      'Jul': 6, 'Ago': 7, 'Set': 8, 'Out': 9, 'Nov': 10, 'Dez': 11
+    };
+    const monthIndex = monthMap[month];
+    if (monthIndex !== undefined && onMonthSelect) {
+      const currentYear = new Date().getFullYear();
+      onMonthSelect(monthIndex, currentYear);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -276,76 +267,6 @@ export function FinancialDashboard({
           </div>
         </Card>
       </div>
-
-      {/* Modal de Detalhes do Mês */}
-      <Dialog open={!!selectedMonth} onOpenChange={() => setSelectedMonth(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-2xl">
-              <BarChart className="h-6 w-6 text-primary" />
-              Operações de {selectedMonth ? selectedMonth.charAt(0).toUpperCase() + selectedMonth.slice(1) : ''}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="flex-1 overflow-y-auto mt-4 border rounded-md">
-            <Table>
-              <TableHeader className="bg-muted/50 sticky top-0 z-10">
-                <TableRow>
-                  <TableHead className="w-[100px]">Data</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions
-                  .filter(t => {
-                    if (!selectedMonth) return false;
-                    const date = new Date(t.data_transacao);
-                    // Compara com o nome do mês em inglês e português para cobrir as possibilidades do D3
-                    const monthNameEn = date.toLocaleString('en-US', { month: 'long' }).toLowerCase();
-                    const monthNamePt = date.toLocaleString('pt-BR', { month: 'long' }).toLowerCase();
-                    return monthNameEn === selectedMonth.toLowerCase() || monthNamePt === selectedMonth.toLowerCase();
-                  })
-                  .sort((a,b) => new Date(b.data_transacao).getTime() - new Date(a.data_transacao).getTime())
-                  .map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-medium">
-                        {new Date(t.data_transacao).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          {t.descricao}
-                          {t.total_parcelas && t.total_parcelas > 1 && (
-                            <div className="text-[10px] text-muted-foreground">
-                              Parcela {t.parcela || '1'}/{t.total_parcelas}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">{t.categoria_nome}</span>
-                          <span className="text-[10px] text-muted-foreground">{t.subcategoria_nome}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={t.tipo === 'entrada' ? 'secondary' : 'destructive'} className="capitalize">
-                          {t.tipo}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className={`text-right font-bold ${t.tipo === 'entrada' ? 'text-green-600' : 'text-red-500'}`}>
-                        {t.tipo === 'saida' ? '- ' : '+ '}
-                        {formatCurrency(t.valor)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

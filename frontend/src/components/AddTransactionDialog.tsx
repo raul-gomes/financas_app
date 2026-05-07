@@ -86,7 +86,7 @@ export function AddTransactionDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.valor || !formData.descricao || !formData.categoria) {
+    if (!formData.valor || !formData.descricao || !formData.categoria || !formData.subcategoria) {
       toast({
         title: 'Erro',
         description: 'Por favor, preencha todos os campos obrigatórios.',
@@ -110,7 +110,7 @@ export function AddTransactionDialog({
       tipo: formData.tipo,
       valor: parseFloat(formData.valor),
       descricao: formData.descricao,
-      data_transacao: formData.data_transacao,
+      data_transacao: new Date(formData.data_transacao + 'T00:00:00').toISOString(),
       forma_pagamento: formData.forma_pagamento === 'cartão de crédito' ? 'credito' :
                        formData.forma_pagamento === 'cartão de débito' ? 'debito' :
                        formData.forma_pagamento,
@@ -332,7 +332,7 @@ export function AddTransactionDialog({
             </Select>
           </div>
 
-          {formData.forma_pagamento === 'credito' && (
+          {(formData.forma_pagamento === 'cartão de crédito' || formData.forma_pagamento === 'credito') && (
             <div className="space-y-2">
               <Label htmlFor="total_parcelas">Total de Parcelas</Label>
               <Input
