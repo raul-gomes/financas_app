@@ -16,12 +16,12 @@ export class FinancialService {
   // 1. Extrato financeiro completo (agora recebe natureza opcional)
   static async getFinancialSummary(
     dateRange: { from: Date; to: Date },
-    natureza?: 'pf' | 'pj'
+    natureza?: 'pf' | 'pj' | 'all'
   ): Promise<FinancialSummary> {
     const params = new URLSearchParams({
       data_inicio: dateRange.from.toLocaleDateString('pt-BR'),
       data_final: dateRange.to.toLocaleDateString('pt-BR'),
-      ...(natureza ? { natureza } : {})
+      natureza: natureza || 'pf'
     });
     const res = await fetch(`${API_BASE_URL}/dashboard/extrato?${params}`);
     if (!res.ok) {
@@ -52,14 +52,14 @@ export class FinancialService {
   // 3. Gastos por categoria (saídas) com filtro de natureza
   static async getCategoryBreakdown(
     dateRange: { from: Date; to: Date },
-    natureza?: 'pf' | 'pj',
+    natureza?: 'pf' | 'pj' | 'all',
     tipo: string = 'saida',
   ): Promise<CategoryBreakdown> {
     const params = new URLSearchParams({
       data_inicio: dateRange.from.toLocaleDateString('pt-BR'),
       data_final: dateRange.to.toLocaleDateString('pt-BR'),
       tipo,
-      ...(natureza ? { natureza } : {})
+      natureza: natureza || 'pf'
     })
     const res = await fetch(
       `${API_BASE_URL}/dashboard/gastos-por-categoria?${params}`
@@ -73,12 +73,12 @@ export class FinancialService {
   // 4. Entradas por categoria (agora opcional natureza)
   static async getCategoryIncome(
     dateRange: { from: Date; to: Date },
-    natureza?: 'pf' | 'pj'
+    natureza?: 'pf' | 'pj' | 'all'
   ): Promise<CategoryBreakdown> {
     const params = new URLSearchParams({
       data_inicio: dateRange.from.toLocaleDateString('pt-BR'),
       data_final: dateRange.to.toLocaleDateString('pt-BR'),
-      ...(natureza ? { natureza } : {})
+      natureza: natureza || 'pf'
     });
     const res = await fetch(
       `${API_BASE_URL}/dashboard/entradas-por-categoria?${params}`
@@ -145,7 +145,8 @@ export class FinancialService {
       body: JSON.stringify(transaction)
     });
     if (!res.ok) {
-      throw new Error(`Erro ${res.status} ao adicionar transação`);
+      const errorBody = await res.text();
+      throw new Error(`Erro ${res.status} ao adicionar transação: ${errorBody}`);
     }
   }
 

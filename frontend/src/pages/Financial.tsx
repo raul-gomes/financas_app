@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 const Financial = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -34,7 +34,7 @@ const Financial = () => {
   // Fetch financial data
   const loadData = useCallback(async () => {
     try {
-      const naturezaFilter = selectedEntityType === 'all' ? undefined : selectedEntityType;
+      const naturezaFilter = selectedEntityType;
 
       await ContaRecorrenteService.generate(selectedDateRange.from, selectedDateRange.to)
         .catch(() => {});
@@ -113,6 +113,12 @@ const Financial = () => {
     await FinancialService.deleteTransaction(id);
     await loadData();
   };
+
+  const handleMonthSelect = useCallback((monthIndex: number, year: number) => {
+    const from = new Date(year, monthIndex, 1);
+    const to = endOfMonth(from);
+    setSelectedDateRange({ from, to });
+  }, []);
 
   // Filter and sort transactions
   const filteredTransactions = useMemo(
@@ -193,6 +199,7 @@ const Financial = () => {
               currentMonthExpenses={currentPeriodExpenses}
               dateRange={selectedDateRange}
               transactions={sortedTransactions}
+              onMonthSelect={handleMonthSelect}
             />
           </div>
           {/* Transactions List */}
