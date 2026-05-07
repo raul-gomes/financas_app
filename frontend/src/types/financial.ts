@@ -25,7 +25,7 @@ export interface Transaction {
   subcategoria_id: number;
   categoria_nome: string;
   subcategoria_nome: string;
-  forma_pagamento: 'credito' | 'debito' | 'pix' | 'transferencia' | 'dinheiro';
+  forma_pagamento: 'credito' | 'debito' | 'pix' | 'transferencia' | 'dinheiro' | 'boleto';
   parcela: number | null;
   total_parcelas: number | null;
   natureza: 'pj' | 'pf';
@@ -47,25 +47,9 @@ export interface MonthData {
   saida: number;
 }
 
-
 export interface YearlyPerformance {
   limite: number;
-  meses: Array<{
-    saida: any
-    entrada: any
-    janeiro?: MonthData;
-    fevereiro?: MonthData;
-    marco?: MonthData;
-    abril?: MonthData;
-    maio?: MonthData;
-    junho?: MonthData;
-    julho?: MonthData;
-    agosto?: MonthData;
-    setembro?: MonthData;
-    outubro?: MonthData;
-    novembro?: MonthData;
-    dezembro?: MonthData;
-  }>;
+  meses: Record<string, MonthData>;
 }
 
 export interface CategoryPeriodData {
@@ -143,7 +127,7 @@ export interface Subcategory {
 export interface Category {
   id: number
   categoria_nome: string
-  natureza: 'pf' | 'pj' | 'mensal'
+  natureza: 'pf' | 'pj' | 'all'
   limite: number
   subcategorias: Subcategory[]
 }
@@ -153,7 +137,7 @@ export type LimitsPayload = Category[]
 export interface CategoriaLimiteUpdate {
   id?: number
   categoria_nome: string
-  natureza: 'pf' | 'pj' | 'mensal'
+  natureza: 'pf' | 'pj' | 'all'
   limite: number
   subcategorias: {
     id?: number

@@ -5,6 +5,8 @@ export interface ParsedTransaction {
   tipo: 'entrada' | 'saida';
   categoria_id?: number;
   subcategoria_id?: number;
+  forma_pagamento: string;
+  natureza: string;
 }
 
 export interface UploadResponse {
