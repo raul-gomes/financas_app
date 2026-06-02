@@ -4,7 +4,7 @@ import { Tag } from 'primereact/tag';
 import { ProgressBar } from 'primereact/progressbar';
 import { D3BarChart } from './D3BarChart';
 import { IncomeChart } from './IncomeChart';
-import { TrendingUp, DollarSign, PiggyBank, Target, BarChart } from 'lucide-react';
+import { TrendingUp, BarChart, Send, CreditCard, Banknote } from 'lucide-react';
 import { YearlyData, CategoryExpense, CategoryBreakdown, Transaction } from '@/types/financial';
 
 interface FinancialDashboardProps {
@@ -49,7 +49,18 @@ export function FinancialDashboard({
     }).format(amount);
   };
 
-  const goalProgress = monthlyGoal > 0 ? (currentMonthExpenses / monthlyGoal) * 100 : 0;
+  const pixTotal = transactions
+    .filter(t => t.tipo === 'saida' && t.forma_pagamento === 'pix')
+    .reduce((sum, t) => sum + t.valor, 0);
+
+  const creditTotal = transactions
+    .filter(t => t.tipo === 'saida' && t.forma_pagamento === 'credito')
+    .reduce((sum, t) => sum + t.valor, 0);
+
+  const debitTotal = transactions
+    .filter(t => t.tipo === 'saida' && t.forma_pagamento === 'debito')
+    .reduce((sum, t) => sum + t.valor, 0);
+
   console.log(categoryBreakdown)
 
   //Converter dados de categoria do payload para formato interno
@@ -82,64 +93,59 @@ export function FinancialDashboard({
       .filter((item): item is CategoryExpense => item !== null)
     : [];
 
-  const saldoClass = totalInvested >= 0 ? 'text-green-600' : 'text-red-600';
+
 
   return (
     <div className="space-y-6 h-full">
       {/* Métricas Principais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="shadow-card border-none bg-success/10">
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Total Investido</p>
-                <p className={`text-xl font-bold ${saldoClass}`}>{formatCurrency(totalInvested)}</p>
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Pix Card */}
+          <Card className="shadow-card border-none bg-primary/10">
+            <div className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Pix</p>
+                  <p className="text-xl font-bold text-foreground">{formatCurrency(pixTotal)}</p>
+                </div>
+                <Send className="h-6 w-6 text-primary/70" />
               </div>
-              <PiggyBank className="h-6 w-6 text-success/70" />
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        <Card className="shadow-card border-none bg-primary/10">
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Meta Mensal</p>
-                <p className="text-xl font-bold text-foreground">{formatCurrency(monthlyGoal)}</p>
-                <Tag
-                  severity={goalProgress > 100 ? 'danger' : 'info'}
-                  value={`${goalProgress.toFixed(1)}% usado`}
-                  className="mt-1 text-xs px-2 py-1"
-                />
+          {/* Cartão de Crédito Card */}
+          <Card className="shadow-card border-none bg-success/10">
+            <div className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Cartão de Crédito</p>
+                  <p className="text-xl font-bold text-foreground">{formatCurrency(creditTotal)}</p>
+                </div>
+                <CreditCard className="h-6 w-6 text-success/70" />
               </div>
-              <Target className="h-6 w-6 text-muted-foreground" />
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        <Card className="shadow-card border-none bg-destructive/10">
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Gastos do Mês</p>
-                <p className="text-xl font-bold text-foreground">{formatCurrency(currentMonthExpenses)}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Restam {formatCurrency(Math.max(0, monthlyGoal - currentMonthExpenses))}
-                </p>
+          {/* Cartão de Débito Card */}
+          <Card className="shadow-card border-none bg-destructive/10">
+            <div className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Cartão de Débito</p>
+                  <p className="text-xl font-bold text-foreground">{formatCurrency(debitTotal)}</p>
+                </div>
+                <Banknote className="h-6 w-6 text-destructive/70" />
               </div>
-              <DollarSign className="h-6 w-6 text-muted-foreground" />
             </div>
-          </div>
-        </Card>
-      </div>
+          </Card>
+        </div>
 
       {/* Gráfico de Barras - Rendimento Anual */}
       <Card className="shadow-card border-none">
         <div className="p-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-            <BarChart className="h-5 w-5" />
-            Rendimento do Período
-          </h3>
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
+              <BarChart className="h-5 w-5" />
+              Rendimento Anual
+            </h3>
           <div className="w-full h-[350px] overflow-hidden">
             <D3BarChart
               data={yearlyData}

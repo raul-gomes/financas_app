@@ -38,7 +38,7 @@ export function D3BarChart({
       .range([0, innerWidth])
       .padding(0.3);
 
-    const maxValue = d3.max(processedData, d => Math.max(d.income, d.expenses, monthlyGoal)) || 0;
+    const maxValue = d3.max(processedData, d => Math.max(d.income, d.expenses, d.investment, monthlyGoal)) || 0;
     const yScale = d3.scaleLinear()
       .domain([0, maxValue * 1.1])
       .range([innerHeight, 0]);
@@ -61,33 +61,49 @@ export function D3BarChart({
       .attr('stroke-dasharray', '3,3')
       .attr('opacity', 0.3);
 
-    // Income bars
+    // Income bars (green)
     g.selectAll('.income-bar')
       .data(processedData)
       .enter()
       .append('rect')
       .attr('class', 'income-bar')
-      .attr('x', d => xScale(d.month)! + 2)
+      .attr('x', d => xScale(d.month)! + (xScale.bandwidth() / 3) * 0 + 2)
       .attr('y', d => yScale(d.income))
-      .attr('width', (xScale.bandwidth() / 2) - 4)
+      .attr('width', (xScale.bandwidth() / 3) - 4)
       .attr('height', d => innerHeight - yScale(d.income))
       .attr('fill', 'hsl(var(--success))')
       .attr('rx', 2);
 
-    // Expense bars
+    // Expense bars (red)
     g.selectAll('.expense-bar')
       .data(processedData)
       .enter()
       .append('rect')
       .attr('class', 'expense-bar')
-      .attr('x', d => xScale(d.month)! + (xScale.bandwidth() / 2) + 2)
+      .attr('x', d => xScale(d.month)! + (xScale.bandwidth() / 3) * 1 + 2)
       .attr('y', d => yScale(d.expenses))
-      .attr('width', (xScale.bandwidth() / 2) - 4)
+      .attr('width', (xScale.bandwidth() / 3) - 4)
       .attr('height', d => {
         const h = innerHeight - yScale(d.expenses);
-        return h > 2 ? h : 2;  // garante pelo menos 2px visíveis
+        return h > 2 ? h : 2;
       })
       .attr('fill', 'hsl(var(--destructive))')
+      .attr('rx', 2);
+
+    // Investment bars (yellow)
+    g.selectAll('.investment-bar')
+      .data(processedData)
+      .enter()
+      .append('rect')
+      .attr('class', 'investment-bar')
+      .attr('x', d => xScale(d.month)! + (xScale.bandwidth() / 3) * 2 + 2)
+      .attr('y', d => yScale(d.investment))
+      .attr('width', (xScale.bandwidth() / 3) - 4)
+      .attr('height', d => {
+        const h = innerHeight - yScale(d.investment);
+        return h > 2 ? h : 2;
+      })
+      .attr('fill', 'hsl(var(--warning))')
       .attr('rx', 2);
 
     // Monthly goal line
@@ -164,43 +180,48 @@ export function D3BarChart({
       .style('pointer-events', 'none');
 
     // Add hover and click effects
-    g.selectAll('.income-bar, .expense-bar')
+    g.selectAll('.income-bar, .expense-bar, .investment-bar')
       .style('cursor', 'pointer')
-      .on('mouseover', function(event, d: any) {
-        const formatCurrency = (amount: number) => {
-          return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-          }).format(amount);
-        };
+        .on('mouseover', function(event, d: any) {
+          const formatCurrency = (amount: number) => {
+            return new Intl.NumberFormat('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            }).format(amount);
+          };
 
-        const isIncome = d3.select(this).classed('income-bar');
-        const value = isIncome ? d.income : d.expenses;
-        const type = isIncome ? 'Entradas' : 'Saídas';
-        
-        tooltip
-          .style('visibility', 'visible')
-          .html(`
-            <div>
-              <strong>Mês: ${d.month}</strong><br/>
-              ${type}: ${formatCurrency(value)}<br/>
-              <span class="text-[10px] text-muted-foreground">Clique para detalhes</span>
-            </div>
-          `);
-      })
-      .on('mousemove', function(event) {
-        tooltip
-          .style('top', (event.pageY - 10) + 'px')
-          .style('left', (event.pageX + 10) + 'px');
-      })
-      .on('mouseout', function() {
-        tooltip.style('visibility', 'hidden');
-      })
-      .on('click', function(event, d: any) {
-        if (onBarClick) {
-          onBarClick(d.month);
-        }
-      });
+          const isIncome = d3.select(this).classed('income-bar');
+          const isExpense = d3.select(this).classed('expense-bar');
+          const isInvestment = d3.select(this).classed('investment-bar');
+          let value = 0;
+          let type = '';
+          if (isIncome) { value = d.income; type = 'Entradas'; }
+          else if (isExpense) { value = d.expenses; type = 'Saídas'; }
+          else if (isInvestment) { value = d.investment; type = 'Investimento'; }
+          
+          tooltip
+            .style('visibility', 'visible')
+            .html(`
+              <div>
+                <strong>Mês: ${d.month}</strong><br/>
+                ${type}: ${formatCurrency(value)}<br/>
+                <span class="text-[10px] text-muted-foreground">Clique para detalhes</span>
+              </div>
+            `);
+        })
+        .on('mousemove', function(event) {
+          tooltip
+            .style('top', (event.pageY - 10) + 'px')
+            .style('left', (event.pageX + 10) + 'px');
+        })
+        .on('mouseout', function() {
+          tooltip.style('visibility', 'hidden');
+        })
+        .on('click', function(event, d: any) {
+          if (onBarClick) {
+            onBarClick(d.month);
+          }
+        });
 
     // Cleanup function
     return () => {

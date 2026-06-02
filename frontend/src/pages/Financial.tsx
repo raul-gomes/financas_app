@@ -85,20 +85,30 @@ const Financial = () => {
     };
   }, [financialSummary]);
 
-  // Yearly data
-  const yearlyData: YearlyData[] = useMemo(() => {
-    if (!yearlyPerformance?.meses) return [];
-    const names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    // Object.entries preserva a ordem definida pelo backend (janeiro, fevereiro…)
-    return Object.entries(yearlyPerformance.meses).map(
-      ([monthKey, vals], idx) => ({
-        month: names[idx],
-        income: vals.entrada,
-        expenses: vals.saida,
-        profit: vals.entrada - vals.saida
-      })
-    );
-  }, [yearlyPerformance]);
+   // Yearly data
+   const yearlyData: YearlyData[] = useMemo(() => {
+     if (!yearlyPerformance?.meses) return [];
+     const names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+     // Prepare investment sums per month
+     const investmentSums: Record<number, number> = {};
+     transactions.forEach(t => {
+       if (t.tipo === 'investimento') {
+         const date = new Date(t.data_transacao);
+         const monthIdx = date.getMonth();
+         investmentSums[monthIdx] = (investmentSums[monthIdx] || 0) + t.valor;
+       }
+     });
+     // Object.entries preserves order defined by backend (janeiro, fevereiro…)
+     return Object.entries(yearlyPerformance.meses).map(
+       ([monthKey, vals], idx) => ({
+         month: names[idx],
+         income: vals.entrada,
+         expenses: vals.saida,
+         profit: vals.entrada - vals.saida,
+         investment: investmentSums[idx] || 0
+       })
+     );
+   }, [yearlyPerformance, transactions]);
 
   // Handlers that reload data
   const handleAddTransaction = async (newTransaction: Transaction) => {

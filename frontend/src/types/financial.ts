@@ -115,6 +115,7 @@ export interface YearlyData {
   income: number;
   expenses: number;
   profit: number;
+  investment: number;
 }
 
 // Tipos de componentes limites
