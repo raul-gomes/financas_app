@@ -1,11 +1,19 @@
 
+import { useMemo } from 'react';
 import { Card } from 'primereact/card';
 import { ProgressBar } from 'primereact/progressbar';
-import { D3BarChart } from './D3BarChart';
+import { FlippableChart } from './FlippableChart';
 import { IncomeChart } from './IncomeChart';
 import { AnimatedNumber } from './AnimatedNumber';
-import { TrendingUp, BarChart, Send, CreditCard, Banknote } from 'lucide-react';
-import { YearlyData, CategoryExpense, CategoryBreakdown, Transaction } from '@/types/financial';
+import { TrendingUp, Send, CreditCard, Banknote } from 'lucide-react';
+import {
+  YearlyData,
+  DailyData,
+  SelectedMonth,
+  CategoryExpense,
+  CategoryBreakdown,
+  Transaction,
+} from '@/types/financial';
 
 interface FinancialDashboardProps {
   yearlyData: YearlyData[];
@@ -13,10 +21,12 @@ interface FinancialDashboardProps {
   totalInvested: number;
   monthlyGoal: number;
   currentMonthExpenses: number;
-  dateRange: { from: Date, to: Date };
+  dateRange: { from: Date; to: Date };
   transactions: (Transaction & { id: string })[];
   incomeBreakdown: any;
+  selectedMonth: SelectedMonth | null;
   onMonthSelect?: (monthIndex: number, year: number) => void;
+  onBackClick: () => void;
 }
 
 export function FinancialDashboard({
@@ -28,19 +38,50 @@ export function FinancialDashboard({
   currentMonthExpenses,
   dateRange,
   transactions,
-  onMonthSelect
+  selectedMonth,
+  onMonthSelect,
+  onBackClick,
 }: FinancialDashboardProps) {
   const handleBarClick = (month: string) => {
-    const monthMap: Record<string, number> = {
-      'Jan': 0, 'Fev': 1, 'Mar': 2, 'Abr': 3, 'Mai': 4, 'Jun': 5,
-      'Jul': 6, 'Ago': 7, 'Set': 8, 'Out': 9, 'Nov': 10, 'Dez': 11
+    const monthMap: Record<string, string> = {
+      'Jan': 'Janeiro', 'Fev': 'Fevereiro', 'Mar': 'Marco', 'Abr': 'Abril',
+      'Mai': 'Maio', 'Jun': 'Junho', 'Jul': 'Julho', 'Ago': 'Agosto',
+      'Set': 'Setembro', 'Out': 'Outubro', 'Nov': 'Novembro', 'Dez': 'Dezembro',
     };
-    const monthIndex = monthMap[month];
+    const monthIndexMap: Record<string, number> = {
+      'Jan': 0, 'Fev': 1, 'Mar': 2, 'Abr': 3, 'Mai': 4, 'Jun': 5,
+      'Jul': 6, 'Ago': 7, 'Set': 8, 'Out': 9, 'Nov': 10, 'Dez': 11,
+    };
+    const monthIndex = monthIndexMap[month];
     if (monthIndex !== undefined && onMonthSelect) {
       const currentYear = new Date().getFullYear();
       onMonthSelect(monthIndex, currentYear);
     }
   };
+
+  // Compute daily data from transactions for the selected month
+  const dailyData: DailyData[] = useMemo(() => {
+    if (!selectedMonth) return [];
+    const daysInMonth = new Date(selectedMonth.year, selectedMonth.index + 1, 0).getDate();
+    const days: DailyData[] = Array.from({ length: daysInMonth }, (_, i) => ({
+      day: i + 1,
+      income: 0,
+      expenses: 0,
+      investment: 0,
+    }));
+
+    transactions.forEach((t) => {
+      const date = new Date(t.data_transacao);
+      if (date.getMonth() === selectedMonth.index && date.getFullYear() === selectedMonth.year) {
+        const dayIdx = date.getDate() - 1;
+        if (t.tipo === 'entrada') days[dayIdx].income += t.valor;
+        else if (t.tipo === 'saida') days[dayIdx].expenses += t.valor;
+        else if (t.tipo === 'investimento') days[dayIdx].investment += t.valor;
+      }
+    });
+
+    return days;
+  }, [transactions, selectedMonth]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -145,20 +186,17 @@ export function FinancialDashboard({
           </Card>
         </div>
 
-      {/* Gráfico de Barras - Rendimento Anual */}
+      {/* Grafico de Barras - Rendimento Anual / Diario */}
       <Card className="shadow-card border-none">
         <div className="p-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-              <BarChart className="h-5 w-5" />
-              Rendimento Anual
-            </h3>
-          <div className="w-full h-[350px] overflow-x-auto">
-            <D3BarChart
-              data={yearlyData}
-              width={900}     // largura do viewBox
-              height={350}    // altura do viewBox
+          <div className="w-full h-[350px]">
+            <FlippableChart
+              yearlyData={yearlyData}
+              dailyData={dailyData}
               monthlyGoal={monthlyGoal}
-              onBarClick={handleBarClick}
+              selectedMonth={selectedMonth}
+              onMonthClick={handleBarClick}
+              onBackClick={onBackClick}
             />
           </div>
         </div>

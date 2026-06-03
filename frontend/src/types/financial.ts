@@ -118,6 +118,20 @@ export interface YearlyData {
   investment: number;
 }
 
+// Daily breakdown for flip chart
+export interface DailyData {
+  day: number;
+  income: number;
+  expenses: number;
+  investment: number;
+}
+
+export interface SelectedMonth {
+  name: string;
+  index: number;
+  year: number;
+}
+
 // Tipos de componentes limites
 
 export interface Subcategory {

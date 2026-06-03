@@ -7,7 +7,8 @@ import {
   YearlyData,
   FinancialSummary,
   YearlyPerformance,
-  CategoryBreakdown
+  CategoryBreakdown,
+  SelectedMonth,
 } from '@/types/financial';
 import { FinancialService } from '@/services/financialService';
 import { ContaRecorrenteService } from '@/services/contaRecorrenteService';
@@ -31,6 +32,7 @@ const Financial = () => {
   });
   const [incomeBreakdown, setIncomeBreakdown] = useState<CategoryBreakdown | null>(null);
   const [selectedEntityType, setSelectedEntityType] = useState<'all' | 'pf' | 'pj'>('pf');
+  const [selectedMonth, setSelectedMonth] = useState<SelectedMonth | null>(null);
 
 
   // Fetch financial data
@@ -130,6 +132,15 @@ const Financial = () => {
     const from = new Date(year, monthIndex, 1);
     const to = endOfMonth(from);
     setSelectedDateRange({ from, to });
+    const monthNames = [
+      'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+    ];
+    setSelectedMonth({ name: monthNames[monthIndex], index: monthIndex, year });
+  }, []);
+
+  const handleBackClick = useCallback(() => {
+    setSelectedMonth(null);
   }, []);
 
   // Filter and sort transactions
@@ -211,7 +222,9 @@ const Financial = () => {
               currentMonthExpenses={currentPeriodExpenses}
               dateRange={selectedDateRange}
               transactions={sortedTransactions}
+              selectedMonth={selectedMonth}
               onMonthSelect={handleMonthSelect}
+              onBackClick={handleBackClick}
             />
           </div>
           {/* Transactions List */}
