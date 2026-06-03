@@ -133,6 +133,25 @@ export class FinancialService {
     return res.json();
   }
 
+  // 7b. Transacoes do ano inteiro (para o grafico anual)
+  static async getYearTransactions(
+    year: number,
+    natureza?: string
+  ): Promise<Transaction[]> {
+    const from = new Date(year, 0, 1);
+    const to = new Date(year, 11, 31);
+    const params = new URLSearchParams({
+      data_inicio: from.toLocaleDateString('pt-BR'),
+      data_final: to.toLocaleDateString('pt-BR'),
+      ...(natureza ? { natureza } : {}),
+    });
+    const res = await fetch(`${API_BASE_URL}/transacoes/?${params}`);
+    if (!res.ok) {
+      throw new Error(`Erro ${res.status} ao buscar transacoes do ano`);
+    }
+    return res.json();
+  }
+
   // 8. Adicionar transação
   static async addTransaction(
     transaction: Omit<Transaction, 'id'>

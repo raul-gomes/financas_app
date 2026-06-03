@@ -79,33 +79,34 @@ export function FlippableChart({
           }}
         >
           <div className="flex flex-col h-full">
-            {/* Title */}
-            <h3 className="text-lg font-semibold shrink-0 px-2 pt-1">
-              Rendimento Anual
-            </h3>
-            {/* Legend */}
-            <div className="shrink-0 flex justify-center gap-6 px-2 py-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="w-2.5 h-2.5 rounded-sm inline-block"
-                  style={{ background: 'hsl(var(--success))' }}
-                />
-                {formatCurrency(annualTotals.income)}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="w-2.5 h-2.5 rounded-sm inline-block"
-                  style={{ background: 'hsl(var(--destructive))' }}
-                />
-                {formatCurrency(annualTotals.expenses)}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="w-2.5 h-2.5 rounded-sm inline-block"
-                  style={{ background: 'hsl(var(--warning))' }}
-                />
-                {formatCurrency(annualTotals.investment)}
-              </span>
+            {/* Title + Legend combined in one row */}
+            <div className="flex items-center gap-4 shrink-0 px-2 pt-1">
+              <h3 className="text-lg font-semibold shrink-0">
+                Rendimento Anual
+              </h3>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-2.5 h-2.5 rounded-sm inline-block"
+                    style={{ background: 'hsl(var(--success))' }}
+                  />
+                  {formatCurrency(annualTotals.income)}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-2.5 h-2.5 rounded-sm inline-block"
+                    style={{ background: 'hsl(var(--destructive))' }}
+                  />
+                  {formatCurrency(annualTotals.expenses)}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-2.5 h-2.5 rounded-sm inline-block"
+                    style={{ background: 'hsl(var(--warning))' }}
+                  />
+                  {formatCurrency(annualTotals.investment)}
+                </span>
+              </div>
             </div>
             {/* Chart fills remaining */}
             <div className="flex-1 min-h-0">

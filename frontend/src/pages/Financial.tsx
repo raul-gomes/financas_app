@@ -33,6 +33,7 @@ const Financial = () => {
   const [incomeBreakdown, setIncomeBreakdown] = useState<CategoryBreakdown | null>(null);
   const [selectedEntityType, setSelectedEntityType] = useState<'all' | 'pf' | 'pj'>('pf');
   const [selectedMonth, setSelectedMonth] = useState<SelectedMonth | null>(null);
+  const [yearTransactions, setYearTransactions] = useState<Transaction[]>([]);
   const fetchGeneration = useRef(0);
   const requestedMonthRef = useRef<SelectedMonth | null>(null);
 
@@ -46,7 +47,7 @@ const Financial = () => {
       await ContaRecorrenteService.generate(selectedDateRange.from, selectedDateRange.to)
         .catch(() => {});
 
-      const [summary, yearly, categories, incomes] = await Promise.all([
+      const [summary, yearly, categories, incomes, yearTx] = await Promise.all([
         FinancialService.getFinancialSummary(
           selectedDateRange,
           naturezaFilter
@@ -64,7 +65,12 @@ const Financial = () => {
           selectedDateRange, 
           naturezaFilter, 
           'entrada'
-        )
+        ),
+        // Always fetch full-year transactions for yearly chart investment
+        FinancialService.getYearTransactions(
+          new Date().getFullYear(),
+          naturezaFilter === 'all' ? undefined : naturezaFilter
+        ),
       ]);
 
       // Only apply state if this is still the latest fetch generation
@@ -75,6 +81,7 @@ const Financial = () => {
       setCategoryBreakdown(categories);
       setIncomeBreakdown(incomes);
       setTransactions(summary.transacoes);
+      setYearTransactions(yearTx);
 
       // If a month was requested, activate the flip now that fresh data is loaded
       if (requestedMonthRef.current) {
@@ -108,25 +115,25 @@ const Financial = () => {
      if (!yearlyPerformance?.meses) return [];
      const names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
      // Prepare investment sums per month
-     const investmentSums: Record<number, number> = {};
-     transactions.forEach(t => {
-       if (t.tipo === 'investimento') {
-         const date = new Date(t.data_transacao);
-         const monthIdx = date.getMonth();
-         investmentSums[monthIdx] = (investmentSums[monthIdx] || 0) + t.valor;
-       }
-     });
-     // Object.entries preserves order defined by backend (janeiro, fevereiro…)
-     return Object.entries(yearlyPerformance.meses).map(
-       ([monthKey, vals], idx) => ({
-         month: names[idx],
-         income: vals.entrada,
-         expenses: vals.saida,
-         profit: vals.entrada - vals.saida,
-         investment: investmentSums[idx] || 0
-       })
-     );
-   }, [yearlyPerformance, transactions]);
+      const investmentSums: Record<number, number> = {};
+      yearTransactions.forEach(t => {
+        if (t.tipo === 'investimento') {
+          const date = new Date(t.data_transacao);
+          const monthIdx = date.getMonth();
+          investmentSums[monthIdx] = (investmentSums[monthIdx] || 0) + t.valor;
+        }
+      });
+      // Object.entries preserves order defined by backend (janeiro, fevereiro…)
+      return Object.entries(yearlyPerformance.meses).map(
+        ([monthKey, vals], idx) => ({
+          month: names[idx],
+          income: vals.entrada,
+          expenses: vals.saida,
+          profit: vals.entrada - vals.saida,
+          investment: investmentSums[idx] || 0
+        })
+      );
+    }, [yearlyPerformance, yearTransactions]);
 
   // Handlers that reload data
   const handleAddTransaction = async (newTransaction: Transaction) => {
