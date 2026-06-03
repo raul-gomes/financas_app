@@ -137,44 +137,43 @@ export function FlippableChart({
           }}
         >
           <div className="flex flex-col h-full">
-            {/* Header */}
+            {/* Header + Legend combined in one row */}
             <div className="flex items-center justify-between shrink-0 px-2 pt-1">
               <span className="text-sm font-semibold text-foreground">
-                {monthLabel} - Dia a Dia
+                {monthLabel}
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onBackClick}
-                className="gap-1 text-xs h-7"
-              >
-                <ArrowLeft className="h-3 w-3" />
-                Voltar
-              </Button>
-            </div>
-            {/* Legend */}
-            <div className="shrink-0 flex justify-center gap-6 px-2 py-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="w-2.5 h-2.5 rounded-sm inline-block"
-                  style={{ background: 'hsl(var(--success))' }}
-                />
-                {formatCurrency(dailyTotals.income)}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="w-2.5 h-2.5 rounded-sm inline-block"
-                  style={{ background: 'hsl(var(--destructive))' }}
-                />
-                {formatCurrency(dailyTotals.expenses)}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="w-2.5 h-2.5 rounded-sm inline-block"
-                  style={{ background: 'hsl(var(--warning))' }}
-                />
-                {formatCurrency(dailyTotals.investment)}
-              </span>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-2.5 h-2.5 rounded-sm inline-block"
+                    style={{ background: 'hsl(var(--success))' }}
+                  />
+                  {formatCurrency(dailyTotals.income)}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-2.5 h-2.5 rounded-sm inline-block"
+                    style={{ background: 'hsl(var(--destructive))' }}
+                  />
+                  {formatCurrency(dailyTotals.expenses)}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-2.5 h-2.5 rounded-sm inline-block"
+                    style={{ background: 'hsl(var(--warning))' }}
+                  />
+                  {formatCurrency(dailyTotals.investment)}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onBackClick}
+                  className="gap-1 text-xs h-7 ml-2"
+                >
+                  <ArrowLeft className="h-3 w-3" />
+                  Voltar
+                </Button>
+              </div>
             </div>
             {/* Chart fills remaining */}
             <div className="flex-1 min-h-0">

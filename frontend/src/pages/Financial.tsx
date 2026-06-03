@@ -33,8 +33,8 @@ const Financial = () => {
   const [incomeBreakdown, setIncomeBreakdown] = useState<CategoryBreakdown | null>(null);
   const [selectedEntityType, setSelectedEntityType] = useState<'all' | 'pf' | 'pj'>('pf');
   const [selectedMonth, setSelectedMonth] = useState<SelectedMonth | null>(null);
-  const [pendingMonth, setPendingMonth] = useState<SelectedMonth | null>(null);
   const fetchGeneration = useRef(0);
+  const requestedMonthRef = useRef<SelectedMonth | null>(null);
 
 
   // Fetch financial data
@@ -75,6 +75,12 @@ const Financial = () => {
       setCategoryBreakdown(categories);
       setIncomeBreakdown(incomes);
       setTransactions(summary.transacoes);
+
+      // If a month was requested, activate the flip now that fresh data is loaded
+      if (requestedMonthRef.current) {
+        setSelectedMonth(requestedMonthRef.current);
+        requestedMonthRef.current = null;
+      }
     } catch (error) {
       if (gen === fetchGeneration.current) {
         console.error('Erro ao carregar dados:', error);
@@ -144,28 +150,20 @@ const Financial = () => {
       'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
     ];
-    // Don't set selectedMonth yet - wait for data to load
+    // Reset current flip and store the month in a ref
+    // The flip will be activated inside loadData when fresh data arrives
     setSelectedMonth(null);
-    setPendingMonth({ name: monthNames[monthIndex], index: monthIndex, year });
+    requestedMonthRef.current = {
+      name: monthNames[monthIndex],
+      index: monthIndex,
+      year,
+    };
   }, []);
 
   const handleBackClick = useCallback(() => {
     setSelectedMonth(null);
-    setPendingMonth(null);
+    requestedMonthRef.current = null;
   }, []);
-
-  // When fresh transactions arrive and we have a pending month, activate the flip
-  useEffect(() => {
-    if (!pendingMonth) return;
-    const hasMonthData = transactions.some((t) => {
-      const d = new Date(t.data_transacao);
-      return d.getMonth() === pendingMonth.index && d.getFullYear() === pendingMonth.year;
-    });
-    if (hasMonthData) {
-      setSelectedMonth(pendingMonth);
-      setPendingMonth(null);
-    }
-  }, [transactions, pendingMonth]);
 
   // Filter and sort transactions
   const filteredTransactions = useMemo(
