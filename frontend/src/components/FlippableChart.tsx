@@ -84,27 +84,27 @@ export function FlippableChart({
               Rendimento Anual
             </h3>
             {/* Legend */}
-            <div className="shrink-0 flex flex-wrap gap-x-4 gap-y-1 px-2 py-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
+            <div className="shrink-0 flex justify-center gap-6 px-2 py-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
                 <span
                   className="w-2.5 h-2.5 rounded-sm inline-block"
                   style={{ background: 'hsl(var(--success))' }}
                 />
-                Entradas: {formatCurrency(annualTotals.income)}
+                {formatCurrency(annualTotals.income)}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5">
                 <span
                   className="w-2.5 h-2.5 rounded-sm inline-block"
                   style={{ background: 'hsl(var(--destructive))' }}
                 />
-                Saidas: {formatCurrency(annualTotals.expenses)}
+                {formatCurrency(annualTotals.expenses)}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5">
                 <span
                   className="w-2.5 h-2.5 rounded-sm inline-block"
                   style={{ background: 'hsl(var(--warning))' }}
                 />
-                Investimento: {formatCurrency(annualTotals.investment)}
+                {formatCurrency(annualTotals.investment)}
               </span>
             </div>
             {/* Chart fills remaining */}
@@ -153,27 +153,27 @@ export function FlippableChart({
               </Button>
             </div>
             {/* Legend */}
-            <div className="shrink-0 flex flex-wrap gap-x-4 gap-y-1 px-2 py-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
+            <div className="shrink-0 flex justify-center gap-6 px-2 py-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
                 <span
                   className="w-2.5 h-2.5 rounded-sm inline-block"
                   style={{ background: 'hsl(var(--success))' }}
                 />
-                Entradas: {formatCurrency(dailyTotals.income)}
+                {formatCurrency(dailyTotals.income)}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5">
                 <span
                   className="w-2.5 h-2.5 rounded-sm inline-block"
                   style={{ background: 'hsl(var(--destructive))' }}
                 />
-                Saidas: {formatCurrency(dailyTotals.expenses)}
+                {formatCurrency(dailyTotals.expenses)}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5">
                 <span
                   className="w-2.5 h-2.5 rounded-sm inline-block"
                   style={{ background: 'hsl(var(--warning))' }}
                 />
-                Investimento: {formatCurrency(dailyTotals.investment)}
+                {formatCurrency(dailyTotals.investment)}
               </span>
             </div>
             {/* Chart fills remaining */}

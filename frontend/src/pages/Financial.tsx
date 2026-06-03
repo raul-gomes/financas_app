@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { TransactionList } from '@/components/TransactionList';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
 import {
@@ -33,10 +33,13 @@ const Financial = () => {
   const [incomeBreakdown, setIncomeBreakdown] = useState<CategoryBreakdown | null>(null);
   const [selectedEntityType, setSelectedEntityType] = useState<'all' | 'pf' | 'pj'>('pf');
   const [selectedMonth, setSelectedMonth] = useState<SelectedMonth | null>(null);
+  const [pendingMonth, setPendingMonth] = useState<SelectedMonth | null>(null);
+  const fetchGeneration = useRef(0);
 
 
   // Fetch financial data
   const loadData = useCallback(async () => {
+    const gen = ++fetchGeneration.current;
     try {
       const naturezaFilter = selectedEntityType;
 
@@ -64,13 +67,18 @@ const Financial = () => {
         )
       ]);
 
+      // Only apply state if this is still the latest fetch generation
+      if (gen !== fetchGeneration.current) return;
+
       setFinancialSummary(summary);
       setYearlyPerformance(yearly);
       setCategoryBreakdown(categories);
       setIncomeBreakdown(incomes);
       setTransactions(summary.transacoes);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      if (gen === fetchGeneration.current) {
+        console.error('Erro ao carregar dados:', error);
+      }
     }
   }, [selectedDateRange, selectedEntityType]);
 
@@ -136,12 +144,28 @@ const Financial = () => {
       'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
     ];
-    setSelectedMonth({ name: monthNames[monthIndex], index: monthIndex, year });
+    // Don't set selectedMonth yet - wait for data to load
+    setSelectedMonth(null);
+    setPendingMonth({ name: monthNames[monthIndex], index: monthIndex, year });
   }, []);
 
   const handleBackClick = useCallback(() => {
     setSelectedMonth(null);
+    setPendingMonth(null);
   }, []);
+
+  // When fresh transactions arrive and we have a pending month, activate the flip
+  useEffect(() => {
+    if (!pendingMonth) return;
+    const hasMonthData = transactions.some((t) => {
+      const d = new Date(t.data_transacao);
+      return d.getMonth() === pendingMonth.index && d.getFullYear() === pendingMonth.year;
+    });
+    if (hasMonthData) {
+      setSelectedMonth(pendingMonth);
+      setPendingMonth(null);
+    }
+  }, [transactions, pendingMonth]);
 
   // Filter and sort transactions
   const filteredTransactions = useMemo(
