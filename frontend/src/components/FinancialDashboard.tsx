@@ -189,7 +189,7 @@ export function FinancialDashboard({
       {/* Grafico de Barras - Rendimento Anual / Diario */}
       <Card className="shadow-card border-none">
         <div className="p-4">
-          <div className="w-full h-[350px]">
+          <div className="w-full h-[400px]">
             <FlippableChart
               yearlyData={yearlyData}
               dailyData={dailyData}

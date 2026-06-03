@@ -192,7 +192,7 @@ export function D3DailyChart({
   }
 
   return (
-    <div className="w-full h-[350px] overflow-x-auto">
+    <div className="w-full h-full overflow-x-auto">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
