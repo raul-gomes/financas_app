@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { D3PieChart } from './D3PieChart'
+import { AnimatedNumber } from './AnimatedNumber'
 import { Card } from '@/components/ui/card'
 import { TrendingUp } from 'lucide-react'
 import { CategoryBreakdown } from '@/types/financial'
@@ -60,7 +61,7 @@ export function IncomeChart({ breakdown }: IncomeChartProps) {
       <div className="mb-4 flex items-center justify-between">
         <span className="text-sm text-muted-foreground">Total de Entradas:</span>
         <span className="text-lg font-bold text-success">
-          {formatCurrency(incomeData.total)}
+          <AnimatedNumber value={incomeData.total} withDelay={200} />
         </span>
       </div>
 

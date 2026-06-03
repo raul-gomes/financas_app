@@ -126,7 +126,9 @@ export function D3HorizontalBarChart({
       ref={svgRef}
       width={width}
       height={height}
-      className="w-full h-auto"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMinYMid meet"
+      className="w-full h-auto max-w-full"
     />
   );
 }

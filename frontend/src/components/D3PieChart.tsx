@@ -30,7 +30,13 @@ export function D3PieChart({ data, width = 400, height = 300 }: D3PieChartProps)
 
     const g = svg
       .append('g')
-      .attr('transform', `translate(${width / 2}, ${height / 2})`);
+      .attr('transform', `translate(${width / 2}, ${height / 2}) rotate(-90)`);
+
+    // Schedule rotation animation
+    g.transition()
+      .duration(800)
+      .ease(d3.easeElasticOut.amplitude(0.6).period(0.4))
+      .attr('transform', `translate(${width / 2}, ${height / 2}) rotate(0)`);
 
     const pie = d3.pie<PieChartData>()
       .value(d => d.value)
@@ -64,14 +70,31 @@ export function D3PieChart({ data, width = 400, height = 300 }: D3PieChartProps)
       .append('g')
       .attr('class', 'arc');
 
-    arcs.append('path')
-      .attr('d', arc)
+    const paths = arcs.append('path')
       .attr('fill', d => d.data.color)
       .attr('stroke', 'white')
       .attr('stroke-width', 2)
       .style('opacity', 0.8)
       .style('cursor', 'pointer')
-      .on('mouseover', function(event, d: any) {
+      // Initial state: radius 0
+      .attr('d', d3.arc<d3.PieArcDatum<PieChartData>>().innerRadius(0).outerRadius(0) as any);
+
+    // Animate arcs growing out
+    paths.transition()
+      .delay(300)
+      .duration(600)
+      .ease(d3.easeBackOut.overshoot(0.5))
+      .attrTween('d', function(d) {
+        const interpolate = d3.interpolate(0, radius);
+        return function(t) {
+          return d3.arc<d3.PieArcDatum<PieChartData>>()
+            .innerRadius(0)
+            .outerRadius(interpolate(t))(d);
+        };
+      });
+
+    // Event handlers (on paths selection, not transition)
+    paths.on('mouseover', function(event, d: any) {
         d3.select(this)
           .transition()
           .duration(200)
@@ -148,7 +171,9 @@ export function D3PieChart({ data, width = 400, height = 300 }: D3PieChartProps)
       ref={svgRef}
       width={width}
       height={height}
-      style={{ background: 'transparent' }}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMinYMid meet"
+      style={{ background: 'transparent', maxWidth: '100%', height: 'auto' }}
     />
   );
 }

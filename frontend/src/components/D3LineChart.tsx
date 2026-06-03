@@ -124,7 +124,7 @@ export function D3LineChart({ data, width = 800, height = 250 }: D3LineChartProp
     // Y Axis
     g.append('g')
       .call(d3.axisLeft(yScale)
-        .tickFormat(d => `R$ ${(d as number / 1000).toFixed(0)}k`))
+        .tickFormat(d => `R$ ${(Number(d) / 1000).toFixed(0)}k`))
       .selectAll('text')
       .attr('fill', 'hsl(var(--muted-foreground))')
       .style('font-size', '12px');
@@ -184,7 +184,9 @@ export function D3LineChart({ data, width = 800, height = 250 }: D3LineChartProp
         ref={svgRef}
         width={width}
         height={height}
-        className="w-full h-full"
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="xMinYMid meet"
+        className="w-full h-auto max-w-full"
       />
     </div>
   );

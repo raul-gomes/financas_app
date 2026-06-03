@@ -1,9 +1,9 @@
 
 import { Card } from 'primereact/card';
-import { Tag } from 'primereact/tag';
 import { ProgressBar } from 'primereact/progressbar';
 import { D3BarChart } from './D3BarChart';
 import { IncomeChart } from './IncomeChart';
+import { AnimatedNumber } from './AnimatedNumber';
 import { TrendingUp, BarChart, Send, CreditCard, Banknote } from 'lucide-react';
 import { YearlyData, CategoryExpense, CategoryBreakdown, Transaction } from '@/types/financial';
 
@@ -105,7 +105,9 @@ export function FinancialDashboard({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Pix</p>
-                  <p className="text-xl font-bold text-foreground">{formatCurrency(pixTotal)}</p>
+                  <p className="text-xl font-bold text-foreground">
+                    <AnimatedNumber value={pixTotal} withDelay={100} />
+                  </p>
                 </div>
                 <Send className="h-6 w-6 text-primary/70" />
               </div>
@@ -118,7 +120,9 @@ export function FinancialDashboard({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Cartão de Crédito</p>
-                  <p className="text-xl font-bold text-foreground">{formatCurrency(creditTotal)}</p>
+                  <p className="text-xl font-bold text-foreground">
+                    <AnimatedNumber value={creditTotal} withDelay={250} />
+                  </p>
                 </div>
                 <CreditCard className="h-6 w-6 text-success/70" />
               </div>
@@ -131,7 +135,9 @@ export function FinancialDashboard({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Cartão de Débito</p>
-                  <p className="text-xl font-bold text-foreground">{formatCurrency(debitTotal)}</p>
+                  <p className="text-xl font-bold text-foreground">
+                    <AnimatedNumber value={debitTotal} withDelay={400} />
+                  </p>
                 </div>
                 <Banknote className="h-6 w-6 text-destructive/70" />
               </div>
@@ -146,7 +152,7 @@ export function FinancialDashboard({
               <BarChart className="h-5 w-5" />
               Rendimento Anual
             </h3>
-          <div className="w-full h-[350px] overflow-hidden">
+          <div className="w-full h-[350px] overflow-x-auto">
             <D3BarChart
               data={yearlyData}
               width={900}     // largura do viewBox
@@ -231,7 +237,7 @@ export function FinancialDashboard({
                                     backgroundColor: bgColor
                                   }}
                                 >
-                                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded shadow-lg text-xs opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap pointer-events-auto">
+                                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded shadow-lg text-xs opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap pointer-events-auto max-w-[90vw]">
                                     <div className="font-medium">{subcat}</div>
                                     <div className="text-muted-foreground">
                                       {formatCurrency(amount)}

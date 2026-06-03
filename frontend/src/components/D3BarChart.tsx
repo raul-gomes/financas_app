@@ -61,50 +61,74 @@ export function D3BarChart({
       .attr('stroke-dasharray', '3,3')
       .attr('opacity', 0.3);
 
-    // Income bars (green)
+    // Income bars (green) - animated
     g.selectAll('.income-bar')
       .data(processedData)
       .enter()
       .append('rect')
       .attr('class', 'income-bar')
       .attr('x', d => xScale(d.month)! + (xScale.bandwidth() / 3) * 0 + 2)
-      .attr('y', d => yScale(d.income))
       .attr('width', (xScale.bandwidth() / 3) - 4)
-      .attr('height', d => innerHeight - yScale(d.income))
       .attr('fill', 'hsl(var(--success))')
-      .attr('rx', 2);
+      .attr('rx', 2)
+      // Start at bottom
+      .attr('y', innerHeight)
+      .attr('height', 0)
+      // Transition up
+      .transition()
+      .delay((d, i) => i * 80)
+      .duration(600)
+      .ease(d3.easeElasticOut.amplitude(0.5).period(0.3))
+      .attr('y', d => yScale(d.income))
+      .attr('height', d => innerHeight - yScale(d.income));
 
-    // Expense bars (red)
+    // Expense bars (red) - animated
     g.selectAll('.expense-bar')
       .data(processedData)
       .enter()
       .append('rect')
       .attr('class', 'expense-bar')
       .attr('x', d => xScale(d.month)! + (xScale.bandwidth() / 3) * 1 + 2)
-      .attr('y', d => yScale(d.expenses))
       .attr('width', (xScale.bandwidth() / 3) - 4)
+      .attr('fill', 'hsl(var(--destructive))')
+      .attr('rx', 2)
+      // Start at bottom
+      .attr('y', innerHeight)
+      .attr('height', 0)
+      // Transition up
+      .transition()
+      .delay((d, i) => i * 80 + 30)
+      .duration(600)
+      .ease(d3.easeElasticOut.amplitude(0.5).period(0.3))
+      .attr('y', d => yScale(d.expenses))
       .attr('height', d => {
         const h = innerHeight - yScale(d.expenses);
         return h > 2 ? h : 2;
-      })
-      .attr('fill', 'hsl(var(--destructive))')
-      .attr('rx', 2);
+      });
 
-    // Investment bars (yellow)
+    // Investment bars (yellow) - animated
     g.selectAll('.investment-bar')
       .data(processedData)
       .enter()
       .append('rect')
       .attr('class', 'investment-bar')
       .attr('x', d => xScale(d.month)! + (xScale.bandwidth() / 3) * 2 + 2)
-      .attr('y', d => yScale(d.investment))
       .attr('width', (xScale.bandwidth() / 3) - 4)
+      .attr('fill', 'hsl(var(--warning))')
+      .attr('rx', 2)
+      // Start at bottom
+      .attr('y', innerHeight)
+      .attr('height', 0)
+      // Transition up
+      .transition()
+      .delay((d, i) => i * 80 + 60)
+      .duration(600)
+      .ease(d3.easeElasticOut.amplitude(0.5).period(0.3))
+      .attr('y', d => yScale(d.investment))
       .attr('height', d => {
         const h = innerHeight - yScale(d.investment);
         return h > 2 ? h : 2;
-      })
-      .attr('fill', 'hsl(var(--warning))')
-      .attr('rx', 2);
+      });
 
     // Monthly goal line
     if (monthlyGoal > 0) {
@@ -177,7 +201,8 @@ export function D3BarChart({
       .style('font-size', '12px')
       .style('box-shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1)')
       .style('z-index', '1000')
-      .style('pointer-events', 'none');
+      .style('pointer-events', 'none')
+      .style('max-width', '90vw');
 
     // Add hover and click effects
     g.selectAll('.income-bar, .expense-bar, .investment-bar')

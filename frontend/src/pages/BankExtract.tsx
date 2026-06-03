@@ -205,7 +205,7 @@ const BankExtract = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-card rounded-lg p-4 border border-border">
             <p className="text-sm text-muted-foreground">Total de Transacoes</p>
             <p className="text-2xl font-bold text-foreground">{uploadResult.total}</p>
@@ -245,7 +245,7 @@ const BankExtract = () => {
                   return (
                     <tr key={index} className="hover:bg-muted/30">
                       <td className="px-4 py-3 text-sm text-foreground">{trans.data}</td>
-                      <td className="px-4 py-3 text-sm text-foreground max-w-xs truncate">{trans.descricao}</td>
+                      <td className="px-4 py-3 text-sm text-foreground max-w-0 lg:max-w-xs min-w-0 truncate">{trans.descricao}</td>
                       <td className={`px-4 py-3 text-sm font-medium ${trans.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
                         {trans.tipo === 'saida' ? '-' : ''}{formatCurrency(trans.valor)}
                       </td>

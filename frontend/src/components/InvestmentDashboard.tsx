@@ -2,6 +2,7 @@ import { Card } from 'primereact/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { D3LineChart } from './D3LineChart';
 import { D3HorizontalBarChart } from './D3HorizontalBarChart';
+import { AnimatedNumber } from './AnimatedNumber';
 import { TrendingUp, DollarSign, PiggyBank, Building2, TrendingDown, BarChart3 } from 'lucide-react';
 import { Investment, PortfolioEvolution } from '@/types/financial';
 
@@ -98,7 +99,9 @@ export function InvestmentDashboard({
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Total Investido</p>
-                <p className="text-lg font-bold text-success">{formatCurrency(totalInvested)}</p>
+                <p className="text-lg font-bold text-success">
+                  <AnimatedNumber value={totalInvested} withDelay={100} />
+                </p>
                 <p className={`text-xs ${totalProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
                   {formatPercentage(totalProfitPercentage)}
                 </p>
@@ -113,7 +116,9 @@ export function InvestmentDashboard({
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Renda de FIIs</p>
-                <p className="text-lg font-bold text-foreground">{formatCurrency(fiisTotal)}</p>
+                <p className="text-lg font-bold text-foreground">
+                  <AnimatedNumber value={fiisTotal} withDelay={250} />
+                </p>
                 <p className={`text-xs ${fiisProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
                   {formatCurrency(fiisProfit)}
                 </p>
@@ -129,7 +134,7 @@ export function InvestmentDashboard({
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Lucro/Prejuízo</p>
                 <p className={`text-lg font-bold ${totalProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {formatCurrency(totalProfit)}
+                  <AnimatedNumber value={totalProfit} withDelay={400} />
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {totalProfit >= 0 ? 'Lucro' : 'Prejuízo'}
@@ -155,7 +160,7 @@ export function InvestmentDashboard({
             </h3>
             <D3LineChart 
               data={portfolioEvolution}
-              width={600}
+              width={undefined}
               height={300}
             />
           </div>
@@ -170,7 +175,7 @@ export function InvestmentDashboard({
             </h3>
             <D3HorizontalBarChart 
               data={categoryData}
-              width={600}
+              width={undefined}
               height={280}
             />
           </div>

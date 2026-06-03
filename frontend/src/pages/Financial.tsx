@@ -17,8 +17,10 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Financial = () => {
+  const isMobile = useIsMobile();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [yearlyPerformance, setYearlyPerformance] = useState<YearlyPerformance | null>(null);
@@ -160,7 +162,7 @@ const Financial = () => {
               <Button
                 variant="outline"
                 className={cn(
-                  "w-[260px] justify-start text-left font-normal",
+                  "w-full max-w-[260px] justify-start text-left font-normal",
                   "flex items-center gap-2 mb-4"
                 )}
               >
@@ -190,14 +192,14 @@ const Financial = () => {
                     });
                   }
                 }}
-                numberOfMonths={2}
+                numberOfMonths={isMobile ? 1 : 2}
                 className="p-3 pointer-events-auto"
               />
             </PopoverContent>
           </Popover>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8 lg:h-[calc(100vh-200px)]">
           {/* Dashboard */}
           <div className="lg:col-span-3 animate-fade-in">
             <FinancialDashboard

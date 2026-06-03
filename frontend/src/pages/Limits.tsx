@@ -295,7 +295,7 @@ const RecorrentesTab = () => {
                     <p className="text-muted-foreground">Nenhuma conta recorrente cadastrada.</p>
                 </div>
             ) : (
-                <div className="bg-card rounded-lg border border-border overflow-hidden">
+                <div className="bg-card rounded-lg border border-border overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-muted/50 border-b border-border">
                             <tr>
@@ -390,7 +390,7 @@ const ContaForm = ({ conta, categoryOptions, onClose, onSubmit }: {
         <Card className="border border-border">
             <CardHeader><CardTitle>{conta ? 'Editar Conta Recorrente' : 'Nova Conta Recorrente'}</CardTitle></CardHeader>
             <CardContent>
-                <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>Descricao</Label><Input value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} required /></div>
                     <div className="space-y-2"><Label>Valor</Label><Input type="number" step="0.01" value={form.valor} onChange={e => setForm({...form, valor: e.target.value})} required /></div>
                     <div className="space-y-2"><Label>Dia Vencimento</Label><Input type="number" min="1" max="31" value={form.dia_vencimento} onChange={e => setForm({...form, dia_vencimento: e.target.value})} required /></div>
@@ -441,7 +441,7 @@ const ContaForm = ({ conta, categoryOptions, onClose, onSubmit }: {
 
 // ===== Main Page =====
 const Limits = () => (
-    <div className="min-h-screen bg-gradient-subtle p-6 space-y-8">
+    <div className="min-h-screen bg-gradient-subtle px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         <div className="max-w-6xl mx-auto">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold">Configurações</h1>
