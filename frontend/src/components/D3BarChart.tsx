@@ -284,7 +284,7 @@ export function D3BarChart({
   }, [data, dims, monthlyGoal]);
 
   return (
-    <div ref={wrapperRef} className="w-full h-full">
+    <div ref={wrapperRef} className="w-full min-h-[300px]" style={{ height: '100%' }}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${dims.width} ${dims.height}`}

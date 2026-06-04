@@ -132,7 +132,7 @@ export function FinancialDashboard({
       </div>
 
       {/* Grafico de Barras - Rendimento Anual / Diario */}
-      <Card className="shadow-card border-none flex-1 min-h-0">
+      <div className="shadow-card border-none flex-1 min-h-0 rounded-lg bg-card">
         <div className="px-4 py-2 h-full">
           <FlippableChart
             yearlyData={yearlyData}
@@ -143,7 +143,7 @@ export function FinancialDashboard({
             onBackClick={onBackClick}
           />
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

@@ -215,14 +215,14 @@ export function D3DailyChart({
 
   if (!data.length) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+      <div className="flex items-center justify-center min-h-[200px] text-muted-foreground text-sm">
         Nenhum dado disponível para {selectedMonth || 'este período'}.
       </div>
     );
   }
 
   return (
-    <div ref={wrapperRef} className="w-full h-full">
+    <div ref={wrapperRef} className="w-full min-h-[260px]" style={{ height: '100%' }}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${dims.width} ${dims.height}`}

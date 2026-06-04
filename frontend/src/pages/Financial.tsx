@@ -3,6 +3,7 @@ import { TransactionList } from '@/components/TransactionList';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { IncomeChart } from '@/components/IncomeChart';
 import { CategoryBreakdownSection } from '@/components/CategoryBreakdownSection';
+import { Card } from 'primereact/card';
 import {
   Transaction,
   MonthlyBalance,
@@ -196,7 +197,7 @@ const Financial = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 ">
+      <main className="max-w-[90vw] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 ">
         {/* Date Range Picker */}
         <div className="w-full flex justify-end mb-4">
           <Popover>
@@ -241,7 +242,7 @@ const Financial = () => {
           </Popover>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-8 lg:h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8 lg:h-[calc(100vh-200px)]">
           {/* Dashboard */}
           <div className="lg:col-span-3 animate-fade-in">
             <FinancialDashboard
@@ -257,7 +258,7 @@ const Financial = () => {
             />
           </div>
           {/* Transactions List */}
-          <div className="lg:col-span-1 animate-slide-up">
+          <div className="lg:col-span-2 animate-slide-up">
             <div className="bg-card rounded-lg shadow-card border border-border h-full">
               <TransactionList
                 transactions={sortedTransactions}
@@ -276,10 +277,12 @@ const Financial = () => {
 
         {/* Bottom section: Income + Category charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <IncomeChart
-            breakdown={incomeBreakdown}
-            dateRange={selectedDateRange}
-          />
+          <Card className="shadow-card border-none h-full">
+            <IncomeChart
+              breakdown={incomeBreakdown}
+              dateRange={selectedDateRange}
+            />
+          </Card>
           <CategoryBreakdownSection
             categoryBreakdown={categoryBreakdown}
           />
