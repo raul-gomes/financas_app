@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { YearlyData } from '@/types/financial';
 
@@ -12,12 +12,27 @@ interface D3BarChartProps {
 
 export function D3BarChart({ 
   data, 
-  width = 800, 
-  height = 350, 
+  width = 900, 
+  height = 420, 
   monthlyGoal = 0,
   onBarClick
 }: D3BarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [dims, setDims] = useState({ width, height });
+
+  // ResizeObserver to make the chart responsive
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const w = entry.contentRect.width;
+      const h = Math.max(w * 0.48, 300);
+      setDims({ width: Math.round(w), height: Math.round(h) });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!svgRef.current || !data.length) return;
@@ -25,9 +40,9 @@ export function D3BarChart({
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove(); // Clear previous chart
 
-    const margin = { top: 20, right: 30, left: 60, bottom: 40 };
-    const innerWidth = width - margin.left - margin.right;
-    const innerHeight = height - margin.top - margin.bottom;
+    const margin = { top: 24, right: 36, left: 72, bottom: 48 };
+    const innerWidth = dims.width - margin.left - margin.right;
+    const innerHeight = dims.height - margin.top - margin.bottom;
 
     // Use data as is
     const processedData = data;
@@ -70,7 +85,7 @@ export function D3BarChart({
       .attr('x', d => xScale(d.month)! + (xScale.bandwidth() / 3) * 0 + 2)
       .attr('width', (xScale.bandwidth() / 3) - 4)
       .attr('fill', 'hsl(var(--success))')
-      .attr('rx', 2)
+      .attr('rx', 3)
       // Start at bottom
       .attr('y', innerHeight)
       .attr('height', 0)
@@ -91,7 +106,7 @@ export function D3BarChart({
       .attr('x', d => xScale(d.month)! + (xScale.bandwidth() / 3) * 1 + 2)
       .attr('width', (xScale.bandwidth() / 3) - 4)
       .attr('fill', 'hsl(var(--destructive))')
-      .attr('rx', 2)
+      .attr('rx', 3)
       // Start at bottom
       .attr('y', innerHeight)
       .attr('height', 0)
@@ -115,7 +130,7 @@ export function D3BarChart({
       .attr('x', d => xScale(d.month)! + (xScale.bandwidth() / 3) * 2 + 2)
       .attr('width', (xScale.bandwidth() / 3) - 4)
       .attr('fill', 'hsl(var(--warning))')
-      .attr('rx', 2)
+      .attr('rx', 3)
       // Start at bottom
       .attr('y', innerHeight)
       .attr('height', 0)
@@ -138,7 +153,7 @@ export function D3BarChart({
         .attr('x2', innerWidth)
         .attr('y1', yScale(monthlyGoal))
         .attr('y2', yScale(monthlyGoal))
-        .attr('stroke', '#ef4444') // Vermelho proeminente
+        .attr('stroke', '#ef4444')
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '5,5');
 
@@ -148,7 +163,7 @@ export function D3BarChart({
         .attr('y', yScale(monthlyGoal) - 5)
         .attr('text-anchor', 'end')
         .attr('fill', 'hsl(var(--destructive))')
-        .style('font-size', '12px')
+        .style('font-size', '13px')
         .style('font-weight', 'bold')
         .text(`Limite: R$ ${monthlyGoal.toLocaleString('pt-BR')}`);
 
@@ -187,7 +202,21 @@ export function D3BarChart({
       .call(d3.axisBottom(xScale).tickFormat(d => d.toString()))
       .selectAll('text')
       .attr('fill', 'hsl(var(--muted-foreground))')
-      .style('font-size', '12px');
+      .style('font-size', '14px');
+
+    // Y Axis
+    g.append('g')
+      .call(d3.axisLeft(yScale).ticks(6).tickFormat(d => {
+        if (d >= 1000) return `${(d / 1000).toFixed(0)}k`;
+        return d.toString();
+      }))
+      .selectAll('text')
+      .attr('fill', 'hsl(var(--muted-foreground))')
+      .style('font-size', '13px');
+
+    // Remove axis lines
+    g.selectAll('.domain').remove();
+    g.selectAll('.tick line').remove();
 
     // Tooltip
     const tooltip = d3.select('body').append('div')
@@ -197,8 +226,8 @@ export function D3BarChart({
       .style('background', 'hsl(var(--card))')
       .style('border', '1px solid hsl(var(--border))')
       .style('border-radius', '8px')
-      .style('padding', '8px')
-      .style('font-size', '12px')
+      .style('padding', '10px')
+      .style('font-size', '13px')
       .style('box-shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1)')
       .style('z-index', '1000')
       .style('pointer-events', 'none')
@@ -252,13 +281,13 @@ export function D3BarChart({
     return () => {
       d3.selectAll('.tooltip').remove();
     };
-  }, [data, width, height, monthlyGoal]);
+  }, [data, dims, monthlyGoal]);
 
   return (
-    <div className="w-full h-full overflow-x-auto">
+    <div ref={wrapperRef} className="w-full h-full">
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={`0 0 ${dims.width} ${dims.height}`}
         preserveAspectRatio="xMinYMin meet"
         className="w-full h-full"
       />

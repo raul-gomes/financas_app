@@ -49,7 +49,7 @@ export function FlippableChart({
   return (
     <div
       className="flip-container"
-      style={{ perspective: '1000px', width: '100%', height: '400px' }}
+      style={{ perspective: '1000px', width: '100%', height: '100%' }}
     >
       <div
         className="flip-inner"

@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { TransactionList } from '@/components/TransactionList';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
+import { IncomeChart } from '@/components/IncomeChart';
+import { CategoryBreakdownSection } from '@/components/CategoryBreakdownSection';
 import {
   Transaction,
   MonthlyBalance,
@@ -239,13 +241,11 @@ const Financial = () => {
           </Popover>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8 lg:h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-8 lg:h-[calc(100vh-200px)]">
           {/* Dashboard */}
           <div className="lg:col-span-3 animate-fade-in">
             <FinancialDashboard
               yearlyData={yearlyData}
-              categoryBreakdown={categoryBreakdown}
-              incomeBreakdown={incomeBreakdown}
               totalInvested={monthlyBalance?.balance || 0}
               monthlyGoal={financialSummary?.meta_mensal || 0}
               currentMonthExpenses={currentPeriodExpenses}
@@ -257,7 +257,7 @@ const Financial = () => {
             />
           </div>
           {/* Transactions List */}
-          <div className="lg:col-span-2 animate-slide-up">
+          <div className="lg:col-span-1 animate-slide-up">
             <div className="bg-card rounded-lg shadow-card border border-border h-full">
               <TransactionList
                 transactions={sortedTransactions}
@@ -272,6 +272,17 @@ const Financial = () => {
               />
             </div>
           </div>
+        </div>
+
+        {/* Bottom section: Income + Category charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <IncomeChart
+            breakdown={incomeBreakdown}
+            dateRange={selectedDateRange}
+          />
+          <CategoryBreakdownSection
+            categoryBreakdown={categoryBreakdown}
+          />
         </div>
       </main>
     </div>
