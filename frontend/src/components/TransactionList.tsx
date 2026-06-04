@@ -150,52 +150,53 @@ export function TransactionList({
             className="bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors"
             onClick={() => handleItemClick(t.id)}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "p-2 rounded-lg",
-                  t.tipo === 'entrada' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
-                )}>
-                  {t.tipo === 'entrada' ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-                </div>
+            {/* Top row: icon + description + value + delete */}
+            <div className="flex items-start gap-3">
+              <div className={cn(
+                "p-2 rounded-lg shrink-0",
+                t.tipo === 'entrada' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
+              )}>
+                {t.tipo === 'entrada' ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+              </div>
 
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">{t.descricao}</p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                    <Badge variant='outline'><span>{format(new Date(t.data_transacao), 'dd/MM/yyyy')}</span></Badge>
-                    <Badge variant={t.natureza === 'pj' ? 'default' : 'secondary'} className="text-xs">
-                      {t.natureza.toUpperCase()}
-                    </Badge>
-                    <span>{t.total_parcelas && t.total_parcelas > 1 && (
-                      <span>
-                        <Badge>
-                          {t.parcela}/{t.total_parcelas}
-                        </Badge>
-                      </span>
-                    )}</span>
-                    <span className="text-slate-400">• {t.categoria_nome}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-foreground truncate">{t.descricao}</p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <p className={cn("font-semibold text-lg", t.tipo === 'entrada' ? 'text-success' : 'text-destructive')}>
+                      {formatCurrency(t.valor)}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 focus-visible:bg-destructive/20 shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDeleteTransaction(t.id)
+                      }}
+                      aria-label="Excluir transação"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              </div>
-                          <div>
-              <p className={cn("mt-2 font-semibold text-lg", t.tipo === 'entrada' ? 'text-success' : 'text-destructive')}>
-                {t.tipo === 'entrada' ? '' : ''}{formatCurrency(t.valor)}
-              </p>
-            </div>
 
-              {/* Somente botão excluir */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 focus-visible:bg-destructive/20"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDeleteTransaction(t.id)
-                }}
-                aria-label="Excluir transação"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+                {/* Bottom row: badges */}
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
+                  <Badge variant='outline' className="shrink-0">
+                    {format(new Date(t.data_transacao), 'dd/MM/yyyy')}
+                  </Badge>
+                  <Badge variant={t.natureza === 'pj' ? 'default' : 'secondary'} className="text-xs shrink-0">
+                    {t.natureza.toUpperCase()}
+                  </Badge>
+                  {t.total_parcelas && t.total_parcelas > 1 && (
+                    <Badge className="shrink-0">
+                      {t.parcela}/{t.total_parcelas}
+                    </Badge>
+                  )}
+                  <span className="text-slate-400 truncate">• {t.categoria_nome}</span>
+                </div>
+              </div>
             </div>
 
           </div>
