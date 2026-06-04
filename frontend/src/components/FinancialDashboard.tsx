@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { Card } from 'primereact/card';
 import { FlippableChart } from './FlippableChart';
+import { IncomeChart } from './IncomeChart';
+import { CategoryBreakdownSection } from './CategoryBreakdownSection';
 import { AnimatedNumber } from './AnimatedNumber';
 import { Send, CreditCard, Banknote } from 'lucide-react';
 import {
@@ -8,6 +10,7 @@ import {
   DailyData,
   SelectedMonth,
   Transaction,
+  CategoryBreakdown,
 } from '@/types/financial';
 
 interface FinancialDashboardProps {
@@ -18,6 +21,8 @@ interface FinancialDashboardProps {
   dateRange: { from: Date; to: Date };
   transactions: (Transaction & { id: string })[];
   selectedMonth: SelectedMonth | null;
+  incomeBreakdown: CategoryBreakdown | null;
+  categoryBreakdown: CategoryBreakdown | null;
   onMonthSelect?: (monthIndex: number, year: number) => void;
   onBackClick: () => void;
 }
@@ -30,6 +35,8 @@ export function FinancialDashboard({
   dateRange,
   transactions,
   selectedMonth,
+  incomeBreakdown,
+  categoryBreakdown,
   onMonthSelect,
   onBackClick,
 }: FinancialDashboardProps) {
@@ -82,7 +89,7 @@ export function FinancialDashboard({
     .reduce((sum, t) => sum + t.valor, 0);
 
   return (
-    <div className="flex flex-col h-full gap-4">
+    <div className="flex flex-col h-full gap-4 overflow-y-auto">
       {/* Métricas Principais */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
         {/* Pix Card */}
@@ -132,8 +139,8 @@ export function FinancialDashboard({
       </div>
 
       {/* Grafico de Barras - Rendimento Anual / Diario */}
-      <div className="shadow-card border-none flex-1 min-h-0 rounded-lg bg-card">
-        <div className="px-4 py-2 h-full">
+      <div className="shadow-card border-none rounded-lg bg-card flex-shrink-0" style={{ maxHeight: '420px' }}>
+        <div className="px-4 py-2 h-[400px]">
           <FlippableChart
             yearlyData={yearlyData}
             dailyData={dailyData}
@@ -143,6 +150,19 @@ export function FinancialDashboard({
             onBackClick={onBackClick}
           />
         </div>
+      </div>
+
+      {/* Income + Category charts in a 2-column grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0">
+        <Card className="shadow-card border-none">
+          <IncomeChart
+            breakdown={incomeBreakdown}
+            dateRange={dateRange}
+          />
+        </Card>
+        <CategoryBreakdownSection
+          categoryBreakdown={categoryBreakdown}
+        />
       </div>
     </div>
   );

@@ -1,9 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { TransactionList } from '@/components/TransactionList';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
-import { IncomeChart } from '@/components/IncomeChart';
-import { CategoryBreakdownSection } from '@/components/CategoryBreakdownSection';
-import { Card } from 'primereact/card';
 import {
   Transaction,
   MonthlyBalance,
@@ -253,6 +250,8 @@ const Financial = () => {
               dateRange={selectedDateRange}
               transactions={sortedTransactions}
               selectedMonth={selectedMonth}
+              incomeBreakdown={incomeBreakdown}
+              categoryBreakdown={categoryBreakdown}
               onMonthSelect={handleMonthSelect}
               onBackClick={handleBackClick}
             />
@@ -273,19 +272,6 @@ const Financial = () => {
               />
             </div>
           </div>
-        </div>
-
-        {/* Bottom section: Income + Category charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="shadow-card border-none h-full">
-            <IncomeChart
-              breakdown={incomeBreakdown}
-              dateRange={selectedDateRange}
-            />
-          </Card>
-          <CategoryBreakdownSection
-            categoryBreakdown={categoryBreakdown}
-          />
         </div>
       </main>
     </div>
