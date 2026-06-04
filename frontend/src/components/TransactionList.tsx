@@ -154,16 +154,23 @@ export function TransactionList({
             <div className="flex items-start gap-3">
               <div className={cn(
                 "p-2 rounded-lg shrink-0",
-                t.tipo === 'entrada' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
+                t.tipo === 'entrada' ? 'bg-success/10 text-success' : 
+                t.tipo === 'investimento' ? 'bg-warning/10 text-warning' : 
+                'bg-destructive/10 text-destructive'
               )}>
-                {t.tipo === 'entrada' ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+                {t.tipo === 'entrada' ? <ArrowUpRight className="h-4 w-4" /> : 
+                 t.tipo === 'investimento' ? <ArrowUpRight className="h-4 w-4" /> : 
+                 <ArrowDownRight className="h-4 w-4" />}
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-foreground truncate">{t.descricao}</p>
                   <div className="flex items-center gap-2 shrink-0">
-                    <p className={cn("font-semibold text-lg", t.tipo === 'entrada' ? 'text-success' : 'text-destructive')}>
+                    <p className={cn("font-semibold text-lg", 
+                      t.tipo === 'entrada' ? 'text-success' : 
+                      t.tipo === 'investimento' ? 'text-warning' : 
+                      'text-destructive')}>
                       {formatCurrency(t.valor)}
                     </p>
                     <Button
