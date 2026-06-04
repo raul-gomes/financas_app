@@ -1,7 +1,6 @@
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card } from 'primereact/card';
-import { ProgressBar } from 'primereact/progressbar';
 import { FlippableChart } from './FlippableChart';
 import { IncomeChart } from './IncomeChart';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -82,6 +81,15 @@ export function FinancialDashboard({
 
     return days;
   }, [transactions, selectedMonth]);
+
+  const [animateBars, setAnimateBars] = useState(false);
+
+  // Trigger bar fill animation whenever category data changes
+  useEffect(() => {
+    setAnimateBars(false);
+    const timer = setTimeout(() => setAnimateBars(true), 50);
+    return () => clearTimeout(timer);
+  }, [categoryBreakdown]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -234,10 +242,19 @@ export function FinancialDashboard({
                       </div>
                       <div className="text-right">
                         <p className="font-semibold">
-                          {formatCurrency(category.amount)}
+                          <AnimatedNumber
+                            value={category.amount}
+                            withDelay={100 + idxCat * 150}
+                          />
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {category.percentage.toFixed(1)}%
+                          <AnimatedNumber
+                            value={category.percentage}
+                            duration={800}
+                            format={(v) => v.toFixed(1)}
+                            suffix="%"
+                            withDelay={200 + idxCat * 150}
+                          />
                         </p>
                       </div>
                     </div>
@@ -271,7 +288,8 @@ export function FinancialDashboard({
                                   key={subcat}
                                   className="h-full relative group"
                                   style={{
-                                    width: `${widthPercent}%`,
+                                    width: animateBars ? `${widthPercent}%` : '0%',
+                                    transition: 'width 1s cubic-bezier(0.25, 0.1, 0.25, 1)',
                                     backgroundColor: bgColor
                                   }}
                                 >
@@ -290,7 +308,8 @@ export function FinancialDashboard({
                              <div 
                                 className="h-full bg-muted/30 relative group flex-1"
                                 style={{ 
-                                    width: `${Math.max(0, 100 - (category.amount / category.subcategories.limite * 100))}%`
+                                    width: animateBars ? `${Math.max(0, 100 - (category.amount / category.subcategories.limite * 100))}%` : '0%',
+                                    transition: 'width 1s cubic-bezier(0.25, 0.1, 0.25, 1)',
                                 }}
                              >
                                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded shadow-lg text-xs opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap pointer-events-auto">
@@ -303,11 +322,16 @@ export function FinancialDashboard({
                           )}
                         </div>
                       ) : (
-                        <ProgressBar
-                          value={category.percentage}
-                          className="h-3 bg-gray-200"
-                          showValue={false}
-                        />
+                        <div className="h-3 rounded bg-muted/30 overflow-hidden">
+                          <div
+                            className="h-full rounded"
+                            style={{
+                              width: animateBars ? `${category.percentage}%` : '0%',
+                              transition: 'width 1s cubic-bezier(0.25, 0.1, 0.25, 1)',
+                              backgroundColor: category.color,
+                            }}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>

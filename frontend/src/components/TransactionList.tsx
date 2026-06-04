@@ -12,6 +12,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { Transaction, MonthlyBalance } from '@/types/financial';
+import { AnimatedNumber } from './AnimatedNumber';
 import { AddTransactionDialog } from './AddTransactionDialog';
 import { EditTransactionDialog } from './EditTransactionDialog';
 import { ExtratoDialog } from './ExtratoDialog';
@@ -65,24 +66,28 @@ export function TransactionList({
     <div className="h-full flex flex-col p-6">
       {/* Indicadores de Balanço */}
       <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-success/10 border border-success/20 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <ArrowUpRight className="h-5 w-5 text-success" />
-            <div>
-              <p className="text-sm text-muted-foreground">Entradas</p>
-              <p className="text-lg font-semibold text-success">{formatCurrency(monthlyBalance.income)}</p>
+          <div className="bg-success/10 border border-success/20 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <ArrowUpRight className="h-5 w-5 text-success" />
+              <div>
+                <p className="text-sm text-muted-foreground">Entradas</p>
+                <p className="text-lg font-semibold text-success">
+                  <AnimatedNumber value={monthlyBalance.income} withDelay={100} />
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <ArrowDownRight className="h-5 w-5 text-destructive" />
-            <div>
-              <p className="text-sm text-muted-foreground">Saídas</p>
-              <p className="text-lg font-semibold text-destructive">{formatCurrency(monthlyBalance.expenses)}</p>
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <ArrowDownRight className="h-5 w-5 text-destructive" />
+              <div>
+                <p className="text-sm text-muted-foreground">Saídas</p>
+                <p className="text-lg font-semibold text-destructive">
+                  <AnimatedNumber value={monthlyBalance.expenses} withDelay={250} />
+                </p>
+              </div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Header e Botões */}
