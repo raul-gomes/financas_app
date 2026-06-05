@@ -194,7 +194,7 @@ const Financial = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      <main className="max-w-[90vw] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 ">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Date Range Picker */}
         <div className="w-full flex justify-end mb-4">
           <Popover>
