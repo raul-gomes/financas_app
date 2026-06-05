@@ -27,7 +27,7 @@ export function D3DailyChart({
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width;
-      const h = Math.max(w * 0.44, 260);
+      const h = entry.contentRect.height;
       setDims({ width: Math.round(w), height: Math.round(h) });
     });
     observer.observe(el);

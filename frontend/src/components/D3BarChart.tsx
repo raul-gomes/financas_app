@@ -29,7 +29,7 @@ export function D3BarChart({
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width;
-      const h = Math.max(w * 0.48, 300);
+      const h = entry.contentRect.height;
       setDims({ width: Math.round(w), height: Math.round(h) });
     });
     observer.observe(el);
