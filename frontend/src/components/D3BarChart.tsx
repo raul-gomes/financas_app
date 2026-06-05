@@ -7,6 +7,7 @@ interface D3BarChartProps {
   width?: number;
   height?: number;
   monthlyGoal?: number;
+  selectedMonth?: string | null;
   onBarClick?: (month: string) => void;
 }
 
@@ -15,6 +16,7 @@ export function D3BarChart({
   width = 900, 
   height = 420, 
   monthlyGoal = 0,
+  selectedMonth = null,
   onBarClick
 }: D3BarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -86,6 +88,7 @@ export function D3BarChart({
       .attr('width', (xScale.bandwidth() / 3) - 4)
       .attr('fill', 'hsl(var(--success))')
       .attr('rx', 3)
+      .attr('opacity', d => selectedMonth && d.month !== selectedMonth ? 0.5 : 1)
       // Start at bottom
       .attr('y', innerHeight)
       .attr('height', 0)
@@ -107,6 +110,7 @@ export function D3BarChart({
       .attr('width', (xScale.bandwidth() / 3) - 4)
       .attr('fill', 'hsl(var(--destructive))')
       .attr('rx', 3)
+      .attr('opacity', d => selectedMonth && d.month !== selectedMonth ? 0.5 : 1)
       // Start at bottom
       .attr('y', innerHeight)
       .attr('height', 0)
@@ -131,6 +135,7 @@ export function D3BarChart({
       .attr('width', (xScale.bandwidth() / 3) - 4)
       .attr('fill', 'hsl(var(--warning))')
       .attr('rx', 3)
+      .attr('opacity', d => selectedMonth && d.month !== selectedMonth ? 0.5 : 1)
       // Start at bottom
       .attr('y', innerHeight)
       .attr('height', 0)
@@ -281,7 +286,7 @@ export function D3BarChart({
     return () => {
       d3.selectAll('.tooltip').remove();
     };
-  }, [data, dims, monthlyGoal]);
+  }, [data, dims, monthlyGoal, selectedMonth]);
 
   return (
     <div ref={wrapperRef} className="w-full min-h-[300px]" style={{ height: '100%' }}>

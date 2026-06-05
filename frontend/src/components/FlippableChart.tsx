@@ -115,6 +115,7 @@ export function FlippableChart({
                 width={900}
                 height={320}
                 monthlyGoal={monthlyGoal}
+                selectedMonth={selectedMonth?.name ?? null}
                 onBarClick={onMonthClick}
               />
             </div>
@@ -183,6 +184,7 @@ export function FlippableChart({
                 width={900}
                 height={290}
                 selectedMonth={monthLabel}
+                monthlyGoal={monthlyGoal}
               />
             </div>
           </div>

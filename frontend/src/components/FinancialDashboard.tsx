@@ -4,7 +4,7 @@ import { FlippableChart } from './FlippableChart';
 import { IncomeChart } from './IncomeChart';
 import { CategoryBreakdownSection } from './CategoryBreakdownSection';
 import { AnimatedNumber } from './AnimatedNumber';
-import { Send, CreditCard, Banknote } from 'lucide-react';
+import { Send, CreditCard, Banknote, Receipt } from 'lucide-react';
 import {
   YearlyData,
   DailyData,
@@ -88,10 +88,21 @@ export function FinancialDashboard({
     .filter(t => t.tipo === 'saida' && t.forma_pagamento === 'debito')
     .reduce((sum, t) => sum + t.valor, 0);
 
+  // Parcelas a Pagar
+  const installmentItems = transactions.filter(
+    t => t.total_parcelas && t.total_parcelas > 1 && t.parcela && t.parcela < t.total_parcelas
+  );
+  const totalParcelasRestantes = installmentItems.reduce(
+    (sum, t) => sum + (t.total_parcelas! - t.parcela!) * t.valor, 0
+  );
+  const countParcelasRestantes = installmentItems.reduce(
+    (sum, t) => sum + (t.total_parcelas! - t.parcela!), 0
+  );
+
   return (
     <div className="flex flex-col h-full gap-4 overflow-y-auto">
       {/* Métricas Principais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-shrink-0">
         {/* Pix Card */}
         <Card className="shadow-card border-none bg-primary/10">
           <div className="p-4">
@@ -133,6 +144,26 @@ export function FinancialDashboard({
                 </p>
               </div>
               <Banknote className="h-6 w-6 text-destructive/70" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Parcelas a Pagar */}
+        <Card className="shadow-card border-none bg-warning/10">
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Parcelas a Pagar</p>
+                <p className="text-xl font-bold text-foreground">
+                  <AnimatedNumber value={totalParcelasRestantes} withDelay={550} />
+                </p>
+                {countParcelasRestantes > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {countParcelasRestantes} parcela{countParcelasRestantes !== 1 ? 's' : ''} · {installmentItems.length} transação{installmentItems.length !== 1 ? 'ões' : ''}
+                  </p>
+                )}
+              </div>
+              <Receipt className="h-6 w-6 text-warning/70" />
             </div>
           </div>
         </Card>

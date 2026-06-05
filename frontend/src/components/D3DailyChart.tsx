@@ -7,6 +7,7 @@ interface D3DailyChartProps {
   width?: number;
   height?: number;
   selectedMonth?: string;
+  monthlyGoal?: number;
 }
 
 export function D3DailyChart({
@@ -14,6 +15,7 @@ export function D3DailyChart({
   width = 900,
   height = 380,
   selectedMonth = '',
+  monthlyGoal = 0,
 }: D3DailyChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -160,6 +162,30 @@ export function D3DailyChart({
     g.selectAll('.domain').remove();
     g.selectAll('.tick line').remove();
 
+    // Monthly goal line
+    if (monthlyGoal > 0) {
+      const goalY = yScale(monthlyGoal);
+      g.append('line')
+        .attr('class', 'goal-line')
+        .attr('x1', 0)
+        .attr('x2', innerWidth)
+        .attr('y1', goalY)
+        .attr('y2', goalY)
+        .attr('stroke', '#ef4444')
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '5,5');
+
+      // Goal line label
+      g.append('text')
+        .attr('x', innerWidth - 5)
+        .attr('y', goalY - 5)
+        .attr('text-anchor', 'end')
+        .attr('fill', 'hsl(var(--destructive))')
+        .style('font-size', '11px')
+        .style('font-weight', 'bold')
+        .text(`Meta: R$ ${monthlyGoal.toLocaleString('pt-BR')}`);
+    }
+
     // Tooltip
     const tooltip = d3.select('body').append('div')
       .attr('class', 'tooltip')
@@ -211,7 +237,7 @@ export function D3DailyChart({
     return () => {
       d3.selectAll('.tooltip').remove();
     };
-  }, [data, dims, selectedMonth]);
+  }, [data, dims, selectedMonth, monthlyGoal]);
 
   if (!data.length) {
     return (
