@@ -19,7 +19,7 @@ export function D3DailyChart({
 }: D3DailyChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [dims, setDims] = useState({ width, height });
+  const [dims, setDims] = useState({ width: 0, height: 0 });
 
   // ResizeObserver to make the chart responsive
   useEffect(() => {
@@ -247,13 +247,17 @@ export function D3DailyChart({
     );
   }
 
+  if (dims.width === 0 || dims.height === 0) {
+    return <div ref={wrapperRef} className="w-full h-full" />;
+  }
+
   return (
-    <div ref={wrapperRef} className="w-full min-h-[260px]" style={{ height: '100%' }}>
+    <div ref={wrapperRef} className="w-full h-full">
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${dims.width} ${dims.height}`}
-        preserveAspectRatio="xMinYMin meet"
-        className="w-full h-full"
+        width={dims.width}
+        height={dims.height}
+        className="block"
       />
     </div>
   );
