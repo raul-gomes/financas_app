@@ -16,7 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { DollarSign, Save, BarChart3, Trash2, PlusCircle, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
+import { DollarSign, Save, BarChart3, Trash2, PlusCircle, Pencil, ToggleLeft, ToggleRight, CreditCard } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { FinancialService } from '@/services/financialService'
 import { ContaRecorrenteService } from '@/services/contaRecorrenteService'
@@ -51,19 +51,28 @@ const LimitsTab = () => {
         setLoading(true)
         FinancialService.getLimits()
             .then(fetched => {
-                const hasMensal = fetched.some(c => c.categoria_nome.toLowerCase() === 'mensal');
-                if (!hasMensal) {
-                    setData([{
-                        id: `new_mensal_${Date.now()}`,
-                        categoria_nome: 'Mensal',
-                        natureza: 'pf',
-                        limite: 1000,
+                const ensureCategory = (name: string, natureza: 'pf' | 'pj', defaultLimit: number): Category => {
+                    const existing = fetched.find(c => c.categoria_nome.trim().toLowerCase() === name.toLowerCase());
+                    if (existing) return existing;
+                    return {
+                        id: `new_${name.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`,
+                        categoria_nome: name,
+                        natureza,
+                        limite: defaultLimit,
                         subcategorias: [],
-                        isNew: true
-                    }, ...fetched]);
-                } else {
-                    setData(fetched);
-                }
+                        isNew: true,
+                    };
+                };
+
+                const mensalPF = ensureCategory('Mensal PF', 'pf', 1000);
+                const mensalPJ = ensureCategory('Mensal PJ', 'pj', 1000);
+                const limiteCartao = ensureCategory('Limite Cartao Credito', 'pf', 5000);
+
+                // Remove the special categories from the regular lists
+                const specialNames = ['mensal pf', 'mensal pj', 'limite cartao credito', 'mensal'];
+                const rest = fetched.filter(c => !specialNames.includes(c.categoria_nome.trim().toLowerCase()));
+
+                setData([mensalPF, mensalPJ, limiteCartao, ...rest]);
             })
             .catch(err => {
                 console.error(err)
@@ -139,9 +148,12 @@ const LimitsTab = () => {
         }
     }
 
-    const mensalItem = data.find(cat => cat.categoria_nome.trim().toLowerCase() === 'mensal')
-    const pfGroup = data.filter(cat => cat.natureza === 'pf' && cat.categoria_nome.trim().toLowerCase() !== 'mensal')
-    const pjGroup = data.filter(cat => cat.natureza === 'pj' && cat.categoria_nome.trim().toLowerCase() !== 'mensal')
+    const mensalPFItem = data.find(cat => cat.categoria_nome.trim().toLowerCase() === 'mensal pf');
+    const mensalPJItem = data.find(cat => cat.categoria_nome.trim().toLowerCase() === 'mensal pj');
+    const limiteCartaoItem = data.find(cat => cat.categoria_nome.trim().toLowerCase() === 'limite cartao credito');
+    const specialNames = ['mensal pf', 'mensal pj', 'limite cartao credito', 'mensal'];
+    const pfGroup = data.filter(cat => cat.natureza === 'pf' && !specialNames.includes(cat.categoria_nome.trim().toLowerCase()));
+    const pjGroup = data.filter(cat => cat.natureza === 'pj' && !specialNames.includes(cat.categoria_nome.trim().toLowerCase()));
 
     const renderGroup = (title: string, icon: React.ReactNode, categories: Category[], natureza?: 'pf' | 'pj') => (
         <Card>
@@ -201,21 +213,49 @@ const LimitsTab = () => {
 
     return (
         <div className="space-y-8">
-            <Card className="border-primary/50 shadow-md">
-                <CardHeader className="flex items-center gap-2 flex-row pb-2">
-                    <div className="bg-primary/10 p-2 rounded-full"><DollarSign className="text-primary h-6 w-6" /></div>
-                    <div><CardTitle className="text-xl">Limite Mensal Global</CardTitle><p className="text-sm text-muted-foreground">Orçamento total planejado para o mês</p></div>
-                </CardHeader>
-                <CardContent>
-                    <div className='flex flex-row gap-4 items-center'>
-                        <div className="relative flex-1 max-w-[200px]">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Limite Mensal PF */}
+                <Card className="border-primary/50 shadow-md">
+                    <CardHeader className="flex items-center gap-2 flex-row pb-2">
+                        <div className="bg-primary/10 p-2 rounded-full"><DollarSign className="text-primary h-6 w-6" /></div>
+                        <div><CardTitle className="text-lg">Limite Mensal PF</CardTitle><p className="text-sm text-muted-foreground">Orçamento mensal Pessoa Física</p></div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="relative max-w-[200px]">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
-                            <Input type="number" className="pl-9 text-lg font-semibold" value={mensalItem?.limite || 0} onChange={e => { if (mensalItem) updateCategoryField(mensalItem.id, 'limite', parseFloat(e.target.value) || 0) }} />
+                            <Input type="number" className="pl-9 text-lg font-semibold" value={mensalPFItem?.limite || 0} onChange={e => { if (mensalPFItem) updateCategoryField(mensalPFItem.id, 'limite', parseFloat(e.target.value) || 0) }} />
                         </div>
-                        <p className="text-sm text-muted-foreground">Este valor será usado como referência nos gráficos do dashboard.</p>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+
+                {/* Limite Mensal PJ */}
+                <Card className="border-primary/50 shadow-md">
+                    <CardHeader className="flex items-center gap-2 flex-row pb-2">
+                        <div className="bg-primary/10 p-2 rounded-full"><DollarSign className="text-primary h-6 w-6" /></div>
+                        <div><CardTitle className="text-lg">Limite Mensal PJ</CardTitle><p className="text-sm text-muted-foreground">Orçamento mensal Pessoa Jurídica</p></div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="relative max-w-[200px]">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
+                            <Input type="number" className="pl-9 text-lg font-semibold" value={mensalPJItem?.limite || 0} onChange={e => { if (mensalPJItem) updateCategoryField(mensalPJItem.id, 'limite', parseFloat(e.target.value) || 0) }} />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Limite Cartão de Crédito */}
+                <Card className="border-primary/50 shadow-md">
+                    <CardHeader className="flex items-center gap-2 flex-row pb-2">
+                        <div className="bg-primary/10 p-2 rounded-full"><CreditCard className="text-primary h-6 w-6" /></div>
+                        <div><CardTitle className="text-lg">Limite Cartão de Crédito</CardTitle><p className="text-sm text-muted-foreground">Limite total do cartão</p></div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="relative max-w-[200px]">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
+                            <Input type="number" className="pl-9 text-lg font-semibold" value={limiteCartaoItem?.limite || 0} onChange={e => { if (limiteCartaoItem) updateCategoryField(limiteCartaoItem.id, 'limite', parseFloat(e.target.value) || 0) }} />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
             {renderGroup('Categorias Pessoa Física', <BarChart3 className="h-5 w-5 text-primary" />, pfGroup, 'pf')}
             {renderGroup('Categorias Pessoa Jurídica', <DollarSign className="h-5 w-5 text-primary" />, pjGroup, 'pj')}
             <div className="flex justify-end">

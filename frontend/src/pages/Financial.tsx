@@ -254,6 +254,9 @@ const Financial = () => {
               categoryBreakdown={categoryBreakdown}
               onMonthSelect={handleMonthSelect}
               onBackClick={handleBackClick}
+              limiteCartaoCredito={financialSummary?.limite_cartao_credito || 0}
+              gastosFixos={financialSummary?.gastos_fixos || 0}
+              gastosVariaveis={financialSummary?.gastos_variaveis || 0}
             />
           </div>
           {/* Transactions List */}

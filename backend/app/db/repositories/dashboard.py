@@ -104,11 +104,29 @@ class DashboardRepository:
 
         mensal_cat = await self.db.execute(
             select(CategoriaORM)
-            .where(func.lower(CategoriaORM.categoria_nome) == 'mensal')
+            .where(func.lower(CategoriaORM.categoria_nome) == 'mensal pf')
+            .where(CategoriaORM.natureza == 'pf')
         )
+        mensal_pf_obj = mensal_cat.scalars().first()
 
-        mensal_obj = mensal_cat.scalars().first()
-        limite_mensal = mensal_obj.limite if mensal_obj else 1000.0
+        mensal_pj_cat = await self.db.execute(
+            select(CategoriaORM)
+            .where(func.lower(CategoriaORM.categoria_nome) == 'mensal pj')
+            .where(CategoriaORM.natureza == 'pj')
+        )
+        mensal_pj_obj = mensal_pj_cat.scalars().first()
+
+        if natureza == 'pf':
+            limite_mensal = mensal_pf_obj.limite if mensal_pf_obj else 1000.0
+        elif natureza == 'pj':
+            limite_mensal = mensal_pj_obj.limite if mensal_pj_obj else 1000.0
+        else:
+            limite_mensal = max(
+                (mensal_pf_obj.limite if mensal_pf_obj else 0),
+                (mensal_pj_obj.limite if mensal_pj_obj else 0)
+            )
+            if limite_mensal == 0:
+                limite_mensal = 1000.0
 
         return RendimentoPeriodoResponse(limite=limite_mensal, meses=meses_data)
     
@@ -129,7 +147,8 @@ class DashboardRepository:
             stmt = stmt.where(TransacaoORM.natureza == natureza)
         stmt = stmt.options(
             selectinload(TransacaoORM.categoria),
-            selectinload(TransacaoORM.subcategoria)
+            selectinload(TransacaoORM.subcategoria),
+            selectinload(TransacaoORM.conta_recorrente),
         ).order_by(TransacaoORM.data_transacao.desc())
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
@@ -152,18 +171,39 @@ class DashboardRepository:
                 total_parcelas=t.total_parcelas,
                 natureza=t.natureza,
                 data_transacao=t.data_transacao,
+                conta_recorrente_id=t.conta_recorrente_id,
             )
             for t in transacoes
         ]
-    
-        mensal_cat = await self.db.execute(
-            select(CategoriaORM)
-            .where(CategoriaORM.id == 1)
-        )
 
-        mensal_obj = mensal_cat.scalars().first()
-        limite_mensal = mensal_obj.limite if mensal_obj else 1000.0
-    
+        # Gastos fixos (com conta_recorrente_id) vs variáveis
+        gastos_fixos = sum(t.valor for t in transacoes if t.tipo == "saida" and t.conta_recorrente_id is not None)
+        gastos_variaveis = sum(t.valor for t in transacoes if t.tipo == "saida" and t.conta_recorrente_id is None)
+
+        # Helper to read category limit by name
+        async def _get_cat_limit(cat_name: str, default: float = 1000.0) -> float:
+            result = await self.db.execute(
+                select(CategoriaORM)
+                .where(func.lower(CategoriaORM.categoria_nome) == cat_name.lower())
+            )
+            obj = result.scalars().first()
+            return obj.limite if obj else default
+
+        # Meta mensal por natureza
+        if natureza == 'pf':
+            limite_mensal = await _get_cat_limit('Mensal PF')
+        elif natureza == 'pj':
+            limite_mensal = await _get_cat_limit('Mensal PJ')
+        else:
+            limite_mensal = max(
+                await _get_cat_limit('Mensal PF', 0),
+                await _get_cat_limit('Mensal PJ', 0)
+            )
+            if limite_mensal == 0:
+                limite_mensal = 1000.0
+
+        limite_cartao = await _get_cat_limit('Limite Cartao Credito', 0)
+
         return ExtratoResponse(
             entradas=entradas,
             saidas=saidas,
@@ -171,7 +211,10 @@ class DashboardRepository:
             data_final=data_final_str,
             meta_mensal=limite_mensal,
             total_investido=entradas,
-            transacoes=txs
+            transacoes=txs,
+            limite_cartao_credito=limite_cartao,
+            gastos_fixos=gastos_fixos,
+            gastos_variaveis=gastos_variaveis,
         )
 
     async def opcoes_categorias(self, natureza: str = 'all') -> OpcoesCategoriaResponse:

@@ -20,6 +20,7 @@ class TransacaoExtrato(BaseModel):
     total_parcelas: Optional[int]
     natureza: NaturezaTransacao
     data_transacao: datetime
+    conta_recorrente_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -33,6 +34,9 @@ class ExtratoResponse(BaseModel):
     meta_mensal: float = Field(..., description="Meta mensal financeira")
     total_investido: float = Field(..., description="Total investido (igual às entradas)")
     transacoes: List[TransacaoExtrato] = Field(..., description="Lista de transações filtradas")
+    limite_cartao_credito: float = Field(default=0, description="Limite do cartão de crédito")
+    gastos_fixos: float = Field(default=0, description="Total de gastos fixos (contas recorrentes)")
+    gastos_variaveis: float = Field(default=0, description="Total de gastos variáveis")
 
     class Config:
         from_attributes = True

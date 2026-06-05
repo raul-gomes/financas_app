@@ -25,6 +25,9 @@ interface FinancialDashboardProps {
   categoryBreakdown: CategoryBreakdown | null;
   onMonthSelect?: (monthIndex: number, year: number) => void;
   onBackClick: () => void;
+  limiteCartaoCredito?: number;
+  gastosFixos?: number;
+  gastosVariaveis?: number;
 }
 
 export function FinancialDashboard({
@@ -39,6 +42,9 @@ export function FinancialDashboard({
   categoryBreakdown,
   onMonthSelect,
   onBackClick,
+  limiteCartaoCredito = 0,
+  gastosFixos = 0,
+  gastosVariaveis = 0,
 }: FinancialDashboardProps) {
   const handleBarClick = (month: string) => {
     const monthIndexMap: Record<string, number> = {
@@ -130,6 +136,26 @@ export function FinancialDashboard({
               </div>
               <CreditCard className="h-6 w-6 text-success/70" />
             </div>
+            {limiteCartaoCredito > 0 && (
+              <div className="mt-2">
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>{(creditTotal / limiteCartaoCredito * 100).toFixed(0)}% usado</span>
+                  <span>Limite: R$ {limiteCartaoCredito.toLocaleString('pt-BR')}</span>
+                </div>
+                <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${
+                      creditTotal > limiteCartaoCredito
+                        ? 'bg-destructive'
+                        : creditTotal > limiteCartaoCredito * 0.7
+                        ? 'bg-warning'
+                        : 'bg-success'
+                    }`}
+                    style={{ width: `${Math.min(100, (creditTotal / limiteCartaoCredito) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -195,6 +221,45 @@ export function FinancialDashboard({
           categoryBreakdown={categoryBreakdown}
         />
       </div>
+
+      {/* Gastos Fixos vs Variáveis */}
+      <Card className="shadow-card border-none flex-shrink-0">
+        <div className="p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Gastos Fixos vs Variáveis</h3>
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span className="text-success font-medium">Fixos: R$ {gastosFixos.toLocaleString('pt-BR')}</span>
+                <span className="text-warning font-medium">Variáveis: R$ {gastosVariaveis.toLocaleString('pt-BR')}</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-3 flex overflow-hidden">
+                <div
+                  className="bg-success transition-all duration-700 ease-out"
+                  style={{
+                    width: `${gastosFixos + gastosVariaveis > 0
+                      ? (gastosFixos / (gastosFixos + gastosVariaveis)) * 100
+                      : 0}%`
+                  }}
+                />
+                <div
+                  className="bg-warning transition-all duration-700 ease-out"
+                  style={{
+                    width: `${gastosFixos + gastosVariaveis > 0
+                      ? (gastosVariaveis / (gastosFixos + gastosVariaveis)) * 100
+                      : 0}%`
+                  }}
+                />
+              </div>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-sm font-bold">
+                R$ {(gastosFixos + gastosVariaveis).toLocaleString('pt-BR')}
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

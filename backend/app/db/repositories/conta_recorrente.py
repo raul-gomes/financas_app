@@ -144,6 +144,7 @@ class ContaRecorrenteRepository:
                             categoria_id=conta.categoria_id,
                             subcategoria_id=conta.subcategoria_id,
                             group_id=str(conta.group_id),
+                            conta_recorrente_id=conta.id,
                         )
                         self.db.add(transacao)
                         geradas += 1

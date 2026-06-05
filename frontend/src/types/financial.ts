@@ -30,6 +30,7 @@ export interface Transaction {
   total_parcelas: number | null;
   natureza: 'pj' | 'pf';
   data_transacao: string;
+  conta_recorrente_id?: number | null;
 }
 
 export interface FinancialSummary {
@@ -40,6 +41,9 @@ export interface FinancialSummary {
   meta_mensal: number;
   total_investido: number;
   transacoes: Transaction[];
+  limite_cartao_credito: number;
+  gastos_fixos: number;
+  gastos_variaveis: number;
 }
 
 export interface MonthData {

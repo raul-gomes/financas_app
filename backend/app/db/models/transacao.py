@@ -20,6 +20,8 @@ class TransacaoORM(Base):
     forma_pagamento = Column(String, nullable=False)
     categoria_id = Column(Integer, ForeignKey("categorias.id"), nullable=False)
     subcategoria_id = Column(Integer, ForeignKey("subcategorias.id"), nullable=False)
+    conta_recorrente_id = Column(Integer, ForeignKey("contas_recorrentes.id"), nullable=True, index=True)
 
     categoria = relationship("CategoriaORM", lazy="joined")
     subcategoria = relationship("SubcategoriaORM", lazy="joined")
+    conta_recorrente = relationship("ContaRecorrenteORM", lazy="joined")
