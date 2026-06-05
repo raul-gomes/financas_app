@@ -109,15 +109,17 @@ export function FlippableChart({
               </div>
             </div>
             {/* Chart fills remaining */}
-            <div className="flex-1 min-h-0">
-              <D3BarChart
-                data={yearlyData}
-                width={900}
-                height={320}
-                monthlyGoal={monthlyGoal}
-                selectedMonth={selectedMonth?.name ?? null}
-                onBarClick={onMonthClick}
-              />
+            <div className="flex-1 min-h-0 relative">
+              <div className="absolute inset-0">
+                <D3BarChart
+                  data={yearlyData}
+                  width={900}
+                  height={320}
+                  monthlyGoal={monthlyGoal}
+                  selectedMonth={selectedMonth?.name ?? null}
+                  onBarClick={onMonthClick}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -178,14 +180,16 @@ export function FlippableChart({
               </div>
             </div>
             {/* Chart fills remaining */}
-            <div className="flex-1 min-h-0">
-              <D3DailyChart
-                data={dailyData}
-                width={900}
-                height={290}
-                selectedMonth={monthLabel}
-                monthlyGoal={monthlyGoal}
-              />
+            <div className="flex-1 min-h-0 relative">
+              <div className="absolute inset-0">
+                <D3DailyChart
+                  data={dailyData}
+                  width={900}
+                  height={290}
+                  selectedMonth={monthLabel}
+                  monthlyGoal={monthlyGoal}
+                />
+              </div>
             </div>
           </div>
         </div>
