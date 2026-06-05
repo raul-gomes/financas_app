@@ -162,7 +162,7 @@ class LimitsRepository:
         # Busca todas as categorias com subcategorias
         stmt = select(CategoriaORM).order_by(CategoriaORM.categoria_nome)
         result = await self.db.execute(stmt)
-        categorias = result.scalars().all()
+        categorias = result.unique().scalars().all()
 
         # Formata para o frontend
         formatted_data = []
@@ -170,7 +170,7 @@ class LimitsRepository:
             # Busca subcategorias da categoria
             sub_stmt = select(SubcategoriaORM).where(SubcategoriaORM.categoria_id == cat.id)
             sub_result = await self.db.execute(sub_stmt)
-            subcategorias = sub_result.scalars().all()
+            subcategorias = sub_result.unique().scalars().all()
 
             categoria_data = {
                 "id": cat.id,

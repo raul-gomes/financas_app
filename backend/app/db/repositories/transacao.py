@@ -206,7 +206,7 @@ class TransacaoRepository:
 
         stmt = stmt.order_by(TransacaoORM.data_transacao.desc())
         result = await self.db.execute(stmt)
-        return result.scalars().all()
+        return result.unique().scalars().all()
 
     async def get_by_id(self, id: int) -> Optional[TransacaoORM]:
         stmt = select(TransacaoORM).options(

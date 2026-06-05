@@ -24,4 +24,4 @@ class TransacaoORM(Base):
 
     categoria = relationship("CategoriaORM", lazy="joined")
     subcategoria = relationship("SubcategoriaORM", lazy="joined")
-    conta_recorrente = relationship("ContaRecorrenteORM", lazy="joined")
+    conta_recorrente = relationship("ContaRecorrenteORM", lazy="selectin")
