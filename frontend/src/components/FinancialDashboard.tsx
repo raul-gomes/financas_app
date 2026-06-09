@@ -21,10 +21,13 @@ interface FinancialDashboardProps {
   dateRange: { from: Date; to: Date };
   transactions: (Transaction & { id: string })[];
   selectedMonth: SelectedMonth | null;
+  highlightedMonth?: SelectedMonth | null;
   incomeBreakdown: CategoryBreakdown | null;
   categoryBreakdown: CategoryBreakdown | null;
   onMonthSelect?: (monthIndex: number, year: number) => void;
   onBackClick: () => void;
+  onPrevMonth?: () => void;
+  onNextMonth?: () => void;
   limiteCartaoCredito?: number;
   gastosFixos?: number;
   gastosVariaveis?: number;
@@ -38,10 +41,13 @@ export function FinancialDashboard({
   dateRange,
   transactions,
   selectedMonth,
+  highlightedMonth,
   incomeBreakdown,
   categoryBreakdown,
   onMonthSelect,
   onBackClick,
+  onPrevMonth,
+  onNextMonth,
   limiteCartaoCredito = 0,
   gastosFixos = 0,
   gastosVariaveis = 0,
@@ -96,7 +102,7 @@ export function FinancialDashboard({
 
   // Parcelas a Pagar
   const installmentItems = transactions.filter(
-    t => t.total_parcelas && t.total_parcelas > 1 && t.parcela && t.parcela < t.total_parcelas
+    t => t.total_parcelas && t.total_parcelas > 1 && t.parcela && t.parcela < t.total_parcelas && !t.conta_recorrente_id
   );
   const totalParcelasRestantes = installmentItems.reduce(
     (sum, t) => sum + (t.total_parcelas! - t.parcela!) * t.valor, 0
@@ -110,89 +116,97 @@ export function FinancialDashboard({
       {/* Métricas Principais */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-shrink-0">
         {/* Pix Card */}
-        <Card className="shadow-card border-none bg-primary/10">
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Pix</p>
-                <p className="text-xl font-bold text-foreground">
-                  <AnimatedNumber value={pixTotal} withDelay={100} />
-                </p>
+        <div className="animate-slide-up h-full flex flex-col" style={{ animationDelay: '0ms' }}>
+          <Card className="shadow-card border-none bg-primary/10 h-full">
+            <div className="p-4 flex flex-col h-full justify-between">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Pix</p>
+                  <p className="text-xl font-bold text-foreground">
+                    <AnimatedNumber value={pixTotal} withDelay={100} />
+                  </p>
+                </div>
+                <Send className="h-6 w-6 text-primary/70" />
               </div>
-              <Send className="h-6 w-6 text-primary/70" />
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
 
         {/* Cartão de Crédito Card */}
-        <Card className="shadow-card border-none bg-success/10">
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Cartão de Crédito</p>
-                <p className="text-xl font-bold text-foreground">
-                  <AnimatedNumber value={creditTotal} withDelay={250} />
-                </p>
+        <div className="animate-slide-up h-full flex flex-col" style={{ animationDelay: '100ms' }}>
+          <Card className="shadow-card border-none bg-success/10 h-full">
+            <div className="p-4 flex flex-col h-full justify-between">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Cartão de Crédito</p>
+                  <p className="text-xl font-bold text-foreground">
+                    <AnimatedNumber value={creditTotal} withDelay={250} />
+                  </p>
+                </div>
+                <CreditCard className="h-6 w-6 text-success/70" />
               </div>
-              <CreditCard className="h-6 w-6 text-success/70" />
+              {limiteCartaoCredito > 0 && (
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>{(creditTotal / limiteCartaoCredito * 100).toFixed(0)}% usado</span>
+                    <span>Limite: R$ {limiteCartaoCredito.toLocaleString('pt-BR')}</span>
+                  </div>
+                  <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ease-out ${
+                        creditTotal > limiteCartaoCredito
+                          ? 'bg-destructive'
+                          : creditTotal > limiteCartaoCredito * 0.7
+                          ? 'bg-warning'
+                          : 'bg-success'
+                      }`}
+                      style={{ width: `${Math.min(100, (creditTotal / limiteCartaoCredito) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-            {limiteCartaoCredito > 0 && (
-              <div className="mt-2">
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>{(creditTotal / limiteCartaoCredito * 100).toFixed(0)}% usado</span>
-                  <span>Limite: R$ {limiteCartaoCredito.toLocaleString('pt-BR')}</span>
-                </div>
-                <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ease-out ${
-                      creditTotal > limiteCartaoCredito
-                        ? 'bg-destructive'
-                        : creditTotal > limiteCartaoCredito * 0.7
-                        ? 'bg-warning'
-                        : 'bg-success'
-                    }`}
-                    style={{ width: `${Math.min(100, (creditTotal / limiteCartaoCredito) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
+          </Card>
+        </div>
 
         {/* Cartão de Débito Card */}
-        <Card className="shadow-card border-none bg-destructive/10">
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Cartão de Débito</p>
-                <p className="text-xl font-bold text-foreground">
-                  <AnimatedNumber value={debitTotal} withDelay={400} />
-                </p>
+        <div className="animate-slide-up h-full flex flex-col" style={{ animationDelay: '200ms' }}>
+          <Card className="shadow-card border-none bg-destructive/10 h-full">
+            <div className="p-4 flex flex-col h-full justify-between">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Cartão de Débito</p>
+                  <p className="text-xl font-bold text-foreground">
+                    <AnimatedNumber value={debitTotal} withDelay={400} />
+                  </p>
+                </div>
+                <Banknote className="h-6 w-6 text-destructive/70" />
               </div>
-              <Banknote className="h-6 w-6 text-destructive/70" />
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
 
         {/* Parcelas a Pagar */}
-        <Card className="shadow-card border-none bg-warning/10">
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Parcelas a Pagar</p>
-                <p className="text-xl font-bold text-foreground">
-                  <AnimatedNumber value={totalParcelasRestantes} withDelay={550} />
-                </p>
-                {countParcelasRestantes > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {countParcelasRestantes} parcela{countParcelasRestantes !== 1 ? 's' : ''} · {installmentItems.length} transação{installmentItems.length !== 1 ? 'ões' : ''}
+        <div className="animate-slide-up h-full flex flex-col" style={{ animationDelay: '300ms' }}>
+          <Card className="shadow-card border-none bg-warning/10 h-full">
+            <div className="p-4 flex flex-col h-full justify-between">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Parcelas a Pagar</p>
+                  <p className="text-xl font-bold text-foreground">
+                    <AnimatedNumber value={totalParcelasRestantes} withDelay={550} />
                   </p>
-                )}
+                  {countParcelasRestantes > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {countParcelasRestantes} parcela{countParcelasRestantes !== 1 ? 's' : ''} · {installmentItems.length} transação{installmentItems.length !== 1 ? 'ões' : ''}
+                    </p>
+                  )}
+                </div>
+                <Receipt className="h-6 w-6 text-warning/70" />
               </div>
-              <Receipt className="h-6 w-6 text-warning/70" />
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       </div>
 
       {/* Grafico de Barras - Rendimento Anual / Diario */}
@@ -203,8 +217,11 @@ export function FinancialDashboard({
             dailyData={dailyData}
             monthlyGoal={monthlyGoal}
             selectedMonth={selectedMonth}
+            highlightedMonth={highlightedMonth}
             onMonthClick={handleBarClick}
             onBackClick={onBackClick}
+            onPrevMonth={onPrevMonth}
+            onNextMonth={onNextMonth}
           />
         </div>
       </div>

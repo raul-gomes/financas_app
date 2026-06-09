@@ -91,6 +91,7 @@ class SubcategoriaOpcao(BaseModel):
 class CategoriaOpcao(BaseModel):
     id: int = Field(..., description="ID da categoria")
     categoria: str = Field(..., description="Nome da categoria")
+    tipo: Optional[str] = Field(default=None, description="Tipo de transação: entrada, saida, investimento, ou null")
     subcategorias: List[SubcategoriaOpcao] = Field(..., description="Lista de subcategorias")
 
 class OpcoesCategoriaResponse(BaseModel):

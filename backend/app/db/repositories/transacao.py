@@ -131,6 +131,7 @@ class TransacaoRepository:
                         categoria_nome=obj_in.categoria_nome,
                         natureza=obj_in.natureza,
                         limite=0,
+                        tipo=obj_in.tipo.value,
                         subcategorias=[]
                     )
                 )
@@ -235,6 +236,7 @@ class TransacaoRepository:
                             categoria_nome=obj_in.categoria_nome,
                             natureza=obj_in.natureza or trans.natureza_transacao,
                             limite=0,
+                            tipo=obj_in.tipo.value if obj_in.tipo else None,
                             subcategorias=[]
                         )
                     )

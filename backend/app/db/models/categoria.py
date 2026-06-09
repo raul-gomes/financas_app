@@ -9,6 +9,7 @@ class CategoriaORM(Base):
     categoria_nome = Column(String, unique=True, nullable=False)
     natureza = Column(String, nullable=False)
     limite = Column(Float, default=0)
+    tipo = Column(String, nullable=True)  # 'entrada', 'saida', 'investimento' ou None (especiais)
     
     subcategorias = relationship(
         'SubcategoriaORM',

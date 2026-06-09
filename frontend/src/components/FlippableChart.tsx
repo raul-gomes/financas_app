@@ -3,15 +3,18 @@ import { D3BarChart } from './D3BarChart';
 import { D3DailyChart } from './D3DailyChart';
 import { YearlyData, DailyData, SelectedMonth } from '@/types/financial';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface FlippableChartProps {
   yearlyData: YearlyData[];
   dailyData: DailyData[];
   monthlyGoal: number;
   selectedMonth: SelectedMonth | null;
+  highlightedMonth?: SelectedMonth | null;
   onMonthClick: (month: string) => void;
   onBackClick: () => void;
+  onPrevMonth?: () => void;
+  onNextMonth?: () => void;
 }
 
 const formatCurrency = (amount: number) =>
@@ -22,12 +25,19 @@ export function FlippableChart({
   dailyData,
   monthlyGoal,
   selectedMonth,
+  highlightedMonth,
   onMonthClick,
   onBackClick,
+  onPrevMonth,
+  onNextMonth,
 }: FlippableChartProps) {
   const isFlipped = selectedMonth !== null;
+  const fullMonthNames = [
+    'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  ];
   const monthLabel = selectedMonth
-    ? `${selectedMonth.name} ${selectedMonth.year}`
+    ? `${fullMonthNames[selectedMonth.index]} ${selectedMonth.year}`
     : '';
 
   // Compute annual totals for legend
@@ -80,11 +90,11 @@ export function FlippableChart({
         >
           <div className="flex flex-col h-full">
             {/* Title + Legend combined in one row */}
-            <div className="flex items-center gap-4 shrink-0 px-2 pt-1">
+            <div className="flex items-center shrink-0 px-2 pt-1">
               <h3 className="text-lg font-semibold shrink-0">
                 Rendimento Anual
               </h3>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <div className="flex items-center gap-4 text-xs text-muted-foreground ml-auto">
                 <span className="flex items-center gap-1.5">
                   <span
                     className="w-2.5 h-2.5 rounded-sm inline-block"
@@ -110,24 +120,22 @@ export function FlippableChart({
             </div>
             {/* Chart fills remaining */}
             <div className="flex-1 min-h-0 relative">
-              <div className="absolute inset-0">
-                <D3BarChart
-                  data={yearlyData}
-                  width={900}
-                  height={320}
-                  monthlyGoal={monthlyGoal}
-                  selectedMonth={selectedMonth?.name ?? null}
-                  onBarClick={onMonthClick}
-                />
-              </div>
+              <D3BarChart
+                data={yearlyData}
+                width={900}
+                height={320}
+                monthlyGoal={monthlyGoal}
+                selectedMonth={highlightedMonth?.name ?? null}
+                onBarClick={onMonthClick}
+              />
             </div>
           </div>
         </div>
 
         {/* Back: Daily Chart */}
-        <div
-          className="chart-back"
-          style={{
+          <div
+            className="chart-back group"
+            style={{
             position: 'absolute',
             width: '100%',
             height: '100%',
@@ -181,15 +189,31 @@ export function FlippableChart({
             </div>
             {/* Chart fills remaining */}
             <div className="flex-1 min-h-0 relative">
-              <div className="absolute inset-0">
-                <D3DailyChart
-                  data={dailyData}
-                  width={900}
-                  height={290}
-                  selectedMonth={monthLabel}
-                  monthlyGoal={monthlyGoal}
-                />
-              </div>
+              <D3DailyChart
+                data={dailyData}
+                width={900}
+                height={320}
+                selectedMonth={monthLabel}
+                monthlyGoal={monthlyGoal}
+              />
+              {/* Prev month arrow */}
+              <button
+                onClick={onPrevMonth}
+                disabled={!onPrevMonth}
+                className="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-background/70 hover:bg-background/90 text-muted-foreground hover:text-foreground shadow-sm transition-all opacity-0 group-hover:opacity-100 border border-border/50 disabled:opacity-0 disabled:cursor-default"
+                title="Mês anterior"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              {/* Next month arrow */}
+              <button
+                onClick={onNextMonth}
+                disabled={!onNextMonth}
+                className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-background/70 hover:bg-background/90 text-muted-foreground hover:text-foreground shadow-sm transition-all opacity-0 group-hover:opacity-100 border border-border/50 disabled:opacity-0 disabled:cursor-default"
+                title="Próximo mês"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </div>

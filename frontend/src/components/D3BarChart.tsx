@@ -55,7 +55,9 @@ export function D3BarChart({
       .range([0, innerWidth])
       .padding(0.3);
 
-    const maxValue = d3.max(processedData, d => Math.max(d.income, d.expenses, d.investment, monthlyGoal)) || 0;
+    const rawMax = d3.max(processedData, d => Math.max(d.income, d.expenses, d.investment, monthlyGoal)) || 0;
+    // Prevent zero domain — without it all bars fill to the middle
+    const maxValue = Math.max(rawMax, 1);
     const yScale = d3.scaleLinear()
       .domain([0, maxValue * 1.1])
       .range([innerHeight, 0]);
@@ -289,7 +291,7 @@ export function D3BarChart({
   }, [data, dims, monthlyGoal, selectedMonth]);
 
   return (
-    <div ref={wrapperRef} className="w-full h-full">
+    <div ref={wrapperRef} className="absolute inset-0">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${dims.width} ${dims.height}`}

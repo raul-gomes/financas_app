@@ -19,6 +19,15 @@ class ContaRecorrenteORM(Base):
     data_fim = Column(DateTime, nullable=True)
     ativo = Column(Boolean, default=True, nullable=False)
     group_id = Column(String, default=lambda: str(uuid4()), nullable=False, index=True)
+    total_parcelas = Column(Integer, default=12, nullable=False)
 
     categoria = relationship("CategoriaORM", lazy="joined")
     subcategoria = relationship("SubcategoriaORM", lazy="joined")
+
+    @property
+    def categoria_nome(self) -> str:
+        return self.categoria.categoria_nome if self.categoria else ""
+
+    @property
+    def subcategoria_nome(self) -> str:
+        return self.subcategoria.subcategoria_nome if self.subcategoria else ""

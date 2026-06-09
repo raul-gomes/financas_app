@@ -3,7 +3,6 @@
 import { useMemo } from 'react'
 import { D3PieChart } from './D3PieChart'
 import { AnimatedNumber } from './AnimatedNumber'
-import { Card } from '@/components/ui/card'
 import { TrendingUp } from 'lucide-react'
 import { CategoryBreakdown } from '@/types/financial'
 
@@ -39,7 +38,7 @@ export function IncomeChart({ breakdown }: IncomeChartProps) {
 
   if (incomeData.chartData.length === 0) {
     return (
-      <Card className="p-6">
+      <div className="p-6">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="h-5 w-5 text-success" />
           <h3 className="text-lg font-semibold">Entradas do Período</h3>
@@ -47,7 +46,7 @@ export function IncomeChart({ breakdown }: IncomeChartProps) {
         <div className="text-center py-8 text-muted-foreground">
           <p>Nenhuma entrada encontrada no período selecionado</p>
         </div>
-      </Card>
+      </div>
     )
   }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,19 +17,20 @@ import {
 } from '@/components/ui/select';
 import { ContaRecorrenteCreate } from '@/types/conta_recorrente';
 import { CategorySubcategories } from '@/types/financial';
+import { FinancialService } from '@/services/financialService';
 
 interface AddRecurrentBillDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (payload: ContaRecorrenteCreate) => void;
-  categoryOptions: CategorySubcategories | null;
+  categoryOptions?: CategorySubcategories | null;
 }
 
 export function AddRecurrentBillDialog({
   isOpen,
   onClose,
   onSubmit,
-  categoryOptions,
+  categoryOptions: _categoryOptions,
 }: AddRecurrentBillDialogProps) {
   const [formData, setFormData] = useState({
     descricao: '',
@@ -42,6 +43,18 @@ export function AddRecurrentBillDialog({
     categoria: '',
     subcategoria: '',
   });
+  const [newCategory, setNewCategory] = useState('');
+  const [newSubcategory, setNewSubcategory] = useState('');
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+  const [showNewSubcategoryInput, setShowNewSubcategoryInput] = useState(false);
+  const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null);
+
+  // Load categories filtered by natureza + tipo='saida' (recorrente é sempre saída)
+  useEffect(() => {
+    FinancialService.getCategorySubcategories(formData.natureza, 'saida')
+      .then(options => setCategoryOptions(options))
+      .catch(() => {});
+  }, [formData.natureza]);
 
   const handleClose = () => {
     setFormData({
@@ -55,10 +68,14 @@ export function AddRecurrentBillDialog({
       categoria: '',
       subcategoria: '',
     });
+    setNewCategory('');
+    setNewSubcategory('');
+    setShowNewCategoryInput(false);
+    setShowNewSubcategoryInput(false);
     onClose();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.descricao || !formData.valor || !formData.categoria || !formData.subcategoria) return;
@@ -70,8 +87,6 @@ export function AddRecurrentBillDialog({
       s => s.nome === formData.subcategoria
     );
 
-    if (!categoriaObj || !subObj) return;
-
     const payload: ContaRecorrenteCreate = {
       descricao: formData.descricao,
       valor: parseFloat(formData.valor),
@@ -80,9 +95,15 @@ export function AddRecurrentBillDialog({
       forma_pagamento: formData.forma_pagamento,
       data_inicio: formData.data_inicio,
       data_fim: formData.data_fim || undefined,
-      categoria_id: categoriaObj.id,
-      subcategoria_id: subObj.id,
     };
+
+    if (categoriaObj && subObj) {
+      payload.categoria_id = categoriaObj.id;
+      payload.subcategoria_id = subObj.id;
+    } else {
+      payload.categoria_nome = formData.categoria;
+      payload.subcategoria_nome = formData.subcategoria;
+    }
 
     onSubmit(payload);
   };
@@ -187,8 +208,17 @@ export function AddRecurrentBillDialog({
           <div className="space-y-2">
             <Label htmlFor="categoria">Categoria *</Label>
             <Select
-              value={formData.categoria}
-              onValueChange={(value) => setFormData({ ...formData, categoria: value, subcategoria: '' })}
+              value={showNewCategoryInput ? 'outros' : formData.categoria}
+              onValueChange={(value) => {
+                if (value === 'outros') {
+                  setShowNewCategoryInput(true);
+                  setFormData({ ...formData, categoria: '', subcategoria: '' });
+                } else {
+                  setShowNewCategoryInput(false);
+                  setNewCategory('');
+                  setFormData({ ...formData, categoria: value, subcategoria: '' });
+                }
+              }}
             >
               <SelectTrigger><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
               <SelectContent>
@@ -197,16 +227,42 @@ export function AddRecurrentBillDialog({
                     {cat.categoria}
                   </SelectItem>
                 ))}
+                <SelectItem value="outros">Outros</SelectItem>
               </SelectContent>
             </Select>
+
+            {showNewCategoryInput && (
+              <div className="space-y-2 mt-2">
+                <Label htmlFor="newCategory">Nova Categoria</Label>
+                <Input
+                  id="newCategory"
+                  placeholder="Digite a nova categoria"
+                  value={newCategory}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNewCategory(value);
+                    setFormData({ ...formData, categoria: value.trim(), subcategoria: '' });
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {formData.categoria && (
             <div className="space-y-2">
               <Label htmlFor="subcategoria">Subcategoria *</Label>
               <Select
-                value={formData.subcategoria}
-                onValueChange={(value) => setFormData({ ...formData, subcategoria: value })}
+                value={showNewSubcategoryInput ? 'outros' : formData.subcategoria}
+                onValueChange={(value) => {
+                  if (value === 'outros') {
+                    setShowNewSubcategoryInput(true);
+                    setFormData({ ...formData, subcategoria: '' });
+                  } else {
+                    setShowNewSubcategoryInput(false);
+                    setNewSubcategory('');
+                    setFormData({ ...formData, subcategoria: value });
+                  }
+                }}
               >
                 <SelectTrigger><SelectValue placeholder="Selecione uma subcategoria" /></SelectTrigger>
                 <SelectContent>
@@ -217,8 +273,25 @@ export function AddRecurrentBillDialog({
                         {sub.nome}
                       </SelectItem>
                     ))}
+                  <SelectItem value="outros">Outros</SelectItem>
                 </SelectContent>
               </Select>
+
+              {showNewSubcategoryInput && (
+                <div className="space-y-2 mt-2">
+                  <Label htmlFor="newSubcategory">Nova Subcategoria</Label>
+                  <Input
+                    id="newSubcategory"
+                    placeholder="Digite a nova subcategoria"
+                    value={newSubcategory}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setNewSubcategory(value);
+                      setFormData({ ...formData, subcategoria: value.trim() });
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
 

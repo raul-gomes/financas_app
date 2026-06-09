@@ -9,6 +9,7 @@ export interface SubcategoriaOpcao {
 export interface CategoriaOpcao {
   id: number
   categoria: string
+  tipo?: string | null
   subcategorias: SubcategoriaOpcao[]
 }
 

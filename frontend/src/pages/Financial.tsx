@@ -28,11 +28,22 @@ const Financial = () => {
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown | null>(null);
   const [selectedDateRange, setSelectedDateRange] = useState<{ from: Date; to: Date }>({
     from: startOfMonth(new Date()),
-    to: new Date()
+    to: endOfMonth(new Date())
   });
   const [incomeBreakdown, setIncomeBreakdown] = useState<CategoryBreakdown | null>(null);
   const [selectedEntityType, setSelectedEntityType] = useState<'all' | 'pf' | 'pj'>('pf');
   const [selectedMonth, setSelectedMonth] = useState<SelectedMonth | null>(null);
+  const getCurrentMonth = (): SelectedMonth => {
+    const now = new Date();
+    const shortNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return {
+      name: shortNames[now.getMonth()],
+      index: now.getMonth(),
+      year: now.getFullYear(),
+    };
+  };
+  // Persists the last clicked month so the annual chart stays highlighted
+  const [highlightedMonth, setHighlightedMonth] = useState<SelectedMonth | null>(getCurrentMonth());
   const [yearTransactions, setYearTransactions] = useState<Transaction[]>([]);
   const fetchGeneration = useRef(0);
   const requestedMonthRef = useRef<SelectedMonth | null>(null);
@@ -99,14 +110,23 @@ const Financial = () => {
     loadData();
   }, [loadData]);
 
+  // Reset highlighted month when entity type changes
+  useEffect(() => {
+    setHighlightedMonth(getCurrentMonth());
+  }, [selectedEntityType]);
 
-  // Monthly balance
+
+  // Monthly balance (investimentos contam como saída)
   const monthlyBalance: MonthlyBalance = useMemo(() => {
     if (!financialSummary) return { income: 0, expenses: 0, balance: 0 };
+    const investmentTotal = financialSummary.transacoes
+      .filter(t => t.tipo === 'investimento')
+      .reduce((sum, t) => sum + t.valor, 0);
+    const totalExpenses = financialSummary.saidas + investmentTotal;
     return {
       income: financialSummary.entradas,
-      expenses: financialSummary.saidas,
-      balance: financialSummary.entradas - financialSummary.saidas
+      expenses: totalExpenses,
+      balance: financialSummary.entradas - totalExpenses
     };
   }, [financialSummary]);
 
@@ -114,15 +134,18 @@ const Financial = () => {
    const yearlyData: YearlyData[] = useMemo(() => {
      if (!yearlyPerformance?.meses) return [];
      const names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-     // Prepare investment sums per month
-      const investmentSums: Record<number, number> = {};
-      yearTransactions.forEach(t => {
-        if (t.tipo === 'investimento') {
-          const date = new Date(t.data_transacao);
-          const monthIdx = date.getMonth();
-          investmentSums[monthIdx] = (investmentSums[monthIdx] || 0) + t.valor;
-        }
-      });
+     // Filter year transactions by selected entity type for investment calculation
+     const filteredYearTx = selectedEntityType === 'all'
+       ? yearTransactions
+       : yearTransactions.filter(t => t.natureza === selectedEntityType);
+     const investmentSums: Record<number, number> = {};
+     filteredYearTx.forEach(t => {
+       if (t.tipo === 'investimento') {
+         const date = new Date(t.data_transacao);
+         const monthIdx = date.getMonth();
+         investmentSums[monthIdx] = (investmentSums[monthIdx] || 0) + t.valor;
+       }
+     });
       // Object.entries preserves order defined by backend (janeiro, fevereiro…)
       return Object.entries(yearlyPerformance.meses).map(
         ([monthKey, vals], idx) => ({
@@ -133,7 +156,7 @@ const Financial = () => {
           investment: investmentSums[idx] || 0
         })
       );
-    }, [yearlyPerformance, yearTransactions]);
+    }, [yearlyPerformance, yearTransactions, selectedEntityType]);
 
   // Handlers that reload data
   const handleAddTransaction = async (newTransaction: Transaction) => {
@@ -153,24 +176,54 @@ const Financial = () => {
     const from = new Date(year, monthIndex, 1);
     const to = endOfMonth(from);
     setSelectedDateRange({ from, to });
-    const monthNames = [
-      'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-    ];
-    // Reset current flip and store the month in a ref
-    // The flip will be activated inside loadData when fresh data arrives
-    setSelectedMonth(null);
-    requestedMonthRef.current = {
-      name: monthNames[monthIndex],
+    // Short names must match the bar chart labels (names array in yearlyData useMemo)
+    const shortNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const sel: SelectedMonth = {
+      name: shortNames[monthIndex],
       index: monthIndex,
       year,
     };
+    setHighlightedMonth(sel);
+    // Reset current flip and store the month in a ref
+    // The flip will be activated inside loadData when fresh data arrives
+    setSelectedMonth(null);
+    requestedMonthRef.current = sel;
   }, []);
 
   const handleBackClick = useCallback(() => {
     setSelectedMonth(null);
     requestedMonthRef.current = null;
   }, []);
+
+  const handlePrevMonth = useCallback(() => {
+    if (!selectedMonth) return;
+    const newDate = new Date(selectedMonth.year, selectedMonth.index - 1, 1);
+    const prevIdx = newDate.getMonth();
+    const prevYear = newDate.getFullYear();
+    const from = new Date(prevYear, prevIdx, 1);
+    const to = endOfMonth(from);
+    setSelectedDateRange({ from, to });
+    const shortNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const sel: SelectedMonth = { name: shortNames[prevIdx], index: prevIdx, year: prevYear };
+    setHighlightedMonth(sel);
+    setSelectedMonth(sel);
+    requestedMonthRef.current = null;
+  }, [selectedMonth]);
+
+  const handleNextMonth = useCallback(() => {
+    if (!selectedMonth) return;
+    const newDate = new Date(selectedMonth.year, selectedMonth.index + 1, 1);
+    const nextIdx = newDate.getMonth();
+    const nextYear = newDate.getFullYear();
+    const from = new Date(nextYear, nextIdx, 1);
+    const to = endOfMonth(from);
+    setSelectedDateRange({ from, to });
+    const shortNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const sel: SelectedMonth = { name: shortNames[nextIdx], index: nextIdx, year: nextYear };
+    setHighlightedMonth(sel);
+    setSelectedMonth(sel);
+    requestedMonthRef.current = null;
+  }, [selectedMonth]);
 
   // Filter and sort transactions
   const filteredTransactions = useMemo(
@@ -250,10 +303,13 @@ const Financial = () => {
               dateRange={selectedDateRange}
               transactions={sortedTransactions}
               selectedMonth={selectedMonth}
+              highlightedMonth={highlightedMonth}
               incomeBreakdown={incomeBreakdown}
               categoryBreakdown={categoryBreakdown}
               onMonthSelect={handleMonthSelect}
               onBackClick={handleBackClick}
+              onPrevMonth={handlePrevMonth}
+              onNextMonth={handleNextMonth}
               limiteCartaoCredito={financialSummary?.limite_cartao_credito || 0}
               gastosFixos={financialSummary?.gastos_fixos || 0}
               gastosVariaveis={financialSummary?.gastos_variaveis || 0}

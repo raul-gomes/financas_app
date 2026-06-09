@@ -14,6 +14,7 @@ class ContaRecorrenteBase(BaseModel):
     data_inicio: datetime
     data_fim: Optional[datetime] = None
     ativo: bool = True
+    total_parcelas: int = Field(default=12, ge=1, le=12)
 
     @field_validator('data_inicio', 'data_fim', mode='after')
     @classmethod
@@ -24,7 +25,10 @@ class ContaRecorrenteBase(BaseModel):
 
 
 class ContaRecorrenteCreate(ContaRecorrenteBase):
-    pass
+    categoria_id: Optional[int] = None
+    subcategoria_id: Optional[int] = None
+    categoria_nome: Optional[str] = None
+    subcategoria_nome: Optional[str] = None
 
 
 class ContaRecorrenteUpdate(BaseModel):
@@ -33,6 +37,8 @@ class ContaRecorrenteUpdate(BaseModel):
     dia_vencimento: Optional[int] = Field(None, ge=1, le=31)
     categoria_id: Optional[int] = None
     subcategoria_id: Optional[int] = None
+    categoria_nome: Optional[str] = None
+    subcategoria_nome: Optional[str] = None
     natureza: Optional[str] = None
     forma_pagamento: Optional[str] = None
     data_inicio: Optional[datetime] = None
@@ -44,6 +50,7 @@ class ContaRecorrenteResponse(ContaRecorrenteBase):
     id: int
     categoria_nome: Optional[str] = None
     subcategoria_nome: Optional[str] = None
+    parcelas_restantes: int = 0
 
     class Config:
         from_attributes = True

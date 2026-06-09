@@ -1,7 +1,7 @@
 # app/db/repositories/dashboard.py
 
 import calendar
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -217,12 +217,14 @@ class DashboardRepository:
             gastos_variaveis=gastos_variaveis,
         )
 
-    async def opcoes_categorias(self, natureza: str = 'all') -> OpcoesCategoriaResponse:
+    async def opcoes_categorias(self, natureza: str = 'all', tipo: Optional[str] = None) -> OpcoesCategoriaResponse:
         stmt = select(CategoriaORM).options(
             selectinload(CategoriaORM.subcategorias)
         )
         if natureza != 'all':
             stmt = stmt.where(CategoriaORM.natureza == NaturezaTransacao(natureza))
+        if tipo:
+            stmt = stmt.where(CategoriaORM.tipo == tipo)
         result = await self.db.execute(stmt)
         categorias = result.unique().scalars().all()
 
@@ -239,6 +241,7 @@ class DashboardRepository:
                 CategoriaOpcao(
                     id=categoria.id,
                     categoria=categoria.categoria_nome,
+                    tipo=categoria.tipo,
                     subcategorias=subs
                 )
             )

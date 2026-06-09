@@ -1,20 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ContaRecorrente, ContaRecorrenteCreate, ContaRecorrenteUpdate } from '@/types/conta_recorrente';
 import { ContaRecorrenteService } from '@/services/contaRecorrenteService';
-import { FinancialService } from '@/services/financialService';
-import { CategorySubcategories } from '@/types/financial';
 import { Button } from '@/components/ui/button';
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddRecurrentBillDialog } from '@/components/AddRecurrentBillDialog';
 import { EditRecurrentBillDialog } from '@/components/EditRecurrentBillDialog';
 
 const RecurrentBills = () => {
   const [contas, setContas] = useState<ContaRecorrente[]>([]);
-  const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingConta, setEditingConta] = useState<ContaRecorrente | null>(null);
+  const [renewingId, setRenewingId] = useState<number | null>(null);
   const { toast } = useToast();
 
   const loadContas = useCallback(async () => {
@@ -27,24 +25,14 @@ const RecurrentBills = () => {
     }
   }, [toast]);
 
-  const loadCategories = useCallback(async () => {
-    try {
-      const options = await FinancialService.getCategorySubcategories('all');
-      setCategoryOptions(options);
-    } catch (error) {
-      console.error('Erro ao carregar categorias:', error);
-    }
-  }, []);
-
   useEffect(() => {
     loadContas();
-    loadCategories();
-  }, [loadContas, loadCategories]);
+  }, [loadContas]);
 
   const handleCreate = async (payload: ContaRecorrenteCreate) => {
     try {
       await ContaRecorrenteService.create(payload);
-      toast({ title: 'Sucesso', description: 'Conta recorrente criada!' });
+      toast({ title: 'Sucesso', description: 'Conta recorrente criada com 12 parcelas!' });
       setShowAddDialog(false);
       loadContas();
     } catch {
@@ -76,12 +64,41 @@ const RecurrentBills = () => {
   };
 
   const handleToggleActive = async (conta: ContaRecorrente) => {
+    const action = conta.ativo ? 'desativar' : 'ativar';
+    const msg = conta.ativo
+      ? `Isso cancelara as ${conta.parcelas_restantes} parcelas futuras. Desativar mesmo?`
+      : 'Ativar esta conta recorrente?';
+    if (!confirm(msg)) return;
+
     try {
       await ContaRecorrenteService.update(conta.id, { ativo: !conta.ativo });
+      toast({
+        title: 'Sucesso',
+        description: conta.ativo
+          ? `Conta desativada. ${conta.parcelas_restantes} parcelas futuras canceladas.`
+          : 'Conta ativada.',
+      });
       loadContas();
     } catch {
       toast({ title: 'Erro', description: 'Falha ao alterar status.', variant: 'destructive' });
     }
+  };
+
+  const handleRenew = async (id: number) => {
+    setRenewingId(id);
+    try {
+      await ContaRecorrenteService.renew(id);
+      toast({ title: 'Sucesso', description: 'Conta renovada por mais 12 meses!' });
+      loadContas();
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao renovar conta.', variant: 'destructive' });
+    } finally {
+      setRenewingId(null);
+    }
+  };
+
+  const isEndingSoon = (conta: ContaRecorrente): boolean => {
+    return conta.ativo && conta.parcelas_restantes <= 2 && conta.parcelas_restantes > 0;
   };
 
   const formatCurrency = (value: number) =>
@@ -96,7 +113,7 @@ const RecurrentBills = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Contas Recorrentes</h1>
-            <p className="text-muted-foreground mt-1">Gerencie suas despesas mensais fixas</p>
+            <p className="text-muted-foreground mt-1">Gerencie suas despesas mensais fixas — cada conta gera 12 parcelas automaticamente</p>
           </div>
           <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-primary">
             <Plus className="w-4 h-4 mr-2" />
@@ -119,7 +136,7 @@ const RecurrentBills = () => {
                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Valor</th>
                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Vencimento</th>
                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Categoria</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Inicio</th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Parcelas</th>
                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Status</th>
                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Acoes</th>
                   </tr>
@@ -127,14 +144,26 @@ const RecurrentBills = () => {
                 <tbody className="divide-y divide-border">
                   {contas.map((conta) => (
                     <tr key={conta.id} className={`hover:bg-muted/30 ${!conta.ativo ? 'opacity-50' : ''}`}>
-                      <td className="px-4 py-3 text-sm font-medium text-foreground">{conta.descricao}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-foreground">
+                        <div className="flex items-center gap-2">
+                          {conta.descricao}
+                          {isEndingSoon(conta) && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                              <AlertTriangle className="w-3 h-3" />
+                              Acabando
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-sm text-foreground">{formatCurrency(conta.valor)}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">Dia {conta.dia_vencimento}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {conta.categoria_nome}
                         {conta.subcategoria_nome && ` / ${conta.subcategoria_nome}`}
                       </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{formatDate(conta.data_inicio)}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        {conta.parcelas_restantes}/{conta.total_parcelas}
+                      </td>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => handleToggleActive(conta)}
@@ -151,7 +180,7 @@ const RecurrentBills = () => {
                         </button>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-2">
+                        <div className="flex gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -161,6 +190,19 @@ const RecurrentBills = () => {
                             }}
                           >
                             <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRenew(conta.id)}
+                            disabled={renewingId === conta.id || (conta.ativo && conta.parcelas_restantes > 2)}
+                            title={
+                              conta.ativo && conta.parcelas_restantes > 2
+                                ? 'Ainda ha parcelas restantes'
+                                : 'Renovar por mais 12 meses'
+                            }
+                          >
+                            <RefreshCw className={`w-4 h-4 ${renewingId === conta.id ? 'animate-spin' : ''}`} />
                           </Button>
                           <Button
                             variant="ghost"
@@ -184,7 +226,6 @@ const RecurrentBills = () => {
             isOpen={showAddDialog}
             onClose={() => setShowAddDialog(false)}
             onSubmit={handleCreate}
-            categoryOptions={categoryOptions}
           />
         )}
 
@@ -197,7 +238,6 @@ const RecurrentBills = () => {
             }}
             conta={editingConta}
             onSubmit={handleUpdate}
-            categoryOptions={categoryOptions}
           />
         )}
       </main>

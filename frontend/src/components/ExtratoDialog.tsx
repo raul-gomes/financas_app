@@ -16,12 +16,13 @@ interface ExtratoDialogProps {
 }
 
 export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogProps) {
-    const [file, setFile] = useState<File | null>(null)
+    const [files, setFiles] = useState<File[]>([])
     const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null)
     const [transactions, setTransactions] = useState<ParsedTransaction[]>([])
     const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null)
     const [isUploading, setIsUploading] = useState(false)
     const [isConfirming, setIsConfirming] = useState(false)
+    const [uploadProgress, setUploadProgress] = useState<string>('')
     const { toast } = useToast()
 
     useEffect(() => {
@@ -30,24 +31,34 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         }
     }, [open])
 
-    const handleFileSelect = async (selectedFile: File) => {
-        setFile(selectedFile)
+    const handleFileSelect = async (selectedFiles: FileList | File[]) => {
+        const fileArray = Array.from(selectedFiles)
+        if (fileArray.length === 0) return
+        setFiles(fileArray)
         setIsUploading(true)
         try {
-            const result = await ExtractoService.upload(selectedFile)
+            setUploadProgress(`Processando ${fileArray.length} arquivo${fileArray.length > 1 ? 's' : ''}...`)
+            const { result, filenames } = await ExtractoService.uploadMultiple(fileArray)
             setUploadResult(result)
-            setTransactions(result.transacoes.map(t => ({ ...t, categoria_id: undefined, subcategoria_id: undefined, forma_pagamento: t.forma_pagamento || 'pix', natureza: t.natureza || 'pf' })))
+            setTransactions(result.transacoes.map(t => ({
+                ...t,
+                categoria_id: undefined,
+                subcategoria_id: undefined,
+                forma_pagamento: t.forma_pagamento || 'pix',
+                natureza: t.natureza || 'pf'
+            })))
         } catch {
             toast({ title: 'Erro', description: 'Falha ao processar o extrato. Verifique o formato do arquivo.', variant: 'destructive' })
         } finally {
             setIsUploading(false)
+            setUploadProgress('')
         }
     }
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault()
-        const droppedFile = e.dataTransfer.files[0]
-        if (droppedFile) handleFileSelect(droppedFile)
+        const droppedFiles = e.dataTransfer.files
+        if (droppedFiles.length > 0) handleFileSelect(droppedFiles)
     }
 
     const handleDescricaoChange = (index: number, descricao: string) => {
@@ -78,6 +89,16 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
             toast({ title: 'Atencao', description: `${unassigned.length} transacoes sem categoria. Atribua todas antes de confirmar.`, variant: 'destructive' })
             return
         }
+        const invalidDesc = transactions.filter(t => !t.descricao || !t.descricao.trim())
+        if (invalidDesc.length > 0) {
+            toast({ title: 'Atencao', description: `${invalidDesc.length} transacoes com descricao vazia. Preencha todas antes de confirmar.`, variant: 'destructive' })
+            return
+        }
+        const invalidValor = transactions.filter(t => !t.valor || t.valor <= 0)
+        if (invalidValor.length > 0) {
+            toast({ title: 'Atencao', description: `${invalidValor.length} transacoes com valor invalido.`, variant: 'destructive' })
+            return
+        }
         setIsConfirming(true)
         const confirmPayload: ConfirmTransaction[] = transactions.map(t => ({
             data: t.data, descricao: t.descricao, valor: t.valor, tipo: t.tipo,
@@ -87,7 +108,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         try {
             const result = await ExtractoService.confirm({ transacoes: confirmPayload })
             toast({ title: 'Sucesso', description: `${result.criadas} transacoes importadas!` })
-            setFile(null)
+            setFiles([])
             setUploadResult(null)
             setTransactions([])
             onImported()
@@ -100,7 +121,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     }
 
     const handleCancel = () => {
-        setFile(null)
+        setFiles([])
         setUploadResult(null)
         setTransactions([])
         onOpenChange(false)
@@ -126,22 +147,23 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                             id="file-input-modal"
                             type="file"
                             accept=".csv,.ofx,.qfx"
+                            multiple
                             className="hidden"
                             onChange={(e) => {
-                                const selected = e.target.files?.[0]
-                                if (selected) handleFileSelect(selected)
+                                const selected = e.target.files
+                                if (selected && selected.length > 0) handleFileSelect(selected)
                             }}
                         />
                         {isUploading ? (
                             <div className="flex flex-col items-center gap-4">
                                 <FileText className="w-12 h-12 text-muted-foreground animate-pulse" />
-                                <p className="text-lg text-muted-foreground">Processando extrato...</p>
+                                <p className="text-lg text-muted-foreground">{uploadProgress || 'Processando extrato...'}</p>
                             </div>
                         ) : (
                             <div className="flex flex-col items-center gap-4">
                                 <Upload className="w-12 h-12 text-muted-foreground" />
-                                <p className="text-lg text-muted-foreground">Arraste o arquivo aqui ou clique para selecionar</p>
-                                <p className="text-sm text-muted-foreground">Formatos aceitos: CSV, OFX, QFX</p>
+                                <p className="text-lg text-muted-foreground">Arraste os arquivos aqui ou clique para selecionar</p>
+                                <p className="text-sm text-muted-foreground">Formatos aceitos: CSV, OFX, QFX (multiplos arquivos)</p>
                             </div>
                         )}
                     </div>
@@ -157,7 +179,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                     <div className="flex justify-between items-center">
                         <div>
                             <DialogTitle>Revisar Extrato</DialogTitle>
-                            <p className="text-muted-foreground text-sm mt-1">{file?.name} — {uploadResult.total} transacoes</p>
+                            <p className="text-muted-foreground text-sm mt-1">{files.map(f => f.name).join(', ')} — {uploadResult.total} transacoes</p>
                         </div>
                         <div className="flex gap-3">
                             <Button variant="outline" size="sm" onClick={handleCancel}>
@@ -260,9 +282,11 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                                             <SelectValue placeholder="Selecionar..." />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            {categoryOptions?.opcoes.map(cat => (
-                                                                <SelectItem key={cat.id} value={String(cat.id)}>{cat.categoria}</SelectItem>
-                                                            ))}
+                                                            {categoryOptions?.opcoes
+                                                                .filter(cat => !trans.tipo || !cat.tipo || cat.tipo === trans.tipo)
+                                                                .map(cat => (
+                                                                    <SelectItem key={cat.id} value={String(cat.id)}>{cat.categoria}</SelectItem>
+                                                                ))}
                                                         </SelectContent>
                                                     </Select>
                                                 )}

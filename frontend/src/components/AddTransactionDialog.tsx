@@ -53,14 +53,14 @@ export function AddTransactionDialog({
   const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null)
 
   useEffect(() => {
-    FinancialService.getCategorySubcategories(formData.natureza)
+    FinancialService.getCategorySubcategories(formData.natureza, formData.tipo)
       .then(options => {
         setCategoryOptions(options)
       })
       .catch(err => {
         console.error('Erro ao carregar categorias:', err)
       })
-  }, [formData.natureza])
+  }, [formData.natureza, formData.tipo])
 
   // Reseta tudo ao fechar
   const handleClose = () => {

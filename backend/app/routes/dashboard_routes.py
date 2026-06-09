@@ -1,6 +1,6 @@
 import calendar
 from fastapi import APIRouter, Query, Depends, HTTPException, status
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -111,14 +111,15 @@ async def gastos_por_categoria(
 )
 async def opcoes_categorias(
     natureza: Literal['pf', 'pj', 'all'] = Query('all'),
+    tipo: Optional[str] = Query(None, description="Filtrar por tipo de transacao: entrada, saida, investimento"),
     db: AsyncSession = Depends(get_session)
 ) -> OpcoesCategoriaResponse:
     
-    api_logger = log_api_request('GET', '/dashboard/opcoes-categorias', natureza=natureza)
-    api_logger.info('Gerando opções de categorias', natureza=natureza)
+    api_logger = log_api_request('GET', '/dashboard/opcoes-categorias', natureza=natureza, tipo=tipo)
+    api_logger.info('Gerando opções de categorias', natureza=natureza, tipo=tipo)
 
     dashboard_repo = DashboardRepository(db)
-    opcoes = await dashboard_repo.opcoes_categorias(natureza)
+    opcoes = await dashboard_repo.opcoes_categorias(natureza, tipo)
 
     api_logger.success('Opções de categorias retornadas', count=len(opcoes.opcoes))
     return opcoes

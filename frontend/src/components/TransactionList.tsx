@@ -65,7 +65,7 @@ export function TransactionList({
   return (
     <div className="h-full flex flex-col p-6">
       {/* Indicadores de Balanço */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-4 mb-2">
           <div className="bg-success/10 border border-success/20 rounded-lg p-4">
             <div className="flex items-center gap-3">
               <ArrowUpRight className="h-5 w-5 text-success" />
@@ -88,6 +88,15 @@ export function TransactionList({
               </div>
             </div>
           </div>
+      </div>
+      {/* Balanço Mensal */}
+      <div className={cn(
+        "rounded-lg p-3 mb-4 text-center text-sm font-semibold transition-colors",
+        monthlyBalance.balance >= 0
+          ? "bg-success/5 text-success border border-success/20"
+          : "bg-destructive/5 text-destructive border border-destructive/20"
+      )}>
+        Balanço Mensal: {formatCurrency(monthlyBalance.balance)}
       </div>
 
       {/* Header e Botões */}
@@ -145,68 +154,84 @@ export function TransactionList({
       {/* Lista de Transações */}
       <div className="flex-1 overflow-y-auto mt-4 space-y-2">
         {transactions.map((t) => (
-          <div
-            key={t.id}
-            className="bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors"
-            onClick={() => handleItemClick(t.id)}
-          >
-            {/* Top row: icon + description + value + delete */}
-            <div className="flex items-start gap-3">
-              <div className={cn(
-                "p-2 rounded-lg shrink-0",
-                t.tipo === 'entrada' ? 'bg-success/10 text-success' : 
-                t.tipo === 'investimento' ? 'bg-warning/10 text-warning' : 
-                'bg-destructive/10 text-destructive'
-              )}>
-                {t.tipo === 'entrada' ? <ArrowUpRight className="h-4 w-4" /> : 
-                 t.tipo === 'investimento' ? <ArrowUpRight className="h-4 w-4" /> : 
-                 <ArrowDownRight className="h-4 w-4" />}
-              </div>
+            <div
+              key={t.id}
+              className={`bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors ${
+                t.conta_recorrente_id ? 'bg-blue-50/60 border-blue-200 hover:bg-blue-50' : ''
+              }`}
+              onClick={() => handleItemClick(t.id)}
+            >
+              {/* Top row: icon + description + value + delete */}
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "p-2 rounded-lg shrink-0",
+                  t.conta_recorrente_id ? 'bg-blue-100 text-blue-600' :
+                  t.tipo === 'entrada' ? 'bg-success/10 text-success' : 
+                  t.tipo === 'investimento' ? 'bg-warning/10 text-warning' : 
+                  'bg-destructive/10 text-destructive'
+                )}>
+                  {t.conta_recorrente_id ? <ArrowDownRight className="h-4 w-4" /> :
+                   t.tipo === 'entrada' ? <ArrowUpRight className="h-4 w-4" /> : 
+                   t.tipo === 'investimento' ? <ArrowUpRight className="h-4 w-4" /> : 
+                   <ArrowDownRight className="h-4 w-4" />}
+                </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium text-foreground truncate">{t.descricao}</p>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <p className={cn("font-semibold text-lg", 
-                      t.tipo === 'entrada' ? 'text-success' : 
-                      t.tipo === 'investimento' ? 'text-warning' : 
-                      'text-destructive')}>
-                      {formatCurrency(t.valor)}
-                    </p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 focus-visible:bg-destructive/20 shrink-0"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDeleteTransaction(t.id)
-                      }}
-                      aria-label="Excluir transação"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-foreground truncate">{t.descricao}</p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <p className={cn("font-semibold text-lg", 
+                        t.conta_recorrente_id ? 'text-blue-600' :
+                        t.tipo === 'entrada' ? 'text-success' : 
+                        t.tipo === 'investimento' ? 'text-warning' : 
+                        'text-destructive')}>
+                        {formatCurrency(t.valor)}
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 focus-visible:bg-destructive/20 shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDeleteTransaction(t.id)
+                        }}
+                        aria-label="Excluir transação"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Bottom row: badges */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
+                    {t.conta_recorrente_id ? (
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                        Recorrente
+                      </span>
+                    ) : (
+                      <Badge variant='outline' className="shrink-0">
+                        {format(new Date(t.data_transacao), 'dd/MM/yyyy')}
+                      </Badge>
+                    )}
+                    <Badge variant={t.natureza === 'pj' ? 'default' : 'secondary'} className="text-xs shrink-0">
+                      {t.natureza.toUpperCase()}
+                    </Badge>
+                    {t.total_parcelas && t.total_parcelas > 1 && !t.conta_recorrente_id && (
+                      <Badge className="shrink-0">
+                        {t.parcela}/{t.total_parcelas}
+                      </Badge>
+                    )}
+                    {!t.conta_recorrente_id && (
+                      <span className="text-slate-400 truncate">• {t.categoria_nome}</span>
+                    )}
+                    {t.conta_recorrente_id && (
+                      <span className="text-blue-400 truncate">• {t.categoria_nome}</span>
+                    )}
                   </div>
                 </div>
-
-                {/* Bottom row: badges */}
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
-                  <Badge variant='outline' className="shrink-0">
-                    {format(new Date(t.data_transacao), 'dd/MM/yyyy')}
-                  </Badge>
-                  <Badge variant={t.natureza === 'pj' ? 'default' : 'secondary'} className="text-xs shrink-0">
-                    {t.natureza.toUpperCase()}
-                  </Badge>
-                  {t.total_parcelas && t.total_parcelas > 1 && (
-                    <Badge className="shrink-0">
-                      {t.parcela}/{t.total_parcelas}
-                    </Badge>
-                  )}
-                  <span className="text-slate-400 truncate">• {t.categoria_nome}</span>
-                </div>
               </div>
-            </div>
 
-          </div>
+            </div>
         ))}
       </div>
 

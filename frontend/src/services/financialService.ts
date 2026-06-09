@@ -34,11 +34,11 @@ export class FinancialService {
   // 2. Rendimento anual (performance mensal) com filtro de natureza
   static async getYearlyPerformance(
     year: number,
-    natureza?: 'pf' | 'pj'
+    natureza?: 'pf' | 'pj' | 'all'
   ): Promise<YearlyPerformance> {
     const params = new URLSearchParams({
       ano: year.toString(),
-      ...(natureza ? { natureza } : {})
+      ...(natureza && natureza !== 'all' ? { natureza } : {})
     });
     const res = await fetch(
       `${API_BASE_URL}/dashboard/rendimento-periodo?${params}`
@@ -89,11 +89,15 @@ export class FinancialService {
     return res.json();
   }
 
-  // 5. Mapa de categoria → subcategorias (opcional natureza)
+  // 5. Mapa de categoria → subcategorias (opcional natureza e tipo)
   static async getCategorySubcategories(
-    natureza?: 'pf' | 'pj' | 'all'
+    natureza?: 'pf' | 'pj' | 'all',
+    tipo?: string
   ): Promise<CategorySubcategories> {
-    const query = natureza ? `?natureza=${natureza}` : ''
+    const params = new URLSearchParams()
+    if (natureza) params.set('natureza', natureza)
+    if (tipo) params.set('tipo', tipo)
+    const query = params.toString() ? `?${params.toString()}` : ''
     const res = await fetch(`${API_BASE_URL}/dashboard/opcoes-categorias${query}`)
     if (!res.ok) {
       throw new Error(`Erro ${res.status} ao buscar categorias`)
@@ -143,7 +147,7 @@ export class FinancialService {
     const params = new URLSearchParams({
       data_inicio: from.toLocaleDateString('pt-BR'),
       data_final: to.toLocaleDateString('pt-BR'),
-      ...(natureza ? { natureza } : {}),
+      ...(natureza && natureza !== 'all' ? { natureza } : {}),
     });
     const res = await fetch(`${API_BASE_URL}/transacoes/?${params}`);
     if (!res.ok) {

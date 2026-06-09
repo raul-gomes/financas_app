@@ -48,6 +48,14 @@ export class ContaRecorrenteService {
     return res.json();
   }
 
+  static async renew(id: number): Promise<ContaRecorrente> {
+    const res = await fetch(`${API_BASE_URL}/recorrentes/${id}/renew`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error(`Erro ${res.status} ao renovar conta recorrente`);
+    return res.json();
+  }
+
   static async generate(dataInicio: Date, dataFinal: Date): Promise<GenerateResponse> {
     const payload = {
       data_inicio: dataInicio.toISOString(),

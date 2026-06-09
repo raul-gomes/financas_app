@@ -13,7 +13,7 @@ interface D3DailyChartProps {
 export function D3DailyChart({
   data,
   width = 900,
-  height = 380,
+  height = 420,
   selectedMonth = '',
   monthlyGoal = 0,
 }: D3DailyChartProps) {
@@ -38,127 +38,125 @@ export function D3DailyChart({
     if (!svgRef.current || !data.length) return;
 
     const svg = d3.select(svgRef.current);
-    svg.selectAll('*').remove();
+    svg.selectAll('*').remove(); // Clear previous chart
 
-    const margin = { top: 20, right: 24, left: 64, bottom: 48 };
+    const margin = { top: 24, right: 0, left: 72, bottom: 48 };
     const innerWidth = dims.width - margin.left - margin.right;
     const innerHeight = dims.height - margin.top - margin.bottom;
 
+    // Scales
     const xScale = d3.scaleBand()
-      .domain(data.map((d) => d.day.toString()))
+      .domain(data.map(d => d.day.toString()))
       .range([0, innerWidth])
-      .padding(0.15);
+      .padding(0.3);
 
-    const maxValue = d3.max(data, (d) => Math.max(d.income, d.expenses, d.investment)) || 0;
+    const rawMax = d3.max(data, d => Math.max(d.income, d.expenses, d.investment)) || 0;
+    const effectiveMax = Math.max(rawMax, monthlyGoal || 0);
+    const maxValue = Math.max(effectiveMax, 1);
     const yScale = d3.scaleLinear()
-      .domain([0, maxValue * 1.15])
+      .domain([0, maxValue * 1.1])
       .range([innerHeight, 0]);
 
-    const g = svg
-      .append('g')
+    // Create main group
+    const g = svg.append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
     // Grid lines
     g.selectAll('.grid-line')
-      .data(yScale.ticks(5))
+      .data(yScale.ticks(6))
       .enter()
       .append('line')
       .attr('class', 'grid-line')
       .attr('x1', 0)
       .attr('x2', innerWidth)
-      .attr('y1', (d) => yScale(d))
-      .attr('y2', (d) => yScale(d))
+      .attr('y1', d => yScale(d))
+      .attr('y2', d => yScale(d))
       .attr('stroke', 'hsl(var(--border))')
       .attr('stroke-dasharray', '3,3')
-      .attr('opacity', 0.25);
+      .attr('opacity', 0.3);
 
-    // Income bars
+    // Income bars (green) - animated
     g.selectAll('.income-bar')
       .data(data)
       .enter()
       .append('rect')
       .attr('class', 'income-bar')
-      .attr('x', (d) => xScale(d.day.toString())! + (xScale.bandwidth() / 3) * 0 + 1)
+      .attr('x', d => xScale(d.day.toString())! + (xScale.bandwidth() / 3) * 0 + 1)
       .attr('width', (xScale.bandwidth() / 3) - 2)
       .attr('fill', 'hsl(var(--success))')
-      .attr('rx', 2)
+      .attr('rx', 3)
       .attr('y', innerHeight)
       .attr('height', 0)
       .transition()
       .delay((_, i) => i * 10)
       .duration(400)
       .ease(d3.easeBackOut)
-      .attr('y', (d) => yScale(d.income))
-      .attr('height', (d) => innerHeight - yScale(d.income));
+      .attr('y', d => yScale(d.income))
+      .attr('height', d => innerHeight - yScale(d.income));
 
-    // Expense bars
+    // Expense bars (red) - animated
     g.selectAll('.expense-bar')
       .data(data)
       .enter()
       .append('rect')
       .attr('class', 'expense-bar')
-      .attr('x', (d) => xScale(d.day.toString())! + (xScale.bandwidth() / 3) * 1 + 1)
+      .attr('x', d => xScale(d.day.toString())! + (xScale.bandwidth() / 3) * 1 + 1)
       .attr('width', (xScale.bandwidth() / 3) - 2)
       .attr('fill', 'hsl(var(--destructive))')
-      .attr('rx', 2)
+      .attr('rx', 3)
       .attr('y', innerHeight)
       .attr('height', 0)
       .transition()
       .delay((_, i) => i * 10 + 20)
       .duration(400)
       .ease(d3.easeBackOut)
-      .attr('y', (d) => yScale(d.expenses))
-      .attr('height', (d) => innerHeight - yScale(d.expenses));
+      .attr('y', d => yScale(d.expenses))
+      .attr('height', d => {
+        const h = innerHeight - yScale(d.expenses);
+        return h > 2 ? h : 2;
+      });
 
-    // Investment bars
+    // Investment bars (yellow) - animated
     g.selectAll('.investment-bar')
       .data(data)
       .enter()
       .append('rect')
       .attr('class', 'investment-bar')
-      .attr('x', (d) => xScale(d.day.toString())! + (xScale.bandwidth() / 3) * 2 + 1)
+      .attr('x', d => xScale(d.day.toString())! + (xScale.bandwidth() / 3) * 2 + 1)
       .attr('width', (xScale.bandwidth() / 3) - 2)
       .attr('fill', 'hsl(var(--warning))')
-      .attr('rx', 2)
+      .attr('rx', 3)
       .attr('y', innerHeight)
       .attr('height', 0)
       .transition()
       .delay((_, i) => i * 10 + 40)
       .duration(400)
       .ease(d3.easeBackOut)
-      .attr('y', (d) => yScale(d.investment))
-      .attr('height', (d) => innerHeight - yScale(d.investment));
+      .attr('y', d => yScale(d.investment))
+      .attr('height', d => {
+        const h = innerHeight - yScale(d.investment);
+        return h > 2 ? h : 2;
+      });
 
-    // X Axis (day numbers)
-    const xAxis = d3.axisBottom(xScale)
-      .tickValues(
-        data.filter((_, i) => {
-          const totalDays = data.length;
-          if (totalDays <= 15) return true;
-          if (totalDays <= 20) return i % 2 === 0 || i === totalDays - 1;
-          if (totalDays <= 25) return i % 3 === 0 || i === totalDays - 1;
-          return i % 5 === 0 || i === totalDays - 1;
-        }).map((d) => d.day.toString())
-      );
-
+    // X Axis - Day numbers
     g.append('g')
       .attr('transform', `translate(0,${innerHeight})`)
-      .call(xAxis)
+      .call(d3.axisBottom(xScale).tickFormat(d => d.toString()))
       .selectAll('text')
       .attr('fill', 'hsl(var(--muted-foreground))')
-      .style('font-size', '11px');
+      .style('font-size', '12px');
 
     // Y Axis
     g.append('g')
-      .call(d3.axisLeft(yScale).ticks(5).tickFormat((d) => {
+      .call(d3.axisLeft(yScale).ticks(6).tickFormat(d => {
         if (d >= 1000) return `${(d / 1000).toFixed(1)}k`;
         return d.toString();
       }))
       .selectAll('text')
       .attr('fill', 'hsl(var(--muted-foreground))')
-      .style('font-size', '11px');
+      .style('font-size', '13px');
 
-    // Remove axis lines
+    // Remove axis lines (clean look)
     g.selectAll('.domain').remove();
     g.selectAll('.tick line').remove();
 
@@ -175,32 +173,32 @@ export function D3DailyChart({
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '5,5');
 
-      // Goal line label
       g.append('text')
         .attr('x', innerWidth - 5)
         .attr('y', goalY - 5)
         .attr('text-anchor', 'end')
         .attr('fill', 'hsl(var(--destructive))')
-        .style('font-size', '11px')
+        .style('font-size', '13px')
         .style('font-weight', 'bold')
         .text(`Meta: R$ ${monthlyGoal.toLocaleString('pt-BR')}`);
     }
 
     // Tooltip
     const tooltip = d3.select('body').append('div')
-      .attr('class', 'tooltip')
+      .attr('class', 'tooltip-daily')
       .style('position', 'absolute')
       .style('visibility', 'hidden')
       .style('background', 'hsl(var(--card))')
       .style('border', '1px solid hsl(var(--border))')
       .style('border-radius', '8px')
-      .style('padding', '8px')
-      .style('font-size', '12px')
+      .style('padding', '10px')
+      .style('font-size', '13px')
       .style('box-shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1)')
       .style('z-index', '1000')
       .style('pointer-events', 'none')
       .style('max-width', '90vw');
 
+    // Hover effects
     g.selectAll('.income-bar, .expense-bar, .investment-bar')
       .style('cursor', 'default')
       .on('mouseover', function (event, d: any) {
@@ -214,7 +212,7 @@ export function D3DailyChart({
         let type = '';
         if (isIncome) { value = d.income; type = 'Entradas'; }
         else if (isExpense) { value = d.expenses; type = 'Saídas'; }
-        else if (isInvestment) { value = d.investment; type = 'Investimento'; }
+        else if (isInvestment) { value = d.investment; type = 'Investimentos'; }
 
         tooltip
           .style('visibility', 'visible')
@@ -234,8 +232,9 @@ export function D3DailyChart({
         tooltip.style('visibility', 'hidden');
       });
 
+    // Cleanup
     return () => {
-      d3.selectAll('.tooltip').remove();
+      d3.selectAll('.tooltip-daily').remove();
     };
   }, [data, dims, selectedMonth, monthlyGoal]);
 
@@ -248,12 +247,13 @@ export function D3DailyChart({
   }
 
   return (
-    <div ref={wrapperRef} className="w-full h-full">
+    <div ref={wrapperRef} className="absolute inset-0">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${dims.width} ${dims.height}`}
         preserveAspectRatio="xMinYMin meet"
         className="w-full h-full"
+        style={{ overflow: 'visible' }}
       />
     </div>
   );

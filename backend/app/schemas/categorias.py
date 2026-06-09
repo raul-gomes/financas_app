@@ -10,6 +10,9 @@ class CategoriaBase(BaseModel):
     categoria_nome: str = Field(..., description='Nome da categoria')
     natureza: Literal['pj', 'pf', 'all'] = Field(..., description='Natureza da categoria')
     limite: float = Field(..., ge=0, description='Limite associado à categoria')
+    tipo: Optional[Literal['entrada', 'saida', 'investimento']] = Field(
+        default=None, description='Tipo de transação: entrada, saida, ou investimento. Null para categorias especiais (ex: limites).'
+    )
 
 class CategoriaCreate(CategoriaBase):
     subcategorias: List[SubcategoriaCreate] = Field(default_factory=list, description='Lista de subcategorias')
@@ -20,6 +23,7 @@ class CategoriaCreate(CategoriaBase):
                 "categoria_nome": "Marketing",
                 "natureza": "pj",
                 "limite": 5000.00,
+                "tipo": "saida",
                 "subcategorias": [
                     {"subcategoria_nome": "Google Ads"},
                     {"subcategoria_nome": "Facebook Ads"},
@@ -39,6 +43,7 @@ class CategoriaUpdate(BaseModel):
     categoria_nome: Optional[str] = None
     natureza: Optional[Literal['pj','pf']] = None
     limite: Optional[float] = None
+    tipo: Optional[Literal['entrada', 'saida', 'investimento']] = None
     subcategorias: Optional[List[SubcategoriaUpdate]] = Field(default=None)
 
     class Config:

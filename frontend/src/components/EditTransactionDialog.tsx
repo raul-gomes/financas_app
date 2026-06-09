@@ -47,7 +47,7 @@ export function EditTransactionDialog({
   // Carrega categorias/subcategorias
   useEffect(() => {
     if (!isOpen) return;
-    FinancialService.getCategorySubcategories(formData.natureza!)
+    FinancialService.getCategorySubcategories(formData.natureza!, formData.tipo)
       .then(opts => {
         setCategoryOptions(opts);
         // Agora que opts estão carregadas, decida se é “Outros”:
@@ -63,7 +63,7 @@ export function EditTransactionDialog({
       .catch(() => {
         toast({ title: 'Erro', description: 'Falha ao carregar categorias', variant: 'destructive' });
       });
-  }, [isOpen, transaction.categoria_nome, transaction.subcategoria_nome, formData.natureza, toast]);
+  }, [isOpen, transaction.categoria_nome, transaction.subcategoria_nome, formData.natureza, formData.tipo, toast]);
 
   useEffect(() => {
     setFormData(transaction);

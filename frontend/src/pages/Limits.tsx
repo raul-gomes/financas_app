@@ -16,7 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { DollarSign, Save, BarChart3, Trash2, PlusCircle, Pencil, ToggleLeft, ToggleRight, CreditCard } from 'lucide-react'
+import { DollarSign, Save, BarChart3, Trash2, PlusCircle, Pencil, ToggleLeft, ToggleRight, CreditCard, AlertTriangle, RefreshCw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { FinancialService } from '@/services/financialService'
 import { ContaRecorrenteService } from '@/services/contaRecorrenteService'
@@ -37,6 +37,7 @@ interface Category {
     limite: number
     id: number | string
     subcategorias: Subcategory[]
+    tipo?: string | null
     isNew?: boolean
     isModified?: boolean
 }
@@ -152,8 +153,10 @@ const LimitsTab = () => {
     const mensalPJItem = data.find(cat => cat.categoria_nome.trim().toLowerCase() === 'mensal pj');
     const limiteCartaoItem = data.find(cat => cat.categoria_nome.trim().toLowerCase() === 'limite cartao credito');
     const specialNames = ['mensal pf', 'mensal pj', 'limite cartao credito', 'mensal'];
-    const pfGroup = data.filter(cat => cat.natureza === 'pf' && !specialNames.includes(cat.categoria_nome.trim().toLowerCase()));
-    const pjGroup = data.filter(cat => cat.natureza === 'pj' && !specialNames.includes(cat.categoria_nome.trim().toLowerCase()));
+    // Filtra categorias que não têm limite (entrada/investimento não possuem limite)
+    const hasLimit = (c: Category) => !c.tipo || c.tipo === 'saida';
+    const pfGroup = data.filter(cat => cat.natureza === 'pf' && !specialNames.includes(cat.categoria_nome.trim().toLowerCase()) && hasLimit(cat));
+    const pjGroup = data.filter(cat => cat.natureza === 'pj' && !specialNames.includes(cat.categoria_nome.trim().toLowerCase()) && hasLimit(cat));
 
     const renderGroup = (title: string, icon: React.ReactNode, categories: Category[], natureza?: 'pf' | 'pj') => (
         <Card>
@@ -270,9 +273,9 @@ const LimitsTab = () => {
 // ===== Recorrentes Tab =====
 const RecorrentesTab = () => {
     const [contas, setContas] = useState<ContaRecorrente[]>([])
-    const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null)
     const [showForm, setShowForm] = useState(false)
     const [editingConta, setEditingConta] = useState<ContaRecorrente | null>(null)
+    const [renewingId, setRenewingId] = useState<number | null>(null)
     const { toast } = useToast()
 
     const loadContas = useCallback(async () => {
@@ -283,13 +286,12 @@ const RecorrentesTab = () => {
 
     useEffect(() => {
         loadContas()
-        FinancialService.getCategorySubcategories('all').then(setCategoryOptions).catch(() => {})
     }, [loadContas])
 
     const handleCreate = async (payload: ContaRecorrenteCreate) => {
         try {
             await ContaRecorrenteService.create(payload)
-            toast({ title: 'Sucesso', description: 'Conta recorrente criada!' })
+            toast({ title: 'Sucesso', description: 'Conta recorrente criada com 12 parcelas!' })
             setShowForm(false)
             loadContas()
         } catch {
@@ -308,12 +310,47 @@ const RecorrentesTab = () => {
         }
     }
 
+    const handleToggleActive = async (conta: ContaRecorrente) => {
+        const msg = conta.ativo
+            ? `Isso cancelara as ${conta.parcelas_restantes} parcelas futuras. Desativar mesmo?`
+            : 'Ativar esta conta recorrente?'
+        if (!confirm(msg)) return
+        try {
+            await ContaRecorrenteService.update(conta.id, { ativo: !conta.ativo })
+            toast({
+                title: 'Sucesso',
+                description: conta.ativo
+                    ? `Conta desativada. ${conta.parcelas_restantes} parcelas futuras canceladas.`
+                    : 'Conta ativada.',
+            })
+            loadContas()
+        } catch {
+            toast({ title: 'Erro', description: 'Falha ao alterar status.', variant: 'destructive' })
+        }
+    }
+
     const handleDelete = async (id: number) => {
         if (!confirm('Tem certeza que deseja excluir?')) return
         try { await ContaRecorrenteService.delete(id); toast({ title: 'Sucesso', description: 'Conta excluida!' }); loadContas() } catch {
             toast({ title: 'Erro', description: 'Falha ao excluir.', variant: 'destructive' })
         }
     }
+
+    const handleRenew = async (id: number) => {
+        setRenewingId(id)
+        try {
+            await ContaRecorrenteService.renew(id)
+            toast({ title: 'Sucesso', description: 'Conta renovada por mais 12 meses!' })
+            loadContas()
+        } catch {
+            toast({ title: 'Erro', description: 'Falha ao renovar.', variant: 'destructive' })
+        } finally {
+            setRenewingId(null)
+        }
+    }
+
+    const isEndingSoon = (conta: ContaRecorrente): boolean =>
+        conta.ativo && conta.parcelas_restantes <= 2 && conta.parcelas_restantes > 0
 
     const formatCurrency = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
     const formatDate = (d: string) => new Date(d).toLocaleDateString('pt-BR')
@@ -323,7 +360,7 @@ const RecorrentesTab = () => {
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-xl font-bold">Contas Recorrentes</h2>
-                    <p className="text-muted-foreground text-sm">Gerencie suas despesas mensais fixas</p>
+                    <p className="text-muted-foreground text-sm">Gerencie suas despesas mensais fixas — cada conta gera 12 parcelas</p>
                 </div>
                 <Button onClick={() => setShowForm(true)} className="bg-gradient-primary">
                     <PlusCircle className="w-4 h-4 mr-2" />Nova Conta Recorrente
@@ -343,7 +380,7 @@ const RecorrentesTab = () => {
                                 <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Valor</th>
                                 <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Vencimento</th>
                                 <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Categoria</th>
-                                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Inicio</th>
+                                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Parcelas</th>
                                 <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Status</th>
                                 <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Acoes</th>
                             </tr>
@@ -351,21 +388,58 @@ const RecorrentesTab = () => {
                         <tbody className="divide-y divide-border">
                             {contas.map(conta => (
                                 <tr key={conta.id} className={`hover:bg-muted/30 ${!conta.ativo ? 'opacity-50' : ''}`}>
-                                    <td className="px-4 py-3 text-sm font-medium">{conta.descricao}</td>
+                                    <td className="px-4 py-3 text-sm font-medium">
+                                        <div className="flex items-center gap-2">
+                                            {conta.descricao}
+                                            {isEndingSoon(conta) && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                                                    <AlertTriangle className="w-3 h-3" />
+                                                    Acabando
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className="px-4 py-3 text-sm">{formatCurrency(conta.valor)}</td>
                                     <td className="px-4 py-3 text-sm text-muted-foreground">Dia {conta.dia_vencimento}</td>
-                                    <td className="px-4 py-3 text-sm text-muted-foreground">{conta.categoria_nome}{conta.subcategoria_nome && ` / ${conta.subcategoria_nome}`}</td>
-                                    <td className="px-4 py-3 text-sm text-muted-foreground">{formatDate(conta.data_inicio)}</td>
+                                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                                        {conta.categoria_nome}{conta.subcategoria_nome && ` / ${conta.subcategoria_nome}`}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                                        {conta.parcelas_restantes}/{conta.total_parcelas}
+                                    </td>
                                     <td className="px-4 py-3">
-                                        <button onClick={async () => { try { await ContaRecorrenteService.update(conta.id, { ativo: !conta.ativo }); loadContas() } catch {} }}>
-                                            {conta.ativo ? <ToggleRight className="w-5 h-5 text-green-500" /> : <ToggleLeft className="w-5 h-5 text-muted-foreground" />}
-                                            <span className={`text-xs ${conta.ativo ? 'text-green-500' : 'text-muted-foreground'}`}>{conta.ativo ? 'Ativa' : 'Inativa'}</span>
+                                        <button onClick={() => handleToggleActive(conta)} className="flex items-center gap-1 text-sm">
+                                            {conta.ativo ? (
+                                                <ToggleRight className="w-5 h-5 text-green-500" />
+                                            ) : (
+                                                <ToggleLeft className="w-5 h-5 text-muted-foreground" />
+                                            )}
+                                            <span className={`text-xs ${conta.ativo ? 'text-green-500' : 'text-muted-foreground'}`}>
+                                                {conta.ativo ? 'Ativa' : 'Inativa'}
+                                            </span>
                                         </button>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <div className="flex gap-2">
-                                            <Button variant="ghost" size="sm" onClick={() => setEditingConta(conta)}><Pencil className="w-4 h-4" /></Button>
-                                            <Button variant="ghost" size="sm" onClick={() => handleDelete(conta.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                                        <div className="flex gap-1">
+                                            <Button variant="ghost" size="sm" onClick={() => setEditingConta(conta)}>
+                                                <Pencil className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleRenew(conta.id)}
+                                                disabled={renewingId === conta.id || (conta.ativo && conta.parcelas_restantes > 2)}
+                                                title={
+                                                    conta.ativo && conta.parcelas_restantes > 2
+                                                        ? 'Ainda ha parcelas restantes'
+                                                        : 'Renovar por mais 12 meses'
+                                                }
+                                            >
+                                                <RefreshCw className={`w-4 h-4 ${renewingId === conta.id ? 'animate-spin' : ''}`} />
+                                            </Button>
+                                            <Button variant="ghost" size="sm" onClick={() => handleDelete(conta.id)}>
+                                                <Trash2 className="w-4 h-4 text-destructive" />
+                                            </Button>
                                         </div>
                                     </td>
                                 </tr>
@@ -378,7 +452,6 @@ const RecorrentesTab = () => {
             {(showForm || editingConta) && (
                 <ContaForm
                     conta={editingConta}
-                    categoryOptions={categoryOptions}
                     onClose={() => { setShowForm(false); setEditingConta(null) }}
                     onSubmit={(payload) => editingConta ? handleUpdate(editingConta.id, payload) : handleCreate(payload as ContaRecorrenteCreate)}
                 />
@@ -388,9 +461,8 @@ const RecorrentesTab = () => {
 }
 
 // ===== Shared Form =====
-const ContaForm = ({ conta, categoryOptions, onClose, onSubmit }: {
+const ContaForm = ({ conta, onClose, onSubmit }: {
     conta: ContaRecorrente | null
-    categoryOptions: CategorySubcategories | null
     onClose: () => void
     onSubmit: (payload: ContaRecorrenteCreate | ContaRecorrenteUpdate) => void
 }) => {
@@ -405,12 +477,21 @@ const ContaForm = ({ conta, categoryOptions, onClose, onSubmit }: {
         categoria: conta?.categoria_nome || '',
         subcategoria: conta?.subcategoria_nome || '',
     })
+    const [newCategory, setNewCategory] = useState('')
+    const [newSubcategory, setNewSubcategory] = useState('')
+    const [showNewCategoryInput, setShowNewCategoryInput] = useState(false)
+    const [showNewSubcategoryInput, setShowNewSubcategoryInput] = useState(false)
+    const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null)
+
+    useEffect(() => {
+        FinancialService.getCategorySubcategories(form.natureza, 'saida')
+            .then(options => setCategoryOptions(options))
+            .catch(() => {})
+    }, [form.natureza])
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        const catObj = categoryOptions?.opcoes.find(c => c.categoria === form.categoria)
-        const subObj = catObj?.subcategorias.find(s => s.nome === form.subcategoria)
-        if (!catObj || !subObj) return
+        if (!form.descricao || !form.valor) return
 
         const payload: any = {
             descricao: form.descricao,
@@ -420,8 +501,18 @@ const ContaForm = ({ conta, categoryOptions, onClose, onSubmit }: {
             forma_pagamento: form.forma_pagamento,
             data_inicio: form.data_inicio,
             data_fim: form.data_fim || undefined,
-            categoria_id: catObj.id,
-            subcategoria_id: subObj.id,
+        }
+
+        if (form.categoria && form.subcategoria) {
+            const catObj = categoryOptions?.opcoes.find(c => c.categoria === form.categoria)
+            const subObj = catObj?.subcategorias.find(s => s.nome === form.subcategoria)
+            if (catObj && subObj) {
+                payload.categoria_id = catObj.id
+                payload.subcategoria_id = subObj.id
+            } else {
+                payload.categoria_nome = form.categoria
+                payload.subcategoria_nome = form.subcategoria
+            }
         }
         onSubmit(payload)
     }
@@ -436,7 +527,11 @@ const ContaForm = ({ conta, categoryOptions, onClose, onSubmit }: {
                     <div className="space-y-2"><Label>Dia Vencimento</Label><Input type="number" min="1" max="31" value={form.dia_vencimento} onChange={e => setForm({...form, dia_vencimento: e.target.value})} required /></div>
                     <div className="space-y-2">
                         <Label>Natureza</Label>
-                        <Select value={form.natureza} onValueChange={v => setForm({...form, natureza: v as 'pf'|'pj'})}>
+                        <Select value={form.natureza} onValueChange={v => {
+                            setForm({...form, natureza: v as 'pf'|'pj', categoria: '', subcategoria: ''})
+                            setShowNewCategoryInput(false)
+                            setShowNewSubcategoryInput(false)
+                        }}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent><SelectItem value="pf">Pessoa Fisica</SelectItem><SelectItem value="pj">Pessoa Juridica</SelectItem></SelectContent>
                         </Select>
@@ -455,18 +550,62 @@ const ContaForm = ({ conta, categoryOptions, onClose, onSubmit }: {
                     <div className="space-y-2"><Label>Data Fim (opcional)</Label><Input type="date" value={form.data_fim} onChange={e => setForm({...form, data_fim: e.target.value})} /></div>
                     <div className="space-y-2">
                         <Label>Categoria</Label>
-                        <Select value={form.categoria} onValueChange={v => setForm({...form, categoria: v, subcategoria: ''})}>
+                        <Select value={showNewCategoryInput ? 'outros' : form.categoria} onValueChange={v => {
+                            if (v === 'outros') {
+                                setShowNewCategoryInput(true)
+                                setForm({...form, categoria: '', subcategoria: ''})
+                            } else {
+                                setShowNewCategoryInput(false)
+                                setNewCategory('')
+                                setForm({...form, categoria: v, subcategoria: ''})
+                            }
+                        }}>
                             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>{categoryOptions?.opcoes.map(c => <SelectItem key={c.id} value={c.categoria}>{c.categoria}</SelectItem>)}</SelectContent>
+                            <SelectContent>
+                                {categoryOptions?.opcoes.map(c => <SelectItem key={c.id} value={c.categoria}>{c.categoria}</SelectItem>)}
+                                <SelectItem value="outros">Outros</SelectItem>
+                            </SelectContent>
                         </Select>
+                        {showNewCategoryInput && (
+                            <div className="space-y-2 mt-2">
+                                <Label>Nova Categoria</Label>
+                                <Input placeholder="Digite a nova categoria" value={newCategory} onChange={e => {
+                                    setNewCategory(e.target.value)
+                                    setForm({...form, categoria: e.target.value.trim(), subcategoria: ''})
+                                }} />
+                            </div>
+                        )}
                     </div>
                     {form.categoria && (
                         <div className="space-y-2">
                             <Label>Subcategoria</Label>
-                            <Select value={form.subcategoria} onValueChange={v => setForm({...form, subcategoria: v})}>
+                            <Select value={showNewSubcategoryInput ? 'outros' : form.subcategoria} onValueChange={v => {
+                                if (v === 'outros') {
+                                    setShowNewSubcategoryInput(true)
+                                    setForm({...form, subcategoria: ''})
+                                } else {
+                                    setShowNewSubcategoryInput(false)
+                                    setNewSubcategory('')
+                                    setForm({...form, subcategoria: v})
+                                }
+                            }}>
                                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                                <SelectContent>{categoryOptions?.opcoes.find(c => c.categoria === form.categoria)?.subcategorias.map(s => <SelectItem key={s.id} value={s.nome}>{s.nome}</SelectItem>)}</SelectContent>
+                                <SelectContent>
+                                    {categoryOptions?.opcoes.find(c => c.categoria === form.categoria)?.subcategorias.map(s => (
+                                        <SelectItem key={s.id} value={s.nome}>{s.nome}</SelectItem>
+                                    ))}
+                                    <SelectItem value="outros">Outros</SelectItem>
+                                </SelectContent>
                             </Select>
+                            {showNewSubcategoryInput && (
+                                <div className="space-y-2 mt-2">
+                                    <Label>Nova Subcategoria</Label>
+                                    <Input placeholder="Digite a nova subcategoria" value={newSubcategory} onChange={e => {
+                                        setNewSubcategory(e.target.value)
+                                        setForm({...form, subcategoria: e.target.value.trim()})
+                                    }} />
+                                </div>
+                            )}
                         </div>
                     )}
                     <div className="col-span-2 flex gap-2">

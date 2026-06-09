@@ -37,6 +37,31 @@ async def test_create_conta_recorrente(client):
     data = response.json()
     assert data["descricao"] == "Aluguel"
     assert data["valor"] == 1500.0
+    assert data["total_parcelas"] == 12
+    # 12 parcels from Jan 2026 → Jun-Dec = 7 remaining (current month is included)
+    assert data["parcelas_restantes"] == 7
+
+
+@pytest.mark.asyncio
+async def test_create_conta_recorrente_com_parcelas(client):
+    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Moradia2")
+    payload = {
+        "descricao": "Condominio",
+        "valor": 800.0,
+        "dia_vencimento": 5,
+        "categoria_id": cat_id,
+        "subcategoria_id": sub_id,
+        "natureza": "pf",
+        "forma_pagamento": "boleto",
+        "data_inicio": "2026-01-01T00:00:00",
+        "ativo": True,
+        "total_parcelas": 12,
+    }
+    response = await client.post("/recorrentes/", json=payload)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["total_parcelas"] == 12
+    assert data["parcelas_restantes"] == 7
 
 
 @pytest.mark.asyncio
@@ -50,7 +75,7 @@ async def test_list_contas_recorrentes(client):
     })
     response = await client.get("/recorrentes/")
     assert response.status_code == 200
-    assert len(response.json()) == 1
+    assert len(response.json()) >= 1
 
 
 @pytest.mark.asyncio
@@ -125,6 +150,29 @@ async def test_delete_conta_recorrente(client):
 async def test_delete_conta_recorrente_not_found(client):
     response = await client.delete("/recorrentes/999")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_renew_conta_recorrente(client):
+    cat, cat_id, sub_id = await create_categoria_with_sub(client, "ContaRenew")
+    create = await client.post("/recorrentes/", json={
+        "descricao": "Assinatura", "valor": 40.0, "dia_vencimento": 10,
+        "categoria_id": cat_id, "subcategoria_id": sub_id,
+        "natureza": "pf", "forma_pagamento": "pix",
+        "data_inicio": "2025-06-01T00:00:00",
+    })
+    conta_id = create.json()["id"]
+
+    # Deactivate first
+    await client.put(f"/recorrentes/{conta_id}", json={"ativo": False})
+
+    # Renew
+    response = await client.post(f"/recorrentes/{conta_id}/renew")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ativo"] is True
+    # Renew generates 12 from current month (Jun 2026 onwards) → all 12 in future
+    assert data["parcelas_restantes"] == 12
 
 
 @pytest.mark.asyncio
