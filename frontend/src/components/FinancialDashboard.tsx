@@ -330,21 +330,8 @@ export function FinancialDashboard({
         </div>
       </div>
 
-      {/* Income + Category charts in a 2-column grid */}
-      <div className="animate-slide-up grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0" style={{ animationDelay: '600ms' }}>
-        <Card className="shadow-card border-none">
-          <IncomeChart
-            breakdown={incomeBreakdown}
-            dateRange={dateRange}
-          />
-        </Card>
-        <CategoryBreakdownSection
-          categoryBreakdown={categoryBreakdown}
-        />
-      </div>
-
-      {/* Gastos Fixos vs Variáveis */}
-      <div className="animate-slide-up" style={{ animationDelay: '800ms' }}>
+      {/* Gastos Fixos vs Variáveis — logo abaixo do gráfico */}
+      <div className="animate-slide-up" style={{ animationDelay: '600ms' }}>
         <Card className="shadow-card border-none flex-shrink-0">
         <div className="p-4">
           <h3 className="text-sm font-semibold text-foreground mb-3">Gastos Fixos vs Variáveis</h3>
@@ -382,6 +369,19 @@ export function FinancialDashboard({
           </div>
         </div>
       </Card>
+      </div>
+
+      {/* Income + Category charts in a 2-column grid */}
+      <div className="animate-slide-up grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0" style={{ animationDelay: '800ms' }}>
+        <Card className="shadow-card border-none">
+          <IncomeChart
+            breakdown={incomeBreakdown}
+            dateRange={dateRange}
+          />
+        </Card>
+        <CategoryBreakdownSection
+          categoryBreakdown={categoryBreakdown}
+        />
       </div>
 
       {/* Bank Breakdown Modal */}
