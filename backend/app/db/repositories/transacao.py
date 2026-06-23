@@ -1,5 +1,6 @@
 # app/db/repositories/transacao.py
 
+import calendar
 from typing import List, Optional
 from datetime import datetime, time
 
@@ -38,9 +39,13 @@ class TransacaoRepository:
             if i == 0:
                 dates.append(data_base)
             else:
-                proximo_mês = data_base + relativedelta(months=i)
-                dates.append(proximo_mês.replace(day=1))
-        
+                mes_alvo = data_base + relativedelta(months=i)
+                # Preserva o mesmo dia do mês da transação original
+                # Se o dia não existir no mês alvo (ex: 31 em fevereiro), usa o último dia do mês
+                ultimo_dia = calendar.monthrange(mes_alvo.year, mes_alvo.month)[1]
+                dia = min(data_base.day, ultimo_dia)
+                dates.append(mes_alvo.replace(day=dia))
+
         return dates
     
     def _create_transacaoes(
@@ -64,9 +69,9 @@ class TransacaoRepository:
             natureza=obj_in.natureza,
             parcela=parcela,  
             total_parcelas=total_parcelas,
+            bank_code=obj_in.bank_code,
             categoria_id=categoria_id,
             subcategoria_id=sub_id,
-
         )
     
     def _ajustar_ultima_parcela(self, transacoes: List, valor: float):
@@ -153,7 +158,7 @@ class TransacaoRepository:
 
         # 3) Cria a transação usando os IDs resolvidos
         try:
-            if (obj_in.forma_pagamento == TipoPagamento.CREDITO and obj_in.total_parcelas is not None and obj_in.total_parcelas > 1):
+            if (obj_in.total_parcelas is not None and obj_in.total_parcelas > 1):
                 transacoes = await self._create_transacaoes_parceladas(obj_in, group_id, categoria.id, sub.id)
                 log.info(f"Transação {group_id} criada, com {len(transacoes)} parcelas")
                 return transacoes[0]
@@ -166,7 +171,8 @@ class TransacaoRepository:
                     data_transacao=obj_in.data_transacao,
                     tipo=obj_in.tipo.value,
                     natureza=obj_in.natureza.value,
-                    forma_pagamento=obj_in.forma_pagamento.value,
+                    forma_pagamento=obj_in.forma_pagamento,
+                    bank_code=obj_in.bank_code,
                     categoria_id=categoria.id,
                     subcategoria_id=sub.id,
                     group_id=group_id
@@ -290,24 +296,94 @@ class TransacaoRepository:
         tipo: str,
         natureza: str,
         forma_pagamento: str,
-        categoria_id: int,
-        subcategoria_id: int,
+        categoria_id: Optional[int] = None,
+        subcategoria_id: Optional[int] = None,
+        categoria_nome: Optional[str] = None,
+        subcategoria_nome: Optional[str] = None,
+        bank_code: Optional[str] = None,
+        total_parcelas: Optional[int] = None,
     ) -> TransacaoORM:
         group_id = str(uuid4())
-        inst = TransacaoORM(
-            valor=valor,
-            descricao=descricao,
-            parcela=1,
-            total_parcelas=1,
-            data_transacao=data_transacao,
-            tipo=tipo,
-            natureza=natureza,
-            forma_pagamento=forma_pagamento,
-            categoria_id=categoria_id,
-            subcategoria_id=subcategoria_id,
-            group_id=group_id,
-        )
-        self.db.add(inst)
-        await self.db.commit()
-        await self.db.refresh(inst)
-        return inst
+
+        # 1) Resolve categoria: by ID or by nome (cria se não existir)
+        if categoria_id is not None:
+            cat = await self.categoria_repo.get_by_id(categoria_id)
+            if not cat:
+                raise HTTPException(status_code=400, detail="Categoria não encontrada")
+        elif categoria_nome is not None:
+            cat = await self.categoria_repo.get_by_nome(categoria_nome)
+            if not cat:
+                cat = await self.categoria_repo.create(
+                    CategoriaCreate(
+                        categoria_nome=categoria_nome,
+                        natureza=natureza,
+                        limite=0,
+                        tipo=tipo,
+                        subcategorias=[],
+                    )
+                )
+        else:
+            raise HTTPException(status_code=400, detail="categoria_id or categoria_nome is required")
+
+        # 2) Resolve subcategoria: by ID or by nome (cria se não existir)
+        sub = None
+        if subcategoria_id is not None:
+            sub = await self.subcategoria_repo.get_by_id(subcategoria_id)
+            if not sub or sub.categoria_id != cat.id:
+                raise HTTPException(status_code=400, detail="Subcategoria inválida")
+        elif subcategoria_nome is not None:
+            sub = await self.subcategoria_repo.get_by_nome_and_categoria(
+                subcategoria_nome, cat.id
+            )
+            if not sub:
+                sub = await self.subcategoria_repo.create(
+                    categoria_id=cat.id,
+                    obj_in=SubcategoriaCreate(subcategoria_nome=subcategoria_nome),
+                )
+
+        # 3) Cria transação(ões) — com parcelamento se solicitado
+        if total_parcelas is not None and total_parcelas > 1:
+            valor_parcela = self._calcular_valor_parcela(valor, total_parcelas)
+            datas = self._gerar_datas_parcelas(data_transacao, total_parcelas)
+            transacoes = []
+            for i in range(total_parcelas):
+                inst = TransacaoORM(
+                    valor=valor_parcela,
+                    descricao=f'{descricao} - parcela {i + 1}/{total_parcelas}',
+                    parcela=i + 1,
+                    total_parcelas=total_parcelas,
+                    data_transacao=datas[i],
+                    tipo=tipo,
+                    natureza=natureza,
+                    forma_pagamento=forma_pagamento,
+                    categoria_id=cat.id,
+                    subcategoria_id=sub.id if sub else None,
+                    bank_code=bank_code,
+                    group_id=group_id,
+                )
+                self.db.add(inst)
+                transacoes.append(inst)
+            self._ajustar_ultima_parcela(transacoes, valor)
+            await self.db.commit()
+            for inst in transacoes:
+                await self.db.refresh(inst)
+            return transacoes[0]
+        else:
+            inst = TransacaoORM(
+                valor=valor,
+                descricao=descricao,
+                parcela=1,
+                total_parcelas=1,
+                data_transacao=data_transacao,
+                tipo=tipo,
+                natureza=natureza,
+                forma_pagamento=forma_pagamento,
+                categoria_id=cat.id,
+                subcategoria_id=sub.id if sub else None,
+                bank_code=bank_code,
+                group_id=group_id,
+            )
+            self.db.add(inst)
+            await self.db.commit()
+            await self.db.refresh(inst)
+            return inst

@@ -82,6 +82,10 @@ async def confirm_extracto(
                 forma_pagamento=trans.forma_pagamento,
                 categoria_id=trans.categoria_id,
                 subcategoria_id=trans.subcategoria_id,
+                categoria_nome=trans.categoria_nome,
+                subcategoria_nome=trans.subcategoria_nome,
+                bank_code=trans.bank_code,
+                total_parcelas=trans.total_parcelas,
             )
             criadas += 1
         except Exception as e:

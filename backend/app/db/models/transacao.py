@@ -18,6 +18,7 @@ class TransacaoORM(Base):
     tipo = Column(String, nullable=False)
     natureza = Column(String, nullable=False)
     forma_pagamento = Column(String, nullable=False)
+    bank_code = Column(String, nullable=True)
     categoria_id = Column(Integer, ForeignKey("categorias.id"), nullable=False)
     subcategoria_id = Column(Integer, ForeignKey("subcategorias.id"), nullable=False)
     conta_recorrente_id = Column(Integer, ForeignKey("contas_recorrentes.id"), nullable=True, index=True)

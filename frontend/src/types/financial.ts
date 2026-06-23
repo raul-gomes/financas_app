@@ -29,6 +29,7 @@ export interface Transaction {
   forma_pagamento: 'credito' | 'debito' | 'pix' | 'transferencia' | 'dinheiro' | 'boleto';
   parcela: number | null;
   total_parcelas: number | null;
+  bank_code: string | null;
   natureza: 'pj' | 'pf';
   data_transacao: string;
   conta_recorrente_id?: number | null;

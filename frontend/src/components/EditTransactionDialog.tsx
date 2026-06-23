@@ -18,10 +18,11 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { Transaction, CategorySubcategories } from '@/types/financial';
 import { useToast } from '@/hooks/use-toast';
 import { FinancialService } from '@/services/financialService';
+import { SettingsService, UserBank } from '@/services/settingsService';
 
 interface EditTransactionDialogProps {
   isOpen: boolean;
@@ -30,18 +31,28 @@ interface EditTransactionDialogProps {
   transaction: Transaction;
 }
 
+const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
+
 export function EditTransactionDialog({
   isOpen,
   onClose,
   onEditTransaction,
   transaction
 }: EditTransactionDialogProps) {
-  const [formData, setFormData] = useState<Partial<Transaction>>(transaction);
+  const [formData, setFormData] = useState<Partial<Transaction>>({ ...transaction, data_transacao: transaction.data_transacao?.split('T')[0] || '' });
+  const [parcelado, setParcelado] = useState(!!transaction.total_parcelas && transaction.total_parcelas > 1);
+  const [bankCode, setBankCode] = useState(transaction.bank_code || '');
+  const [banks, setBanks] = useState<UserBank[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [newSubcategory, setNewSubcategory] = useState('');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [showNewSubcategoryInput, setShowNewSubcategoryInput] = useState(false);
+  const [showNewFormaPagamentoInput, setShowNewFormaPagamentoInput] = useState(false);
+  const [newFormaPagamento, setNewFormaPagamento] = useState('');
   const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories>({ opcoes: [] });
+  const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set());
+
+  const KNOWN_PAYMENT_METHODS = ['dinheiro', 'pix', 'debito', 'credito', 'transferencia'];
   const { toast } = useToast();
 
   // Carrega categorias/subcategorias
@@ -50,7 +61,7 @@ export function EditTransactionDialog({
     FinancialService.getCategorySubcategories(formData.natureza!, formData.tipo)
       .then(opts => {
         setCategoryOptions(opts);
-        // Agora que opts estão carregadas, decida se é “Outros”:
+        // Decide se é "Outros" para categoria
         const existsCat = opts.opcoes.some(c => c.categoria === transaction.categoria_nome);
         setShowNewCategoryInput(!existsCat);
         if (!existsCat) setNewCategory(transaction.categoria_nome);
@@ -65,10 +76,38 @@ export function EditTransactionDialog({
       });
   }, [isOpen, transaction.categoria_nome, transaction.subcategoria_nome, formData.natureza, formData.tipo, toast]);
 
+  // Load user's banks
   useEffect(() => {
-    setFormData(transaction);
-    // Não faça aqui nenhum teste de categoryOptions!
+    if (isOpen) {
+      SettingsService.listBanks()
+        .then(setBanks)
+        .catch(err => console.error('Erro ao carregar bancos:', err));
+    }
+  }, [isOpen]);
+
+  // Sync form when transaction prop changes
+  useEffect(() => {
+    setFormData({ ...transaction, data_transacao: transaction.data_transacao?.split('T')[0] || '' });
+    setParcelado(!!transaction.total_parcelas && transaction.total_parcelas > 1);
+    setBankCode(transaction.bank_code || '');
+
+    // Check if payment method is custom (not in known list)
+    const isCustom = transaction.forma_pagamento && !KNOWN_PAYMENT_METHODS.includes(transaction.forma_pagamento);
+    setShowNewFormaPagamentoInput(!!isCustom);
+    if (isCustom) {
+      setNewFormaPagamento(transaction.forma_pagamento);
+    } else {
+      setNewFormaPagamento('');
+    }
   }, [isOpen, transaction]);
+
+  // Calculate parcel value
+  const calcularValorParcela = () => {
+    if (!parcelado || !formData.total_parcelas || !formData.valor) return null;
+    const num = formData.total_parcelas;
+    if (num <= 0) return null;
+    return (formData.valor / num).toFixed(2);
+  };
 
   const handleClose = () => {
     onClose();
@@ -84,16 +123,32 @@ export function EditTransactionDialog({
       !formData.subcategoria_nome ||
       !formData.forma_pagamento ||
       !formData.data_transacao ||
-      (formData.forma_pagamento === 'credito' && !formData.total_parcelas)
+      (parcelado && !formData.total_parcelas)
     ) {
       toast({ title: 'Erro', description: 'Preencha todos os campos obrigatórios', variant: 'destructive' });
       return;
     }
-    onEditTransaction(formData);
+
+    const payload: Partial<Transaction> = {
+      ...formData,
+      bank_code: bankCode || null,
+    };
+
+    // Parcelas
+    if (parcelado) {
+      payload.parcela = 1;
+      payload.total_parcelas = formData.total_parcelas!;
+    } else {
+      payload.parcela = null;
+      payload.total_parcelas = null;
+    }
+
+    onEditTransaction(payload);
     onClose();
     toast({ title: 'Sucesso', description: 'Transação editada com sucesso!' });
   };
 
+  const valorParcela = calcularValorParcela();
   const selectedSubs = categoryOptions.opcoes
     .find(c => c.categoria === formData.categoria_nome)
     ?.subcategorias.map(s => s.nome) || [];
@@ -105,40 +160,39 @@ export function EditTransactionDialog({
           <DialogTitle>Editar Transação</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Tipo */}
+          {/* Tipo + Natureza (inline) */}
           <div className="space-y-2">
             <Label>Tipo</Label>
-            <RadioGroup
-              value={formData.tipo!}
-              onValueChange={value => setFormData(prev => ({ ...prev, tipo: value as any }))}
-              className="flex gap-6"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="saida" id="saida" />
-                <Label htmlFor="saida" className="text-destructive">Saída</Label>
+            <div className="flex items-center justify-between">
+              <RadioGroup
+                value={formData.tipo!}
+                onValueChange={value => setFormData(prev => ({ ...prev, tipo: value as any }))}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="saida" id="saida" />
+                  <Label htmlFor="saida" className="text-destructive">Saída</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="entrada" id="entrada" />
+                  <Label htmlFor="entrada" className="text-success">Entrada</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="investimento" id="investimento" />
+                  <Label htmlFor="investimento" className="text-warning">Investimento</Label>
+                </div>
+              </RadioGroup>
+              {/* PF/PJ Switch */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`text-xs font-medium ${formData.natureza === 'pf' ? 'text-foreground' : 'text-muted-foreground'}`}>PF</span>
+                <Switch
+                  checked={formData.natureza === 'pj'}
+                  onCheckedChange={checked =>
+                    setFormData(prev => ({ ...prev, natureza: checked ? 'pj' : 'pf' }))
+                  }
+                />
+                <span className={`text-xs font-medium ${formData.natureza === 'pj' ? 'text-foreground' : 'text-muted-foreground'}`}>PJ</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="entrada" id="entrada" />
-                <Label htmlFor="entrada" className="text-success">Entrada</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="investimento" id="investimento" />
-                <Label htmlFor="investimento" className="text-warning">Investimento</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Natureza */}
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="natureza"
-                checked={formData.natureza === 'pj'}
-                onCheckedChange={checked =>
-                  setFormData(prev => ({ ...prev, natureza: checked ? 'pj' : 'pf' }))
-                }
-              />
-              <Label htmlFor="natureza">Pessoa Jurídica</Label>
             </div>
           </div>
 
@@ -279,38 +333,134 @@ export function EditTransactionDialog({
             )}
           </div>
 
-          {/* Forma de Pagamento */}
+          {/* Banco */}
           <div className="space-y-2">
-            <Label htmlFor="forma_pagamento">Forma de Pagamento *</Label>
+            <Label htmlFor="banco">Banco</Label>
             <Select
-              value={formData.forma_pagamento!}
-              onValueChange={value => setFormData(prev => ({ ...prev, forma_pagamento: value as any }))}
+              value={bankCode}
+              onValueChange={setBankCode}
             >
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um banco" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                <SelectItem value="pix">PIX</SelectItem>
-                <SelectItem value="debito">Débito</SelectItem>
-                <SelectItem value="credito">Crédito</SelectItem>
-                <SelectItem value="transferencia">Transferência</SelectItem>
+                {banks.map((bank) => {
+                  const hasLogo = !logoErrors.has(bank.bank_code);
+                  return (
+                    <SelectItem key={bank.id} value={bank.bank_code}>
+                      <div className="flex items-center gap-2">
+                        {hasLogo ? (
+                          <img
+                            src={`${BANK_LOGO_CDN}/${bank.bank_code.padStart(3, '0')}.png`}
+                            alt=""
+                            className="w-5 h-5 rounded object-contain bg-card"
+                            onError={() => setLogoErrors((prev) => new Set(prev).add(bank.bank_code))}
+                          />
+                        ) : (
+                          <div className="w-5 h-5 rounded bg-primary/10 text-primary font-bold text-[8px] flex items-center justify-center">
+                            {bank.bank_code}
+                          </div>
+                        )}
+                        <span>{bank.bank_name}</span>
+                        <span className="text-muted-foreground text-xs">({bank.bank_code})</span>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Parcelas */}
-          {formData.forma_pagamento === 'credito' && (
-            <div className="space-y-2">
-              <Label htmlFor="total_parcelas">Total de Parcelas *</Label>
-              <Input
-                id="total_parcelas"
-                type="number"
-                min="1"
-                value={formData.total_parcelas!}
-                onChange={e =>
-                  setFormData(prev => ({ ...prev, total_parcelas: parseInt(e.target.value) }))
-                }
-                required
-              />
+          {/* Forma de Pagamento + Switch Parcelado */}
+          <div className="space-y-2">
+            <Label htmlFor="forma_pagamento">Forma de Pagamento *</Label>
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <Select
+                  value={showNewFormaPagamentoInput ? 'outros' : formData.forma_pagamento!}
+                  onValueChange={value => {
+                    if (value === 'outros') {
+                      setShowNewFormaPagamentoInput(true);
+                      setFormData(prev => ({ ...prev, forma_pagamento: '' }));
+                    } else {
+                      setShowNewFormaPagamentoInput(false);
+                      setNewFormaPagamento('');
+                      setFormData(prev => ({ ...prev, forma_pagamento: value }));
+                    }
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="debito">Débito</SelectItem>
+                    <SelectItem value="credito">Crédito</SelectItem>
+                    <SelectItem value="transferencia">Transferência</SelectItem>
+                    <SelectItem value="outros">Outros</SelectItem>
+                  </SelectContent>
+                </Select>
+                {showNewFormaPagamentoInput && (
+                  <div className="mt-2">
+                    <Label>Nova Forma de Pagamento</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Digite a nova forma de pagamento"
+                        value={newFormaPagamento}
+                        onChange={e => {
+                          setNewFormaPagamento(e.target.value);
+                          setFormData(prev => ({ ...prev, forma_pagamento: e.target.value }));
+                        }}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (newFormaPagamento.trim()) {
+                            setShowNewFormaPagamentoInput(false);
+                          }
+                        }}
+                      >
+                        OK
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Switch
+                  id="parcelado-edit"
+                  checked={parcelado}
+                  onCheckedChange={setParcelado}
+                />
+                <Label htmlFor="parcelado-edit" className="text-sm font-medium cursor-pointer">Parcelado</Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Parcelas (condicional) */}
+          {parcelado && (
+            <div className="border border-dashed border-primary/40 rounded-lg p-4 bg-primary/5 space-y-3">
+              <div className="flex items-end gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="total_parcelas">Total de Parcelas *</Label>
+                  <Input
+                    id="total_parcelas"
+                    type="number"
+                    min="2"
+                    value={formData.total_parcelas!}
+                    onChange={e =>
+                      setFormData(prev => ({ ...prev, total_parcelas: parseInt(e.target.value) }))
+                    }
+                    required
+                  />
+                </div>
+                {valorParcela && (
+                  <div className="pb-1">
+                    <p className="text-xs text-muted-foreground mb-0.5">Valor de cada parcela</p>
+                    <p className="text-lg font-bold text-primary">R$ {valorParcela}</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

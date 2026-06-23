@@ -27,6 +27,7 @@ export interface ConfirmTransaction {
   subcategoria_id: number;
   forma_pagamento: string;
   natureza: string;
+  bank_code?: string;
 }
 
 export interface ConfirmPayload {
@@ -36,4 +37,11 @@ export interface ConfirmPayload {
 export interface ConfirmResponse {
   criadas: number;
   erros: string[];
+}
+
+export interface SessionData {
+  filename: string;
+  bankCode: string;
+  isConfirmed: boolean;
+  transactions: ParsedTransaction[];
 }

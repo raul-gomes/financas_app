@@ -2,6 +2,7 @@ import {
   UploadResponse,
   ConfirmPayload,
   ConfirmResponse,
+  SessionData,
 } from '@/types/extracto';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8005';
@@ -20,29 +21,27 @@ export class ExtractoService {
     return res.json();
   }
 
-  static async uploadMultiple(files: File[]): Promise<{ result: UploadResponse; filenames: string[] }> {
-    let merged: UploadResponse | null = null;
-    const filenames: string[] = [];
+  static async uploadMultiple(files: File[]): Promise<SessionData[]> {
+    const sessions: SessionData[] = [];
 
     for (const file of files) {
-      filenames.push(file.name);
       const response = await ExtractoService.upload(file);
-      if (!merged) {
-        merged = response;
-      } else {
-        merged = {
-          total: merged.total + response.total,
-          entradas: merged.entradas + response.entradas,
-          saidas: merged.saidas + response.saidas,
-          total_entradas: merged.total_entradas + response.total_entradas,
-          total_saidas: merged.total_saidas + response.total_saidas,
-          transacoes: [...merged.transacoes, ...response.transacoes],
-        };
-      }
+      sessions.push({
+        filename: file.name,
+        bankCode: '',
+        isConfirmed: false,
+        transactions: response.transacoes.map(t => ({
+          ...t,
+          categoria_id: undefined,
+          subcategoria_id: undefined,
+          forma_pagamento: t.forma_pagamento || 'pix',
+          natureza: t.natureza || 'pf',
+        })),
+      });
     }
 
-    if (!merged) throw new Error('Nenhum arquivo processado');
-    return { result: merged, filenames };
+    if (sessions.length === 0) throw new Error('Nenhum arquivo processado');
+    return sessions;
   }
 
   static async confirm(payload: ConfirmPayload): Promise<ConfirmResponse> {

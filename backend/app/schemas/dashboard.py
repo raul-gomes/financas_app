@@ -4,7 +4,7 @@ from datetime import datetime
 
 from enum import Enum
 
-from app.schemas.transacao import NaturezaTransacao, TipoPagamento, TipoTransacao
+from app.schemas.transacao import NaturezaTransacao, TipoTransacao
 
 class TransacaoExtrato(BaseModel):
     id: int
@@ -15,7 +15,7 @@ class TransacaoExtrato(BaseModel):
     subcategoria_id: int
     categoria_nome: str
     subcategoria_nome: str
-    forma_pagamento: TipoPagamento
+    forma_pagamento: str
     parcela: Optional[int]
     total_parcelas: Optional[int]
     natureza: NaturezaTransacao

@@ -79,11 +79,34 @@ export class SettingsService {
     if (!res.ok) return [];
     const allBanks: BrasilApiBank[] = await res.json();
     const q = query.toLowerCase();
-    return allBanks.filter(
+
+    // Filter banks that match the query
+    const matched = allBanks.filter(
       (b) =>
         b.name.toLowerCase().includes(q) ||
         b.fullName.toLowerCase().includes(q) ||
         (b.code?.toString() || '').includes(q)
-    ).slice(0, 10);
+    );
+
+    // Sort by relevance: name starts with query > fullName starts with query > name includes > fullName includes > code match
+    matched.sort((a, b) => {
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      const aFull = a.fullName.toLowerCase();
+      const bFull = b.fullName.toLowerCase();
+
+      const aStartsName = aName.startsWith(q) ? 1 : 0;
+      const bStartsName = bName.startsWith(q) ? 1 : 0;
+      const aStartsFull = aFull.startsWith(q) ? 1 : 0;
+      const bStartsFull = bFull.startsWith(q) ? 1 : 0;
+
+      // Score: 4 = exact name match, 3 = name starts with, 2 = fullName starts with, 1 = name contains, 0 = fallback
+      const scoreA = aName === q ? 4 : aStartsName ? 3 : aStartsFull ? 2 : aName.includes(q) ? 1 : 0;
+      const scoreB = bName === q ? 4 : bStartsName ? 3 : bStartsFull ? 2 : bName.includes(q) ? 1 : 0;
+
+      return scoreB - scoreA;
+    });
+
+    return matched.slice(0, 10);
   }
 }

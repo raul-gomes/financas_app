@@ -30,6 +30,8 @@ class TransacaoBase(BaseModel):
     descricao: str = Field(..., min_length=1, max_length=500)
     parcela: Optional[int] = Field(None, ge=1)
     total_parcelas: Optional[int] = Field(None, ge=1)
+    bank_code: Optional[str] = Field(None, description='Código COMPE do banco')
+    forma_pagamento: str = Field(..., description='Forma de pagamento (aceita qualquer string)')
     data_transacao: datetime = Field(...)
 
     @field_validator('data_transacao', mode='after')
@@ -43,7 +45,6 @@ class TransacaoBase(BaseModel):
 class TransacaoCreate(TransacaoBase):
     tipo: TipoTransacao
     natureza: NaturezaTransacao
-    forma_pagamento: TipoPagamento
 
     categoria_id: Optional[int] = Field(None, description='ID da categoria')
     categoria_nome: Optional[str] = Field(None, description='Nome da categoria')
@@ -71,7 +72,6 @@ class TransacaoResponse(TransacaoBase):
     group_id: UUID
     tipo: TipoTransacao
     natureza: NaturezaTransacao
-    forma_pagamento: TipoPagamento
     categoria_id: int
     subcategoria_id: int
     categoria_nome: Optional[str] = None
@@ -103,7 +103,7 @@ class TransacaoUpdate(BaseModel):
     data_transacao: Optional[datetime] = Field(None, description='Data da transação')
     tipo: Optional[TipoTransacao] = Field(None, description='Tipo da transação')
     natureza: Optional[NaturezaTransacao] = Field(None, description='Natureza da transação')
-    forma_pagamento: Optional[TipoPagamento] = Field(None, description='Forma de pagamento')
+    forma_pagamento: Optional[str] = Field(None, description='Forma de pagamento')
 
     categoria_id: Optional[int] = Field(None, description='ID da categoria')
     categoria_nome: Optional[str] = Field(None, description='Nome da categoria')
