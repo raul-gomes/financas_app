@@ -10,6 +10,7 @@ import Financial from "./pages/Financial";
 import Investments from "./pages/Investments";
 import Limits from "./pages/Limits";
 import RecurrentBills from "./pages/RecurrentBills";
+import Settings from "./pages/Settings";
 import BankExtract from "./pages/BankExtract";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/investments" element={<Investments />} />
             <Route path="/limits" element={<Limits />} />
             <Route path="/recorrentes" element={<RecurrentBills />} />
+            <Route path="/configuracoes" element={<Settings />} />
             <Route path="/extrato-bancario" element={<BankExtract />} />
             <Route path="*" element={<NotFound />} />
           </Route>

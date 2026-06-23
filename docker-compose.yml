@@ -54,34 +54,45 @@ services:
       mongodb:
         condition: service_healthy
 
-  # FastAPI Backend
+  # FastAPI Backend — dev mode with hot-reload
+  # For production, see docker-compose.prod.yml
   backend:
     build: 
       context: ./backend
     container_name: financas-api
-    restart: always
+    restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-financas}
       MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-password123}@mongodb:27017/${MONGO_INITDB_DATABASE:-financas}?authSource=admin
       DATABASE_NAME: ${MONGO_INITDB_DATABASE:-financas}
     ports:
       - "8005:8000"
+    volumes:
+      - ./backend/app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       db:
         condition: service_healthy
       mongodb:
         condition: service_healthy
 
-  # React Frontend (New)
+  # React Frontend — dev mode with hot-reload
+  # For production, see docker-compose.prod.yml
   frontend:
     build:
       context: ./frontend
-      args:
-        - VITE_API_URL=http://localhost:8005
+      dockerfile: Dockerfile.dev
     container_name: financas-web
-    restart: always
+    restart: unless-stopped
     ports:
-      - "8087:80"
+      - "8087:8080"
+    volumes:
+      # Mount entire frontend project for hot-reload
+      - ./frontend:/app
+      # Keep container's node_modules (don't override with host's)
+      - /app/node_modules
+      # Keep container's dist (not needed but avoid conflicts)
+      - /app/dist
     depends_on:
       - backend
 

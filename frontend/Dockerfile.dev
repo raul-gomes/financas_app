@@ -1,0 +1,14 @@
+# Development Stage — hot-reload with Vite dev server
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy dependency files and install
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Expose Vite dev server port
+EXPOSE 8080
+
+# Start Vite dev server with hot-reload
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
