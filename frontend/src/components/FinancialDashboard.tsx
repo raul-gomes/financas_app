@@ -58,7 +58,10 @@ export function FinancialDashboard({
   const [breakdownModal, setBreakdownModal] = useState<{
     open: boolean;
     title: string;
+    total: number;
     items: BankBreakdownItem[];
+    icon: React.ComponentType<{ className?: string }>;
+    theme: 'primary' | 'success' | 'destructive' | 'warning';
   } | null>(null);
 
   useEffect(() => {
@@ -158,7 +161,10 @@ export function FinancialDashboard({
             if (items.length > 0) {
               setBreakdownModal({
                 open: true,
-                title: `Pix — ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pixTotal)}`,
+                title: 'Pix',
+                total: pixTotal,
+                icon: Send,
+                theme: 'primary',
                 items,
               });
             }
@@ -188,7 +194,10 @@ export function FinancialDashboard({
             if (items.length > 0) {
               setBreakdownModal({
                 open: true,
-                title: `Cartão de Crédito — ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(creditTotal)}`,
+                title: 'Cartão de Crédito',
+                total: creditTotal,
+                icon: CreditCard,
+                theme: 'success',
                 items,
               });
             }
@@ -238,7 +247,10 @@ export function FinancialDashboard({
             if (items.length > 0) {
               setBreakdownModal({
                 open: true,
-                title: `Cartão de Débito — ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(debitTotal)}`,
+                title: 'Cartão de Débito',
+                total: debitTotal,
+                icon: Banknote,
+                theme: 'destructive',
                 items,
               });
             }
@@ -271,7 +283,10 @@ export function FinancialDashboard({
             if (items.length > 0) {
               setBreakdownModal({
                 open: true,
-                title: `Parcelas a Pagar — ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalParcelasRestantes)}`,
+                title: 'Parcelas a Pagar',
+                total: totalParcelasRestantes,
+                icon: Receipt,
+                theme: 'warning',
                 items,
               });
             }
@@ -375,6 +390,9 @@ export function FinancialDashboard({
           open={breakdownModal.open}
           onClose={() => setBreakdownModal(null)}
           title={breakdownModal.title}
+          total={breakdownModal.total}
+          icon={breakdownModal.icon}
+          theme={breakdownModal.theme}
           items={breakdownModal.items}
         />
       )}

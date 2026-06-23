@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   ArrowUpRight,
   ArrowDownRight,
@@ -11,6 +12,7 @@ import {
   Trash2,
   FileText,
   Banknote,
+  Search,
 } from 'lucide-react';
 import { Transaction, MonthlyBalance } from '@/types/financial';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -49,6 +51,7 @@ export function TransactionList({
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [extratoOpen, setExtratoOpen] = useState(false);
   const [banks, setBanks] = useState<UserBank[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
@@ -168,10 +171,35 @@ export function TransactionList({
         </div>
       </div>
 
+      {/* Busca */}
+      <div className="relative mt-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Pesquisar por descrição, categoria, valor..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="pl-9 h-9 text-sm"
+        />
+      </div>
+
       {/* Lista de Transações */}
-      <div className="flex-1 overflow-y-auto mt-4 space-y-2">
-        {transactions.map((t, idx) => {
-          const bankName = getBankName(t.bank_code);
+      <div className="flex-1 overflow-y-auto mt-3 space-y-2">
+        {transactions
+          .filter(t => {
+            if (!searchQuery.trim()) return true;
+            const q = searchQuery.toLowerCase();
+            return (
+              t.descricao.toLowerCase().includes(q) ||
+              t.categoria_nome.toLowerCase().includes(q) ||
+              t.subcategoria_nome.toLowerCase().includes(q) ||
+              t.forma_pagamento.toLowerCase().includes(q) ||
+              t.valor.toString().includes(q) ||
+              (t.bank_code || '').toLowerCase().includes(q) ||
+              (getBankName(t.bank_code) || '').toLowerCase().includes(q)
+            );
+          })
+          .map((t, idx) => {
+            const bankName = getBankName(t.bank_code);
           return (
             <div
               key={t.id}
