@@ -103,47 +103,38 @@ export function BankBreakdownModal({
 
         {/* Tabela */}
         <div className="px-0 py-2">
-          {/* Cabeçalho da tabela */}
-          <div className="grid grid-cols-[auto_1fr_auto] gap-3 px-5 py-1.5 text-xs text-muted-foreground font-medium">
-            <span></span>
-            <span>Banco</span>
-            <span className="text-right">Valor</span>
-          </div>
-
           {/* Linhas */}
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-64 overflow-y-auto divide-y divide-border/50">
             {sorted.map((item, idx) => {
-              const maxAmount = sorted[0].amount;
               const pct = total > 0 ? (item.amount / total) * 100 : 0;
               return (
                 <div
                   key={item.bank_code}
+                  title={item.bank_name}
                   className={cn(
-                    'grid grid-cols-[auto_1fr_auto] gap-3 items-center px-5 py-2.5 transition-colors',
+                    'flex items-center gap-3 px-5 py-3 transition-colors',
                     style.rowHover,
-                    idx % 2 === 0 ? 'bg-muted/30' : '',
                   )}
                 >
                   {/* Logo */}
-                  <div className="w-6 flex justify-center">
+                  <div className="w-8 flex justify-center shrink-0">
                     {!logoErrors.has(item.bank_code) ? (
                       <img
                         src={`${BANK_LOGO_CDN}/${item.bank_code.padStart(3, '0')}.png`}
                         alt={item.bank_name}
-                        className="w-5 h-5 rounded object-contain"
+                        className="w-6 h-6 rounded object-contain"
                         onError={() => setLogoErrors((prev) => new Set(prev).add(item.bank_code))}
                       />
                     ) : (
-                      <span className="w-5 h-5 rounded bg-muted text-muted-foreground font-bold text-[9px] flex items-center justify-center">
+                      <span className="w-6 h-6 rounded bg-muted text-muted-foreground font-bold text-[10px] flex items-center justify-center">
                         {item.bank_code}
                       </span>
                     )}
                   </div>
 
-                  {/* Nome do banco + barra proporcional */}
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{item.bank_name}</p>
-                    <div className={cn('w-full rounded-full h-1 mt-1', style.progressBg)}>
+                  {/* Barra de progresso */}
+                  <div className="flex-1 min-w-0">
+                    <div className={cn('w-full rounded-full h-2', style.progressBg)}>
                       <div
                         className={cn('h-full rounded-full transition-all', style.progressFill)}
                         style={{ width: `${Math.min(100, pct)}%` }}
@@ -152,7 +143,7 @@ export function BankBreakdownModal({
                   </div>
 
                   {/* Valor */}
-                  <span className="text-sm font-semibold tabular-nums text-right whitespace-nowrap">
+                  <span className="text-sm font-semibold tabular-nums text-right whitespace-nowrap shrink-0">
                     {formatCurrency(item.amount)}
                   </span>
                 </div>
