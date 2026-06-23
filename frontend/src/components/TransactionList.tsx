@@ -261,9 +261,6 @@ export function TransactionList({
                         {format(new Date(t.data_transacao), 'dd/MM/yyyy')}
                       </Badge>
                     )}
-                    <Badge variant={t.natureza === 'pj' ? 'default' : 'secondary'} className="text-xs shrink-0">
-                      {t.natureza.toUpperCase()}
-                    </Badge>
                     {t.total_parcelas && t.total_parcelas > 1 && !t.conta_recorrente_id && (
                       <Badge className="shrink-0">
                         {t.parcela}/{t.total_parcelas}
