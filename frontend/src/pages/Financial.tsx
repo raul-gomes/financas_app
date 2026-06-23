@@ -292,7 +292,7 @@ const Financial = () => {
           </Popover>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8 lg:h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8">
           {/* Dashboard */}
           <div className="lg:col-span-3 animate-fade-in">
             <FinancialDashboard
