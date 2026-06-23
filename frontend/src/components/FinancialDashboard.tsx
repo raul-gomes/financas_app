@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card } from 'primereact/card';
 import { FlippableChart } from './FlippableChart';
 import { IncomeChart } from './IncomeChart';
@@ -12,6 +12,8 @@ import {
   Transaction,
   CategoryBreakdown,
 } from '@/types/financial';
+import { SettingsService, UserBank } from '@/services/settingsService';
+import { BankBreakdownModal, BankBreakdownItem } from './BankBreakdownModal';
 
 interface FinancialDashboardProps {
   yearlyData: YearlyData[];
@@ -52,6 +54,38 @@ export function FinancialDashboard({
   gastosFixos = 0,
   gastosVariaveis = 0,
 }: FinancialDashboardProps) {
+  const [banks, setBanks] = useState<UserBank[]>([]);
+  const [breakdownModal, setBreakdownModal] = useState<{
+    open: boolean;
+    title: string;
+    items: BankBreakdownItem[];
+  } | null>(null);
+
+  useEffect(() => {
+    SettingsService.listBanks().then(setBanks).catch(() => {});
+  }, []);
+
+  const getBankName = (bankCode: string | null): string => {
+    if (!bankCode) return '';
+    return banks.find(b => b.bank_code === bankCode)?.bank_name || bankCode;
+  };
+
+  const buildBankBreakdown = (
+    filterFn: (t: Transaction) => boolean,
+    valueFn: (t: Transaction) => number = t => t.valor,
+  ): BankBreakdownItem[] => {
+    const groups = new Map<string, number>();
+    transactions.filter(filterFn).forEach((t) => {
+      if (!t.bank_code) return;
+      groups.set(t.bank_code, (groups.get(t.bank_code) || 0) + valueFn(t));
+    });
+    return Array.from(groups.entries()).map(([code, amount]) => ({
+      bank_code: code,
+      bank_name: getBankName(code),
+      amount,
+    }));
+  };
+
   const handleBarClick = (month: string) => {
     const monthIndexMap: Record<string, number> = {
       'Jan': 0, 'Fev': 1, 'Mar': 2, 'Abr': 3, 'Mai': 4, 'Jun': 5,
@@ -116,8 +150,21 @@ export function FinancialDashboard({
       {/* Métricas Principais */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-shrink-0">
         {/* Pix Card */}
-        <div className="animate-slide-up h-full flex flex-col" style={{ animationDelay: '0ms' }}>
-          <Card className="shadow-card border-none bg-primary/10 h-full">
+        <div
+          className="animate-slide-up h-full flex flex-col cursor-pointer"
+          style={{ animationDelay: '0ms' }}
+          onClick={() => {
+            const items = buildBankBreakdown(t => t.tipo === 'saida' && t.forma_pagamento === 'pix');
+            if (items.length > 0) {
+              setBreakdownModal({
+                open: true,
+                title: `Pix — ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pixTotal)}`,
+                items,
+              });
+            }
+          }}
+        >
+          <Card className="shadow-card border-none bg-primary/10 h-full hover:brightness-95 transition-all">
             <div className="p-4 flex flex-col h-full justify-between">
               <div className="flex items-center justify-between">
                 <div>
@@ -133,8 +180,21 @@ export function FinancialDashboard({
         </div>
 
         {/* Cartão de Crédito Card */}
-        <div className="animate-slide-up h-full flex flex-col" style={{ animationDelay: '100ms' }}>
-          <Card className="shadow-card border-none bg-success/10 h-full">
+        <div
+          className="animate-slide-up h-full flex flex-col cursor-pointer"
+          style={{ animationDelay: '100ms' }}
+          onClick={() => {
+            const items = buildBankBreakdown(t => t.tipo === 'saida' && t.forma_pagamento === 'credito');
+            if (items.length > 0) {
+              setBreakdownModal({
+                open: true,
+                title: `Cartão de Crédito — ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(creditTotal)}`,
+                items,
+              });
+            }
+          }}
+        >
+          <Card className="shadow-card border-none bg-success/10 h-full hover:brightness-95 transition-all">
             <div className="p-4 flex flex-col h-full justify-between">
               <div className="flex items-center justify-between">
                 <div>
@@ -170,8 +230,21 @@ export function FinancialDashboard({
         </div>
 
         {/* Cartão de Débito Card */}
-        <div className="animate-slide-up h-full flex flex-col" style={{ animationDelay: '200ms' }}>
-          <Card className="shadow-card border-none bg-destructive/10 h-full">
+        <div
+          className="animate-slide-up h-full flex flex-col cursor-pointer"
+          style={{ animationDelay: '200ms' }}
+          onClick={() => {
+            const items = buildBankBreakdown(t => t.tipo === 'saida' && t.forma_pagamento === 'debito');
+            if (items.length > 0) {
+              setBreakdownModal({
+                open: true,
+                title: `Cartão de Débito — ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(debitTotal)}`,
+                items,
+              });
+            }
+          }}
+        >
+          <Card className="shadow-card border-none bg-destructive/10 h-full hover:brightness-95 transition-all">
             <div className="p-4 flex flex-col h-full justify-between">
               <div className="flex items-center justify-between">
                 <div>
@@ -187,8 +260,24 @@ export function FinancialDashboard({
         </div>
 
         {/* Parcelas a Pagar */}
-        <div className="animate-slide-up h-full flex flex-col" style={{ animationDelay: '300ms' }}>
-          <Card className="shadow-card border-none bg-warning/10 h-full">
+        <div
+          className="animate-slide-up h-full flex flex-col cursor-pointer"
+          style={{ animationDelay: '300ms' }}
+          onClick={() => {
+            const items = buildBankBreakdown(
+              t => !!(t.total_parcelas && t.total_parcelas > 1 && t.parcela && t.parcela < t.total_parcelas && !t.conta_recorrente_id),
+              t => (t.total_parcelas! - t.parcela!) * t.valor,
+            );
+            if (items.length > 0) {
+              setBreakdownModal({
+                open: true,
+                title: `Parcelas a Pagar — ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalParcelasRestantes)}`,
+                items,
+              });
+            }
+          }}
+        >
+          <Card className="shadow-card border-none bg-warning/10 h-full hover:brightness-95 transition-all">
             <div className="p-4 flex flex-col h-full justify-between">
               <div className="flex items-center justify-between">
                 <div>
@@ -279,6 +368,16 @@ export function FinancialDashboard({
         </div>
       </Card>
       </div>
+
+      {/* Bank Breakdown Modal */}
+      {breakdownModal && (
+        <BankBreakdownModal
+          open={breakdownModal.open}
+          onClose={() => setBreakdownModal(null)}
+          title={breakdownModal.title}
+          items={breakdownModal.items}
+        />
+      )}
     </div>
   );
 }
