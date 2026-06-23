@@ -1,5 +1,5 @@
 // TransactionList.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -10,12 +10,14 @@ import {
   Edit,
   Trash2,
   FileText,
+  Banknote,
 } from 'lucide-react';
 import { Transaction, MonthlyBalance } from '@/types/financial';
 import { AnimatedNumber } from './AnimatedNumber';
 import { AddTransactionDialog } from './AddTransactionDialog';
 import { EditTransactionDialog } from './EditTransactionDialog';
 import { ExtratoDialog } from './ExtratoDialog';
+import { SettingsService, UserBank } from '@/services/settingsService';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -46,7 +48,22 @@ export function TransactionList({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [extratoOpen, setExtratoOpen] = useState(false);
+  const [banks, setBanks] = useState<UserBank[]>([]);
+  const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  // Reload banks whenever transactions change (new bank may have been added inline)
+  useEffect(() => {
+    SettingsService.listBanks().then(setBanks).catch(() => {});
+  }, [transactions]);
+
+  const getBankName = (bankCode: string | null): string | null => {
+    if (!bankCode) return null;
+    const bank = banks.find(b => b.bank_code === bankCode);
+    return bank?.bank_name || null;
+  };
+
+  const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
@@ -153,12 +170,15 @@ export function TransactionList({
 
       {/* Lista de Transações */}
       <div className="flex-1 overflow-y-auto mt-4 space-y-2">
-        {transactions.map((t) => (
+        {transactions.map((t, idx) => {
+          const bankName = getBankName(t.bank_code);
+          return (
             <div
               key={t.id}
-              className={`bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors ${
+              className={`animate-slide-up bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors ${
                 t.conta_recorrente_id ? 'bg-blue-50/60 border-blue-200 hover:bg-blue-50' : ''
               }`}
+              style={{ animationDelay: `${idx * 50}ms` }}
               onClick={() => handleItemClick(t.id)}
             >
               {/* Top row: icon + description + value + delete */}
@@ -221,6 +241,20 @@ export function TransactionList({
                         {t.parcela}/{t.total_parcelas}
                       </Badge>
                     )}
+                    {t.bank_code && bankName && (
+                      <span className="shrink-0" title={bankName}>
+                        {!logoErrors.has(t.bank_code) ? (
+                          <img
+                            src={`${BANK_LOGO_CDN}/${t.bank_code.padStart(3, '0')}.png`}
+                            alt={bankName}
+                            className="w-4 h-4 rounded object-contain bg-card"
+                            onError={() => setLogoErrors((prev) => new Set(prev).add(t.bank_code!))}
+                          />
+                        ) : (
+                          <span className="text-[8px] font-bold text-muted-foreground border rounded px-0.5">{t.bank_code}</span>
+                        )}
+                      </span>
+                    )}
                     {!t.conta_recorrente_id && (
                       <span className="text-slate-400 truncate">• {t.categoria_nome}</span>
                     )}
@@ -232,7 +266,8 @@ export function TransactionList({
               </div>
 
             </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Modais */}

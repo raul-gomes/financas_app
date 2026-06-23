@@ -1,6 +1,7 @@
 # app/db/repositories/transacao.py
 
 import calendar
+import random
 from typing import List, Optional
 from datetime import datetime, time
 
@@ -287,6 +288,21 @@ class TransacaoRepository:
         await self.db.delete(trans)
         await self.db.commit()
         return trans
+
+    async def assign_random_banks(self, bank_codes: List[str]) -> int:
+        """Atribui um bank_code aleatório às transações sem bank_code."""
+        from sqlalchemy import update as sql_update
+
+        result = await self.db.execute(
+            select(TransacaoORM).where(TransacaoORM.bank_code.is_(None))
+        )
+        transacoes = result.unique().scalars().all()
+
+        for t in transacoes:
+            t.bank_code = random.choice(bank_codes)
+
+        await self.db.commit()
+        return len(transacoes)
 
     async def create_from_extracto(
         self,

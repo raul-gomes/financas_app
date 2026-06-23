@@ -21,6 +21,7 @@ import { CategorySubcategories, Transaction } from '@/types/financial';
 import { useToast } from '@/hooks/use-toast';
 import { FinancialService } from '@/services/financialService';
 import { SettingsService, UserBank } from '@/services/settingsService';
+import { Plus } from 'lucide-react';
 
 interface AddTransactionDialogProps {
   isOpen: boolean;
@@ -55,6 +56,9 @@ export function AddTransactionDialog({
   const [showNewSubcategoryInput, setShowNewSubcategoryInput] = useState(false);
   const [showNewFormaPagamentoInput, setShowNewFormaPagamentoInput] = useState(false);
   const [newFormaPagamento, setNewFormaPagamento] = useState('');
+  const [addingNewBank, setAddingNewBank] = useState(false);
+  const [newBankCode, setNewBankCode] = useState('');
+  const [newBankName, setNewBankName] = useState('');
   const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
@@ -352,8 +356,17 @@ export function AddTransactionDialog({
           <div className="space-y-2">
             <Label htmlFor="banco">Banco</Label>
             <Select
-              value={bankCode}
-              onValueChange={setBankCode}
+              value={addingNewBank ? '+add' : bankCode}
+              onValueChange={(value) => {
+                if (value === '+add') {
+                  setAddingNewBank(true);
+                  setNewBankCode('');
+                  setNewBankName('');
+                } else {
+                  setAddingNewBank(false);
+                  setBankCode(value);
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um banco" />
@@ -382,8 +395,59 @@ export function AddTransactionDialog({
                     </SelectItem>
                   );
                 })}
+                <SelectItem value="+add">
+                  <div className="flex items-center gap-2 text-primary font-medium">
+                    <Plus className="w-4 h-4" />
+                    <span>Adicionar novo banco</span>
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
+            {addingNewBank && (
+              <div className="mt-2 flex items-end gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Código</Label>
+                  <Input
+                    placeholder="Ex: 260"
+                    value={newBankCode}
+                    onChange={e => setNewBankCode(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Nome</Label>
+                  <Input
+                    placeholder="Ex: Nubank"
+                    value={newBankName}
+                    onChange={e => setNewBankName(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setAddingNewBank(false)}>
+                  Cancelar
+                </Button>
+                <Button size="sm" onClick={async () => {
+                  if (!newBankCode.trim() || !newBankName.trim()) {
+                    toast({ title: 'Erro', description: 'Preencha código e nome do banco.', variant: 'destructive' });
+                    return;
+                  }
+                  try {
+                    const created = await SettingsService.addBank({
+                      bank_code: newBankCode.trim(),
+                      bank_name: newBankName.trim(),
+                    });
+                    setBanks(prev => [...prev, created]);
+                    setBankCode(created.bank_code);
+                    setAddingNewBank(false);
+                    toast({ title: 'Banco adicionado', description: `${created.bank_name} (${created.bank_code})` });
+                  } catch {
+                    toast({ title: 'Erro', description: 'Falha ao adicionar banco.', variant: 'destructive' });
+                  }
+                }}>
+                  <Plus className="w-4 h-4 mr-1" /> Adicionar
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Forma de Pagamento + Switch Parcelado */}

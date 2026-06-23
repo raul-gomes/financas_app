@@ -21,6 +21,7 @@ class TransacaoExtrato(BaseModel):
     natureza: NaturezaTransacao
     data_transacao: datetime
     conta_recorrente_id: Optional[int] = None
+    bank_code: Optional[str] = None
 
     class Config:
         from_attributes = True

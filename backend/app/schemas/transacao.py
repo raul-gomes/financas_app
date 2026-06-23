@@ -110,6 +110,7 @@ class TransacaoUpdate(BaseModel):
 
     subcategoria_id: Optional[int] = Field(None, description='ID da subcategoria')
     subcategoria_nome: Optional[str] = Field(None, description='Nome da subcategoria')
+    bank_code: Optional[str] = Field(None, description='Código do banco')
     
     @model_validator(mode="before")
     def check_categoria(cls, values: dict) -> dict:

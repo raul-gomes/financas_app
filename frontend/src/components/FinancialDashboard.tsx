@@ -210,7 +210,7 @@ export function FinancialDashboard({
       </div>
 
       {/* Grafico de Barras - Rendimento Anual / Diario */}
-      <div className="shadow-card border-none rounded-lg bg-card flex-shrink-0" style={{ maxHeight: '420px' }}>
+      <div className="animate-slide-up shadow-card border-none rounded-lg bg-card flex-shrink-0" style={{ animationDelay: '400ms', maxHeight: '420px' }}>
         <div className="px-4 py-2 h-[400px]">
           <FlippableChart
             yearlyData={yearlyData}
@@ -227,7 +227,7 @@ export function FinancialDashboard({
       </div>
 
       {/* Income + Category charts in a 2-column grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0">
+      <div className="animate-slide-up grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0" style={{ animationDelay: '600ms' }}>
         <Card className="shadow-card border-none">
           <IncomeChart
             breakdown={incomeBreakdown}
@@ -240,7 +240,8 @@ export function FinancialDashboard({
       </div>
 
       {/* Gastos Fixos vs Variáveis */}
-      <Card className="shadow-card border-none flex-shrink-0">
+      <div className="animate-slide-up" style={{ animationDelay: '800ms' }}>
+        <Card className="shadow-card border-none flex-shrink-0">
         <div className="p-4">
           <h3 className="text-sm font-semibold text-foreground mb-3">Gastos Fixos vs Variáveis</h3>
           <div className="flex items-center gap-4">
@@ -277,6 +278,7 @@ export function FinancialDashboard({
           </div>
         </div>
       </Card>
+      </div>
     </div>
   );
 }

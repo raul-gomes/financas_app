@@ -172,6 +172,7 @@ class DashboardRepository:
                 natureza=t.natureza,
                 data_transacao=t.data_transacao,
                 conta_recorrente_id=t.conta_recorrente_id,
+                bank_code=t.bank_code,
             )
             for t in transacoes
         ]

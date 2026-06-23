@@ -14,7 +14,7 @@ import { SessionData, ParsedTransaction, ConfirmTransaction } from '@/types/extr
 import { CategorySubcategories } from '@/types/financial'
 import { UserBank, BankCreate } from '@/types/settingsService'
 
-const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/logos';
+const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
 
 const KNOWN_PAYMENT_METHODS = ['dinheiro', 'pix', 'debito', 'credito', 'transferencia', 'boleto'];
 

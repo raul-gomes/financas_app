@@ -1,7 +1,9 @@
+import random
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import List
 
 from app.db.repositories.settings import SettingsRepository
+from app.db.repositories.transacao import TransacaoRepository
 from app.schemas.settings import ProfileResponse, ProfileUpdate, BankResponse, BankCreate
 from app.logger import log_api_request
 
@@ -74,3 +76,23 @@ async def remove_bank(
         log.error("Banco nao encontrado", bank_id=bank_id)
         raise HTTPException(status_code=404, detail="Banco não encontrado")
     log.success("Banco removido", bank_id=bank_id)
+
+
+@router.post("/assign-random-banks")
+async def assign_random_banks(
+    request: Request,
+    settings_repo: SettingsRepository = Depends(),
+    transacao_repo: TransacaoRepository = Depends(),
+):
+    """Atribui um banco aleatório às transações que não possuem bank_code."""
+    log = log_api_request(method="POST", endpoint=str(request.url))
+    user = await settings_repo.get_or_create_default_user()
+    banks = await settings_repo.list_banks(user.id)
+
+    if not banks:
+        raise HTTPException(status_code=400, detail="Nenhum banco cadastrado. Adicione bancos primeiro.")
+
+    updated = await transacao_repo.assign_random_banks([b.bank_code for b in banks])
+
+    log.success(f"{updated} transações atualizadas com banco aleatório")
+    return {"updated": updated}
