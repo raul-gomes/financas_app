@@ -4,7 +4,7 @@ import calendar
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 from app.db.models.transacao import TransacaoORM
 from app.db.models.categoria import CategoriaORM
@@ -225,7 +225,9 @@ class DashboardRepository:
         if natureza != 'all':
             stmt = stmt.where(CategoriaORM.natureza == NaturezaTransacao(natureza))
         if tipo:
-            stmt = stmt.where(CategoriaORM.tipo == tipo)
+            stmt = stmt.where(
+                or_(CategoriaORM.tipo == tipo, CategoriaORM.tipo.is_(None))
+            )
         result = await self.db.execute(stmt)
         categorias = result.unique().scalars().all()
 

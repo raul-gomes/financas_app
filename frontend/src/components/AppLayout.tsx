@@ -3,8 +3,12 @@ import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { DollarSign, BarChart3, TrendingUp, SlidersHorizontal, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SidebarPanel } from './SidebarPanel';
+import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
 
-export function AppLayout() {
+function LayoutContent() {
+  const { open, setOpen } = useSidebar();
+
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     isActive
       ? 'bg-primary text-white'
@@ -47,9 +51,20 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className="w-full">
-        <Outlet />
-      </main>
+      <div className="flex">
+        <SidebarPanel open={open} onClose={() => setOpen(false)} />
+        <main className="flex-1 min-w-0 transition-all duration-300">
+          <Outlet />
+        </main>
+      </div>
     </div>
+  );
+}
+
+export function AppLayout() {
+  return (
+    <SidebarProvider>
+      <LayoutContent />
+    </SidebarProvider>
   );
 }

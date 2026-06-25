@@ -7,6 +7,7 @@ class ProfileResponse(BaseModel):
     id: int
     name: str
     email: str
+    pluggy_api_key: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -17,6 +18,7 @@ class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
+    pluggy_api_key: Optional[str] = None
 
 
 class BankResponse(BaseModel):

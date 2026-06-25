@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Boolean, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
@@ -28,6 +28,9 @@ class SubcategoriaORM(Base):
         Integer, 
         ForeignKey('categorias.id', ondelete='CASCADE')
         )
+    valor_alvo = Column(Float, nullable=True, default=None)
+    concluida = Column(Boolean, default=False, nullable=False)
+    data_conclusao = Column(Date, nullable=True)
 
     categoria = relationship(
         'CategoriaORM', 

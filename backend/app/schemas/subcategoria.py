@@ -5,7 +5,8 @@ class SubcategoriaBase(BaseModel):
     subcategoria_nome: str = Field(..., description="Nome da subcategoria")
 
 class Subcategoria(SubcategoriaBase):
-    id: int = Field(..., description="ID da subcategoria")  # int em vez de str
+    id: int = Field(..., description="ID da subcategoria")
+    valor_alvo: Optional[float] = Field(None, description="Valor alvo (se for meta)")
 
     class Config:
         orm_mode = True

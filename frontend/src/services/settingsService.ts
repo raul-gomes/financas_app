@@ -4,6 +4,7 @@ export interface Profile {
   id: number;
   name: string;
   email: string;
+  pluggy_api_key?: string;
   created_at: string;
   updated_at: string;
 }
@@ -12,6 +13,28 @@ export interface ProfileUpdate {
   name?: string;
   email?: string;
   password?: string;
+  pluggy_api_key?: string;
+}
+
+export interface PluggyAccount {
+  id: string;
+  name: string;
+  type: string;
+  balance: number;
+  currencyCode: string;
+}
+
+export interface PluggyItem {
+  id: string;
+  status: string;
+  institution_name: string;
+  institution_number?: string;
+}
+
+export interface SyncResult {
+  message: string;
+  imported: number;
+  accounts: number;
 }
 
 export interface UserBank {
@@ -108,5 +131,42 @@ export class SettingsService {
     });
 
     return matched.slice(0, 10);
+  }
+
+  // ── Meu Pluggy ─────────────────────────────────────────
+
+  static async validatePluggyKey(): Promise<{ valid: boolean; message: string }> {
+    const res = await fetch(`${API_BASE_URL}/pluggy/validate-key`);
+    if (!res.ok) throw new Error(`Erro ${res.status} ao validar chave`);
+    return res.json();
+  }
+
+  static async listPluggyAccounts(): Promise<{ accounts: PluggyAccount[]; items: PluggyItem[] }> {
+    const res = await fetch(`${API_BASE_URL}/pluggy/accounts`);
+    if (!res.ok) throw new Error(`Erro ${res.status} ao listar contas`);
+    return res.json();
+  }
+
+  static async syncPluggy(): Promise<SyncResult> {
+    const res = await fetch(`${API_BASE_URL}/pluggy/sync`, { method: 'POST' });
+    if (!res.ok) throw new Error(`Erro ${res.status} ao sincronizar`);
+    return res.json();
+  }
+
+  // ── Export ──────────────────────────────────────────────
+
+  static getExportCsvUrl(dataInicio: string, dataFinal: string): string {
+    return `${API_BASE_URL}/export/csv?data_inicio=${encodeURIComponent(dataInicio)}&data_final=${encodeURIComponent(dataFinal)}`;
+  }
+
+  static getExportOfxUrl(dataInicio: string, dataFinal: string): string {
+    return `${API_BASE_URL}/export/ofx?data_inicio=${encodeURIComponent(dataInicio)}&data_final=${encodeURIComponent(dataFinal)}`;
+  }
+
+  static downloadExport(url: string, filename: string) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
   }
 }

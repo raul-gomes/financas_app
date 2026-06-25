@@ -12,13 +12,14 @@ import {
 } from '@/types/financial';
 import { FinancialService } from '@/services/financialService';
 import { ContaRecorrenteService } from '@/services/contaRecorrenteService';
-import { BarChart3, ChevronDown, Calendar as CalendarIcon, Settings, TrendingUp, DollarSign } from 'lucide-react';
+import { BarChart3, ChevronDown, Calendar as CalendarIcon, Settings, TrendingUp, DollarSign, PanelRightOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useSidebar } from '@/contexts/SidebarContext';
 
 const Financial = () => {
   const isMobile = useIsMobile();
@@ -242,21 +243,32 @@ const Financial = () => {
   );
 
   const currentPeriodExpenses = monthlyBalance.expenses;
+  const sidebar = useSidebar();
 
   console.log('entrada', incomeBreakdown)
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <main className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Date Range Picker */}
-        <div className="w-full flex justify-end mb-4">
+        {/* Date Range Picker + Sidebar Toggle */}
+        <div className="w-full flex justify-between items-center gap-2 mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => sidebar.toggle()}
+            className="flex items-center gap-1.5"
+            title="Metas e Compras"
+          >
+            <PanelRightOpen className={`h-4 w-4 transition-transform ${sidebar.open ? 'rotate-180' : ''}`} />
+            <span className="hidden sm:inline text-xs">Metas/Objetivos</span>
+          </Button>
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className={cn(
                   "w-full max-w-[260px] justify-start text-left font-normal",
-                  "flex items-center gap-2 mb-4"
+                  "flex items-center gap-2"
                 )}
               >
                 <CalendarIcon className="h-4 w-4" />

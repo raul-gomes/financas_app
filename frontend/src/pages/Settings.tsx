@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { PluggyInfoDialog } from '@/components/PluggyInfoDialog';
 import {
   Settings as SettingsIcon,
   User,
@@ -22,6 +23,7 @@ import {
   Profile,
   UserBank,
   BrasilApiBank,
+  PluggyAccount,
 } from '@/services/settingsService';
 
 const Settings = () => {
@@ -47,6 +49,23 @@ const Settings = () => {
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // ── Pluggy state ──
+  const [pluggyApiKey, setPluggyApiKey] = useState('');
+  const [validating, setValidating] = useState(false);
+  const [pluggyStatus, setPluggyStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ message: string; imported: number } | null>(null);
+  const [pluggyAccounts, setPluggyAccounts] = useState<PluggyAccount[]>([]);
+
+  // ── Export state ──
+  const [exportDateRange, setExportDateRange] = useState(() => {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const fmt = (d: Date) => d.toLocaleDateString('pt-BR');
+    return `${fmt(first)} - ${fmt(last)}`;
+  });
+
   // ── Bank logo helper ──
   const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
   const getBankLogoUrl = (code: string) => `${BANK_LOGO_CDN}/${code.padStart(3, '0')}.png`;
@@ -61,6 +80,7 @@ const Settings = () => {
       setProfile(profileData);
       setName(profileData.name);
       setEmail(profileData.email);
+      setPluggyApiKey(profileData.pluggy_api_key || '');
       setBanks(banksData);
     } catch (err) {
       console.error('Erro ao carregar configurações:', err);
@@ -164,6 +184,70 @@ const Settings = () => {
     } catch {
       toast({ title: 'Erro', description: 'Falha ao remover banco.', variant: 'destructive' });
     }
+  };
+
+  // ── Pluggy handlers ──
+  const handleValidateKey = async () => {
+    if (!pluggyApiKey) return;
+    setValidating(true);
+    setPluggyStatus(null);
+    try {
+      // Save key first, then validate
+      await SettingsService.updateProfile({ pluggy_api_key: pluggyApiKey });
+      setProfile((prev) => prev ? { ...prev, pluggy_api_key: pluggyApiKey } : prev);
+
+      const result = await SettingsService.validatePluggyKey();
+      setPluggyStatus({ ok: result.valid, message: result.message });
+      if (result.valid) {
+        const accounts = await SettingsService.listPluggyAccounts();
+        setPluggyAccounts(accounts.accounts);
+        toast({ title: 'Sucesso', description: 'API Key válida! Contas carregadas.' });
+      }
+    } catch {
+      setPluggyStatus({ ok: false, message: 'Erro ao validar chave.' });
+      toast({ title: 'Erro', description: 'Falha ao validar API Key.', variant: 'destructive' });
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleSavePluggyKey = async () => {
+    try {
+      await SettingsService.updateProfile({ pluggy_api_key: pluggyApiKey });
+      setProfile((prev) => prev ? { ...prev, pluggy_api_key: pluggyApiKey } : prev);
+      toast({ title: 'Sucesso', description: 'API Key salva!' });
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao salvar API Key.', variant: 'destructive' });
+    }
+  };
+
+  const handleSyncPluggy = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const result = await SettingsService.syncPluggy();
+      setSyncResult(result);
+      toast({ title: 'Sucesso', description: result.message });
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao sincronizar.', variant: 'destructive' });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // ── Export handlers ──
+  const handleExport = (format: 'csv' | 'ofx') => {
+    const parts = exportDateRange.split('-').map((s) => s.trim());
+    const dataInicio = parts[0] || '01/01/2000';
+    const dataFinal = parts[1] || new Date().toLocaleDateString('pt-BR');
+
+    const url = format === 'csv'
+      ? SettingsService.getExportCsvUrl(dataInicio, dataFinal)
+      : SettingsService.getExportOfxUrl(dataInicio, dataFinal);
+
+    const filename = `transacoes_${dataInicio.replace(/\//g, '')}_${dataFinal.replace(/\//g, '')}.${format}`;
+    SettingsService.downloadExport(url, filename);
+    toast({ title: 'Download iniciado', description: `Arquivo ${format.toUpperCase()} sendo baixado.` });
   };
 
   // ── Helpers ──
@@ -425,6 +509,143 @@ const Settings = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Meu Pluggy ── */}
+        <Card className="shadow-card border-none mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <svg className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+              </svg>
+              Meu Pluggy — Open Finance
+              <PluggyInfoDialog />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <p className="text-sm text-muted-foreground">
+              Conecte seus bancos via Open Finance. Crie uma conta grátis em{' '}
+              <a href="https://meu.pluggy.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                meu.pluggy.ai
+              </a>
+              , conecte seus bancos lá e cole sua API Key abaixo.
+            </p>
+
+            {/* API Key */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">API Key do Meu Pluggy</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={pluggyApiKey}
+                  onChange={(e) => setPluggyApiKey(e.target.value)}
+                  placeholder="Cole sua API Key aqui..."
+                  className="flex-1 font-mono text-sm"
+                  type="password"
+                />
+                <Button
+                  variant="outline"
+                  onClick={handleValidateKey}
+                  disabled={!pluggyApiKey || validating}
+                >
+                  {validating ? 'Validando...' : 'Validar'}
+                </Button>
+              </div>
+              {pluggyStatus && (
+                <p className={`text-xs ${pluggyStatus.ok ? 'text-green-500' : 'text-red-500'}`}>
+                  {pluggyStatus.message}
+                </p>
+              )}
+            </div>
+
+            {/* Save API Key */}
+            <div className="flex gap-2">
+              <Button onClick={handleSavePluggyKey} disabled={!pluggyApiKey || pluggyApiKey === profile?.pluggy_api_key}>
+                Salvar Chave
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleSyncPluggy}
+                disabled={!profile?.pluggy_api_key || syncing}
+              >
+                {syncing ? 'Sincronizando...' : 'Sincronizar Transações'}
+              </Button>
+            </div>
+
+            {syncResult && (
+              <div className={`p-3 rounded-lg text-sm ${
+                syncResult.imported > 0 ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-muted text-muted-foreground'
+              }`}>
+                {syncResult.message}
+              </div>
+            )}
+
+            {/* Connected accounts */}
+            {pluggyAccounts.length > 0 && (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Contas Conectadas ({pluggyAccounts.length})</Label>
+                <div className="grid gap-2">
+                  {pluggyAccounts.map((acc) => (
+                    <div key={acc.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/60">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
+                          {acc.type === 'BANK' ? '🏦' : acc.type === 'CREDIT' ? '💳' : '📈'}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">{acc.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Saldo: R$ {acc.balance?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Exportar Dados ── */}
+        <Card className="shadow-card border-none">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <svg className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Exportar Dados
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Exporte suas transações para backup ou para usar em outros aplicativos.
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">Período:</Label>
+              <Input
+                type="text"
+                value={exportDateRange}
+                onChange={(e) => setExportDateRange(e.target.value)}
+                placeholder="dd/mm/aaaa - dd/mm/aaaa"
+                className="w-64 font-mono text-sm"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => handleExport('csv')} className="gap-2">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Baixar CSV
+              </Button>
+              <Button variant="outline" onClick={() => handleExport('ofx')} className="gap-2">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Baixar OFX
+              </Button>
             </div>
           </CardContent>
         </Card>

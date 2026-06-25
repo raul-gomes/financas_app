@@ -36,6 +36,8 @@ class SettingsRepository:
             user.email = payload.email
         if payload.password:
             user.password_hash = pwd_context.hash(payload.password)
+        if payload.pluggy_api_key is not None:
+            user.pluggy_api_key = payload.pluggy_api_key
         await self.db.commit()
         await self.db.refresh(user)
         return user
