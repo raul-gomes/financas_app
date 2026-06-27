@@ -7,6 +7,9 @@ import {
   CategorySubcategories,
   Category,
   LimitsUpdateResponse,
+  DuplicateCheckResponse,
+  DuplicateResolution,
+  ResolveDuplicatesResponse,
 } from '@/types/financial';
 
 // Base real do backend
@@ -27,7 +30,6 @@ export class FinancialService {
     if (!res.ok) {
       throw new Error(`Erro ${res.status} ao buscar extrato financeiro`);
     }
-    console.log('teste', res)
     return res.json();
   }
 
@@ -156,7 +158,37 @@ export class FinancialService {
     return res.json();
   }
 
-  // 8. Adicionar transação
+  // 8. Verificar duplicatas (single ou bulk)
+  static async checkDuplicates(
+    params: { data_transacao?: string; valor?: number; transacoes?: Array<{ index: number; data_transacao: string; valor: number }> }
+  ): Promise<DuplicateCheckResponse> {
+    const res = await fetch(`${API_BASE_URL}/transacoes/check-duplicates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      throw new Error(`Erro ${res.status} ao verificar duplicatas`);
+    }
+    return res.json();
+  }
+
+  // 8b. Resolver duplicatas (Pluggy pós-sync)
+  static async resolveDuplicates(
+    resolutions: DuplicateResolution[]
+  ): Promise<ResolveDuplicatesResponse> {
+    const res = await fetch(`${API_BASE_URL}/transacoes/resolve-duplicates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolutions }),
+    });
+    if (!res.ok) {
+      throw new Error(`Erro ${res.status} ao resolver duplicatas`);
+    }
+    return res.json();
+  }
+
+  // 9. Adicionar transação
   static async addTransaction(
     transaction: Omit<Transaction, 'id'>
   ): Promise<void> {
@@ -204,7 +236,7 @@ export class FinancialService {
     return res.json();
   }
 
-  static async saveLimits(payload: { new: Category[], modified: Category[] }): Promise<LimitsUpdateResponse> {
+  static async saveLimits(payload: { new: Category[], modified: Category[], deleted?: number[] }): Promise<LimitsUpdateResponse> {
     const res = await fetch(`${API_BASE_URL}/limits/`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },

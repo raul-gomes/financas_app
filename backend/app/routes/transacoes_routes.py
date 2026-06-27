@@ -5,7 +5,11 @@ from typing import List, Optional
 from datetime import datetime
 
 from app.db.repositories.transacao import TransacaoRepository
-from app.schemas.transacao import TransacaoCreate, TransacaoResponse, TransacaoUpdate
+from app.schemas.transacao import (
+    TransacaoCreate, TransacaoResponse, TransacaoUpdate,
+    DuplicateCheckRequest, DuplicateCheckResponse, SingleDuplicateCheckResult, DuplicateInfo,
+    DuplicateResolution, ResolveDuplicatesRequest, ResolveDuplicatesResponse,
+)
 from app.logger import log_api_request
 
 def parse_date(date_str: str, field_name: str) -> datetime:
@@ -15,6 +19,119 @@ def parse_date(date_str: str, field_name: str) -> datetime:
         raise HTTPException(status_code=400, detail=f"Formato inválido para {field_name}. Use DD/MM/YYYY.")
 
 router = APIRouter(prefix="/transacoes", tags=["Transações"])
+
+
+@router.post(
+    "/check-duplicates",
+    response_model=DuplicateCheckResponse,
+    summary="Verificar duplicatas",
+    description="Verifica se já existem transações com a mesma data e valor. Aceita requisição single ou bulk.",
+)
+async def check_duplicates(
+    request: Request,
+    payload: DuplicateCheckRequest,
+    repo: TransacaoRepository = Depends(),
+):
+    log = log_api_request(method="POST", endpoint=str(request.url))
+    results = []
+
+    if payload.transacoes is not None:
+        # Bulk check (including empty list)
+        for item in payload.transacoes:
+            duplicates = await repo.check_duplicates(item.data_transacao, item.valor)
+            dup_info = [
+                DuplicateInfo(
+                    id=t.id,
+                    descricao=t.descricao,
+                    valor=t.valor,
+                    data_transacao=t.data_transacao,
+                    tipo=t.tipo,
+                    natureza=t.natureza,
+                    categoria_nome=t.categoria.categoria_nome if t.categoria else None,
+                    subcategoria_nome=t.subcategoria.subcategoria_nome if t.subcategoria else None,
+                    forma_pagamento=t.forma_pagamento,
+                    data_criacao=t.data_criacao,
+                )
+                for t in duplicates
+            ]
+            results.append(SingleDuplicateCheckResult(
+                index=item.index,
+                has_duplicate=len(dup_info) > 0,
+                duplicates=dup_info,
+            ))
+    elif payload.data_transacao is not None and payload.valor is not None:
+        # Single check
+        duplicates = await repo.check_duplicates(payload.data_transacao, payload.valor)
+        dup_info = [
+            DuplicateInfo(
+                id=t.id,
+                descricao=t.descricao,
+                valor=t.valor,
+                data_transacao=t.data_transacao,
+                tipo=t.tipo,
+                natureza=t.natureza,
+                categoria_nome=t.categoria.categoria_nome if t.categoria else None,
+                subcategoria_nome=t.subcategoria.subcategoria_nome if t.subcategoria else None,
+                forma_pagamento=t.forma_pagamento,
+                data_criacao=t.data_criacao,
+            )
+            for t in duplicates
+        ]
+        results.append(SingleDuplicateCheckResult(
+            index=0,
+            has_duplicate=len(dup_info) > 0,
+            duplicates=dup_info,
+        ))
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Envie data_transacao+valor para single check, ou transacoes[] para bulk."
+        )
+
+    log.info(f"{len(results)} check(s) realizados")
+    return DuplicateCheckResponse(results=results)
+
+
+# ── old single-check block removed (now handled above) ──
+
+
+@router.post(
+    "/resolve-duplicates",
+    response_model=ResolveDuplicatesResponse,
+    summary="Resolver duplicatas",
+    description="Aplica as ações escolhidas pelo usuário para resolver duplicatas (keep_both, keep_new, keep_existing).",
+)
+async def resolve_duplicates(
+    request: Request,
+    payload: ResolveDuplicatesRequest,
+    repo: TransacaoRepository = Depends(),
+):
+    log = log_api_request(method="POST", endpoint=str(request.url), resolutions=len(payload.resolutions))
+    resolved = 0
+    deleted = 0
+    kept = 0
+
+    for res in payload.resolutions:
+        existing = await repo.get_by_id(res.existing_id)
+        new_t = await repo.get_by_id(res.new_id)
+
+        if res.action == "keep_both":
+            kept += 1
+            resolved += 1
+        elif res.action == "keep_new":
+            resolved += 1
+            if existing:
+                await repo.delete(existing.id)
+                deleted += 1
+        elif res.action == "keep_existing":
+            resolved += 1
+            if new_t:
+                await repo.delete(new_t.id)
+                deleted += 1
+
+    log.info(f"Duplicatas resolvidas: {resolved} resolvidas, {deleted} deletadas, {kept} mantidas")
+    return ResolveDuplicatesResponse(resolved=resolved, deleted=deleted, kept=kept)
+
 
 @router.post("/", response_model=TransacaoResponse, status_code=status.HTTP_201_CREATED)
 async def create_transacao(

@@ -3,7 +3,7 @@
 import calendar
 import random
 from typing import List, Optional
-from datetime import datetime, time
+from datetime import date, datetime, time
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -83,7 +83,7 @@ class TransacaoRepository:
         diferenca = round(valor - total_parcelas, 2)
 
         if diferenca != 0:
-            transacoes[0].valor = round(transacoes[0].valor + diferenca, 2)
+            transacoes[-1].valor = round(transacoes[-1].valor + diferenca, 2)
     
     async def _create_transacaoes_parceladas(self, 
                                       obj_in, 
@@ -230,6 +230,7 @@ class TransacaoRepository:
             return None
 
         # 1) Se categoria_id ou categoria_nome vierem, resolve/cria
+        resolved_categoria_id = None
         if obj_in.categoria_id is not None or obj_in.categoria_nome is not None:
             if obj_in.categoria_id is not None:
                 categoria = await self.categoria_repo.get_by_id(obj_in.categoria_id)
@@ -247,24 +248,29 @@ class TransacaoRepository:
                             subcategorias=[]
                         )
                     )
-            trans.categoria_id = categoria.id
+            resolved_categoria_id = categoria.id
 
         # 2) Se subcategoria_id ou subcategoria_nome vierem, resolve/cria
         if obj_in.subcategoria_id is not None or obj_in.subcategoria_nome is not None:
+            cat_id_for_sub = resolved_categoria_id or trans.categoria_id
             if obj_in.subcategoria_id is not None:
                 sub = await self.subcategoria_repo.get_by_id(obj_in.subcategoria_id)
-                if not sub or sub.categoria_id != trans.categoria_id:
+                if not sub or sub.categoria_id != cat_id_for_sub:
                     raise HTTPException(status_code=400, detail="Subcategoria inválida")
             else:
                 sub = await self.subcategoria_repo.get_by_nome_and_categoria(
-                    obj_in.subcategoria_nome, trans.categoria_id
+                    obj_in.subcategoria_nome, cat_id_for_sub
                 )
                 if not sub:
                     sub = await self.subcategoria_repo.create(
-                        categoria_id=trans.categoria_id,
+                        categoria_id=cat_id_for_sub,
                         obj_in=SubcategoriaCreate(subcategoria_nome=obj_in.subcategoria_nome)
                     )
             trans.subcategoria_id = sub.id
+
+        # Set categoria_id after all validations pass
+        if resolved_categoria_id is not None:
+            trans.categoria_id = resolved_categoria_id
 
         # 3) Atualiza demais campos
         data = obj_in.model_dump(exclude_unset=True, exclude={
@@ -288,6 +294,27 @@ class TransacaoRepository:
         await self.db.delete(trans)
         await self.db.commit()
         return trans
+
+    async def check_duplicates(self, data_transacao: date, valor: float) -> List[TransacaoORM]:
+        """Retorna transações existentes com a mesma data (ignorando hora) e valor."""
+        from datetime import timedelta
+
+        start = datetime.combine(data_transacao, time.min)
+        end = datetime.combine(data_transacao, time.max)
+        stmt = (
+            select(TransacaoORM)
+            .options(
+                selectinload(TransacaoORM.categoria),
+                selectinload(TransacaoORM.subcategoria)
+            )
+            .where(
+                TransacaoORM.data_transacao >= start,
+                TransacaoORM.data_transacao <= end,
+                TransacaoORM.valor == valor,
+            )
+        )
+        result = await self.db.execute(stmt)
+        return list(result.unique().scalars().all())
 
     async def assign_random_banks(self, bank_codes: List[str]) -> int:
         """Atribui um bank_code aleatório às transações sem bank_code."""

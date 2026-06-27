@@ -6,12 +6,14 @@ import { ShoppingService } from '@/services/shoppingService';
 import type { ShoppingItem } from '@/types/shopping';
 import { Plus, ShoppingCart, Trash2, Search } from 'lucide-react';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 interface ComprasListProps {
   mesRef: Date;
 }
 
 export function ComprasList({ mesRef }: ComprasListProps) {
+  const { toast } = useToast();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -43,8 +45,8 @@ export function ComprasList({ mesRef }: ComprasListProps) {
       await ShoppingService.create({ nome, mes_ref: mesRefStr });
       setNewItemName('');
       await fetchItems();
-    } catch (e) {
-      console.error('Erro ao adicionar item', e);
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao adicionar item.', variant: 'destructive' });
     }
   };
 
@@ -52,8 +54,8 @@ export function ComprasList({ mesRef }: ComprasListProps) {
     try {
       await ShoppingService.update(item.id, { marcado: !item.marcado });
       await fetchItems();
-    } catch (e) {
-      console.error('Erro ao atualizar item', e);
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao atualizar item.', variant: 'destructive' });
     }
   };
 
@@ -61,8 +63,8 @@ export function ComprasList({ mesRef }: ComprasListProps) {
     try {
       await ShoppingService.delete(id);
       await fetchItems();
-    } catch (e) {
-      console.error('Erro ao excluir item', e);
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao excluir item.', variant: 'destructive' });
     }
   };
 

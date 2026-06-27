@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from typing import List
+from typing import List, Optional
 from datetime import date, datetime
 
 from app.db.repositories.settings import SettingsRepository
 from app.db.repositories.transacao import TransacaoRepository
 from app.services.pluggy_service import PluggyService
+from app.schemas.transacao import DuplicateInfo
 from app.logger import log_api_request
 
 router = APIRouter(prefix="/pluggy", tags=["Pluggy / Open Finance"])
@@ -74,6 +75,7 @@ async def sync_pluggy(
             return {"message": "Nenhuma conta encontrada no Meu Pluggy.", "imported": 0}
 
         total_imported = 0
+        all_created_ids: List[int] = []
         for account in accounts:
             account_id = account.get("id")
             if not account_id:
@@ -100,8 +102,7 @@ async def sync_pluggy(
                 if account.get("type") == "BANK":
                     bank_code = str(account.get("number", ""))[:3]
 
-                # Create transaction if not duplicate (by description + valor + date)
-                await transacao_repo.create(
+                created = await transacao_repo.create(
                     valor=valor,
                     descricao=tx.get("description", tx.get("descriptionRaw", "Sin cronizar"))[:255],
                     data_transacao=tx_date,
@@ -112,13 +113,40 @@ async def sync_pluggy(
                     subcategoria_nome="Pluggy",
                     bank_code=bank_code,
                 )
+                all_created_ids.append(created.id)
                 total_imported += 1
 
-        return {
+        # After all imports, detect duplicates among newly created transactions
+        duplicates_list = []
+        for new_id in all_created_ids:
+            new_t = await transacao_repo.get_by_id(new_id)
+            if not new_t:
+                continue
+            existing = await transacao_repo.check_duplicates(
+                new_t.data_transacao.date(), new_t.valor
+            )
+            # Filter out self and any others already in this sync batch
+            real_dups = [t for t in existing if t.id != new_id and t.id not in all_created_ids]
+            if real_dups:
+                for dup in real_dups:
+                    duplicates_list.append({
+                        "new_id": new_id,
+                        "existing_id": dup.id,
+                        "descricao": new_t.descricao,
+                        "valor": new_t.valor,
+                        "data_transacao": new_t.data_transacao.isoformat(),
+                        "existing_descricao": dup.descricao,
+                        "existing_data": dup.data_transacao.isoformat(),
+                    })
+                    break  # Only report one per new transaction
+
+        result = {
             "message": f"{total_imported} transações importadas de {len(accounts)} contas.",
             "imported": total_imported,
             "accounts": len(accounts),
+            "duplicates": duplicates_list,
         }
+        return result
     finally:
         await pluggy.close()
 

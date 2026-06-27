@@ -26,7 +26,7 @@ export interface Transaction {
   subcategoria_id: number;
   categoria_nome: string;
   subcategoria_nome: string;
-  forma_pagamento: 'credito' | 'debito' | 'pix' | 'transferencia' | 'dinheiro' | 'boleto';
+  forma_pagamento: string;  // Any string — custom values via "Outros" allowed
   parcela: number | null;
   total_parcelas: number | null;
   bank_code: string | null;
@@ -95,25 +95,11 @@ export interface CategoryExpense {
   subcategories?: Record<string, number>;
 }
 
-interface IncomeChartProps {
-  breakdown: CategoryBreakdown | null
-  dateRange: { from: Date; to: Date }
-}
-
-
 // Tipos para componentes internos
 export interface MonthlyBalance {
   income: number;
   expenses: number;
   balance: number;
-}
-
-export interface CategoryExpense {
-  category: string;
-  amount: number;
-  percentage: number;
-  color: string;
-  subcategories?: Record<string, number>;
 }
 
 export interface YearlyData {
@@ -176,9 +162,49 @@ export interface LimitsUpdateResponse {
   message: string
   created_categories: number
   updated_categories: number
+  deleted_categories: number
   created_subcategories: number
   updated_subcategories: number
   errors: string[]
+}
+
+// ===== Duplicate Checking Types =====
+
+export interface DuplicateInfo {
+  id: number;
+  descricao: string;
+  valor: number;
+  data_transacao: string;
+  tipo: string;
+  natureza: string;
+  categoria_nome?: string | null;
+  subcategoria_nome?: string | null;
+  forma_pagamento?: string | null;
+  data_criacao?: string | null;
+}
+
+export interface SingleDuplicateCheckResult {
+  index: number;
+  has_duplicate: boolean;
+  duplicates: DuplicateInfo[];
+}
+
+export interface DuplicateCheckResponse {
+  results: SingleDuplicateCheckResult[];
+}
+
+export type DuplicateAction = 'keep' | 'replace' | 'edit';
+
+export interface DuplicateResolution {
+  new_id: number;
+  existing_id: number;
+  action: 'keep_both' | 'keep_new' | 'keep_existing';
+}
+
+export interface ResolveDuplicatesResponse {
+  resolved: number;
+  deleted: number;
+  kept: number;
 }
 
 // Categorias baseadas no payload

@@ -31,9 +31,9 @@ export function SidebarPanel({ open, onClose }: SidebarPanelProps) {
           </Button>
         </div>
 
-        {/* Tabs — key força remount ao abrir/fechar para dados frescos */}
+        {/* Tabs — key estável, evita refetch desnecessário ao toggle */}
         <div className="flex-1 overflow-y-auto px-3 py-3">
-          <Tabs key={String(open)} defaultValue="metas" className="w-full">
+          <Tabs defaultValue="metas" className="w-full">
             <TabsList className="w-full mb-3">
               <TabsTrigger value="metas" className="flex-1 text-xs">Metas</TabsTrigger>
               <TabsTrigger value="compras" className="flex-1 text-xs">Compras</TabsTrigger>

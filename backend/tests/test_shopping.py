@@ -116,8 +116,9 @@ async def test_migrate_unchecked_items(client):
 @pytest.mark.asyncio
 async def test_migrate_no_items(client):
     """Migração sem itens não-marcados retorna 0."""
-    await client.post("/shopping/", json={"nome": "Unico item", "mes_ref": MES_REF})
-    await client.put(f"/shopping/1", json={"marcado": True})
+    resp = await client.post("/shopping/", json={"nome": "Unico item", "mes_ref": MES_REF})
+    item_id = resp.json()["id"]
+    await client.put(f"/shopping/{item_id}", json={"marcado": True})
 
     response = await client.post(f"/shopping/migrar?mes_origem={MES_REF}&mes_destino={MES_SEGUINTE}")
     assert response.status_code == 200

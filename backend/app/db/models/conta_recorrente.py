@@ -15,6 +15,7 @@ class ContaRecorrenteORM(Base):
     subcategoria_id = Column(Integer, ForeignKey("subcategorias.id"), nullable=False)
     natureza = Column(String, nullable=False)
     forma_pagamento = Column(String, nullable=False)
+    bank_code = Column(String, nullable=True)
     data_inicio = Column(DateTime, nullable=False)
     data_fim = Column(DateTime, nullable=True)
     ativo = Column(Boolean, default=True, nullable=False)

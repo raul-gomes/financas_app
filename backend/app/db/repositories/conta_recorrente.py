@@ -1,3 +1,4 @@
+import calendar
 from typing import List, Optional
 from datetime import datetime, date
 from uuid import uuid4
@@ -33,6 +34,7 @@ class ContaRecorrenteRepository:
             subcategoria_id=obj_in.subcategoria_id,
             natureza=obj_in.natureza,
             forma_pagamento=obj_in.forma_pagamento,
+            bank_code=obj_in.bank_code,
             data_inicio=obj_in.data_inicio,
             data_fim=obj_in.data_fim,
             ativo=obj_in.ativo,
@@ -55,6 +57,7 @@ class ContaRecorrenteRepository:
             )
         except Exception as e:
             log.error(f"Erro ao gerar parcelas para conta {inst.id}: {e}")
+            raise
 
         await self._set_parcelas_restantes(inst)
         return inst
@@ -146,8 +149,13 @@ class ContaRecorrenteRepository:
         for i in range(conta.total_parcelas):
             year = current.year
             month = current.month
-            day = min(conta.dia_vencimento, 28)
+            ultimo_dia = calendar.monthrange(year, month)[1]
+            day = min(conta.dia_vencimento, ultimo_dia)
             transacao_date = datetime(year, month, day, 0, 0, 0)
+
+            # Skip if this installment is past data_fim
+            if conta.data_fim and transacao_date > conta.data_fim:
+                break
 
             already_exists = await self._check_transaction_exists(
                 conta.group_id, year, month
@@ -290,7 +298,8 @@ class ContaRecorrenteRepository:
                 year = current_date.year
                 month = current_date.month
 
-                day = min(conta.dia_vencimento, 28)
+                ultimo_dia = calendar.monthrange(year, month)[1]
+                day = min(conta.dia_vencimento, ultimo_dia)
                 transacao_date = datetime(year, month, day, 0, 0, 0)
 
                 if transacao_date < req.data_inicio or transacao_date > req.data_final:

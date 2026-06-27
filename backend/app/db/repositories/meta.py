@@ -154,50 +154,56 @@ class MetaRepository:
         log.info(f"Meta {meta_id} reativada")
         return meta
 
-    async def calcular_progresso(
-        self, meta_id: int, ano: int, mes: int
-    ) -> Optional[dict]:
-        """Calcula o progresso de uma meta específica em um determinado mês."""
-        meta = await self.db.get(self.model, meta_id)
-        if not meta or meta.valor_alvo is None:
-            return None
-
-        # Soma das transações da subcategoria no mês
-        result = await self.db.execute(
-            select(func.coalesce(func.sum(TransacaoORM.valor), 0))
-            .where(
-                and_(
-                    TransacaoORM.subcategoria_id == meta_id,
-                    func.extract('year', TransacaoORM.data_transacao) == ano,
-                    func.extract('month', TransacaoORM.data_transacao) == mes,
-                )
-            )
-        )
-        valor_atual = result.scalar() or 0.0
-        progresso = (valor_atual / meta.valor_alvo * 100) if meta.valor_alvo > 0 else 0.0
-
-        return {
-            "subcategoria_id": meta.id,
-            "subcategoria_nome": meta.subcategoria_nome,
-            "valor_alvo": meta.valor_alvo,
-            "valor_atual": round(valor_atual, 2),
-            "progresso": round(progresso, 1),
-            "concluida": meta.concluida,
-            "data_conclusao": meta.data_conclusao,
-        }
-
     async def calcular_progresso_todas(self, ano: int, mes: int, concluida: Optional[bool] = None) -> List[dict]:
-        """Calcula o progresso de todas as metas no mês informado.
+        """Calcula o progresso de todas as metas no mês informado usando GROUP BY (1 query).
         
         Args:
             ano: Ano para calcular progresso
             mes: Mês para calcular progresso
             concluida: Se True, apenas concluídas. Se False, apenas ativas. Se None, todas.
         """
+        # Busca metas (1 query)
         metas = await self.list_metas(concluida=concluida)
+        if not metas:
+            return []
+
+        meta_ids = [m.id for m in metas]
+        meta_map = {m.id: m for m in metas}
+
+        # Range conditions para usar índice em data_transacao
+        from datetime import datetime
+        mes_inicio = datetime(ano, mes, 1)
+        if mes == 12:
+            mes_fim = datetime(ano + 1, 1, 1)
+        else:
+            mes_fim = datetime(ano, mes + 1, 1)
+
+        # Soma agrupada por subcategoria (1 query, não N+1)
+        result = await self.db.execute(
+            select(
+                TransacaoORM.subcategoria_id,
+                func.coalesce(func.sum(TransacaoORM.valor), 0).label("total"),
+            )
+            .where(
+                TransacaoORM.subcategoria_id.in_(meta_ids),
+                TransacaoORM.data_transacao >= mes_inicio,
+                TransacaoORM.data_transacao < mes_fim,
+            )
+            .group_by(TransacaoORM.subcategoria_id)
+        )
+        totals = {row.subcategoria_id: float(row.total) for row in result}
+
         resultados = []
-        for meta in metas:
-            progresso = await self.calcular_progresso(meta.id, ano, mes)
-            if progresso:
-                resultados.append(progresso)
+        for meta_id, meta in meta_map.items():
+            valor_atual = totals.get(meta_id, 0.0)
+            progresso = (valor_atual / meta.valor_alvo * 100) if meta.valor_alvo > 0 else 0.0
+            resultados.append({
+                "subcategoria_id": meta.id,
+                "subcategoria_nome": meta.subcategoria_nome,
+                "valor_alvo": meta.valor_alvo,
+                "valor_atual": round(valor_atual, 2),
+                "progresso": round(progresso, 1),
+                "concluida": meta.concluida,
+                "data_conclusao": meta.data_conclusao,
+            })
         return resultados

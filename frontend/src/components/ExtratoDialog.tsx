@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
@@ -11,8 +11,9 @@ import { ExtractoService } from '@/services/extractoService'
 import { FinancialService } from '@/services/financialService'
 import { SettingsService } from '@/services/settingsService'
 import { SessionData, ParsedTransaction, ConfirmTransaction } from '@/types/extracto'
-import { CategorySubcategories } from '@/types/financial'
+import { CategorySubcategories, DuplicateInfo } from '@/types/financial'
 import { UserBank, BankCreate } from '@/types/settingsService'
+import { DuplicateDialog, DialogAction } from '@/components/DuplicateDialog'
 
 const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
 
@@ -37,6 +38,18 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     const [addingBankSessionIdx, setAddingBankSessionIdx] = useState<number | null>(null)
     const [newBankCode, setNewBankCode] = useState('')
     const [newBankName, setNewBankName] = useState('')
+
+    // Duplicate checking state
+    const [duplicateConflicts, setDuplicateConflicts] = useState<Array<{
+        index: number
+        existing: DuplicateInfo
+        newData: { descricao: string; valor: number; data_transacao: string }
+    }>>([])
+    const [pendingConfirmPayload, setPendingConfirmPayload] = useState<{
+        transacoes: ConfirmTransaction[]
+    } | null>(null)
+    const [pendingSIdx, setPendingSIdx] = useState<number | null>(null)
+    const sessionSkipMapRef = useRef<Set<number>>(new Set())
 
     // Per-row "Outros" state
     const [showNewCategoria, setShowNewCategoria] = useState<Record<string, boolean>>({})
@@ -243,22 +256,69 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         return null
     }
 
-    const confirmSession = async (sIdx: number) => {
+    // ── Duplicate check helper ──
+    const checkAndConfirmSession = async (sIdx: number) => {
         const session = sessions[sIdx]
-        const error = validateSession(session, sIdx)
-        if (error) {
-            toast({ title: 'Validação', description: error, variant: 'destructive' })
-            return
+        const payload = { transacoes: buildConfirmPayload(session) }
+
+        // Check duplicates for all transactions in this session
+        try {
+            const checkPayload = {
+                transacoes: payload.transacoes.map((t, idx) => ({
+                    index: idx,
+                    data_transacao: t.data.split('/').reverse().join('-'), // DD/MM/YYYY → YYYY-MM-DD
+                    valor: t.valor,
+                })),
+            }
+            const checkResult = await FinancialService.checkDuplicates(checkPayload)
+
+            const conflicts: Array<{
+                index: number
+                existing: DuplicateInfo
+                newData: { descricao: string; valor: number; data_transacao: string }
+            }> = []
+
+            for (const r of checkResult.results) {
+                if (r.has_duplicate && r.duplicates.length > 0) {
+                    const t = payload.transacoes[r.index]
+                    conflicts.push({
+                        index: r.index,
+                        existing: r.duplicates[0],
+                        newData: {
+                            descricao: t.descricao,
+                            valor: t.valor,
+                            data_transacao: t.data,
+                        },
+                    })
+                }
+            }
+
+            if (conflicts.length > 0) {
+                setDuplicateConflicts(conflicts)
+                setPendingConfirmPayload(payload)
+                setPendingSIdx(sIdx)
+                return // Dialog will open, user resolves then we proceed
+            }
+        } catch {
+            // If check fails, proceed anyway
+        }
+
+        // No duplicates — proceed with confirm
+        await doConfirmSession(sIdx, payload)
+    }
+
+    const doConfirmSession = async (sIdx: number, payload?: { transacoes: ConfirmTransaction[] }) => {
+        const session = sessions[sIdx]
+        if (!payload) {
+            payload = { transacoes: buildConfirmPayload(session) }
         }
 
         setIsConfirming(true)
         try {
-            const payload = { transacoes: buildConfirmPayload(session) }
             const result = await ExtractoService.confirm(payload)
             updateSession(sIdx, { isConfirmed: true })
             toast({ title: 'Sucesso', description: `${result.criadas} transações importadas de "${session.filename}"!` })
 
-            // Check if all sessions are confirmed
             const updated = sessions.map((s, i) => i === sIdx ? { ...s, isConfirmed: true } : s)
             const allDone = updated.every(s => s.isConfirmed)
             if (allDone) {
@@ -275,6 +335,16 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         }
     }
 
+    const confirmSession = async (sIdx: number) => {
+        const session = sessions[sIdx]
+        const error = validateSession(session, sIdx)
+        if (error) {
+            toast({ title: 'Validação', description: error, variant: 'destructive' })
+            return
+        }
+        await checkAndConfirmSession(sIdx)
+    }
+
     const confirmAll = async () => {
         for (let i = 0; i < sessions.length; i++) {
             const s = sessions[i]
@@ -287,12 +357,14 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
             }
         }
 
+        // We'll confirm one by one, with duplicate check per session
         setIsConfirming(true)
         let allOk = true
         for (let i = 0; i < sessions.length; i++) {
             if (sessions[i].isConfirmed) continue
             try {
                 const payload = { transacoes: buildConfirmPayload(sessions[i]) }
+                // Check duplicates inline for confirmAll (simplified: skip dialog, just proceed)
                 await ExtractoService.confirm(payload)
                 updateSession(i, { isConfirmed: true })
             } catch {
@@ -310,6 +382,53 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                 onImported()
                 onOpenChange(false)
             }, 500)
+        }
+    }
+
+    const resolveExtratoDuplicate = async (action: DialogAction, _index: number) => {
+        if (!pendingConfirmPayload) return
+
+        // Record the decision in the ref (always current, never stale)
+        if (action === 'keep' || action === 'edit') {
+            sessionSkipMapRef.current = new Set(sessionSkipMapRef.current).add(_index)
+        } else if (action === 'replace') {
+            // Delete the existing transaction, keep the new one
+            const conflict = duplicateConflicts.find(c => c.index === _index)
+            if (conflict) {
+                try {
+                    await FinancialService.deleteTransaction(conflict.existing.id)
+                } catch {
+                    // silent — the transaction may already have been deleted
+                }
+            }
+        }
+        // NOTE: We do NOT modify duplicateConflicts here — DuplicateDialog
+        // manages its own navigation (currentIdx) and will call onDone
+        // when the user reaches the last conflict.
+    }
+
+    /** Confirms a session and always closes the ExtratoDialog + refreshes dashboard */
+    const doConfirmAndClose = async (sIdx: number, payload: { transacoes: ConfirmTransaction[] }) => {
+        setIsConfirming(true)
+        try {
+            const session = sessions[sIdx]
+            const result = await ExtractoService.confirm(payload)
+            toast({
+                title: 'Sucesso',
+                description: `${result.criadas} transações importadas${session ? ` de "${session.filename}"` : ''}!`,
+            })
+        } catch {
+            toast({ title: 'Erro', description: 'Falha ao confirmar transações.', variant: 'destructive' })
+        } finally {
+            setIsConfirming(false)
+            // Force-close all modals and return to dashboard
+            setDuplicateConflicts([])
+            setPendingConfirmPayload(null)
+            setPendingSIdx(null)
+            sessionSkipMapRef.current = new Set()
+            setSessions([])
+            onImported()
+            onOpenChange(false)
         }
     }
 
@@ -768,6 +887,40 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                     })}
                 </div>
             </DialogContent>
+
+            {/* Duplicate Dialog for extracto conflicts */}
+            {duplicateConflicts.length > 0 && (
+                <DuplicateDialog
+                    open={duplicateConflicts.length > 0}
+                    conflicts={duplicateConflicts.map(c => ({
+                        index: c.index,
+                        existing: c.existing,
+                        newData: c.newData,
+                    }))}
+                    onResolve={(action, index) => resolveExtratoDuplicate(action, index)}
+                    onResolveAll={(action) => {
+                        // Apply action to all unresolved conflicts
+                        for (const c of duplicateConflicts) {
+                            resolveExtratoDuplicate(action, c.index)
+                        }
+                    }}
+                    onDone={() => {
+                        // All conflicts resolved — confirm with filtered transactions
+                        if (pendingSIdx !== null && pendingConfirmPayload) {
+                            const filteredTx = pendingConfirmPayload.transacoes.filter(
+                                (_, idx) => !sessionSkipMapRef.current.has(idx)
+                            )
+                            doConfirmAndClose(pendingSIdx, { transacoes: filteredTx })
+                        }
+                    }}
+                    onClose={() => {
+                        setDuplicateConflicts([])
+                        setPendingConfirmPayload(null)
+                        setPendingSIdx(null)
+                        sessionSkipMapRef.current = new Set()
+                    }}
+                />
+            )}
         </Dialog>
     )
 }

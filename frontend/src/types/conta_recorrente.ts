@@ -9,6 +9,7 @@ export interface ContaRecorrente {
   subcategoria_nome?: string;
   natureza: 'pf' | 'pj';
   forma_pagamento: string;
+  bank_code?: string;
   data_inicio: string;
   data_fim?: string;
   ativo: boolean;
@@ -27,6 +28,7 @@ export interface ContaRecorrenteCreate {
   subcategoria_nome?: string;
   natureza: 'pf' | 'pj';
   forma_pagamento: string;
+  bank_code?: string;
   data_inicio: string;
   data_fim?: string;
   ativo?: boolean;
@@ -43,6 +45,7 @@ export interface ContaRecorrenteUpdate {
   subcategoria_nome?: string;
   natureza?: 'pf' | 'pj';
   forma_pagamento?: string;
+  bank_code?: string;
   data_inicio?: string;
   data_fim?: string;
   ativo?: boolean;

@@ -16,6 +16,9 @@ from datetime import datetime
 router = APIRouter(prefix="/extractos", tags=["Extrato Bancario"])
 
 
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload_extracto(
     request: Request,
@@ -24,6 +27,11 @@ async def upload_extracto(
     log = log_api_request(method="POST", endpoint=str(request.url), filename=file.filename)
 
     content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Arquivo muito grande. Tamanho máximo: {MAX_UPLOAD_SIZE // (1024 * 1024)} MB",
+        )
     text = content.decode('utf-8', errors='replace')
 
     filename_lower = (file.filename or '').lower()

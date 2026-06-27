@@ -21,7 +21,7 @@ interface FinancialDashboardProps {
   monthlyGoal: number;
   currentMonthExpenses: number;
   dateRange: { from: Date; to: Date };
-  transactions: (Transaction & { id: string })[];
+  transactions: Transaction[];
   selectedMonth: SelectedMonth | null;
   highlightedMonth?: SelectedMonth | null;
   incomeBreakdown: CategoryBreakdown | null;
@@ -89,15 +89,14 @@ export function FinancialDashboard({
     }));
   };
 
-  const handleBarClick = (month: string) => {
+  const handleBarClick = (month: string, year?: number) => {
     const monthIndexMap: Record<string, number> = {
       'Jan': 0, 'Fev': 1, 'Mar': 2, 'Abr': 3, 'Mai': 4, 'Jun': 5,
       'Jul': 6, 'Ago': 7, 'Set': 8, 'Out': 9, 'Nov': 10, 'Dez': 11,
     };
     const monthIndex = monthIndexMap[month];
     if (monthIndex !== undefined && onMonthSelect) {
-      const currentYear = new Date().getFullYear();
-      onMonthSelect(monthIndex, currentYear);
+      onMonthSelect(monthIndex, year ?? new Date().getFullYear());
     }
   };
 

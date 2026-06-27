@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, ValidationInfo, model_validator, field_validator
-from typing import Optional
-from datetime import datetime
+from typing import Optional, List
+from datetime import date, datetime
 from enum import Enum
 from uuid import UUID
 
@@ -134,3 +134,58 @@ class TransacaoUpdate(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ===== Duplicate Checking =====
+
+class SingleDuplicateCheckItem(BaseModel):
+    index: int
+    data_transacao: date
+    valor: float
+
+
+class DuplicateCheckRequest(BaseModel):
+    data_transacao: Optional[date] = None
+    valor: Optional[float] = None
+    transacoes: Optional[List[SingleDuplicateCheckItem]] = None
+
+
+class DuplicateInfo(BaseModel):
+    id: int
+    descricao: str
+    valor: float
+    data_transacao: datetime
+    tipo: str
+    natureza: str
+    categoria_nome: Optional[str] = None
+    subcategoria_nome: Optional[str] = None
+    forma_pagamento: Optional[str] = None
+    data_criacao: Optional[datetime] = None
+
+
+class SingleDuplicateCheckResult(BaseModel):
+    index: int
+    has_duplicate: bool
+    duplicates: List[DuplicateInfo]
+
+
+class DuplicateCheckResponse(BaseModel):
+    results: List[SingleDuplicateCheckResult]
+
+
+# ===== Duplicate Resolution (for Pluggy sync) =====
+
+class DuplicateResolution(BaseModel):
+    new_id: int
+    existing_id: int
+    action: str = Field(..., pattern=r"^(keep_both|keep_new|keep_existing)$")
+
+
+class ResolveDuplicatesRequest(BaseModel):
+    resolutions: List[DuplicateResolution]
+
+
+class ResolveDuplicatesResponse(BaseModel):
+    resolved: int
+    deleted: int
+    kept: int

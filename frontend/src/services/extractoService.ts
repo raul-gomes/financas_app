@@ -22,26 +22,27 @@ export class ExtractoService {
   }
 
   static async uploadMultiple(files: File[]): Promise<SessionData[]> {
-    const sessions: SessionData[] = [];
+    if (files.length === 0) throw new Error('Nenhum arquivo selecionado');
 
-    for (const file of files) {
-      const response = await ExtractoService.upload(file);
-      sessions.push({
-        filename: file.name,
-        bankCode: '',
-        isConfirmed: false,
-        transactions: response.transacoes.map(t => ({
-          ...t,
-          categoria_id: undefined,
-          subcategoria_id: undefined,
-          forma_pagamento: t.forma_pagamento || 'pix',
-          natureza: t.natureza || 'pf',
-        })),
-      });
-    }
+    const results = await Promise.all(
+      files.map(async (file) => {
+        const response = await ExtractoService.upload(file);
+        return {
+          filename: file.name,
+          bankCode: '',
+          isConfirmed: false,
+          transactions: response.transacoes.map(t => ({
+            ...t,
+            categoria_id: undefined,
+            subcategoria_id: undefined,
+            forma_pagamento: t.forma_pagamento || 'pix',
+            natureza: t.natureza || 'pf',
+          })),
+        } as SessionData;
+      })
+    );
 
-    if (sessions.length === 0) throw new Error('Nenhum arquivo processado');
-    return sessions;
+    return results;
   }
 
   static async confirm(payload: ConfirmPayload): Promise<ConfirmResponse> {

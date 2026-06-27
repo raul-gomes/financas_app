@@ -96,11 +96,16 @@ export class SettingsService {
     if (!res.ok && res.status !== 204) throw new Error(`Erro ${res.status} ao remover banco`);
   }
 
+  static #banksCache: BrasilApiBank[] | null = null;
+
   static async searchBrasilApi(query: string): Promise<BrasilApiBank[]> {
     if (query.length < 2) return [];
-    const res = await fetch(`https://brasilapi.com.br/api/banks/v1`);
-    if (!res.ok) return [];
-    const allBanks: BrasilApiBank[] = await res.json();
+    if (!this.#banksCache) {
+      const res = await fetch(`https://brasilapi.com.br/api/banks/v1`);
+      if (!res.ok) return [];
+      this.#banksCache = await res.json();
+    }
+    const allBanks = this.#banksCache;
     const q = query.toLowerCase();
 
     // Filter banks that match the query

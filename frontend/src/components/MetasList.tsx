@@ -160,7 +160,9 @@ export function MetasList({ mesRef }: MetasListProps) {
                           try {
                             await MetasService.concluir(meta.subcategoria_id);
                             fetchMetas();
-                          } catch { /* ignore */ }
+                          } catch {
+                            toast({ title: 'Erro', description: 'Falha ao concluir meta.', variant: 'destructive' });
+                          }
                         }}
                       >
                         <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
@@ -211,7 +213,9 @@ export function MetasList({ mesRef }: MetasListProps) {
                           try {
                             await MetasService.reativar(meta.subcategoria_id);
                             fetchMetas();
-                          } catch { /* ignore */ }
+                          } catch {
+                            toast({ title: 'Erro', description: 'Falha ao reativar meta.', variant: 'destructive' });
+                          }
                         }}
                       >
                         <RotateCcw className="h-3 w-3 mr-1" />

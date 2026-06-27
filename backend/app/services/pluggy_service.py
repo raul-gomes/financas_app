@@ -48,10 +48,14 @@ class PluggyItem:
     last_updated_at: Optional[datetime] = None
 
 
+MAX_PAGES = 50  # Safety limit for pagination
+
+
 class PluggyService:
     """
     Service that wraps the Meu Pluggy REST API.
     Each call requires the user's personal API key.
+    Use as async context manager: async with PluggyService(key) as svc:
     """
 
     def __init__(self, api_key: str):
@@ -61,6 +65,12 @@ class PluggyService:
             headers={"X-API-Key": api_key},
             timeout=30,
         )
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        await self.client.aclose()
 
     async def close(self):
         await self.client.aclose()
@@ -95,8 +105,8 @@ class PluggyService:
         items = []
         for raw in data.get("results", []):
             item = PluggyItem()
-            item.id = raw["id"]
-            item.status = raw["status"]
+            item.id = raw.get("id", "")
+            item.status = raw.get("status", "")
             item.institution_name = raw.get("connector", {}).get("name", "Desconhecido")
             item.institution_number = raw.get("connector", {}).get("id")
             item.created_at = raw.get("createdAt")
@@ -126,11 +136,11 @@ class PluggyService:
         page = 1
         total_pages = 1
 
-        while page <= total_pages:
+        while page <= total_pages and page <= MAX_PAGES:
             params["page"] = page
             data = await self._get("/transactions", params)
             all_transactions.extend(data.get("results", []))
-            total_pages = data.get("totalPages", 1)
+            total_pages = min(data.get("totalPages", 1), MAX_PAGES)
             page += 1
 
         return all_transactions

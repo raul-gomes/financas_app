@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional
 from datetime import datetime
 
@@ -11,6 +11,7 @@ class ContaRecorrenteBase(BaseModel):
     subcategoria_id: int
     natureza: str
     forma_pagamento: str
+    bank_code: Optional[str] = Field(None, description="Código COMPE do banco")
     data_inicio: datetime
     data_fim: Optional[datetime] = None
     ativo: bool = True
@@ -30,6 +31,22 @@ class ContaRecorrenteCreate(ContaRecorrenteBase):
     categoria_nome: Optional[str] = None
     subcategoria_nome: Optional[str] = None
 
+    @model_validator(mode='before')
+    @classmethod
+    def check_categoria(cls, values):
+        cid, cnome = values.get('categoria_id'), values.get('categoria_nome')
+        if not cid and not cnome:
+            raise ValueError('Informe categoria_id ou categoria_nome')
+        return values
+
+    @model_validator(mode='before')
+    @classmethod
+    def check_subcategoria(cls, values):
+        sid, snome = values.get('subcategoria_id'), values.get('subcategoria_nome')
+        if not sid and not snome:
+            raise ValueError('Informe subcategoria_id ou subcategoria_nome')
+        return values
+
 
 class ContaRecorrenteUpdate(BaseModel):
     descricao: Optional[str] = Field(None, min_length=1, max_length=500)
@@ -41,6 +58,7 @@ class ContaRecorrenteUpdate(BaseModel):
     subcategoria_nome: Optional[str] = None
     natureza: Optional[str] = None
     forma_pagamento: Optional[str] = None
+    bank_code: Optional[str] = None
     data_inicio: Optional[datetime] = None
     data_fim: Optional[datetime] = None
     ativo: Optional[bool] = None

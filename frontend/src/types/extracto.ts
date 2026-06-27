@@ -23,11 +23,14 @@ export interface ConfirmTransaction {
   descricao: string;
   valor: number;
   tipo: string;
-  categoria_id: number;
-  subcategoria_id: number;
+  categoria_id?: number;
+  subcategoria_id?: number;
+  categoria_nome?: string;
+  subcategoria_nome?: string;
   forma_pagamento: string;
   natureza: string;
   bank_code?: string;
+  total_parcelas?: number;
 }
 
 export interface ConfirmPayload {

@@ -28,7 +28,7 @@ import { SettingsService, UserBank } from '@/services/settingsService';
 interface EditTransactionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onEditTransaction: (transaction: Partial<Transaction>) => void;
+  onEditTransaction: (transaction: Partial<Transaction>) => Promise<void>;
   transaction: Transaction;
 }
 
@@ -117,7 +117,7 @@ export function EditTransactionDialog({
     onClose();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (
       !formData.tipo ||
@@ -147,9 +147,13 @@ export function EditTransactionDialog({
       payload.total_parcelas = null;
     }
 
-    onEditTransaction(payload);
-    onClose();
-    toast({ title: 'Sucesso', description: 'Transação editada com sucesso!' });
+    try {
+      await onEditTransaction(payload);
+      toast({ title: 'Sucesso', description: 'Transação editada com sucesso!' });
+      onClose();
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao editar transação.', variant: 'destructive' });
+    }
   };
 
   const valorParcela = calcularValorParcela();

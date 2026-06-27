@@ -57,7 +57,7 @@ const Financial = () => {
       const naturezaFilter = selectedEntityType;
 
       await ContaRecorrenteService.generate(selectedDateRange.from, selectedDateRange.to)
-        .catch(() => {});
+        .catch((err) => console.error('Erro ao gerar faturas recorrentes:', err));
 
       const [summary, yearly, categories, incomes, yearTx] = await Promise.all([
         FinancialService.getFinancialSummary(

@@ -23,6 +23,7 @@ class LimitsUpdatePayload(BaseModel):
     """Payload para atualização em lote de limites"""
     new: List[CategoriaLimiteUpdate] = Field(default_factory=list, description="Categorias novas")
     modified: List[CategoriaLimiteUpdate] = Field(default_factory=list, description="Categorias modificadas")
+    deleted: List[int] = Field(default_factory=list, description="IDs das categorias a excluir")
 
 
 class LimitsUpdateResponse(BaseModel):
@@ -31,6 +32,7 @@ class LimitsUpdateResponse(BaseModel):
     message: str = Field(..., description="Mensagem de retorno")
     created_categories: int = Field(0, description="Número de categorias criadas")
     updated_categories: int = Field(0, description="Número de categorias atualizadas")
+    deleted_categories: int = Field(0, description="Número de categorias excluídas")
     created_subcategories: int = Field(0, description="Número de subcategorias criadas")
     updated_subcategories: int = Field(0, description="Número de subcategorias atualizadas")
     errors: List[str] = Field(default_factory=list, description="Lista de erros, se houver")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Query
+from fastapi import APIRouter, Depends, Request, Query, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -20,8 +20,14 @@ async def _fetch_transactions_for_export(
     data_final: str,
 ):
     """Fetch transactions with joined category/subcategory within date range."""
-    dt_i = datetime.strptime(data_inicio, "%d/%m/%Y") if data_inicio else datetime(2000, 1, 1)
-    dt_f = datetime.strptime(data_final, "%d/%m/%Y") if data_final else datetime.now()
+    try:
+        dt_i = datetime.strptime(data_inicio, "%d/%m/%Y") if data_inicio else datetime(2000, 1, 1)
+        dt_f = datetime.strptime(data_final, "%d/%m/%Y") if data_final else datetime.now()
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Formato de data inválido. Use DD/MM/YYYY.",
+        )
 
     result = await db.execute(
         select(TransacaoORM)

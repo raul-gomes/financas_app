@@ -55,10 +55,10 @@ export function TransactionList({
   const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  // Reload banks whenever transactions change (new bank may have been added inline)
+  // Load banks once on mount (banks change rarely)
   useEffect(() => {
     SettingsService.listBanks().then(setBanks).catch(() => {});
-  }, [transactions]);
+  }, []);
 
   const getBankName = (bankCode: string | null): string | null => {
     if (!bankCode) return null;
@@ -296,20 +296,14 @@ export function TransactionList({
       </div>
 
       {/* Modais */}
-      <AddTransactionDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        onAddTransaction={onAddTransaction}
-      />
-
       {editingTransaction && (
         <EditTransactionDialog
           isOpen={!!editingTransaction}
           onClose={() => setEditingTransaction(null)}
           transaction={editingTransaction}
-          onEditTransaction={(updatedTransaction) => {
+          onEditTransaction={async (updatedTransaction) => {
             if (editingTransaction) {
-              onEditTransaction(editingTransaction.id, updatedTransaction);
+              await onEditTransaction(editingTransaction.id, updatedTransaction);
               setEditingTransaction(null);
             }
           }}

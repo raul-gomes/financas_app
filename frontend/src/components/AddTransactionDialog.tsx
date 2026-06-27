@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,11 +17,12 @@ import {
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
-import { CategorySubcategories, Transaction } from '@/types/financial';
+import { CategorySubcategories, Transaction, DuplicateInfo } from '@/types/financial';
 import { useToast } from '@/hooks/use-toast';
 import { FinancialService } from '@/services/financialService';
 import { SettingsService, UserBank } from '@/services/settingsService';
 import { Plus } from 'lucide-react';
+import { DuplicateDialog, DialogAction } from '@/components/DuplicateDialog';
 
 interface AddTransactionDialogProps {
   isOpen: boolean;
@@ -61,6 +62,13 @@ export function AddTransactionDialog({
   const [newBankName, setNewBankName] = useState('');
   const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  // Duplicate checking state
+  const [duplicateConflict, setDuplicateConflict] = useState<{
+    existing: DuplicateInfo
+    payload: any
+  } | null>(null);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
   const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null)
 
@@ -116,6 +124,52 @@ export function AddTransactionDialog({
     onClose();
   };
 
+  const buildPayload = useCallback(() => {
+    const categoriaObj = categoryOptions?.opcoes.find(
+      c => c.categoria === formData.categoria
+    );
+    const subObj = categoriaObj?.subcategorias.find(
+      s => s.nome === formData.subcategoria
+    );
+
+    const payload: any = {
+      tipo: formData.tipo,
+      valor: parseFloat(formData.valor),
+      descricao: formData.descricao,
+      data_transacao: formData.data_transacao,
+      forma_pagamento: formData.forma_pagamento === 'cartão de crédito' ? 'credito' :
+                       formData.forma_pagamento === 'cartão de débito' ? 'debito' :
+                       formData.forma_pagamento,
+      natureza: formData.natureza,
+    };
+
+    if (bankCode) payload.bank_code = bankCode;
+    if (parcelado) {
+      const num = parseInt(formData.total_parcelas ?? '1', 10);
+      payload.parcela = 1;
+      payload.total_parcelas = num;
+    }
+    if (categoriaObj && subObj) {
+      payload.categoria_id = categoriaObj.id;
+      payload.subcategoria_id = subObj.id;
+    } else {
+      payload.categoria_nome = formData.categoria;
+      payload.subcategoria_nome = formData.subcategoria;
+    }
+    return payload;
+  }, [formData, bankCode, parcelado, categoryOptions]);
+
+  const executeAdd = async (payload: any) => {
+    try {
+      await FinancialService.addTransaction(payload);
+      toast({ title: 'Transação adicionada', description: 'Sucesso!' });
+      handleClose();
+      onAddTransaction(payload as unknown as Transaction);
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao criar transação.', variant: 'destructive' });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -128,56 +182,52 @@ export function AddTransactionDialog({
       return;
     }
 
-    // 1. Encontrar objeto CategoriaOpcao
-    const categoriaObj = categoryOptions?.opcoes.find(
-      c => c.categoria === formData.categoria
-    );
-    // 2. Encontrar SubcategoriaOpcao
-    const subObj = categoriaObj?.subcategorias.find(
-      s => s.nome === formData.subcategoria
-    );
+    const payload = buildPayload();
 
-    // 3. Montar payload
-    const payload: any = {
-      tipo: formData.tipo,
-      valor: parseFloat(formData.valor),
-      descricao: formData.descricao,
-      data_transacao: new Date(formData.data_transacao + 'T00:00:00').toISOString(),
-      forma_pagamento: formData.forma_pagamento === 'cartão de crédito' ? 'credito' :
-                       formData.forma_pagamento === 'cartão de débito' ? 'debito' :
-                       formData.forma_pagamento,
-      natureza: formData.natureza,
-    };
-
-    // Bank
-    if (bankCode) {
-      payload.bank_code = bankCode;
-    }
-
-    // Parcelas (independente do tipo de pagamento ou entrada/saída)
-    if (parcelado) {
-      const num = parseInt(formData.total_parcelas ?? '1', 10);
-      payload.parcela = 1;
-      payload.total_parcelas = num;
-    }
-
-    if (categoriaObj && subObj) {
-      payload.categoria_id = categoriaObj.id;
-      payload.subcategoria_id = subObj.id;
-    } else {
-      payload.categoria_nome = formData.categoria;
-      payload.subcategoria_nome = formData.subcategoria;
-    }
-
+    // Check for duplicates before creating
+    setIsCheckingDuplicate(true);
     try {
-      await FinancialService.addTransaction(payload);
-      toast({ title: 'Transação adicionada', description: 'Sucesso!' });
-      handleClose();
-      window.location.reload();
+      const checkResult = await FinancialService.checkDuplicates({
+        data_transacao: formData.data_transacao,
+        valor: parseFloat(formData.valor),
+      });
+
+      if (checkResult.results[0]?.has_duplicate) {
+        setDuplicateConflict({
+          existing: checkResult.results[0].duplicates[0],
+          payload,
+        });
+        return;
+      }
     } catch {
-      toast({ title: 'Erro', description: 'Falha ao criar transação.', variant: 'destructive' });
+      // If check fails, proceed anyway
+    } finally {
+      setIsCheckingDuplicate(false);
     }
 
+    await executeAdd(payload);
+  };
+
+  const handleDuplicateAction = async (action: DialogAction) => {
+    if (!duplicateConflict) return;
+
+    if (action === 'keep') {
+      // Skip — do nothing
+      setDuplicateConflict(null);
+      handleClose();
+    } else if (action === 'replace') {
+      // Delete existing, then add new
+      try {
+        await FinancialService.deleteTransaction(duplicateConflict.existing.id);
+        await executeAdd(duplicateConflict.payload);
+      } catch {
+        toast({ title: 'Erro', description: 'Falha ao substituir transação.', variant: 'destructive' });
+      }
+      setDuplicateConflict(null);
+    } else if (action === 'edit') {
+      // Close duplicate dialog, keep form open so user can edit
+      setDuplicateConflict(null);
+    }
   };
 
   const valorParcela = calcularValorParcela();
@@ -548,12 +598,30 @@ export function AddTransactionDialog({
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1 bg-gradient-primary">
-              Adicionar
+            <Button type="submit" className="flex-1 bg-gradient-primary" disabled={isCheckingDuplicate}>
+              {isCheckingDuplicate ? 'Verificando...' : 'Adicionar'}
             </Button>
           </div>
         </form>
       </DialogContent>
+
+      {/* Duplicate Dialog */}
+      {duplicateConflict && (
+        <DuplicateDialog
+          open={!!duplicateConflict}
+          conflicts={[{
+            index: 0,
+            existing: duplicateConflict.existing,
+            newData: {
+              descricao: duplicateConflict.payload.descricao,
+              valor: duplicateConflict.payload.valor,
+              data_transacao: duplicateConflict.payload.data_transacao,
+            },
+          }]}
+          onResolve={(_action) => handleDuplicateAction(_action)}
+          onClose={() => setDuplicateConflict(null)}
+        />
+      )}
     </Dialog>
   );
 }

@@ -60,11 +60,11 @@ class ShoppingRepository:
             return None
 
         update_data = obj_in.model_dump(exclude_unset=True)
-        # Auto-set data_conclusao when marking/unmarking
-        if 'marcado' in update_data:
-            item.data_conclusao = date.today() if update_data['marcado'] else None
         for field, value in update_data.items():
             setattr(item, field, value)
+        # Auto-set data_conclusao when marking/unmarking (after setattr to avoid overwrite)
+        if 'marcado' in update_data:
+            item.data_conclusao = date.today() if update_data['marcado'] else None
         await self.db.commit()
         await self.db.refresh(item)
         log.info(f"Item {item_id} atualizado (marcado={item.marcado}, data_conclusao={item.data_conclusao})")
@@ -88,6 +88,11 @@ class ShoppingRepository:
         Copia itens não-marcados do mês de origem para o mês de destino.
         Retorna a quantidade de itens migrados.
         """
+        if mes_destino <= mes_origem:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mês destino deve ser posterior ao mês de origem.",
+            )
         log = log_database_operation(
             operation="migrate",
             collection="shopping_items",

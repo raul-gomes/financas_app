@@ -241,6 +241,17 @@ const Settings = () => {
     const dataInicio = parts[0] || '01/01/2000';
     const dataFinal = parts[1] || new Date().toLocaleDateString('pt-BR');
 
+    // Validate format
+    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+    if (!dateRegex.test(dataInicio) || !dateRegex.test(dataFinal)) {
+      toast({
+        title: 'Erro',
+        description: 'Formato de data inválido. Use dd/mm/aaaa - dd/mm/aaaa.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const url = format === 'csv'
       ? SettingsService.getExportCsvUrl(dataInicio, dataFinal)
       : SettingsService.getExportOfxUrl(dataInicio, dataFinal);

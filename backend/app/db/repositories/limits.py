@@ -43,6 +43,17 @@ class LimitsRepository:
         )
 
         try:
+            # Processa categorias a excluir
+            for cat_id in payload.deleted:
+                try:
+                    cat = await self.categoria_repo.get_by_id(cat_id)
+                    if cat:
+                        await self.categoria_repo.delete(cat_id)
+                        response.deleted_categories += 1
+                except Exception as e:
+                    response.errors.append(f"Erro ao excluir categoria ID {cat_id}: {str(e)}")
+                    log.error(f"Erro ao excluir categoria: {e}")
+
             # Processa categorias novas
             for new_cat in payload.new:
                 try:

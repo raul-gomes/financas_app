@@ -76,31 +76,34 @@ class DashboardRepository:
         ano: int,
         natureza: str) -> Dict[str, Dict[str, float]]:
 
-        meses_data: Dict[str, Dict[str, float]] = {}
+        # Single query with GROUP BY month instead of 12 queries
+        from sqlalchemy import func as sa_func, extract
 
-        for m in range(1, 13):
-            first = datetime(ano, m, 1)
-            last_day = calendar.monthrange(ano, m)[1]
-            last = datetime(ano, m, last_day, 23, 59, 59)
-
-            stmt = (
-                select(TransacaoORM)
-                .where(TransacaoORM.data_transacao >= first)
-                .where(TransacaoORM.data_transacao <= last)
+        stmt = (
+            select(
+                extract('month', TransacaoORM.data_transacao).label('mes'),
+                TransacaoORM.tipo,
+                sa_func.sum(TransacaoORM.valor).label('total'),
             )
-            if natureza != 'all':
-                stmt = stmt.where(TransacaoORM.natureza == natureza)
+            .where(
+                extract('year', TransacaoORM.data_transacao) == ano,
+            )
+        )
+        if natureza != 'all':
+            stmt = stmt.where(TransacaoORM.natureza == natureza)
+        stmt = stmt.group_by('mes', TransacaoORM.tipo)
 
-            result = await self.db.execute(stmt)
-            transacoes = result.unique().scalars().all()
+        result = await self.db.execute(stmt)
+        rows = result.all()
 
-            entradas = sum(t.valor for t in transacoes if t.tipo == "entrada")
-            saidas = sum(t.valor for t in transacoes if t.tipo == "saida")
+        meses_data: Dict[str, Dict[str, float]] = {}
+        for m in range(1, 13):
+            meses_data[calendar.month_name[m].lower()] = {"entrada": 0.0, "saida": 0.0}
 
-            meses_data[calendar.month_name[m].lower()] = {
-                "entrada": round(entradas, 2),
-                "saida": round(saidas, 2),
-            }
+        for row in rows:
+            mes_nome = calendar.month_name[int(row.mes)].lower()
+            if row.tipo in ("entrada", "saida"):
+                meses_data[mes_nome][row.tipo] = round(float(row.total), 2)
 
         mensal_cat = await self.db.execute(
             select(CategoriaORM)
@@ -205,13 +208,15 @@ class DashboardRepository:
 
         limite_cartao = await _get_cat_limit('Limite Cartao Credito', 0)
 
+        total_investido = sum(t.valor for t in transacoes if t.tipo == "investimento")
+
         return ExtratoResponse(
             entradas=entradas,
             saidas=saidas,
             data_inicial=data_inicio_str,
             data_final=data_final_str,
             meta_mensal=limite_mensal,
-            total_investido=entradas,
+            total_investido=total_investido,
             transacoes=txs,
             limite_cartao_credito=limite_cartao,
             gastos_fixos=gastos_fixos,
