@@ -40,7 +40,7 @@ export function D3HorizontalBarChart({
 
     // Formatador de moeda
     const formatCurrency = (value: number) => 
-      new Intl.NumberFormat('pt-BR', {
+      new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'BRL'
       }).format(value);

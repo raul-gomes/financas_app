@@ -18,30 +18,31 @@ import {
 import { Plus } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { FinancialService } from '@/services/financialService'
-import { ContaRecorrente, ContaRecorrenteCreate, ContaRecorrenteUpdate } from '@/types/conta_recorrente'
+import { ContaRecorrente, ContaRecorrenteCreate, ContaRecorrenteUpdate } from '@/types/recurring_account'
 import { CategorySubcategories } from '@/types/financial'
 import { SettingsService } from '@/services/settingsService'
 import type { UserBank } from '@/services/settingsService'
 
-const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/ranulagu/bank-logos@main/bank-logos/256/png'
+const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png'
 
 // ===== Shared Form =====
-export const ContaForm = ({ conta, onClose, onSubmit }: {
+export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
     conta: ContaRecorrente | null
     onClose: () => void
     onSubmit: (payload: ContaRecorrenteCreate | ContaRecorrenteUpdate) => void
+    defaultEntityType?: 'individual' | 'business'
 }) => {
     const [form, setForm] = useState({
-        descricao: conta?.descricao || '',
-        valor: conta?.valor?.toString() || '',
-        dia_vencimento: conta?.dia_vencimento?.toString() || '1',
-        natureza: conta?.natureza || 'pf' as 'pf' | 'pj',
-        forma_pagamento: conta?.forma_pagamento || 'pix',
+        description: conta?.description || '',
+        amount: conta?.amount?.toString() || '',
+        due_day: conta?.due_day?.toString() || '1',
+        entity_type: conta?.entity_type || defaultEntityType || 'individual' as 'individual' | 'business',
+        payment_method: conta?.payment_method || 'pix',
         bank_code: conta?.bank_code || '',
-        data_inicio: conta?.data_inicio?.split('T')[0] || new Date().toISOString().split('T')[0],
-        data_fim: conta?.data_fim?.split('T')[0] || '',
-        categoria: conta?.categoria_nome || '',
-        subcategoria: conta?.subcategoria_nome || '',
+        start_date: conta?.start_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+        end_date: conta?.end_date?.split('T')[0] || '',
+        category_name: conta?.category_name || '',
+        subcategory_name: conta?.subcategory_name || '',
     })
     const [newCategory, setNewCategory] = useState('')
     const [newSubcategory, setNewSubcategory] = useState('')
@@ -60,35 +61,35 @@ export const ContaForm = ({ conta, onClose, onSubmit }: {
     }, [])
 
     useEffect(() => {
-        FinancialService.getCategorySubcategories(form.natureza, 'saida')
+        FinancialService.getCategorySubcategories(form.entity_type, 'expense')
             .then(options => setCategoryOptions(options))
             .catch(() => {})
-    }, [form.natureza])
+    }, [form.entity_type])
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        if (!form.descricao || !form.valor) return
+        if (!form.description || !form.amount) return
 
         const payload: any = {
-            descricao: form.descricao,
-            valor: parseFloat(form.valor),
-            dia_vencimento: parseInt(form.dia_vencimento),
-            natureza: form.natureza,
-            forma_pagamento: form.forma_pagamento,
+            description: form.description,
+            amount: parseFloat(form.amount),
+            due_day: parseInt(form.due_day),
+            entity_type: form.entity_type,
+            payment_method: form.payment_method,
             bank_code: form.bank_code || undefined,
-            data_inicio: form.data_inicio,
-            data_fim: form.data_fim || undefined,
+            start_date: form.start_date,
+            end_date: form.end_date || undefined,
         }
 
-        if (form.categoria && form.subcategoria) {
-            const catObj = categoryOptions?.opcoes.find(c => c.categoria === form.categoria)
-            const subObj = catObj?.subcategorias.find(s => s.nome === form.subcategoria)
+        if (form.category_name && form.subcategory_name) {
+            const catObj = categoryOptions?.options.find(c => c.name === form.category_name)
+            const subObj = catObj?.subcategories.find(s => s.name === form.subcategory_name)
             if (catObj && subObj) {
-                payload.categoria_id = catObj.id
-                payload.subcategoria_id = subObj.id
+                payload.category_id = catObj.id
+                payload.subcategory_id = subObj.id
             } else {
-                payload.categoria_nome = form.categoria
-                payload.subcategoria_nome = form.subcategoria
+                payload.category_name = form.category_name
+                payload.subcategory_name = form.subcategory_name
             }
         }
         onSubmit(payload)
@@ -96,26 +97,26 @@ export const ContaForm = ({ conta, onClose, onSubmit }: {
 
     return (
         <Card className="border border-border">
-            <CardHeader><CardTitle>{conta ? 'Editar Conta Recorrente' : 'Nova Conta Recorrente'}</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{conta ? 'Edit Recurring Account' : 'New Recurring Account'}</CardTitle></CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Descricao</Label><Input value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} required /></div>
-                    <div className="space-y-2"><Label>Valor</Label><Input type="number" step="0.01" value={form.valor} onChange={e => setForm({...form, valor: e.target.value})} required /></div>
-                    <div className="space-y-2"><Label>Dia Vencimento</Label><Input type="number" min="1" max="31" value={form.dia_vencimento} onChange={e => setForm({...form, dia_vencimento: e.target.value})} required /></div>
+                    <div className="space-y-2"><Label>Description</Label><Input value={form.description} onChange={e => setForm({...form, description: e.target.value})} required /></div>
+                    <div className="space-y-2"><Label>Amount</Label><Input type="number" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required /></div>
+                    <div className="space-y-2"><Label>Due Day</Label><Input type="number" min="1" max="31" value={form.due_day} onChange={e => setForm({...form, due_day: e.target.value})} required /></div>
                     <div className="space-y-2">
-                        <Label>Natureza</Label>
-                        <Select value={form.natureza} onValueChange={v => {
-                            setForm({...form, natureza: v as 'pf'|'pj', categoria: '', subcategoria: ''})
+                        <Label>Entity Type</Label>
+                        <Select value={form.entity_type} onValueChange={v => {
+                            setForm({...form, entity_type: v as 'individual'|'business', category_name: '', subcategory_name: ''})
                             setShowNewCategoryInput(false)
                             setShowNewSubcategoryInput(false)
                         }}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="pf">Pessoa Fisica</SelectItem><SelectItem value="pj">Pessoa Juridica</SelectItem></SelectContent>
+                            <SelectContent><SelectItem value="individual">Pessoa Fisica</SelectItem><SelectItem value="business">Pessoa Juridica</SelectItem></SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label>Forma Pagamento</Label>
-                        <Select value={form.forma_pagamento} onValueChange={v => setForm({...form, forma_pagamento: v})}>
+                        <Label>Payment Method</Label>
+                        <Select value={form.payment_method} onValueChange={v => setForm({...form, payment_method: v})}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="pix">PIX</SelectItem><SelectItem value="debito">Debito</SelectItem><SelectItem value="credito">Credito</SelectItem>
@@ -161,7 +162,7 @@ export const ContaForm = ({ conta, onClose, onSubmit }: {
                                 <SelectItem value="+add">
                                     <div className="flex items-center gap-2 text-primary font-medium">
                                         <Plus className="w-4 h-4" />
-                                        <span>Adicionar novo banco</span>
+                                        <span>Add new bank</span>
                                     </div>
                                 </SelectItem>
                             </SelectContent>
@@ -176,7 +177,7 @@ export const ContaForm = ({ conta, onClose, onSubmit }: {
                                     <Label className="text-xs">Nome</Label>
                                     <Input placeholder="Ex: Nubank" value={newBankName} onChange={e => setNewBankName(e.target.value)} className="h-8 text-sm" />
                                 </div>
-                                <Button size="sm" variant="outline" onClick={() => setAddingNewBank(false)}>Cancelar</Button>
+                                <Button size="sm" variant="outline" onClick={() => setAddingNewBank(false)}>Cancel</Button>
                                 <Button size="sm" onClick={async () => {
                                     if (!newBankCode.trim() || !newBankName.trim()) {
                                         toast({ title: 'Erro', description: 'Preencha código e nome do banco.', variant: 'destructive' });
@@ -195,76 +196,76 @@ export const ContaForm = ({ conta, onClose, onSubmit }: {
                                         toast({ title: 'Erro', description: 'Falha ao adicionar banco.', variant: 'destructive' });
                                     }
                                 }}>
-                                    <Plus className="w-4 h-4 mr-1" /> Adicionar
+                                    <Plus className="w-4 h-4 mr-1" /> Add
                                 </Button>
                             </div>
                         )}
                     </div>
-                    <div className="space-y-2"><Label>Data Inicio</Label><Input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} required /></div>
-                    <div className="space-y-2"><Label>Data Fim (opcional)</Label><Input type="date" value={form.data_fim} onChange={e => setForm({...form, data_fim: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Start Date</Label><Input type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} required /></div>
+                    <div className="space-y-2"><Label>End Date (optional)</Label><Input type="date" value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} /></div>
                     <div className="space-y-2">
-                        <Label>Categoria</Label>
-                        <Select value={showNewCategoryInput ? 'outros' : form.categoria} onValueChange={v => {
+                        <Label>Category</Label>
+                        <Select value={showNewCategoryInput ? 'outros' : form.category_name} onValueChange={v => {
                             if (v === 'outros') {
                                 setShowNewCategoryInput(true)
-                                setForm({...form, categoria: '', subcategoria: ''})
+                                setForm({...form, category_name: '', subcategory_name: ''})
                             } else {
                                 setShowNewCategoryInput(false)
                                 setNewCategory('')
-                                setForm({...form, categoria: v, subcategoria: ''})
+                                setForm({...form, category_name: v, subcategory_name: ''})
                             }
                         }}>
                             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                             <SelectContent>
-                                {categoryOptions?.opcoes.map(c => <SelectItem key={c.id} value={c.categoria}>{c.categoria}</SelectItem>)}
+                                {categoryOptions?.options.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                                 <SelectItem value="outros">Outros</SelectItem>
                             </SelectContent>
                         </Select>
                         {showNewCategoryInput && (
                             <div className="space-y-2 mt-2">
-                                <Label>Nova Categoria</Label>
-                                <Input placeholder="Digite a nova categoria" value={newCategory} onChange={e => {
+                                <Label>Nova Category</Label>
+                                <Input placeholder="Type new category" value={newCategory} onChange={e => {
                                     setNewCategory(e.target.value)
-                                    setForm({...form, categoria: e.target.value.trim(), subcategoria: ''})
+                                    setForm({...form, category_name: e.target.value.trim(), subcategory_name: ''})
                                 }} />
                             </div>
                         )}
                     </div>
-                    {form.categoria && (
+                    {form.category_name && (
                         <div className="space-y-2">
-                            <Label>Subcategoria</Label>
-                            <Select value={showNewSubcategoryInput ? 'outros' : form.subcategoria} onValueChange={v => {
+                            <Label>Subcategory</Label>
+                            <Select value={showNewSubcategoryInput ? 'outros' : form.subcategory_name} onValueChange={v => {
                                 if (v === 'outros') {
                                     setShowNewSubcategoryInput(true)
-                                    setForm({...form, subcategoria: ''})
+                                    setForm({...form, subcategory_name: ''})
                                 } else {
                                     setShowNewSubcategoryInput(false)
                                     setNewSubcategory('')
-                                    setForm({...form, subcategoria: v})
+                                    setForm({...form, subcategory_name: v})
                                 }
                             }}>
                                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                                 <SelectContent>
-                                    {categoryOptions?.opcoes.find(c => c.categoria === form.categoria)?.subcategorias.map(s => (
-                                        <SelectItem key={s.id} value={s.nome}>{s.nome}</SelectItem>
+                                    {categoryOptions?.options.find(c => c.name === form.category_name)?.subcategories.map(s => (
+                                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
                                     ))}
                                     <SelectItem value="outros">Outros</SelectItem>
                                 </SelectContent>
                             </Select>
                             {showNewSubcategoryInput && (
                                 <div className="space-y-2 mt-2">
-                                    <Label>Nova Subcategoria</Label>
-                                    <Input placeholder="Digite a nova subcategoria" value={newSubcategory} onChange={e => {
+                                    <Label>Nova Subcategory</Label>
+                                    <Input placeholder="Type new subcategory" value={newSubcategory} onChange={e => {
                                         setNewSubcategory(e.target.value)
-                                        setForm({...form, subcategoria: e.target.value.trim()})
+                                        setForm({...form, subcategory_name: e.target.value.trim()})
                                     }} />
                                 </div>
                             )}
                         </div>
                     )}
                     <div className="col-span-2 flex gap-2">
-                        <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
-                        <Button type="submit" className="flex-1 bg-gradient-primary">{conta ? 'Salvar' : 'Criar'}</Button>
+                        <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+                        <Button type="submit" className="flex-1 bg-gradient-primary">{conta ? 'Save' : 'Create'}</Button>
                     </div>
                 </form>
             </CardContent>

@@ -5,9 +5,9 @@ from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal
-from app.db.models.categoria import CategoriaORM, SubcategoriaORM
-from app.db.models.transacao import TransacaoORM
-from app.schemas.transacao import TipoTransacao, NaturezaTransacao, TipoPagamento
+from app.db.models.category import CategoryORM, SubcategoryORM
+from app.db.models.transaction import TransactionORM
+from app.schemas.transaction import TipoTransacao, NaturezaTransacao, TipoPagamento
 
 async def seed():
     async with AsyncSessionLocal() as session:

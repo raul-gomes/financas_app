@@ -4,23 +4,24 @@ from datetime import datetime
 
 from enum import Enum
 
-from app.schemas.transacao import NaturezaTransacao, TipoTransacao
+from app.schemas.transaction import NaturezaTransacao, TipoTransacao
 
 class TransacaoExtrato(BaseModel):
     id: int
-    tipo: TipoTransacao
-    valor: float
-    descricao: str
-    categoria_id: int
-    subcategoria_id: int
-    categoria_nome: str
-    subcategoria_nome: str
-    forma_pagamento: str
-    parcela: Optional[int]
-    total_parcelas: Optional[int]
-    natureza: NaturezaTransacao
-    data_transacao: datetime
-    conta_recorrente_id: Optional[int] = None
+    type: TipoTransacao
+    amount: float
+    description: str
+    category_id: int
+    subcategory_id: int
+    category_name: str
+    subcategory_name: str
+    payment_method: str
+    installment_number: Optional[int]
+    total_installments: Optional[int]
+    is_installment: bool = False
+    entity_type: NaturezaTransacao
+    transaction_date: datetime
+    recurring_account_id: Optional[int] = None
     bank_code: Optional[str] = None
 
     class Config:
@@ -28,29 +29,29 @@ class TransacaoExtrato(BaseModel):
 
 
 class ExtratoResponse(BaseModel):
-    entradas: float = Field(..., description="Total de entradas no período")
-    saidas: float = Field(..., description="Total de saídas no período")
-    data_inicial: str = Field(..., description="Data inicial do filtro (dd/mm/yyyy)")
-    data_final: str = Field(..., description="Data final do filtro (dd/mm/yyyy)")
-    meta_mensal: float = Field(..., description="Meta mensal financeira")
-    total_investido: float = Field(..., description="Total investido (igual às entradas)")
-    transacoes: List[TransacaoExtrato] = Field(..., description="Lista de transações filtradas")
-    limite_cartao_credito: float = Field(default=0, description="Limite do cartão de crédito")
-    gastos_fixos: float = Field(default=0, description="Total de gastos fixos (contas recorrentes)")
-    gastos_variaveis: float = Field(default=0, description="Total de gastos variáveis")
+    total_income: float = Field(..., description="Total de entradas no período")
+    total_expenses: float = Field(..., description="Total de saídas no período")
+    start_date: str = Field(..., description="Data inicial do filtro (dd/mm/yyyy)")
+    end_date: str = Field(..., description="Data final do filtro (dd/mm/yyyy)")
+    monthly_goal: float = Field(..., description="Meta mensal financeira")
+    total_invested: float = Field(..., description="Total investido (igual às entradas)")
+    transactions: List[TransacaoExtrato] = Field(..., description="Lista de transações filtradas")
+    credit_card_limit: float = Field(default=0, description="Limite do cartão de crédito")
+    fixed_expenses: float = Field(default=0, description="Total de gastos fixos (contas recorrentes)")
+    variable_expenses: float = Field(default=0, description="Total de gastos variáveis")
 
     class Config:
         from_attributes = True
 
 
 class MesRendimento(BaseModel):
-    entrada: float = Field(..., description="Total de entradas no mês")
-    saida: float = Field(..., description="Total de saídas no mês")
+    income: float = Field(..., description="Total de entradas no mês")
+    expense: float = Field(..., description="Total de saídas no mês")
 
 
 class RendimentoPeriodoResponse(BaseModel):
-    limite: float = Field(..., description="Limite/metas financeiras")
-    meses: Dict[str, MesRendimento] = Field(..., description="Dados de entrada e saída por mês em minúsculo")
+    limit: float = Field(..., description="Limite/metas financeiras")
+    months: Dict[str, MesRendimento] = Field(..., description="Dados de entrada e saída por mês em minúsculo")
 
     class Config:
         from_attributes = True
@@ -58,27 +59,27 @@ class RendimentoPeriodoResponse(BaseModel):
 # app/schemas/dashboard.py
 
 class TipoTrans(Enum):
-    entrada = "entrada"
-    saida = "saida"
+    income = "income"
+    expense = "expense"
 
 class SubcategoriaGasto(BaseModel):
-    nome: str = Field(..., description="Nome da subcategoria")
-    valor: str = Field(..., description="Valor agregado à subcategoria")
+    name: str = Field(..., description="Nome da subcategoria")
+    amount: str = Field(..., description="Valor agregado à subcategoria")
 
 
 class CategoriaGasto(BaseModel):
-    nome: str = Field(..., description="Nome da categoria")
+    name: str = Field(..., description="Nome da categoria")
     total: float = Field(..., description="Total agregado na categoria")
-    limite: float = Field(..., description="Limite configurado na categoria")
-    subcategorias: List[SubcategoriaGasto] = Field(
+    limit: float = Field(..., description="Limite configurado na categoria")
+    subcategories: List[SubcategoriaGasto] = Field(
         ..., description="Detalhamento por subcategoria"
     )
 
 
 class GastosPorCategoriaResponse(BaseModel):
-    data_inicial: str = Field(..., description="Data inicial do filtro (DD/MM/YYYY)")
-    data_final: str = Field(..., description="Data final do filtro (DD/MM/YYYY)")
-    categorias: List[CategoriaGasto] = Field(
+    start_date: str = Field(..., description="Data inicial do filtro (DD/MM/YYYY)")
+    end_date: str = Field(..., description="Data final do filtro (DD/MM/YYYY)")
+    categories: List[CategoriaGasto] = Field(
         ..., description="Categorias com valores agregados"
     )
 
@@ -87,23 +88,29 @@ class GastosPorCategoriaResponse(BaseModel):
 
 class SubcategoriaOpcao(BaseModel):
     id: int = Field(..., description="ID da subcategoria")
-    nome: str = Field(..., description="Nome da subcategoria")
+    name: str = Field(..., description="Nome da subcategoria")
 
 class CategoriaOpcao(BaseModel):
     id: int = Field(..., description="ID da categoria")
-    categoria: str = Field(..., description="Nome da categoria")
-    tipo: Optional[str] = Field(default=None, description="Tipo de transação: entrada, saida, investimento, ou null")
-    subcategorias: List[SubcategoriaOpcao] = Field(..., description="Lista de subcategorias")
+    name: str = Field(..., description="Nome da categoria")
+    type: Optional[str] = Field(default=None, description="Tipo de transação: income, expense, investment, ou null")
+    subcategories: List[SubcategoriaOpcao] = Field(..., description="Lista de subcategorias")
 
 class OpcoesCategoriaResponse(BaseModel):
-    opcoes: List[CategoriaOpcao] = Field(..., description="Lista de categorias com suas subcategorias")
+    options: List[CategoriaOpcao] = Field(..., description="Lista de categorias com suas subcategorias")
     class Config:
         from_attributes = True
 
+class EntradaSubcategoriaItem(BaseModel):
+    name: str = Field(..., description="Nome da subcategoria")
+    total: float = Field(..., description="Total agregado na subcategoria")
+
 class EntradasPorCategoriaResponse(BaseModel):
-    data_inicial: str = Field(..., description="Data inicial do filtro (DD/MM/YYYY)")
-    data_final: str = Field(..., description="Data final do filtro (DD/MM/YYYY)")
-    subcategorias: List[Dict[str, Any]] = Field(..., description="Lista de categorias com entradas por subcategoria")
+    start_date: str = Field(..., description="Data inicial do filtro (DD/MM/YYYY)")
+    end_date: str = Field(..., description="Data final do filtro (DD/MM/YYYY)")
+    subcategories: List[EntradaSubcategoriaItem] = Field(
+        ..., description="Lista de subcategorias com entradas agregadas"
+    )
     
     class Config:
         from_attributes = True

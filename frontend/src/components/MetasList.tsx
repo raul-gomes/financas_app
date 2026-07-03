@@ -1,16 +1,17 @@
-import { useEffect, useState, useCallback } from 'react';
-import { MetasService } from '@/services/metasService';
-import type { MetaProgresso } from '@/types/metas';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { MetasService } from '@/services/goalsService';
+import type { MetaProgresso } from '@/types/goals';
 import { TrendingUp, Target, Plus, Minus, CheckCircle2, RotateCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
 interface MetasListProps {
-  mesRef: Date;
+  sidebarOpen?: boolean;
+  entityType?: string;
 }
 
-export function MetasList({ mesRef }: MetasListProps) {
+export function MetasList({ sidebarOpen, entityType }: MetasListProps) {
   const { toast } = useToast();
   const [metas, setMetas] = useState<MetaProgresso[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,34 +19,46 @@ export function MetasList({ mesRef }: MetasListProps) {
   const [formNome, setFormNome] = useState('');
   const [formValor, setFormValor] = useState('');
   const [creating, setCreating] = useState(false);
+  const lastOpenRef = useRef(false);
 
   const fetchMetas = useCallback(() => {
     setLoading(true);
-    MetasService.progresso(mesRef.getFullYear(), mesRef.getMonth() + 1)
+    const now = new Date();
+    const entityTypeParam = !entityType || entityType === 'all' ? undefined : (entityType === 'pf' ? 'individual' : 'business');
+    MetasService.progresso(now.getFullYear(), now.getMonth() + 1, undefined, entityTypeParam)
       .then(setMetas)
       .catch(() => setMetas([]))
       .finally(() => setLoading(false));
-  }, [mesRef]);
+  }, [entityType]);
 
+  // Fetch on mount and when sidebar opens
   useEffect(() => {
     fetchMetas();
   }, [fetchMetas]);
+
+  // Refetch when sidebar transitions from closed to open
+  useEffect(() => {
+    if (sidebarOpen && !lastOpenRef.current) {
+      fetchMetas();
+    }
+    lastOpenRef.current = !!sidebarOpen;
+  }, [sidebarOpen, fetchMetas]);
 
   const handleCreate = async () => {
     if (!formNome.trim() || !formValor) return;
     setCreating(true);
     try {
       await MetasService.create({
-        subcategoria_nome: formNome.trim(),
-        valor_alvo: parseFloat(formValor),
+        subcategory_name: formNome.trim(),
+        target_amount: parseFloat(formValor),
       });
-      toast({ title: 'Sucesso', description: 'Meta criada!' });
+      toast({ title: 'Success', description: 'Meta criada!' });
       setFormNome('');
       setFormValor('');
       setShowCreate(false);
       fetchMetas();
     } catch {
-      toast({ title: 'Erro', description: 'Falha ao criar meta.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to create goal.', variant: 'destructive' });
     } finally {
       setCreating(false);
     }
@@ -113,7 +126,7 @@ export function MetasList({ mesRef }: MetasListProps) {
               onClick={handleCreate}
               disabled={!formNome.trim() || !formValor || creating}
             >
-              {creating ? '...' : 'Criar'}
+              {creating ? '...' : 'Create'}
             </Button>
           </div>
         </div>
@@ -130,7 +143,7 @@ export function MetasList({ mesRef }: MetasListProps) {
             className="mt-1 text-xs"
             onClick={() => setShowCreate(true)}
           >
-            Criar primeira meta
+            Create primeira meta
           </Button>
         </div>
       )}
@@ -139,29 +152,29 @@ export function MetasList({ mesRef }: MetasListProps) {
       {metas.length > 0 && (
         <div className="space-y-3">
           {/* Active metas */}
-          {metas.some(m => !m.concluida) && (
+          {metas.some(m => !m.completed) && (
             <div>
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
                 Ativas
               </p>
               <div className="space-y-2">
-                {metas.filter(m => !m.concluida).map((meta) => (
+                {metas.filter(m => !m.completed).map((meta) => (
                   <div
-                    key={meta.subcategoria_id}
+                    key={meta.subcategory_id}
                     className="rounded-lg border bg-card p-3 transition-colors hover:bg-accent/50"
                   >
                     <div className="mb-1 flex items-center justify-between">
-                      <span className="text-sm font-medium">{meta.subcategoria_nome}</span>
+                      <span className="text-sm font-medium">{meta.subcategory_name}</span>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-6 px-1.5 text-xs text-muted-foreground hover:text-green-600"
                         onClick={async () => {
                           try {
-                            await MetasService.concluir(meta.subcategoria_id);
+                            await MetasService.concluir(meta.subcategory_id);
                             fetchMetas();
                           } catch {
-                            toast({ title: 'Erro', description: 'Falha ao concluir meta.', variant: 'destructive' });
+                            toast({ title: 'Error', description: 'Falha ao concluir meta.', variant: 'destructive' });
                           }
                         }}
                       >
@@ -172,18 +185,18 @@ export function MetasList({ mesRef }: MetasListProps) {
                     <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
                       <div
                         className={`h-full rounded-full transition-all ${
-                          meta.progresso >= 100
+                          meta.progress >= 100
                             ? 'bg-green-500'
-                            : meta.progresso >= 50
+                            : meta.progress >= 50
                               ? 'bg-emerald-400'
                               : 'bg-amber-400'
                         }`}
-                        style={{ width: `${Math.min(meta.progresso, 100)}%` }}
+                        style={{ width: `${Math.min(meta.progress, 100)}%` }}
                       />
                     </div>
                     <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                      <span>R$ {meta.valor_atual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                      <span>R$ {meta.valor_alvo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span>R$ {meta.current_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                      <span>R$ {meta.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 ))}
@@ -192,29 +205,29 @@ export function MetasList({ mesRef }: MetasListProps) {
           )}
 
           {/* Completed metas */}
-          {metas.some(m => m.concluida) && (
+          {metas.some(m => m.completed) && (
             <div>
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
                 Concluídas
               </p>
               <div className="space-y-2">
-                {metas.filter(m => m.concluida).map((meta) => (
+                {metas.filter(m => m.completed).map((meta) => (
                   <div
-                    key={meta.subcategoria_id}
+                    key={meta.subcategory_id}
                     className="rounded-lg border border-green-200/50 bg-green-50/30 p-3"
                   >
                     <div className="mb-1 flex items-center justify-between">
-                      <span className="text-sm font-medium text-green-700">{meta.subcategoria_nome}</span>
+                      <span className="text-sm font-medium text-green-700">{meta.subcategory_name}</span>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-6 px-1.5 text-xs text-muted-foreground hover:text-amber-600"
                         onClick={async () => {
                           try {
-                            await MetasService.reativar(meta.subcategoria_id);
+                            await MetasService.reativar(meta.subcategory_id);
                             fetchMetas();
                           } catch {
-                            toast({ title: 'Erro', description: 'Falha ao reativar meta.', variant: 'destructive' });
+                            toast({ title: 'Error', description: 'Falha ao reativar meta.', variant: 'destructive' });
                           }
                         }}
                       >
@@ -227,11 +240,11 @@ export function MetasList({ mesRef }: MetasListProps) {
                     </div>
                     <div className="mt-1 flex justify-between text-xs text-muted-foreground">
                       <span className="text-green-600">Completa</span>
-                      <span>R$ {meta.valor_alvo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span>R$ {meta.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    {meta.data_conclusao && (
+                    {meta.completed_at && (
                       <p className="mt-1 text-[10px] text-muted-foreground">
-                        Concluída em {new Date(meta.data_conclusao + 'T12:00:00').toLocaleDateString('pt-BR')}
+                        Concluída em {new Date(meta.completed_at + 'T12:00:00').toLocaleDateString('en-US')}
                       </p>
                     )}
                   </div>

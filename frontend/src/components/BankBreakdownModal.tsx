@@ -3,6 +3,7 @@ import { useState, type LucideIcon } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
@@ -81,13 +82,14 @@ export function BankBreakdownModal({
   const sorted = [...items].sort((a, b) => b.amount - a.amount);
 
   const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(amount);
 
   const style = themeStyles[theme];
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-sm p-0 gap-0 overflow-hidden">
+        <DialogTitle className="sr-only">{title}</DialogTitle>
         {/* Header com cor do card */}
         <div className={cn('flex items-center gap-3 px-5 py-4', style.headerBg)}>
           <div className={cn('p-2 rounded-lg bg-background/80', style.iconColor)}>

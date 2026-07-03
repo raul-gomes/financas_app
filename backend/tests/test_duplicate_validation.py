@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime, date
 
-from app.schemas.transacao import (
+from app.schemas.transaction import (
     DuplicateCheckRequest, DuplicateCheckResponse,
     SingleDuplicateCheckItem,
     ResolveDuplicatesRequest, DuplicateResolution,
@@ -15,7 +15,7 @@ class TestCheckDuplicates:
         """Single check — no existing transaction matches"""
         resp = await client.post(
             "/transacoes/check-duplicates",
-            json={"data_transacao": "2026-07-01", "valor": 999.99},
+            json={"transaction_date": "2026-07-01", "amount": 999.99},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -29,14 +29,14 @@ class TestCheckDuplicates:
         create_resp = await client.post(
             "/transacoes/",
             json={
-                "valor": 150.0,
-                "descricao": "Teste duplicata",
-                "data_transacao": "2026-06-15T10:00:00",
-                "tipo": "saida",
-                "natureza": "pf",
-                "forma_pagamento": "pix",
-                "categoria_nome": "Alimentacao",
-                "subcategoria_nome": "Supermercado",
+                "amount": 150.0,
+                "description": "Teste duplicata",
+                "transaction_date": "2026-06-15T10:00:00",
+                "type": "expense",
+                "entity_type": "individual",
+                "payment_method": "pix",
+                "category_name": "Alimentacao",
+                "subcategory_name": "Supermercado",
             },
         )
         assert create_resp.status_code == 201
@@ -44,34 +44,34 @@ class TestCheckDuplicates:
         # Now check duplicate
         resp = await client.post(
             "/transacoes/check-duplicates",
-            json={"data_transacao": "2026-06-15", "valor": 150.0},
+            json={"transaction_date": "2026-06-15", "amount": 150.0},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["results"]) == 1
         assert data["results"][0]["has_duplicate"] is True
         assert len(data["results"][0]["duplicates"]) == 1
-        assert data["results"][0]["duplicates"][0]["valor"] == 150.0
+        assert data["results"][0]["duplicates"][0]["amount"] == 150.0
 
     async def test_single_different_date_no_duplicate(self, client):
         """Same value, different date — should NOT be duplicate"""
         await client.post(
             "/transacoes/",
             json={
-                "valor": 200.0,
-                "descricao": "Teste data diferente",
-                "data_transacao": "2026-06-15T10:00:00",
-                "tipo": "saida",
-                "natureza": "pf",
-                "forma_pagamento": "pix",
-                "categoria_nome": "Alimentacao",
-                "subcategoria_nome": "Supermercado",
+                "amount": 200.0,
+                "description": "Teste data diferente",
+                "transaction_date": "2026-06-15T10:00:00",
+                "type": "expense",
+                "entity_type": "individual",
+                "payment_method": "pix",
+                "category_name": "Alimentacao",
+                "subcategory_name": "Supermercado",
             },
         )
 
         resp = await client.post(
             "/transacoes/check-duplicates",
-            json={"data_transacao": "2026-06-16", "valor": 200.0},
+            json={"transaction_date": "2026-06-16", "amount": 200.0},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -82,20 +82,20 @@ class TestCheckDuplicates:
         await client.post(
             "/transacoes/",
             json={
-                "valor": 100.0,
-                "descricao": "Teste valor diferente",
-                "data_transacao": "2026-06-15T10:00:00",
-                "tipo": "saida",
-                "natureza": "pf",
-                "forma_pagamento": "pix",
-                "categoria_nome": "Alimentacao",
-                "subcategoria_nome": "Supermercado",
+                "amount": 100.0,
+                "description": "Teste valor diferente",
+                "transaction_date": "2026-06-15T10:00:00",
+                "type": "expense",
+                "entity_type": "individual",
+                "payment_method": "pix",
+                "category_name": "Alimentacao",
+                "subcategory_name": "Supermercado",
             },
         )
 
         resp = await client.post(
             "/transacoes/check-duplicates",
-            json={"data_transacao": "2026-06-15", "valor": 999.99},
+            json={"transaction_date": "2026-06-15", "amount": 999.99},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -107,37 +107,37 @@ class TestCheckDuplicates:
         await client.post(
             "/transacoes/",
             json={
-                "valor": 50.0,
-                "descricao": "Bulk 1",
-                "data_transacao": "2026-06-10T10:00:00",
-                "tipo": "saida",
-                "natureza": "pf",
-                "forma_pagamento": "pix",
-                "categoria_nome": "Alimentacao",
-                "subcategoria_nome": "Supermercado",
+                "amount": 50.0,
+                "description": "Bulk 1",
+                "transaction_date": "2026-06-10T10:00:00",
+                "type": "expense",
+                "entity_type": "individual",
+                "payment_method": "pix",
+                "category_name": "Alimentacao",
+                "subcategory_name": "Supermercado",
             },
         )
         await client.post(
             "/transacoes/",
             json={
-                "valor": 75.0,
-                "descricao": "Bulk 2",
-                "data_transacao": "2026-06-11T10:00:00",
-                "tipo": "saida",
-                "natureza": "pf",
-                "forma_pagamento": "pix",
-                "categoria_nome": "Alimentacao",
-                "subcategoria_nome": "Supermercado",
+                "amount": 75.0,
+                "description": "Bulk 2",
+                "transaction_date": "2026-06-11T10:00:00",
+                "type": "expense",
+                "entity_type": "individual",
+                "payment_method": "pix",
+                "category_name": "Alimentacao",
+                "subcategory_name": "Supermercado",
             },
         )
 
         resp = await client.post(
             "/transacoes/check-duplicates",
             json={
-                "transacoes": [
-                    {"index": 0, "data_transacao": "2026-06-10", "valor": 50.0},
-                    {"index": 1, "data_transacao": "2026-06-11", "valor": 75.0},
-                    {"index": 2, "data_transacao": "2026-06-12", "valor": 999.99},
+                "transactions": [
+                    {"index": 0, "transaction_date": "2026-06-10", "amount": 50.0},
+                    {"index": 1, "transaction_date": "2026-06-11", "amount": 75.0},
+                    {"index": 2, "transaction_date": "2026-06-12", "amount": 999.99},
                 ]
             },
         )
@@ -152,7 +152,7 @@ class TestCheckDuplicates:
         """Bulk check with empty list"""
         resp = await client.post(
             "/transacoes/check-duplicates",
-            json={"transacoes": []},
+            json={"transactions": []},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -176,14 +176,14 @@ class TestResolveDuplicates:
         create_resp = await client.post(
             "/transacoes/",
             json={
-                "valor": 250.0,
-                "descricao": "Keep both test",
-                "data_transacao": "2026-06-18T10:00:00",
-                "tipo": "saida",
-                "natureza": "pf",
-                "forma_pagamento": "pix",
-                "categoria_nome": "Alimentacao",
-                "subcategoria_nome": "Supermercado",
+                "amount": 250.0,
+                "description": "Keep both test",
+                "transaction_date": "2026-06-18T10:00:00",
+                "type": "expense",
+                "entity_type": "individual",
+                "payment_method": "pix",
+                "category_name": "Alimentacao",
+                "subcategory_name": "Supermercado",
             },
         )
         existing_id = create_resp.json()["id"]
@@ -191,14 +191,14 @@ class TestResolveDuplicates:
         new_resp = await client.post(
             "/transacoes/",
             json={
-                "valor": 250.0,
-                "descricao": "Keep both new",
-                "data_transacao": "2026-06-18T10:00:00",
-                "tipo": "saida",
-                "natureza": "pf",
-                "forma_pagamento": "pix",
-                "categoria_nome": "Alimentacao",
-                "subcategoria_nome": "Supermercado",
+                "amount": 250.0,
+                "description": "Keep both new",
+                "transaction_date": "2026-06-18T10:00:00",
+                "type": "expense",
+                "entity_type": "individual",
+                "payment_method": "pix",
+                "category_name": "Alimentacao",
+                "subcategory_name": "Supermercado",
             },
         )
         new_id = new_resp.json()["id"]
@@ -229,14 +229,14 @@ class TestResolveDuplicates:
         create_resp = await client.post(
             "/transacoes/",
             json={
-                "valor": 300.0,
-                "descricao": "To be deleted",
-                "data_transacao": "2026-06-20T10:00:00",
-                "tipo": "saida",
-                "natureza": "pf",
-                "forma_pagamento": "pix",
-                "categoria_nome": "Alimentacao",
-                "subcategoria_nome": "Supermercado",
+                "amount": 300.0,
+                "description": "To be deleted",
+                "transaction_date": "2026-06-20T10:00:00",
+                "type": "expense",
+                "entity_type": "individual",
+                "payment_method": "pix",
+                "category_name": "Alimentacao",
+                "subcategory_name": "Supermercado",
             },
         )
         existing_id = create_resp.json()["id"]
@@ -245,14 +245,14 @@ class TestResolveDuplicates:
         new_resp = await client.post(
             "/transacoes/",
             json={
-                "valor": 300.0,
-                "descricao": "The new one",
-                "data_transacao": "2026-06-20T10:00:00",
-                "tipo": "saida",
-                "natureza": "pf",
-                "forma_pagamento": "pix",
-                "categoria_nome": "Alimentacao",
-                "subcategoria_nome": "Supermercado",
+                "amount": 300.0,
+                "description": "The new one",
+                "transaction_date": "2026-06-20T10:00:00",
+                "type": "expense",
+                "entity_type": "individual",
+                "payment_method": "pix",
+                "category_name": "Alimentacao",
+                "subcategory_name": "Supermercado",
             },
         )
         new_id = new_resp.json()["id"]
@@ -280,14 +280,14 @@ class TestResolveDuplicates:
         create_resp = await client.post(
             "/transacoes/",
             json={
-                "valor": 400.0,
-                "descricao": "Keep me",
-                "data_transacao": "2026-06-25T10:00:00",
-                "tipo": "saida",
-                "natureza": "pf",
-                "forma_pagamento": "pix",
-                "categoria_nome": "Alimentacao",
-                "subcategoria_nome": "Supermercado",
+                "amount": 400.0,
+                "description": "Keep me",
+                "transaction_date": "2026-06-25T10:00:00",
+                "type": "expense",
+                "entity_type": "individual",
+                "payment_method": "pix",
+                "category_name": "Alimentacao",
+                "subcategory_name": "Supermercado",
             },
         )
         existing_id = create_resp.json()["id"]
@@ -295,14 +295,14 @@ class TestResolveDuplicates:
         new_resp = await client.post(
             "/transacoes/",
             json={
-                "valor": 400.0,
-                "descricao": "Delete me",
-                "data_transacao": "2026-06-25T10:00:00",
-                "tipo": "saida",
-                "natureza": "pf",
-                "forma_pagamento": "pix",
-                "categoria_nome": "Alimentacao",
-                "subcategoria_nome": "Supermercado",
+                "amount": 400.0,
+                "description": "Delete me",
+                "transaction_date": "2026-06-25T10:00:00",
+                "type": "expense",
+                "entity_type": "individual",
+                "payment_method": "pix",
+                "category_name": "Alimentacao",
+                "subcategory_name": "Supermercado",
             },
         )
         new_id = new_resp.json()["id"]

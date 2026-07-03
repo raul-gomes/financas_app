@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ContaRecorrente, ContaRecorrenteUpdate } from '@/types/conta_recorrente';
+import { ContaRecorrente, ContaRecorrenteUpdate } from '@/types/recurring_account';
 import { CategorySubcategories } from '@/types/financial';
 import { FinancialService } from '@/services/financialService';
 
@@ -35,15 +35,15 @@ export function EditRecurrentBillDialog({
   categoryOptions: _categoryOptions,
 }: EditRecurrentBillDialogProps) {
   const [formData, setFormData] = useState({
-    descricao: conta.descricao,
-    valor: conta.valor.toString(),
-    dia_vencimento: conta.dia_vencimento.toString(),
-    natureza: conta.natureza,
-    forma_pagamento: conta.forma_pagamento,
-    data_inicio: conta.data_inicio.split('T')[0],
-    data_fim: conta.data_fim ? conta.data_fim.split('T')[0] : '',
-    categoria: conta.categoria_nome || '',
-    subcategoria: conta.subcategoria_nome || '',
+    description: conta.description,
+      amount: conta.amount.toString(),
+    due_day: conta.due_day.toString(),
+    entity_type: conta.entity_type,
+    payment_method: conta.payment_method,
+    start_date: conta.start_date.split('T')[0],
+    end_date: conta.end_date ? conta.end_date.split('T')[0] : '',
+    category_name: conta.category_name || '',
+    subcategory_name: conta.subcategory_name || '',
   });
   const [newCategory, setNewCategory] = useState('');
   const [newSubcategory, setNewSubcategory] = useState('');
@@ -51,56 +51,56 @@ export function EditRecurrentBillDialog({
   const [showNewSubcategoryInput, setShowNewSubcategoryInput] = useState(false);
   const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null);
 
-  // Load categories filtered by natureza + tipo='saida'
+  // Load categories filtered by natureza + tipo='expense'
   useEffect(() => {
-    FinancialService.getCategorySubcategories(formData.natureza, 'saida')
+    FinancialService.getCategorySubcategories(formData.entity_type, 'expense')
       .then(options => setCategoryOptions(options))
       .catch(() => {});
-  }, [formData.natureza]);
+  }, [formData.entity_type]);
 
   useEffect(() => {
     setFormData({
-      descricao: conta.descricao,
-      valor: conta.valor.toString(),
-      dia_vencimento: conta.dia_vencimento.toString(),
-      natureza: conta.natureza,
-      forma_pagamento: conta.forma_pagamento,
-      data_inicio: conta.data_inicio.split('T')[0],
-      data_fim: conta.data_fim ? conta.data_fim.split('T')[0] : '',
-      categoria: conta.categoria_nome || '',
-      subcategoria: conta.subcategoria_nome || '',
+      description: conta.description,
+    amount: conta.amount.toString(),
+      due_day: conta.due_day.toString(),
+      entity_type: conta.entity_type,
+      payment_method: conta.payment_method,
+      start_date: conta.start_date.split('T')[0],
+      end_date: conta.end_date ? conta.end_date.split('T')[0] : '',
+      category_name: conta.category_name || '',
+      subcategory_name: conta.subcategory_name || '',
     });
   }, [conta]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.descricao || !formData.valor) return;
+    if (!formData.description || !formData.amount) return;
 
     const payload: ContaRecorrenteUpdate = {
-      descricao: formData.descricao,
-      valor: parseFloat(formData.valor),
-      dia_vencimento: parseInt(formData.dia_vencimento),
-      natureza: formData.natureza,
-      forma_pagamento: formData.forma_pagamento,
-      data_inicio: formData.data_inicio,
-      data_fim: formData.data_fim || undefined,
+      description: formData.description,
+      amount: parseFloat(formData.amount),
+      due_day: parseInt(formData.due_day),
+      entity_type: formData.entity_type,
+      payment_method: formData.payment_method,
+      start_date: formData.start_date,
+      end_date: formData.end_date || undefined,
     };
 
-    if (formData.categoria && formData.subcategoria) {
-      const categoriaObj = categoryOptions?.opcoes.find(
-        c => c.categoria === formData.categoria
+    if (formData.category_name && formData.subcategory_name) {
+      const categoriaObj = categoryOptions?.options.find(
+        c => c.name === formData.category_name
       );
-      const subObj = categoriaObj?.subcategorias.find(
-        s => s.nome === formData.subcategoria
+      const subObj = categoriaObj?.subcategories.find(
+        s => s.name === formData.subcategory_name
       );
 
       if (categoriaObj && subObj) {
-        payload.categoria_id = categoriaObj.id;
-        payload.subcategoria_id = subObj.id;
+        payload.category_id = categoriaObj.id;
+        payload.subcategory_id = subObj.id;
       } else {
-        payload.categoria_nome = formData.categoria;
-        payload.subcategoria_nome = formData.subcategoria;
+        payload.category_name = formData.category_name;
+        payload.subcategory_name = formData.subcategory_name;
       }
     }
 
@@ -118,8 +118,8 @@ export function EditRecurrentBillDialog({
             <Label htmlFor="descricao">Descricao *</Label>
             <Input
               id="descricao"
-              value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               required
             />
           </div>
@@ -130,8 +130,8 @@ export function EditRecurrentBillDialog({
               id="valor"
               type="number"
               step="0.01"
-              value={formData.valor}
-              onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+              value={formData.amount}
+              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               required
             />
           </div>
@@ -143,8 +143,8 @@ export function EditRecurrentBillDialog({
               type="number"
               min="1"
               max="31"
-              value={formData.dia_vencimento}
-              onChange={(e) => setFormData({ ...formData, dia_vencimento: e.target.value })}
+              value={formData.due_day}
+              onChange={(e) => setFormData({ ...formData, due_day: e.target.value })}
               required
             />
           </div>
@@ -152,13 +152,13 @@ export function EditRecurrentBillDialog({
           <div className="space-y-2">
             <Label htmlFor="natureza">Natureza</Label>
             <Select
-              value={formData.natureza}
-              onValueChange={(value) => setFormData({ ...formData, natureza: value as 'pf' | 'pj' })}
+              value={formData.entity_type}
+              onValueChange={(value) => setFormData({ ...formData, entity_type: value as 'individual' | 'business' })}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="pf">Pessoa Fisica</SelectItem>
-                <SelectItem value="pj">Pessoa Juridica</SelectItem>
+                <SelectItem value="individual">Pessoa Fisica</SelectItem>
+                <SelectItem value="business">Pessoa Juridica</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -166,8 +166,8 @@ export function EditRecurrentBillDialog({
           <div className="space-y-2">
             <Label htmlFor="forma_pagamento">Forma de Pagamento</Label>
             <Select
-              value={formData.forma_pagamento}
-              onValueChange={(value) => setFormData({ ...formData, forma_pagamento: value })}
+              value={formData.payment_method}
+              onValueChange={(value) => setFormData({ ...formData, payment_method: value })}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -186,8 +186,8 @@ export function EditRecurrentBillDialog({
             <Input
               id="data_inicio"
               type="date"
-              value={formData.data_inicio}
-              onChange={(e) => setFormData({ ...formData, data_inicio: e.target.value })}
+              value={formData.start_date}
+              onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
               required
             />
           </div>
@@ -197,31 +197,31 @@ export function EditRecurrentBillDialog({
             <Input
               id="data_fim"
               type="date"
-              value={formData.data_fim}
-              onChange={(e) => setFormData({ ...formData, data_fim: e.target.value })}
+              value={formData.end_date}
+              onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="categoria">Categoria *</Label>
             <Select
-              value={showNewCategoryInput ? 'outros' : formData.categoria}
+              value={showNewCategoryInput ? 'outros' : formData.category_name}
               onValueChange={(value) => {
                 if (value === 'outros') {
                   setShowNewCategoryInput(true);
-                  setFormData({ ...formData, categoria: '', subcategoria: '' });
+                  setFormData({ ...formData, category_name: '', subcategory_name: '' });
                 } else {
                   setShowNewCategoryInput(false);
                   setNewCategory('');
-                  setFormData({ ...formData, categoria: value, subcategoria: '' });
+                  setFormData({ ...formData, category_name: value, subcategory_name: '' });
                 }
               }}
             >
               <SelectTrigger><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
               <SelectContent>
-                {categoryOptions?.opcoes.map(cat => (
-                  <SelectItem key={cat.id} value={cat.categoria}>
-                    {cat.categoria}
+                {categoryOptions?.options.map(cat => (
+                  <SelectItem key={cat.id} value={cat.name}>
+                    {cat.name}
                   </SelectItem>
                 ))}
                 <SelectItem value="outros">Outros</SelectItem>
@@ -238,36 +238,36 @@ export function EditRecurrentBillDialog({
                   onChange={(e) => {
                     const value = e.target.value;
                     setNewCategory(value);
-                    setFormData({ ...formData, categoria: value.trim(), subcategoria: '' });
+                    setFormData({ ...formData, category_name: value.trim(), subcategory_name: '' });
                   }}
                 />
               </div>
             )}
           </div>
 
-          {formData.categoria && (
+          {formData.category_name && (
             <div className="space-y-2">
               <Label htmlFor="subcategoria">Subcategoria *</Label>
               <Select
-                value={showNewSubcategoryInput ? 'outros' : formData.subcategoria}
+                value={showNewSubcategoryInput ? 'outros' : formData.subcategory_name}
                 onValueChange={(value) => {
                   if (value === 'outros') {
                     setShowNewSubcategoryInput(true);
-                    setFormData({ ...formData, subcategoria: '' });
+                    setFormData({ ...formData, subcategory_name: '' });
                   } else {
                     setShowNewSubcategoryInput(false);
                     setNewSubcategory('');
-                    setFormData({ ...formData, subcategoria: value });
+                    setFormData({ ...formData, subcategory_name: value });
                   }
                 }}
               >
                 <SelectTrigger><SelectValue placeholder="Selecione uma subcategoria" /></SelectTrigger>
                 <SelectContent>
-                  {categoryOptions?.opcoes
-                    .find(cat => cat.categoria === formData.categoria)
-                    ?.subcategorias.map(sub => (
-                      <SelectItem key={sub.id} value={sub.nome}>
-                        {sub.nome}
+                  {categoryOptions?.options
+                    .find(cat => cat.name === formData.category_name)
+                    ?.subcategories.map(sub => (
+                      <SelectItem key={sub.id} value={sub.name}>
+                        {sub.name}
                       </SelectItem>
                     ))}
                   <SelectItem value="outros">Outros</SelectItem>
@@ -284,7 +284,7 @@ export function EditRecurrentBillDialog({
                     onChange={(e) => {
                       const value = e.target.value;
                       setNewSubcategory(value);
-                      setFormData({ ...formData, subcategoria: value.trim() });
+                      setFormData({ ...formData, subcategory_name: value.trim() });
                     }}
                   />
                 </div>

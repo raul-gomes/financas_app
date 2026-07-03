@@ -2,24 +2,31 @@ import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Pencil, PlusCircle, RefreshCw, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { ContaRecorrenteService } from '@/services/contaRecorrenteService'
-import { ContaRecorrente, ContaRecorrenteCreate, ContaRecorrenteUpdate } from '@/types/conta_recorrente'
+import { ContaRecorrenteService } from '@/services/recurringAccountService'
+import { ContaRecorrente, ContaRecorrenteCreate, ContaRecorrenteUpdate } from '@/types/recurring_account'
 import { ContaForm } from './ContaForm'
 
-const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/ranulagu/bank-logos@main/bank-logos/256/png'
+const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png'
+
+interface RecorrentesTabProps {
+    entityTypeFilter?: 'pf' | 'pj' | 'all'
+}
 
 // ===== Recorrentes Tab =====
-export const RecorrentesTab = () => {
+export const RecorrentesTab = ({ entityTypeFilter = 'all' }: RecorrentesTabProps) => {
     const [contas, setContas] = useState<ContaRecorrente[]>([])
     const [formMode, setFormMode] = useState<{ type: 'create' } | { type: 'edit', conta: ContaRecorrente } | null>(null)
     const [renewingId, setRenewingId] = useState<number | null>(null)
     const { toast } = useToast()
 
     const loadContas = useCallback(async () => {
-        try { setContas(await ContaRecorrenteService.getAll()) } catch {
+        try {
+            const entityTypeParam = entityTypeFilter === 'all' ? undefined : (entityTypeFilter === 'pf' ? 'individual' : 'business')
+            setContas(await ContaRecorrenteService.getAll(entityTypeParam))
+        } catch {
             toast({ title: 'Erro', description: 'Falha ao carregar contas recorrentes.', variant: 'destructive' })
         }
-    }, [toast])
+    }, [toast, entityTypeFilter])
 
     useEffect(() => {
         loadContas()
@@ -48,16 +55,16 @@ export const RecorrentesTab = () => {
     }
 
     const handleToggleActive = async (conta: ContaRecorrente) => {
-        const msg = conta.ativo
-            ? `Isso cancelara as ${conta.parcelas_restantes} parcelas futuras. Desativar mesmo?`
+        const msg = conta.active
+            ? `Isso cancelara as ${conta.remaining_installments} parcelas futuras. Desativar mesmo?`
             : 'Ativar esta conta recorrente?'
         if (!confirm(msg)) return
         try {
-            await ContaRecorrenteService.update(conta.id, { ativo: !conta.ativo })
+            await ContaRecorrenteService.update(conta.id, { active: !conta.active })
             toast({
                 title: 'Sucesso',
-                description: conta.ativo
-                    ? `Conta desativada. ${conta.parcelas_restantes} parcelas futuras canceladas.`
+                description: conta.active
+                    ? `Conta desativada. ${conta.remaining_installments} parcelas futuras canceladas.`
                     : 'Conta ativada.',
             })
             loadContas()
@@ -87,10 +94,10 @@ export const RecorrentesTab = () => {
     }
 
     const isEndingSoon = (conta: ContaRecorrente): boolean =>
-        conta.ativo && conta.parcelas_restantes <= 2 && conta.parcelas_restantes > 0
+        conta.active && conta.remaining_installments <= 2 && conta.remaining_installments > 0
 
-    const formatCurrency = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-    const formatDate = (d: string) => new Date(d).toLocaleDateString('pt-BR')
+    const formatCurrency = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(v)
+    const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US')
 
     return (
         <div className="space-y-6">
@@ -125,10 +132,10 @@ export const RecorrentesTab = () => {
                         </thead>
                         <tbody className="divide-y divide-border">
                             {contas.map(conta => (
-                                <tr key={conta.id} className={`hover:bg-muted/30 ${!conta.ativo ? 'opacity-50' : ''}`}>
+                                <tr key={conta.id} className={`hover:bg-muted/30 ${!conta.active ? 'opacity-50' : ''}`}>
                                     <td className="px-4 py-3 text-sm font-medium">
                                         <div className="flex items-center gap-2">
-                                            {conta.descricao}
+                                            {conta.description}
                                             {isEndingSoon(conta) && (
                                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
                                                     <AlertTriangle className="w-3 h-3" />
@@ -137,10 +144,10 @@ export const RecorrentesTab = () => {
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3 text-sm">{formatCurrency(conta.valor)}</td>
-                                    <td className="px-4 py-3 text-sm text-muted-foreground">Dia {conta.dia_vencimento}</td>
+                                    <td className="px-4 py-3 text-sm">{formatCurrency(conta.amount)}</td>
+                                    <td className="px-4 py-3 text-sm text-muted-foreground">Dia {conta.due_day}</td>
                                     <td className="px-4 py-3 text-sm text-muted-foreground">
-                                        {conta.categoria_nome}{conta.subcategoria_nome && ` / ${conta.subcategoria_nome}`}
+                                        {conta.category_name}{conta.subcategory_name && ` / ${conta.subcategory_name}`}
                                     </td>
                                     <td className="px-4 py-3 text-sm text-muted-foreground">
                                         {conta.bank_code ? (
@@ -158,17 +165,17 @@ export const RecorrentesTab = () => {
                                         )}
                                     </td>
                                     <td className="px-4 py-3 text-sm text-muted-foreground">
-                                        {conta.parcelas_restantes}/{conta.total_parcelas}
+                                        {conta.remaining_installments}/{conta.total_installments}
                                     </td>
                                     <td className="px-4 py-3">
                                         <button onClick={() => handleToggleActive(conta)} className="flex items-center gap-1 text-sm">
-                                            {conta.ativo ? (
+                                            {conta.active ? (
                                                 <ToggleRight className="w-5 h-5 text-green-500" />
                                             ) : (
                                                 <ToggleLeft className="w-5 h-5 text-muted-foreground" />
                                             )}
-                                            <span className={`text-xs ${conta.ativo ? 'text-green-500' : 'text-muted-foreground'}`}>
-                                                {conta.ativo ? 'Ativa' : 'Inativa'}
+                                            <span className={`text-xs ${conta.active ? 'text-green-500' : 'text-muted-foreground'}`}>
+                                                {conta.active ? 'Ativa' : 'Inativa'}
                                             </span>
                                         </button>
                                     </td>
@@ -181,9 +188,9 @@ export const RecorrentesTab = () => {
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => handleRenew(conta.id)}
-                                                disabled={renewingId === conta.id || (conta.ativo && conta.parcelas_restantes > 2)}
+                                                disabled={renewingId === conta.id || (conta.active && conta.remaining_installments > 2)}
                                                 title={
-                                                    conta.ativo && conta.parcelas_restantes > 2
+                                                    conta.active && conta.remaining_installments > 2
                                                         ? 'Ainda ha parcelas restantes'
                                                         : 'Renovar por mais 12 meses'
                                                 }
@@ -206,6 +213,7 @@ export const RecorrentesTab = () => {
                 <ContaForm
                     key={formMode.type === 'edit' ? formMode.conta.id : 'create'}
                     conta={formMode.type === 'edit' ? formMode.conta : null}
+                    defaultEntityType={entityTypeFilter === 'pj' ? 'business' : 'individual'}
                     onClose={() => setFormMode(null)}
                     onSubmit={(payload) => formMode.type === 'edit'
                         ? handleUpdate(formMode.conta.id, payload)

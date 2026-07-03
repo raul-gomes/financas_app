@@ -38,25 +38,25 @@ export function AddTransactionDialog({
   onAddTransaction
 }: AddTransactionDialogProps) {
   const [formData, setFormData] = useState({
-    tipo: 'saida' as 'saida' | 'entrada' | 'investimento',
-    valor: '',
-    descricao: '',
-    categoria: '',
-    subcategoria: '',
-    data_transacao: new Date().toISOString().split('T')[0],
-    forma_pagamento: 'dinheiro' as string,
-    total_parcelas: null as string | null,
-    natureza: 'pf' as 'pf' | 'pj'
+    type: 'expense' as 'expense' | 'income' | 'investment',
+    amount: '',
+    description: '',
+    category_name: '',
+    subcategory_name: '',
+    transaction_date: new Date().toISOString().split('T')[0],
+    payment_method: 'cash' as string,
+    total_installments: null as string | null,
+    entity_type: 'individual' as 'individual' | 'business'
   });
-  const [parcelado, setParcelado] = useState(false);
+  const [isInstallment, setIsInstallment] = useState(false);
   const [bankCode, setBankCode] = useState('');
   const [banks, setBanks] = useState<UserBank[]>([]);
-  const [newCategory, setNewCategory] = useState('');
-  const [newSubcategory, setNewSubcategory] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newSubcategoryName, setNewSubcategoryName] = useState('');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [showNewSubcategoryInput, setShowNewSubcategoryInput] = useState(false);
-  const [showNewFormaPagamentoInput, setShowNewFormaPagamentoInput] = useState(false);
-  const [newFormaPagamento, setNewFormaPagamento] = useState('');
+  const [showNewPaymentMethodInput, setShowNewPaymentMethodInput] = useState(false);
+  const [newPaymentMethodName, setNewPaymentMethodName] = useState('');
   const [addingNewBank, setAddingNewBank] = useState(false);
   const [newBankCode, setNewBankCode] = useState('');
   const [newBankName, setNewBankName] = useState('');
@@ -74,109 +74,110 @@ export function AddTransactionDialog({
 
   // Load categories
   useEffect(() => {
-    FinancialService.getCategorySubcategories(formData.natureza, formData.tipo)
+    FinancialService.getCategorySubcategories(formData.entity_type, formData.type)
       .then(options => {
         setCategoryOptions(options)
       })
       .catch(err => {
-        console.error('Erro ao carregar categorias:', err)
+        console.error('Error loading categories:', err)
       })
-  }, [formData.natureza, formData.tipo])
+  }, [formData.entity_type, formData.type])
 
   // Load user's banks when dialog opens
   useEffect(() => {
     if (isOpen) {
       SettingsService.listBanks()
         .then(setBanks)
-        .catch(err => console.error('Erro ao carregar bancos:', err));
+        .catch(err => console.error('Error loading banks:', err));
     }
   }, [isOpen]);
 
-  // Calculate parcel value
-  const calcularValorParcela = () => {
-    if (!parcelado || !formData.total_parcelas || !formData.valor) return null;
-    const num = parseInt(formData.total_parcelas, 10);
+  // Calculate installment amount
+  const calculateInstallmentAmount = () => {
+    if (!isInstallment || !formData.total_installments || !formData.amount) return null;
+    const num = parseInt(formData.total_installments, 10);
     if (num <= 0) return null;
-    return (parseFloat(formData.valor) / num).toFixed(2);
+    return (parseFloat(formData.amount) / num).toFixed(2);
   };
 
-  // Reseta tudo ao fechar
+  // Reset form on close
   const handleClose = () => {
     setFormData({
-      tipo: 'saida',
-      valor: '',
-      descricao: '',
-      categoria: '',
-      subcategoria: '',
-      data_transacao: new Date().toISOString().split('T')[0],
-      forma_pagamento: 'dinheiro',
-      total_parcelas: null,
-      natureza: 'pf'
+      type: 'expense',
+      amount: '',
+      description: '',
+      category_name: '',
+      subcategory_name: '',
+      transaction_date: new Date().toISOString().split('T')[0],
+      payment_method: 'cash',
+      total_installments: null,
+      entity_type: 'individual'
     });
-    setParcelado(false);
+    setIsInstallment(false);
     setBankCode('');
-    setNewCategory('');
-    setNewSubcategory('');
-    setNewFormaPagamento('');
+    setNewCategoryName('');
+    setNewSubcategoryName('');
+    setNewPaymentMethodName('');
     setShowNewCategoryInput(false);
     setShowNewSubcategoryInput(false);
-    setShowNewFormaPagamentoInput(false);
+    setShowNewPaymentMethodInput(false);
     onClose();
   };
 
   const buildPayload = useCallback(() => {
-    const categoriaObj = categoryOptions?.opcoes.find(
-      c => c.categoria === formData.categoria
+    const catObj = categoryOptions?.options.find(
+      c => c.name === formData.category_name
     );
-    const subObj = categoriaObj?.subcategorias.find(
-      s => s.nome === formData.subcategoria
+    const subObj = catObj?.subcategories.find(
+      s => s.name === formData.subcategory_name
     );
 
     const payload: any = {
-      tipo: formData.tipo,
-      valor: parseFloat(formData.valor),
-      descricao: formData.descricao,
-      data_transacao: formData.data_transacao,
-      forma_pagamento: formData.forma_pagamento === 'cartão de crédito' ? 'credito' :
-                       formData.forma_pagamento === 'cartão de débito' ? 'debito' :
-                       formData.forma_pagamento,
-      natureza: formData.natureza,
+      type: formData.type,
+      amount: parseFloat(formData.amount),
+      description: formData.description,
+      transaction_date: formData.transaction_date,
+      payment_method: formData.payment_method === 'credit card' ? 'credit' :
+                      formData.payment_method === 'debit card' ? 'debit' :
+                      formData.payment_method,
+      entity_type: formData.entity_type,
     };
 
     if (bankCode) payload.bank_code = bankCode;
-    if (parcelado) {
-      const num = parseInt(formData.total_parcelas ?? '1', 10);
-      payload.parcela = 1;
-      payload.total_parcelas = num;
+    payload.is_installment = isInstallment;
+    if (isInstallment) {
+      const num = parseInt(formData.total_installments ?? '1', 10);
+      payload.installment_number = 1;
+      payload.total_installments = num;
     }
-    if (categoriaObj && subObj) {
-      payload.categoria_id = categoriaObj.id;
-      payload.subcategoria_id = subObj.id;
+    if (catObj && subObj) {
+      payload.category_id = catObj.id;
+      payload.subcategory_id = subObj.id;
     } else {
-      payload.categoria_nome = formData.categoria;
-      payload.subcategoria_nome = formData.subcategoria;
+      payload.category_name = formData.category_name;
+      payload.subcategory_name = formData.subcategory_name;
     }
     return payload;
-  }, [formData, bankCode, parcelado, categoryOptions]);
+  }, [formData, bankCode, isInstallment, categoryOptions]);
 
   const executeAdd = async (payload: any) => {
     try {
       await FinancialService.addTransaction(payload);
-      toast({ title: 'Transação adicionada', description: 'Sucesso!' });
+      toast({ title: 'Transaction added', description: 'Success!' });
       handleClose();
       onAddTransaction(payload as unknown as Transaction);
     } catch {
-      toast({ title: 'Erro', description: 'Falha ao criar transação.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to create transaction.', variant: 'destructive' });
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.valor || !formData.descricao || !formData.categoria || !formData.subcategoria) {
+    if (!formData.amount || !formData.description || !formData.category_name || !formData.subcategory_name) {
       toast({
-        title: 'Erro',
-        description: 'Por favor, preencha todos os campos obrigatórios.',
+        title: 'Error',
+        description: 'Please fill in all required fields.',
         variant: 'destructive'
       });
       return;
@@ -188,8 +189,8 @@ export function AddTransactionDialog({
     setIsCheckingDuplicate(true);
     try {
       const checkResult = await FinancialService.checkDuplicates({
-        data_transacao: formData.data_transacao,
-        valor: parseFloat(formData.valor),
+        transaction_date: formData.transaction_date,
+        amount: parseFloat(formData.amount),
       });
 
       if (checkResult.results[0]?.has_duplicate) {
@@ -221,7 +222,7 @@ export function AddTransactionDialog({
         await FinancialService.deleteTransaction(duplicateConflict.existing.id);
         await executeAdd(duplicateConflict.payload);
       } catch {
-        toast({ title: 'Erro', description: 'Falha ao substituir transação.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Failed to replace transaction.', variant: 'destructive' });
       }
       setDuplicateConflict(null);
     } else if (action === 'edit') {
@@ -230,170 +231,191 @@ export function AddTransactionDialog({
     }
   };
 
-  const valorParcela = calcularValorParcela();
+  const installmentAmount = calculateInstallmentAmount();
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova Transação</DialogTitle>
+          <DialogTitle>New Transaction</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Tipo + Natureza (inline) */}
+          {/* Type + Entity Type (inline) */}
           <div className="space-y-2">
-            <Label>Tipo</Label>
+            <Label>Type</Label>
             <div className="flex items-center justify-between">
               <RadioGroup
-                value={formData.tipo}
-                onValueChange={(value) => setFormData({ ...formData, tipo: value as 'entrada' | 'saida' | 'investimento'})}
+                value={formData.type}
+                onValueChange={(value) => {
+                  const type = value as 'income' | 'expense' | 'investment';
+                  if (type === 'income' || type === 'investment') {
+                    const autoCategoria = type === 'income' ? 'Income' : 'Investments';
+                    setFormData({ ...formData, type, category_name: autoCategoria, subcategory_name: '' });
+                  } else {
+                    setFormData({ ...formData, type });
+                  }
+                }}
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="saida" id="saida" />
-                  <Label htmlFor="saida" className="text-destructive font-medium">Saída</Label>
+                  <RadioGroupItem value="expense" id="expense" />
+                  <Label htmlFor="expense" className="text-destructive font-medium">Expense</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="entrada" id="entrada" />
-                  <Label htmlFor="entrada" className="text-success font-medium">Entrada</Label>
+                  <RadioGroupItem value="income" id="income" />
+                  <Label htmlFor="income" className="text-success font-medium">Income</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="investimento" id="investimento" />
-                  <Label htmlFor="investimento" className="text-warning font-medium">Investimento</Label>
+                  <RadioGroupItem value="investment" id="investment" />
+                  <Label htmlFor="investment" className="text-warning font-medium">Investment</Label>
                 </div>
               </RadioGroup>
-              {/* PF/PJ Switch */}
+              {/* Individual/Business Switch */}
               <div className="flex items-center gap-2 shrink-0">
-                <span className={`text-xs font-medium ${formData.natureza === 'pf' ? 'text-foreground' : 'text-muted-foreground'}`}>PF</span>
+                <span className={`text-xs font-medium ${formData.entity_type === 'individual' ? 'text-foreground' : 'text-muted-foreground'}`}>Individual</span>
                 <Switch
-                  checked={formData.natureza === 'pj'}
-                  onCheckedChange={(checked) => setFormData({ ...formData, natureza: checked ? 'pj' : 'pf' })}
+                  checked={formData.entity_type === 'business'}
+                  onCheckedChange={(checked) => setFormData({ ...formData, entity_type: checked ? 'business' : 'individual' })}
                 />
-                <span className={`text-xs font-medium ${formData.natureza === 'pj' ? 'text-foreground' : 'text-muted-foreground'}`}>PJ</span>
+                <span className={`text-xs font-medium ${formData.entity_type === 'business' ? 'text-foreground' : 'text-muted-foreground'}`}>Business</span>
               </div>
             </div>
           </div>
 
-          {/* Valor */}
+          {/* Amount */}
           <div className="space-y-2">
-            <Label htmlFor="valor">Valor *</Label>
+            <Label htmlFor="amount">Amount *</Label>
             <Input
-              id="valor"
+              id="amount"
               type="number"
               step="0.01"
-              placeholder="0,00"
-              value={formData.valor}
-              onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+              placeholder="0.00"
+              value={formData.amount}
+              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               required
             />
           </div>
 
-          {/* Descrição */}
+          {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição *</Label>
+            <Label htmlFor="description">Description *</Label>
             <Input
-              id="descricao"
-              placeholder="Ex: Supermercado, Salário, etc."
-              value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+              id="description"
+              placeholder="Ex: Supermarket, Salary, etc."
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               required
             />
           </div>
 
-          {/* Categoria */}
+          {/* Category */}
           <div className="space-y-2">
-            <Label htmlFor="categoria">Categoria *</Label>
-            <Select
-              value={showNewCategoryInput ? 'outros' : formData.categoria}
-              onValueChange={(value) => {
-                if (value === 'outros') {
-                  setShowNewCategoryInput(true);
-                  setFormData({ ...formData, categoria: '', subcategoria: '' });
-                } else {
-                  setShowNewCategoryInput(false);
-                  setNewCategory('');
-                  setFormData({ ...formData, categoria: value, subcategoria: '' });
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione uma categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {categoryOptions?.opcoes.map(cat => (
-                  <SelectItem key={cat.id} value={cat.categoria}>
-                    {cat.categoria}
-                  </SelectItem>
-                ))}
-                <SelectItem value="outros">Outros</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="category_name">Category *</Label>
 
-            {showNewCategoryInput && (
-              <div className="space-y-2 mt-2">
-                <Label htmlFor="newCategory">Nova Categoria</Label>
-                <Input
-                  id="newCategory"
-                  placeholder="Digite a nova categoria"
-                  value={newCategory}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setNewCategory(value);
-                    setFormData({
-                      ...formData,
-                      categoria: value.trim(),
-                      subcategoria: ''
-                    });
+            {/* When income/investment: disabled input with fixed value (category might not exist in DB yet) */}
+            {formData.type === 'income' || formData.type === 'investment' ? (
+              <Input
+                id="category_name"
+                value={formData.category_name}
+                disabled
+                className="bg-muted cursor-not-allowed"
+              />
+            ) : (
+              <>
+                <Select
+                  value={showNewCategoryInput ? 'other' : formData.category_name}
+                  onValueChange={(value) => {
+                    if (value === 'other') {
+                      setShowNewCategoryInput(true);
+                      setFormData({ ...formData, category_name: '', subcategory_name: '' });
+                    } else {
+                      setShowNewCategoryInput(false);
+                      setNewCategoryName('');
+                      setFormData({ ...formData, category_name: value, subcategory_name: '' });
+                    }
                   }}
-                />
-              </div>
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions?.options.map(cat => (
+                      <SelectItem key={cat.id} value={cat.name}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {showNewCategoryInput && (
+                  <div className="space-y-2 mt-2">
+                    <Label htmlFor="newCategory">New Category</Label>
+                    <Input
+                      id="newCategory"
+                      placeholder="Enter new category"
+                      value={newCategoryName}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setNewCategoryName(value);
+                        setFormData({
+                          ...formData,
+                          category_name: value.trim(),
+                          subcategory_name: ''
+                        });
+                      }}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </div>
 
-          {/* Subcategoria */}
-          {formData.categoria && (
+          {/* Subcategory */}
+          {formData.category_name && (
             <div className="space-y-2">
-              <Label htmlFor="subcategoria">Subcategoria *</Label>
+              <Label htmlFor="subcategory_name">Subcategory *</Label>
               <Select
-                value={showNewSubcategoryInput ? 'outros' : formData.subcategoria}
+                value={showNewSubcategoryInput ? 'other' : formData.subcategory_name}
                 onValueChange={(value) => {
-                  if (value === 'outros') {
+                  if (value === 'other') {
                     setShowNewSubcategoryInput(true);
-                    setFormData({ ...formData, subcategoria: '' });
+                    setFormData({ ...formData, subcategory_name: '' });
                   } else {
                     setShowNewSubcategoryInput(false);
-                    setNewSubcategory('');
-                    setFormData({ ...formData, subcategoria: value });
+                    setNewSubcategoryName('');
+                    setFormData({ ...formData, subcategory_name: value });
                   }
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma subcategoria" />
+                  <SelectValue placeholder="Select a subcategory" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categoryOptions?.opcoes
-                    .find(cat => cat.categoria === formData.categoria)
-                    ?.subcategorias.map(sub => (
-                      <SelectItem key={sub.id} value={sub.nome}>
-                        {sub.nome}
+                  {categoryOptions?.options
+                    .find(cat => cat.name === formData.category_name)
+                    ?.subcategories.map(sub => (
+                      <SelectItem key={sub.id} value={sub.name}>
+                        {sub.name}
                       </SelectItem>
                     ))}
-                  <SelectItem value="outros">Outros</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
 
               {showNewSubcategoryInput && (
                 <div className="space-y-2 mt-2">
-                  <Label htmlFor="newSubcategory">Nova Subcategoria</Label>
+                  <Label htmlFor="newSubcategory">New Subcategory</Label>
                   <Input
                     id="newSubcategory"
-                    placeholder="Digite a nova subcategoria"
-                    value={newSubcategory}
+                    placeholder="Enter new subcategory"
+                    value={newSubcategoryName}
                     onChange={(e) => {
                       const value = e.target.value;
-                      setNewSubcategory(value);
+                      setNewSubcategoryName(value);
                       setFormData({
                         ...formData,
-                        subcategoria: value.trim()
+                        subcategory_name: value.trim()
                       });
                     }}
                   />
@@ -402,9 +424,9 @@ export function AddTransactionDialog({
             </div>
           )}
 
-          {/* Banco */}
+          {/* Bank */}
           <div className="space-y-2">
-            <Label htmlFor="banco">Banco</Label>
+            <Label htmlFor="bank">Bank</Label>
             <Select
               value={addingNewBank ? '+add' : bankCode}
               onValueChange={(value) => {
@@ -419,7 +441,7 @@ export function AddTransactionDialog({
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Selecione um banco" />
+                <SelectValue placeholder="Select a bank" />
               </SelectTrigger>
               <SelectContent>
                 {banks.map((bank) => {
@@ -448,7 +470,7 @@ export function AddTransactionDialog({
                 <SelectItem value="+add">
                   <div className="flex items-center gap-2 text-primary font-medium">
                     <Plus className="w-4 h-4" />
-                    <span>Adicionar novo banco</span>
+                    <span>Add new bank</span>
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -456,7 +478,7 @@ export function AddTransactionDialog({
             {addingNewBank && (
               <div className="mt-2 flex items-end gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Código</Label>
+                  <Label className="text-xs">Code</Label>
                   <Input
                     placeholder="Ex: 260"
                     value={newBankCode}
@@ -465,7 +487,7 @@ export function AddTransactionDialog({
                   />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Nome</Label>
+                  <Label className="text-xs">Name</Label>
                   <Input
                     placeholder="Ex: Nubank"
                     value={newBankName}
@@ -474,11 +496,11 @@ export function AddTransactionDialog({
                   />
                 </div>
                 <Button size="sm" variant="outline" onClick={() => setAddingNewBank(false)}>
-                  Cancelar
+                  Cancel
                 </Button>
                 <Button size="sm" onClick={async () => {
                   if (!newBankCode.trim() || !newBankName.trim()) {
-                    toast({ title: 'Erro', description: 'Preencha código e nome do banco.', variant: 'destructive' });
+                    toast({ title: 'Error', description: 'Please fill in bank code and name.', variant: 'destructive' });
                     return;
                   }
                   try {
@@ -489,56 +511,56 @@ export function AddTransactionDialog({
                     setBanks(prev => [...prev, created]);
                     setBankCode(created.bank_code);
                     setAddingNewBank(false);
-                    toast({ title: 'Banco adicionado', description: `${created.bank_name} (${created.bank_code})` });
+                    toast({ title: 'Bank added', description: `${created.bank_name} (${created.bank_code})` });
                   } catch {
-                    toast({ title: 'Erro', description: 'Falha ao adicionar banco.', variant: 'destructive' });
+                    toast({ title: 'Error', description: 'Failed to add bank.', variant: 'destructive' });
                   }
                 }}>
-                  <Plus className="w-4 h-4 mr-1" /> Adicionar
+                  <Plus className="w-4 h-4 mr-1" /> Add
                 </Button>
               </div>
             )}
           </div>
 
-          {/* Forma de Pagamento + Switch Parcelado */}
+          {/* Payment Method + Installment Switch */}
           <div className="space-y-2">
-            <Label htmlFor="forma_pagamento">Forma de Pagamento</Label>
+            <Label htmlFor="payment_method">Payment Method</Label>
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 <Select
-                  value={showNewFormaPagamentoInput ? 'outros' : formData.forma_pagamento}
+                  value={showNewPaymentMethodInput ? 'other' : formData.payment_method}
                   onValueChange={(value) => {
-                    if (value === 'outros') {
-                      setShowNewFormaPagamentoInput(true);
-                      setFormData({ ...formData, forma_pagamento: '' });
+                    if (value === 'other') {
+                      setShowNewPaymentMethodInput(true);
+                      setFormData({ ...formData, payment_method: '' });
                     } else {
-                      setShowNewFormaPagamentoInput(false);
-                      setNewFormaPagamento('');
-                      setFormData({ ...formData, forma_pagamento: value });
+                      setShowNewPaymentMethodInput(false);
+                      setNewPaymentMethodName('');
+                      setFormData({ ...formData, payment_method: value });
                     }
                   }}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
                     <SelectItem value="pix">PIX</SelectItem>
-                    <SelectItem value="cartão de débito">Cartão de Débito</SelectItem>
-                    <SelectItem value="cartão de crédito">Cartão de Crédito</SelectItem>
-                    <SelectItem value="transferencia">Transferência</SelectItem>
-                    <SelectItem value="outros">Outros</SelectItem>
+                    <SelectItem value="debit card">Debit Card</SelectItem>
+                    <SelectItem value="credit card">Credit Card</SelectItem>
+                    <SelectItem value="transfer">Transfer</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
-                {showNewFormaPagamentoInput && (
+                {showNewPaymentMethodInput && (
                   <div className="mt-2">
-                    <Label htmlFor="newFormaPagamento">Nova Forma de Pagamento</Label>
+                    <Label htmlFor="newPaymentMethod">New Payment Method</Label>
                     <Input
-                      id="newFormaPagamento"
-                      placeholder="Digite a nova forma de pagamento"
-                      value={newFormaPagamento}
+                      id="newPaymentMethod"
+                      placeholder="Enter new payment method"
+                      value={newPaymentMethodName}
                       onChange={(e) => {
                         const value = e.target.value;
-                        setNewFormaPagamento(value);
-                        setFormData({ ...formData, forma_pagamento: value.trim() });
+                        setNewPaymentMethodName(value);
+                        setFormData({ ...formData, payment_method: value.trim() });
                       }}
                     />
                   </div>
@@ -546,60 +568,60 @@ export function AddTransactionDialog({
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Switch
-                  id="parcelado"
-                  checked={parcelado}
-                  onCheckedChange={setParcelado}
+                  id="isInstallment"
+                  checked={isInstallment}
+                  onCheckedChange={setIsInstallment}
                 />
-                <Label htmlFor="parcelado" className="text-sm font-medium cursor-pointer">Parcelado</Label>
+                <Label htmlFor="isInstallment" className="text-sm font-medium cursor-pointer">Installment</Label>
               </div>
             </div>
           </div>
 
-          {/* Parcelas (condicional) */}
-          {parcelado && (
+          {/* Installments (conditional) */}
+          {isInstallment && (
             <div className="border border-dashed border-primary/40 rounded-lg p-4 bg-primary/5 space-y-3">
               <div className="flex items-end gap-4">
                 <div className="flex-1 space-y-2">
-                  <Label htmlFor="total_parcelas">Total de Parcelas</Label>
+                  <Label htmlFor="total_installments">Total Installments</Label>
                   <Input
-                    id="total_parcelas"
+                    id="total_installments"
                     type="number"
                     min="2"
                     placeholder="12"
-                    value={formData.total_parcelas || ''}
+                    value={formData.total_installments || ''}
                     onChange={(e) =>
-                      setFormData({ ...formData, total_parcelas: e.target.value })
+                      setFormData({ ...formData, total_installments: e.target.value })
                     }
                   />
                 </div>
-                {valorParcela && (
+                {installmentAmount && (
                   <div className="pb-1">
-                    <p className="text-xs text-muted-foreground mb-0.5">Valor de cada parcela</p>
-                    <p className="text-lg font-bold text-primary">R$ {valorParcela}</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">Each installment value</p>
+                    <p className="text-lg font-bold text-primary">R$ {installmentAmount}</p>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Data */}
+          {/* Date */}
           <div className="space-y-2">
-            <Label htmlFor="data_transacao">Data</Label>
+            <Label htmlFor="transaction_date">Date</Label>
             <Input
-              id="data_transacao"
+              id="transaction_date"
               type="date"
-              value={formData.data_transacao}
-              onChange={(e) => setFormData({ ...formData, data_transacao: e.target.value })}
+              value={formData.transaction_date}
+              onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
             />
           </div>
 
-          {/* Ações */}
+          {/* Actions */}
           <div className="flex gap-2 pt-4">
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-              Cancelar
+              Cancel
             </Button>
             <Button type="submit" className="flex-1 bg-gradient-primary" disabled={isCheckingDuplicate}>
-              {isCheckingDuplicate ? 'Verificando...' : 'Adicionar'}
+              {isCheckingDuplicate ? 'Checking...' : 'Add'}
             </Button>
           </div>
         </form>
@@ -613,9 +635,9 @@ export function AddTransactionDialog({
             index: 0,
             existing: duplicateConflict.existing,
             newData: {
-              descricao: duplicateConflict.payload.descricao,
-              valor: duplicateConflict.payload.valor,
-              data_transacao: duplicateConflict.payload.data_transacao,
+              description: duplicateConflict.payload.description,
+              amount: duplicateConflict.payload.amount,
+              transaction_date: duplicateConflict.payload.transaction_date,
             },
           }]}
           onResolve={(_action) => handleDuplicateAction(_action)}

@@ -6,8 +6,9 @@ class ShoppingItemORM(Base):
     __tablename__ = 'shopping_items'
 
     id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String, nullable=False)
-    mes_ref = Column(Date, nullable=False)
-    marcado = Column(Boolean, default=False, nullable=False)
-    data_conclusao = Column(Date, nullable=True)
+    name = Column(String, nullable=False)
+    reference_month = Column(Date, nullable=False)
+    checked = Column(Boolean, default=False, nullable=False)
+    completed_at = Column(Date, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+    entity_type = Column(String, nullable=False, server_default='individual')

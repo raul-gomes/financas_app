@@ -146,7 +146,7 @@ export function D3LineChart({ data, width = 800, height = 250 }: D3LineChartProp
     g.selectAll('.dot')
       .on('mouseover', function(event, d: any) {
         const formatCurrency = (amount: number) => {
-          return new Intl.NumberFormat('pt-BR', {
+          return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'BRL'
           }).format(amount);

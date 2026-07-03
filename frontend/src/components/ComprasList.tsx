@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,40 +9,55 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 interface ComprasListProps {
-  mesRef: Date;
+  sidebarOpen?: boolean;
+  entityType?: string;
 }
 
-export function ComprasList({ mesRef }: ComprasListProps) {
+export function ComprasList({ sidebarOpen, entityType }: ComprasListProps) {
   const { toast } = useToast();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchPendentes, setSearchPendentes] = useState('');
   const [searchConcluidas, setSearchConcluidas] = useState('');
+  const lastOpenRef = useRef(false);
 
-  const mesRefStr = format(mesRef, 'yyyy-MM-01');
+  const now = new Date();
+  const mesRefStr = format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-01');
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await ShoppingService.listByMonth(mesRefStr);
+      const now = new Date();
+      const mesRefStr = format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-01');
+      const entityTypeParam = !entityType || entityType === 'all' ? undefined : (entityType === 'pf' ? 'individual' : 'business');
+      const data = await ShoppingService.listByMonth(mesRefStr, entityTypeParam);
       setItems(data);
     } catch {
-      setItems([]);
+      toast({ title: 'Erro', description: 'Falha ao carregar compras.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  }, [mesRefStr]);
+  }, [toast]);
 
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
 
+  // Refetch when sidebar transitions from closed to open
+  useEffect(() => {
+    if (sidebarOpen && !lastOpenRef.current) {
+      fetchItems();
+    }
+    lastOpenRef.current = !!sidebarOpen;
+  }, [sidebarOpen, fetchItems]);
+
   const handleAdd = async () => {
     const nome = newItemName.trim();
     if (!nome) return;
     try {
-      await ShoppingService.create({ nome, mes_ref: mesRefStr });
+      const entity_type = !entityType || entityType === 'all' ? 'individual' : (entityType === 'pf' ? 'individual' : 'business');
+      await ShoppingService.create({ name: nome, mes_ref: mesRefStr, entity_type });
       setNewItemName('');
       await fetchItems();
     } catch {
@@ -52,7 +67,7 @@ export function ComprasList({ mesRef }: ComprasListProps) {
 
   const handleToggle = async (item: ShoppingItem) => {
     try {
-      await ShoppingService.update(item.id, { marcado: !item.marcado });
+      await ShoppingService.update(item.id, { checked: !item.checked });
       await fetchItems();
     } catch {
       toast({ title: 'Erro', description: 'Falha ao atualizar item.', variant: 'destructive' });
@@ -74,13 +89,13 @@ export function ComprasList({ mesRef }: ComprasListProps) {
     }
   };
 
-  const pendentes = items.filter(i => !i.marcado);
-  const concluidos = items.filter(i => i.marcado);
+  const pendentes = items.filter(i => !i.checked);
+  const concluidos = items.filter(i => i.checked);
   const pendentesFiltrados = pendentes.filter(i =>
-    i.nome.toLowerCase().includes(searchPendentes.toLowerCase())
+    i.name.toLowerCase().includes(searchPendentes.toLowerCase())
   );
   const concluidosFiltrados = concluidos.filter(i =>
-    i.nome.toLowerCase().includes(searchConcluidas.toLowerCase())
+    i.name.toLowerCase().includes(searchConcluidas.toLowerCase())
   );
 
   return (
@@ -138,11 +153,11 @@ export function ComprasList({ mesRef }: ComprasListProps) {
                       className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent/50 group"
                     >
                       <Checkbox
-                        checked={item.marcado}
+                        checked={item.checked}
                         onCheckedChange={() => handleToggle(item)}
                         className="h-4 w-4"
                       />
-                      <span className="flex-1 text-sm">{item.nome}</span>
+                      <span className="flex-1 text-sm">{item.name}</span>
                       <button
                         onClick={() => handleDelete(item.id)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
@@ -181,15 +196,15 @@ export function ComprasList({ mesRef }: ComprasListProps) {
                       className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-green-50/50 group"
                     >
                       <Checkbox
-                        checked={item.marcado}
+                        checked={item.checked}
                         onCheckedChange={() => handleToggle(item)}
                         className="h-4 w-4"
                       />
                       <div className="flex-1 min-w-0">
-                        <span className="text-sm text-muted-foreground line-through">{item.nome}</span>
-                        {item.data_conclusao && (
+                        <span className="text-sm text-muted-foreground line-through">{item.name}</span>
+                        {item.completed_at && (
                           <p className="text-[10px] text-muted-foreground/60">
-                            {new Date(item.data_conclusao + 'T12:00:00').toLocaleDateString('pt-BR')}
+                            {new Date(item.completed_at + 'T12:00:00').toLocaleDateString('en-US')}
                           </p>
                         )}
                       </div>

@@ -102,7 +102,7 @@ export function D3PieChart({ data, width = 400, height = 300 }: D3PieChartProps)
           .attr('transform', 'scale(1.05)');
 
         const formatCurrency = (amount: number) => {
-          return new Intl.NumberFormat('pt-BR', {
+          return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'BRL'
           }).format(amount);

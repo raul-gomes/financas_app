@@ -11,6 +11,7 @@ import {
   SelectedMonth,
   Transaction,
   CategoryBreakdown,
+  IncomeBySubcategoria,
 } from '@/types/financial';
 import { SettingsService, UserBank } from '@/services/settingsService';
 import { BankBreakdownModal, BankBreakdownItem } from './BankBreakdownModal';
@@ -24,15 +25,15 @@ interface FinancialDashboardProps {
   transactions: Transaction[];
   selectedMonth: SelectedMonth | null;
   highlightedMonth?: SelectedMonth | null;
-  incomeBreakdown: CategoryBreakdown | null;
+  incomeBreakdown: IncomeBySubcategoria | null;
   categoryBreakdown: CategoryBreakdown | null;
   onMonthSelect?: (monthIndex: number, year: number) => void;
   onBackClick: () => void;
   onPrevMonth?: () => void;
   onNextMonth?: () => void;
-  limiteCartaoCredito?: number;
-  gastosFixos?: number;
-  gastosVariaveis?: number;
+  creditCardLimit?: number;
+  fixedExpenses?: number;
+  variableExpenses?: number;
 }
 
 export function FinancialDashboard({
@@ -50,9 +51,9 @@ export function FinancialDashboard({
   onBackClick,
   onPrevMonth,
   onNextMonth,
-  limiteCartaoCredito = 0,
-  gastosFixos = 0,
-  gastosVariaveis = 0,
+  creditCardLimit = 0,
+  fixedExpenses = 0,
+  variableExpenses = 0,
 }: FinancialDashboardProps) {
   const [banks, setBanks] = useState<UserBank[]>([]);
   const [breakdownModal, setBreakdownModal] = useState<{
@@ -75,7 +76,7 @@ export function FinancialDashboard({
 
   const buildBankBreakdown = (
     filterFn: (t: Transaction) => boolean,
-    valueFn: (t: Transaction) => number = t => t.valor,
+    valueFn: (t: Transaction) => number = t => t.amount,
   ): BankBreakdownItem[] => {
     const groups = new Map<string, number>();
     transactions.filter(filterFn).forEach((t) => {
@@ -112,12 +113,12 @@ export function FinancialDashboard({
     }));
 
     transactions.forEach((t) => {
-      const date = new Date(t.data_transacao);
+      const date = new Date(t.transaction_date);
       if (date.getMonth() === selectedMonth.index && date.getFullYear() === selectedMonth.year) {
         const dayIdx = date.getDate() - 1;
-        if (t.tipo === 'entrada') days[dayIdx].income += t.valor;
-        else if (t.tipo === 'saida') days[dayIdx].expenses += t.valor;
-        else if (t.tipo === 'investimento') days[dayIdx].investment += t.valor;
+        if (t.type === 'income') days[dayIdx].income += t.amount;
+        else if (t.type === 'expense') days[dayIdx].expenses += t.amount;
+        else if (t.type === 'investment') days[dayIdx].investment += t.amount;
       }
     });
 
@@ -125,26 +126,26 @@ export function FinancialDashboard({
   }, [transactions, selectedMonth]);
 
   const pixTotal = transactions
-    .filter(t => t.tipo === 'saida' && t.forma_pagamento === 'pix')
-    .reduce((sum, t) => sum + t.valor, 0);
+    .filter(t => t.type === 'expense' && t.payment_method === 'pix')
+    .reduce((sum, t) => sum + t.amount, 0);
 
   const creditTotal = transactions
-    .filter(t => t.tipo === 'saida' && t.forma_pagamento === 'credito')
-    .reduce((sum, t) => sum + t.valor, 0);
+    .filter(t => t.type === 'expense' && t.payment_method === 'credit')
+    .reduce((sum, t) => sum + t.amount, 0);
 
   const debitTotal = transactions
-    .filter(t => t.tipo === 'saida' && t.forma_pagamento === 'debito')
-    .reduce((sum, t) => sum + t.valor, 0);
+    .filter(t => t.type === 'expense' && t.payment_method === 'debit')
+    .reduce((sum, t) => sum + t.amount, 0);
 
-  // Parcelas a Pagar
+  // Parcelas a Pagar — apenas saídas marcadas como parceladas
   const installmentItems = transactions.filter(
-    t => t.total_parcelas && t.total_parcelas > 1 && t.parcela && t.parcela < t.total_parcelas && !t.conta_recorrente_id
+    t => t.type === 'expense' && t.is_installment === true
   );
   const totalParcelasRestantes = installmentItems.reduce(
-    (sum, t) => sum + (t.total_parcelas! - t.parcela!) * t.valor, 0
+    (sum, t) => sum + ((t.total_installments ?? 1) - (t.installment_number ?? 1)) * t.amount, 0
   );
   const countParcelasRestantes = installmentItems.reduce(
-    (sum, t) => sum + (t.total_parcelas! - t.parcela!), 0
+    (sum, t) => sum + ((t.total_installments ?? 1) - (t.installment_number ?? 1)), 0
   );
 
   return (
@@ -156,7 +157,7 @@ export function FinancialDashboard({
           className="animate-slide-up h-full flex flex-col cursor-pointer"
           style={{ animationDelay: '0ms' }}
           onClick={() => {
-            const items = buildBankBreakdown(t => t.tipo === 'saida' && t.forma_pagamento === 'pix');
+            const items = buildBankBreakdown(t => t.type === 'expense' && t.payment_method === 'pix');
             if (items.length > 0) {
               setBreakdownModal({
                 open: true,
@@ -189,7 +190,7 @@ export function FinancialDashboard({
           className="animate-slide-up h-full flex flex-col cursor-pointer"
           style={{ animationDelay: '100ms' }}
           onClick={() => {
-            const items = buildBankBreakdown(t => t.tipo === 'saida' && t.forma_pagamento === 'credito');
+            const items = buildBankBreakdown(t => t.type === 'expense' && t.payment_method === 'credit');
             if (items.length > 0) {
               setBreakdownModal({
                 open: true,
@@ -213,22 +214,22 @@ export function FinancialDashboard({
                 </div>
                 <CreditCard className="h-6 w-6 text-success/70" />
               </div>
-              {limiteCartaoCredito > 0 && (
+              {creditCardLimit > 0 && (
                 <div className="mt-2">
                   <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                    <span>{(creditTotal / limiteCartaoCredito * 100).toFixed(0)}% usado</span>
-                    <span>Limite: R$ {limiteCartaoCredito.toLocaleString('pt-BR')}</span>
+                    <span>{(creditTotal / creditCardLimit * 100).toFixed(0)}% usado</span>
+                    <span>Limite: R$ {creditCardLimit.toLocaleString('en-US')}</span>
                   </div>
                   <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-700 ease-out ${
-                        creditTotal > limiteCartaoCredito
+                        creditTotal > creditCardLimit
                           ? 'bg-destructive'
-                          : creditTotal > limiteCartaoCredito * 0.7
+                          : creditTotal > creditCardLimit * 0.7
                           ? 'bg-warning'
                           : 'bg-success'
                       }`}
-                      style={{ width: `${Math.min(100, (creditTotal / limiteCartaoCredito) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (creditTotal / creditCardLimit) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -242,7 +243,7 @@ export function FinancialDashboard({
           className="animate-slide-up h-full flex flex-col cursor-pointer"
           style={{ animationDelay: '200ms' }}
           onClick={() => {
-            const items = buildBankBreakdown(t => t.tipo === 'saida' && t.forma_pagamento === 'debito');
+            const items = buildBankBreakdown(t => t.type === 'expense' && t.payment_method === 'debit');
             if (items.length > 0) {
               setBreakdownModal({
                 open: true,
@@ -275,10 +276,17 @@ export function FinancialDashboard({
           className="animate-slide-up h-full flex flex-col cursor-pointer"
           style={{ animationDelay: '300ms' }}
           onClick={() => {
-            const items = buildBankBreakdown(
-              t => !!(t.total_parcelas && t.total_parcelas > 1 && t.parcela && t.parcela < t.total_parcelas && !t.conta_recorrente_id),
-              t => (t.total_parcelas! - t.parcela!) * t.valor,
-            );
+            const groups = new Map<string, number>();
+            installmentItems.forEach(t => {
+              const amt = ((t.total_installments ?? 1) - (t.installment_number ?? 1)) * t.amount;
+              const code = t.bank_code || 'sem-banco';
+              groups.set(code, (groups.get(code) || 0) + amt);
+            });
+            const items = Array.from(groups.entries()).map(([code, amt]) => ({
+              bank_code: code === 'sem-banco' ? '' : code,
+              bank_name: code === 'sem-banco' ? 'Sem banco' : getBankName(code),
+              amount: amt,
+            }));
             if (items.length > 0) {
               setBreakdownModal({
                 open: true,
@@ -337,33 +345,27 @@ export function FinancialDashboard({
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span className="text-success font-medium">Fixos: R$ {gastosFixos.toLocaleString('pt-BR')}</span>
-                <span className="text-warning font-medium">Variáveis: R$ {gastosVariaveis.toLocaleString('pt-BR')}</span>
+                <span className="text-success font-medium">Fixos: R$ {fixedExpenses.toLocaleString('en-US')}</span>
+                <span className="text-warning font-medium">Variáveis: R$ {variableExpenses.toLocaleString('en-US')}</span>
               </div>
               <div className="w-full bg-muted rounded-full h-3 flex overflow-hidden">
                 <div
                   className="bg-success transition-all duration-700 ease-out"
                   style={{
-                    width: `${gastosFixos + gastosVariaveis > 0
-                      ? (gastosFixos / (gastosFixos + gastosVariaveis)) * 100
+                    width: `${fixedExpenses + variableExpenses > 0
+                      ? (fixedExpenses / (fixedExpenses + variableExpenses)) * 100
                       : 0}%`
                   }}
                 />
                 <div
                   className="bg-warning transition-all duration-700 ease-out"
                   style={{
-                    width: `${gastosFixos + gastosVariaveis > 0
-                      ? (gastosVariaveis / (gastosFixos + gastosVariaveis)) * 100
+                    width: `${fixedExpenses + variableExpenses > 0
+                      ? (variableExpenses / (fixedExpenses + variableExpenses)) * 100
                       : 0}%`
                   }}
                 />
               </div>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="text-sm font-bold">
-                R$ {(gastosFixos + gastosVariaveis).toLocaleString('pt-BR')}
-              </p>
             </div>
           </div>
         </div>

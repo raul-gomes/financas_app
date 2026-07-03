@@ -50,23 +50,23 @@ async def update_limits_bulk(
     {
         "new": [
             {
-                "categoria_nome": "Nova Categoria",
-                "natureza": "pf",
-                "limite": 1000,
-                "subcategorias": [
-                    {"subcategoria_nome": "Nova Sub"}
+                "category_name": "Nova Categoria",
+                "entity_type": "individual",
+                "limit": 1000,
+                "subcategories": [
+                    {"subcategory_name": "Nova Sub"}
                 ]
             }
         ],
         "modified": [
             {
                 "id": 2,
-                "categoria_nome": "Categoria Modificada",
-                "natureza": "pf", 
-                "limite": 1500,
-                "subcategorias": [
-                    {"id": 3, "subcategoria_nome": "Sub Existente"},
-                    {"subcategoria_nome": "Sub Nova"}
+                "category_name": "Categoria Modificada",
+                "entity_type": "individual", 
+                "limit": 1500,
+                "subcategories": [
+                    {"id": 3, "subcategory_name": "Sub Existente"},
+                    {"subcategory_name": "Sub Nova"}
                 ]
             }
         ]

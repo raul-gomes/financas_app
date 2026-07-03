@@ -18,7 +18,7 @@ interface FlippableChartProps {
 }
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(amount);
 
 export function FlippableChart({
   yearlyData,
@@ -33,8 +33,8 @@ export function FlippableChart({
 }: FlippableChartProps) {
   const isFlipped = selectedMonth !== null;
   const fullMonthNames = [
-    'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+    'january', 'february', 'Marco', 'april', 'may', 'june',
+    'july', 'august', 'september', 'october', 'november', 'december',
   ];
   const monthLabel = selectedMonth
     ? `${fullMonthNames[selectedMonth.index]} ${selectedMonth.year}`

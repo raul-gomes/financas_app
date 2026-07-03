@@ -3,88 +3,103 @@
 // Interfaces de categorias e subcategorias
 export interface SubcategoriaOpcao {
   id: number
-  nome: string
+  name: string
 }
 
 export interface CategoriaOpcao {
   id: number
-  categoria: string
-  tipo?: string | null
-  subcategorias: SubcategoriaOpcao[]
+  name: string
+  type?: string | null
+  subcategories: SubcategoriaOpcao[]
 }
 
 export interface CategorySubcategories {
-  opcoes: CategoriaOpcao[]
+  options: CategoriaOpcao[]
 }
 
 export interface Transaction {
   id: number;
-  tipo: 'entrada' | 'saida' | 'investimento';
-  valor: number;
-  descricao: string;
-  categoria_id: number;
-  subcategoria_id: number;
-  categoria_nome: string;
-  subcategoria_nome: string;
-  forma_pagamento: string;  // Any string — custom values via "Outros" allowed
-  parcela: number | null;
-  total_parcelas: number | null;
+  type: 'income' | 'expense' | 'investment';
+  amount: number;
+  description: string;
+  category_id: number;
+  subcategory_id: number;
+  category_name: string;
+  subcategory_name: string;
+  payment_method: string;  // Any string — custom values via "Outros" allowed
+  installment_number: number | null;
+  total_installments: number | null;
+  is_installment: boolean;
   bank_code: string | null;
-  natureza: 'pj' | 'pf';
-  data_transacao: string;
-  conta_recorrente_id?: number | null;
+  entity_type: 'business' | 'individual';
+  transaction_date: string;
+  recurring_account_id?: number | null;
 }
 
 export interface FinancialSummary {
-  entradas: number;
-  saidas: number;
-  data_inicial: string;
-  data_final: string;
-  meta_mensal: number;
-  total_investido: number;
-  transacoes: Transaction[];
-  limite_cartao_credito: number;
-  gastos_fixos: number;
-  gastos_variaveis: number;
+  total_income: number;
+  total_expenses: number;
+  start_date: string;
+  end_date: string;
+  monthly_goal: number;
+  total_invested: number;
+  transactions: Transaction[];
+  credit_card_limit: number;
+  fixed_expenses: number;
+  variable_expenses: number;
 }
 
 export interface MonthData {
-  entrada: number;
-  saida: number;
+  income: number;
+  expense: number;
 }
 
 export interface YearlyPerformance {
-  limite: number;
-  meses: Record<string, MonthData>;
+  limit: number;
+  months: Record<string, MonthData>;
 }
 
 export interface CategoryPeriodData {
-  data_inicial: string;   // "DD/MM/YYYY"
-  data_final: string;     // "DD/MM/YYYY" 
-  subcategorias: Array<{
+  start_date: string;   // "DD/MM/YYYY"
+  end_date: string;     // "DD/MM/YYYY" 
+  subcategories: Array<{
     total: number;
-    limite: number;
+    limit: number;
     [category: string]: any; // permite propriedades dinâmicas das categorias
   }>;
 }
 
 //Interfaes de categorias
 export interface SubcategoriaGasto {
-  nome: string
-  valor: string
+  name: string
+  amount: string
 }
 
 export interface CategoriaGasto {
-  nome: string
+  name: string
   total: number
-  limite: number
-  subcategorias: SubcategoriaGasto[]
+  limit: number
+  subcategories: SubcategoriaGasto[]
 }
 
+/** @deprecated Use CategoriaGasto instead */
+export type CategoriaGastoOld = CategoriaGasto;
+
 export interface CategoryBreakdown {
-  data_inicial: string
-  data_final: string
-  categorias: CategoriaGasto[]
+  start_date: string
+  end_date: string
+  categories: CategoriaGasto[]
+}
+
+export interface IncomeSubcategoriaItem {
+  name: string;
+  total: number;
+}
+
+export interface IncomeBySubcategoria {
+  start_date: string;
+  end_date: string;
+  subcategories: IncomeSubcategoriaItem[];
 }
 
 export interface CategoryExpense {
@@ -128,27 +143,27 @@ export interface SelectedMonth {
 
 export interface Subcategory {
   id: number
-  subcategoria_nome: string
+  name: string
 }
 
 export interface Category {
   id: number
-  categoria_nome: string
-  natureza: 'pf' | 'pj' | 'all'
-  limite: number
-  subcategorias: Subcategory[]
+  name: string
+  entity_type: 'individual' | 'business' | 'all'
+  limit: number
+  subcategories: Subcategory[]
 }
 
 export type LimitsPayload = Category[]
 
 export interface CategoriaLimiteUpdate {
   id?: number
-  categoria_nome: string
-  natureza: 'pf' | 'pj' | 'all'
-  limite: number
-  subcategorias: {
+  name: string
+  entity_type: 'individual' | 'business' | 'all'
+  limit: number
+  subcategories: {
     id?: number
-    subcategoria_nome: string
+    name: string
   }[]
 }
 
@@ -172,15 +187,15 @@ export interface LimitsUpdateResponse {
 
 export interface DuplicateInfo {
   id: number;
-  descricao: string;
-  valor: number;
-  data_transacao: string;
-  tipo: string;
-  natureza: string;
-  categoria_nome?: string | null;
-  subcategoria_nome?: string | null;
-  forma_pagamento?: string | null;
-  data_criacao?: string | null;
+  description: string;
+  amount: number;
+  transaction_date: string;
+  type: string;
+  entity_type: string;
+  category_name?: string | null;
+  subcategory_name?: string | null;
+  payment_method?: string | null;
+  created_at?: string | null;
 }
 
 export interface SingleDuplicateCheckResult {

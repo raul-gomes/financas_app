@@ -10,11 +10,15 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Target, PlusCircle, Pencil, Trash2, CheckCircle2, Search, RotateCcw, Save } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { MetasService } from '@/services/metasService'
-import type { Meta } from '@/types/metas'
+import { MetasService } from '@/services/goalsService'
+import type { Meta } from '@/types/goals'
+
+interface MetasTabProps {
+    entityTypeFilter?: 'pf' | 'pj' | 'all'
+}
 
 // ===== Metas Tab =====
-export const MetasTab = () => {
+export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
     const [metas, setMetas] = useState<Meta[]>([])
     const [loading, setLoading] = useState(false)
     const [formNome, setFormNome] = useState('')
@@ -29,23 +33,26 @@ export const MetasTab = () => {
     const loadMetas = useCallback(async () => {
         setLoading(true)
         try {
-            const data = await MetasService.list()
+            const entityTypeParam = entityTypeFilter === 'all' ? undefined : (entityTypeFilter === 'pf' ? 'individual' : 'business')
+            const data = await MetasService.list(entityTypeParam)
             setMetas(data)
         } catch {
             toast({ title: 'Erro', description: 'Falha ao carregar metas.', variant: 'destructive' })
         } finally {
             setLoading(false)
         }
-    }, [toast])
+    }, [toast, entityTypeFilter])
 
     useEffect(() => { loadMetas() }, [loadMetas])
 
     const handleCreate = async () => {
         if (!formNome.trim() || !formValor) return
         try {
+            const entityTypeParam = entityTypeFilter === 'all' ? undefined : (entityTypeFilter === 'pf' ? 'individual' : 'business')
             await MetasService.create({
-                subcategoria_nome: formNome.trim(),
-                valor_alvo: parseFloat(formValor),
+                subcategory_name: formNome.trim(),
+                target_amount: parseFloat(formValor),
+                entity_type: entityTypeParam,
             })
             toast({ title: 'Sucesso', description: 'Meta criada!' })
             setFormNome('')
@@ -60,8 +67,8 @@ export const MetasTab = () => {
         if (!editNome.trim() || !editValor) return
         try {
             await MetasService.update(id, {
-                subcategoria_nome: editNome.trim(),
-                valor_alvo: parseFloat(editValor),
+                subcategory_name: editNome.trim(),
+                target_amount: parseFloat(editValor),
             })
             toast({ title: 'Sucesso', description: 'Meta atualizada!' })
             setEditingMeta(null)
@@ -72,7 +79,7 @@ export const MetasTab = () => {
     }
 
     const handleDelete = async (id: number) => {
-        if (!confirm('Excluir esta meta?')) return
+        if (!confirm('Delete esta meta?')) return
         try {
             await MetasService.delete(id)
             toast({ title: 'Sucesso', description: 'Meta excluída!' })
@@ -104,17 +111,17 @@ export const MetasTab = () => {
 
     const startEdit = (meta: Meta) => {
         setEditingMeta(meta)
-        setEditNome(meta.subcategoria_nome)
-        setEditValor(meta.valor_alvo.toString())
+        setEditNome(meta.subcategory_name)
+        setEditValor(meta.target_amount.toString())
     }
 
     const ativas = metas.filter(m => !m.concluida)
     const concluidas = metas.filter(m => m.concluida)
     const ativasFiltradas = ativas.filter(m =>
-        m.subcategoria_nome.toLowerCase().includes(searchAtivas.toLowerCase())
+        m.subcategory_name.toLowerCase().includes(searchAtivas.toLowerCase())
     )
     const concluidasFiltradas = concluidas.filter(m =>
-        m.subcategoria_nome.toLowerCase().includes(searchConcluidas.toLowerCase())
+        m.subcategory_name.toLowerCase().includes(searchConcluidas.toLowerCase())
     )
 
     return (
@@ -149,7 +156,7 @@ export const MetasTab = () => {
                             />
                         </div>
                         <Button onClick={handleCreate} disabled={!formNome.trim() || !formValor}>
-                            <PlusCircle className="h-4 w-4 mr-2" />Criar Meta
+                            <PlusCircle className="h-4 w-4 mr-2" />Create Meta
                         </Button>
                     </div>
                 </CardContent>
@@ -200,14 +207,14 @@ export const MetasTab = () => {
                                             <Button size="sm" onClick={() => handleUpdate(meta.id)} disabled={!editNome.trim() || !editValor}>
                                                 <Save className="h-3.5 w-3.5 mr-1" />Salvar
                                             </Button>
-                                            <Button size="sm" variant="outline" onClick={() => setEditingMeta(null)}>Cancelar</Button>
+                                            <Button size="sm" variant="outline" onClick={() => setEditingMeta(null)}>Cancel</Button>
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-between">
                                             <div>
-                                                <p className="font-medium">{meta.subcategoria_nome}</p>
+                                                <p className="font-medium">{meta.subcategory_name}</p>
                                                 <p className="text-sm text-muted-foreground">
-                                                    R$ {meta.valor_alvo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    R$ {meta.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                 </p>
                                             </div>
                                             <div className="flex gap-1">
@@ -257,13 +264,13 @@ export const MetasTab = () => {
                                     <div key={meta.id} className="border border-green-200 rounded-lg p-4 bg-green-50/30">
                                         <div className="flex items-center justify-between">
                                             <div>
-                                                <p className="font-medium text-green-700">{meta.subcategoria_nome}</p>
+                                                <p className="font-medium text-green-700">{meta.subcategory_name}</p>
                                                 <p className="text-sm text-green-600">
-                                                    R$ {meta.valor_alvo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    R$ {meta.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                 </p>
-                                                {meta.data_conclusao && (
+                                                {meta.completed_at && (
                                                     <p className="text-xs text-muted-foreground mt-0.5">
-                                                        Concluída em {new Date(meta.data_conclusao + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                                        Concluída em {new Date(meta.completed_at + 'T12:00:00').toLocaleDateString('en-US')}
                                                     </p>
                                                 )}
                                             </div>

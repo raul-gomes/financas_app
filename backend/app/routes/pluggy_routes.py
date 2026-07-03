@@ -3,9 +3,9 @@ from typing import List, Optional
 from datetime import date, datetime
 
 from app.db.repositories.settings import SettingsRepository
-from app.db.repositories.transacao import TransacaoRepository
+from app.db.repositories.transaction import TransacaoRepository
 from app.services.pluggy_service import PluggyService
-from app.schemas.transacao import DuplicateInfo
+from app.schemas.transaction import DuplicateInfo, TransacaoCreate, TipoTransacao, NaturezaTransacao
 from app.logger import log_api_request
 
 router = APIRouter(prefix="/pluggy", tags=["Pluggy / Open Finance"])
@@ -90,11 +90,11 @@ async def sync_pluggy(
                 tx_date_str = tx.get("date", tx.get("transactionDate"))
                 tx_date = datetime.fromisoformat(tx_date_str.replace("Z", "+00:00")) if tx_date_str else datetime.now()
 
-                valor = abs(tx.get("amount", 0))
-                # Determine tipo: DEBIT = saida, CREDIT = entrada
-                tipo = "saida" if tx.get("type") == "DEBIT" else "entrada"
+                amount = abs(tx.get("amount", 0))
+                # Determine type: DEBIT = expense, CREDIT = income
+                tipo = TipoTransacao.SAIDA if tx.get("type") == "DEBIT" else TipoTransacao.ENTRADA
 
-                # Determine forma_pagamento from transaction type info
+                # Determine payment_method from transaction type info
                 form = tx.get("paymentMethod", tx.get("category", "pix")).lower()
 
                 # Map bank code from account
@@ -103,15 +103,17 @@ async def sync_pluggy(
                     bank_code = str(account.get("number", ""))[:3]
 
                 created = await transacao_repo.create(
-                    valor=valor,
-                    descricao=tx.get("description", tx.get("descriptionRaw", "Sin cronizar"))[:255],
-                    data_transacao=tx_date,
-                    tipo=tipo,
-                    natureza="pf",
-                    forma_pagamento=form,
-                    categoria_nome="Importado",
-                    subcategoria_nome="Pluggy",
-                    bank_code=bank_code,
+                    TransacaoCreate(
+                        amount=amount,
+                        description=tx.get("description", tx.get("descriptionRaw", "Sin cronizar"))[:255],
+                        transaction_date=tx_date,
+                        type=tipo,
+                        entity_type=NaturezaTransacao.PF,
+                        payment_method=form,
+                        category_name="Importado",
+                        subcategory_name="Pluggy",
+                        bank_code=bank_code,
+                    )
                 )
                 all_created_ids.append(created.id)
                 total_imported += 1
@@ -123,7 +125,7 @@ async def sync_pluggy(
             if not new_t:
                 continue
             existing = await transacao_repo.check_duplicates(
-                new_t.data_transacao.date(), new_t.valor
+                new_t.transaction_date.date(), new_t.amount
             )
             # Filter out self and any others already in this sync batch
             real_dups = [t for t in existing if t.id != new_id and t.id not in all_created_ids]
@@ -132,11 +134,11 @@ async def sync_pluggy(
                     duplicates_list.append({
                         "new_id": new_id,
                         "existing_id": dup.id,
-                        "descricao": new_t.descricao,
-                        "valor": new_t.valor,
-                        "data_transacao": new_t.data_transacao.isoformat(),
-                        "existing_descricao": dup.descricao,
-                        "existing_data": dup.data_transacao.isoformat(),
+                        "description": new_t.description,
+                        "amount": new_t.amount,
+                        "transaction_date": new_t.transaction_date.isoformat(),
+                        "existing_description": dup.description,
+                        "existing_date": dup.transaction_date.isoformat(),
                     })
                     break  # Only report one per new transaction
 

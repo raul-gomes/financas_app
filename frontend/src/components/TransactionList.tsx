@@ -1,5 +1,6 @@
 // TransactionList.tsx
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,7 @@ import { Transaction, MonthlyBalance } from '@/types/financial';
 import { AnimatedNumber } from './AnimatedNumber';
 import { AddTransactionDialog } from './AddTransactionDialog';
 import { EditTransactionDialog } from './EditTransactionDialog';
-import { ExtratoDialog } from './ExtratoDialog';
+import { ExtratoUploadModal } from './ExtratoUploadModal';
 import { SettingsService, UserBank } from '@/services/settingsService';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -47,9 +48,10 @@ export function TransactionList({
   onEntityTypeChange,
   onReload,
 }: TransactionListProps) {
+  const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [extratoOpen, setExtratoOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [banks, setBanks] = useState<UserBank[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set());
@@ -69,7 +71,7 @@ export function TransactionList({
   const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
 
   const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(amount);
 
   const handleEditTransaction = (id: number) => {
     const transaction = transactions.find(t => t.id === id);
@@ -90,7 +92,7 @@ export function TransactionList({
             <div className="flex items-center gap-3">
               <ArrowUpRight className="h-5 w-5 text-success" />
               <div>
-                <p className="text-sm text-muted-foreground">Entradas</p>
+                <p className="text-sm text-muted-foreground">Income</p>
                 <p className="text-lg font-semibold text-success">
                   <AnimatedNumber value={monthlyBalance.income} withDelay={100} />
                 </p>
@@ -101,7 +103,7 @@ export function TransactionList({
             <div className="flex items-center gap-3">
               <ArrowDownRight className="h-5 w-5 text-destructive" />
               <div>
-                <p className="text-sm text-muted-foreground">Saídas</p>
+                <p className="text-sm text-muted-foreground">Expenses</p>
                 <p className="text-lg font-semibold text-destructive">
                   <AnimatedNumber value={monthlyBalance.expenses} withDelay={250} />
                 </p>
@@ -161,7 +163,7 @@ export function TransactionList({
             Nova
           </Button>
           <Button
-            onClick={() => setExtratoOpen(true)}
+            onClick={() => setUploadOpen(true)}
             variant="outline"
             size="sm"
           >
@@ -189,11 +191,11 @@ export function TransactionList({
             if (!searchQuery.trim()) return true;
             const q = searchQuery.toLowerCase();
             return (
-              t.descricao.toLowerCase().includes(q) ||
-              t.categoria_nome.toLowerCase().includes(q) ||
-              t.subcategoria_nome.toLowerCase().includes(q) ||
-              t.forma_pagamento.toLowerCase().includes(q) ||
-              t.valor.toString().includes(q) ||
+              t.description.toLowerCase().includes(q) ||
+              t.category_name.toLowerCase().includes(q) ||
+              t.subcategory_name.toLowerCase().includes(q) ||
+              t.payment_method.toLowerCase().includes(q) ||
+              t.amount.toString().includes(q) ||
               (t.bank_code || '').toLowerCase().includes(q) ||
               (getBankName(t.bank_code) || '').toLowerCase().includes(q)
             );
@@ -204,7 +206,7 @@ export function TransactionList({
             <div
               key={t.id}
               className={`animate-slide-up bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors ${
-                t.conta_recorrente_id ? 'bg-blue-50/60 border-blue-200 hover:bg-blue-50' : ''
+                t.recurring_account_id ? 'bg-blue-50/60 border-blue-200 hover:bg-blue-50' : ''
               }`}
               style={{ animationDelay: `${idx * 50}ms` }}
               onClick={() => handleItemClick(t.id)}
@@ -213,27 +215,27 @@ export function TransactionList({
               <div className="flex items-start gap-3">
                 <div className={cn(
                   "p-2 rounded-lg shrink-0",
-                  t.conta_recorrente_id ? 'bg-blue-100 text-blue-600' :
-                  t.tipo === 'entrada' ? 'bg-success/10 text-success' : 
-                  t.tipo === 'investimento' ? 'bg-warning/10 text-warning' : 
+                  t.recurring_account_id ? 'bg-blue-100 text-blue-600' :
+                  t.type === 'income' ? 'bg-success/10 text-success' : 
+                  t.type === 'investment' ? 'bg-warning/10 text-warning' : 
                   'bg-destructive/10 text-destructive'
                 )}>
-                  {t.conta_recorrente_id ? <ArrowDownRight className="h-4 w-4" /> :
-                   t.tipo === 'entrada' ? <ArrowUpRight className="h-4 w-4" /> : 
-                   t.tipo === 'investimento' ? <ArrowUpRight className="h-4 w-4" /> : 
+                  {t.recurring_account_id ? <ArrowDownRight className="h-4 w-4" /> :
+                   t.type === 'income' ? <ArrowUpRight className="h-4 w-4" /> : 
+                   t.type === 'investment' ? <ArrowUpRight className="h-4 w-4" /> : 
                    <ArrowDownRight className="h-4 w-4" />}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-medium text-foreground truncate">{t.descricao}</p>
+                    <p className="font-medium text-foreground truncate">{t.description}</p>
                     <div className="flex items-center gap-2 shrink-0">
                       <p className={cn("font-semibold text-lg", 
-                        t.conta_recorrente_id ? 'text-blue-600' :
-                        t.tipo === 'entrada' ? 'text-success' : 
-                        t.tipo === 'investimento' ? 'text-warning' : 
+                        t.recurring_account_id ? 'text-blue-600' :
+                        t.type === 'income' ? 'text-success' : 
+                        t.type === 'investment' ? 'text-warning' : 
                         'text-destructive')}>
-                        {formatCurrency(t.valor)}
+                        {formatCurrency(t.amount)}
                       </p>
                       <Button
                         variant="ghost"
@@ -252,18 +254,18 @@ export function TransactionList({
 
                   {/* Bottom row: badges */}
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
-                    {t.conta_recorrente_id ? (
+                    {t.recurring_account_id ? (
                       <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
                         Recorrente
                       </span>
                     ) : (
                       <Badge variant='outline' className="shrink-0">
-                        {format(new Date(t.data_transacao), 'dd/MM/yyyy')}
+                        {format(new Date(t.transaction_date), 'dd/MM/yyyy')}
                       </Badge>
                     )}
-                    {t.total_parcelas && t.total_parcelas > 1 && !t.conta_recorrente_id && (
+                    {t.total_installments && t.total_installments > 1 && !t.recurring_account_id && (
                       <Badge className="shrink-0">
-                        {t.parcela}/{t.total_parcelas}
+                        {t.installment_number}/{t.total_installments}
                       </Badge>
                     )}
                     {t.bank_code && bankName && (
@@ -280,11 +282,11 @@ export function TransactionList({
                         )}
                       </span>
                     )}
-                    {!t.conta_recorrente_id && (
-                      <span className="text-slate-400 truncate">• {t.categoria_nome}</span>
+                    {!t.recurring_account_id && (
+                      <span className="text-slate-400 truncate">• {t.category_name}</span>
                     )}
-                    {t.conta_recorrente_id && (
-                      <span className="text-blue-400 truncate">• {t.categoria_nome}</span>
+                    {t.recurring_account_id && (
+                      <span className="text-blue-400 truncate">• {t.category_name}</span>
                     )}
                   </div>
                 </div>
@@ -310,10 +312,13 @@ export function TransactionList({
         />
       )}
 
-      <ExtratoDialog
-        open={extratoOpen}
-        onOpenChange={setExtratoOpen}
-        onImported={() => onReload?.()}
+      <ExtratoUploadModal
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        onUploadComplete={(sessions) => {
+          setUploadOpen(false)
+          navigate('/extrato-bancario', { state: { sessions } })
+        }}
       />
     </div>
   );

@@ -2,6 +2,7 @@ import {
   FinancialSummary,
   YearlyPerformance,
   CategoryBreakdown,
+  IncomeBySubcategoria,
   Transaction,
   LimitsPayload,
   CategorySubcategories,
@@ -16,17 +17,26 @@ import {
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8005';
 
 export class FinancialService {
+  // Helper: converte 'pf'/'pj' (legado do frontend) para 'individual'/'business'
+  private static mapEntityType(entityType?: string): string | undefined {
+    if (!entityType || entityType === 'all') return undefined;
+    if (entityType === 'pf') return 'individual';
+    if (entityType === 'pj') return 'business';
+    return entityType;
+  }
+
   // 1. Extrato financeiro completo (agora recebe natureza opcional)
   static async getFinancialSummary(
     dateRange: { from: Date; to: Date },
-    natureza?: 'pf' | 'pj' | 'all'
+    entityType?: string
   ): Promise<FinancialSummary> {
+    const mapped = FinancialService.mapEntityType(entityType);
     const params = new URLSearchParams({
-      data_inicio: dateRange.from.toLocaleDateString('pt-BR'),
-      data_final: dateRange.to.toLocaleDateString('pt-BR'),
-      natureza: natureza || 'pf'
+      start_date: dateRange.from.toLocaleDateString('pt-BR'),
+      end_date: dateRange.to.toLocaleDateString('pt-BR'),
+      entity_type: mapped || 'individual'
     });
-    const res = await fetch(`${API_BASE_URL}/dashboard/extrato?${params}`);
+    const res = await fetch(`${API_BASE_URL}/dashboard/statement?${params}`);
     if (!res.ok) {
       throw new Error(`Erro ${res.status} ao buscar extrato financeiro`);
     }
@@ -36,14 +46,15 @@ export class FinancialService {
   // 2. Rendimento anual (performance mensal) com filtro de natureza
   static async getYearlyPerformance(
     year: number,
-    natureza?: 'pf' | 'pj' | 'all'
+    entityType?: string
   ): Promise<YearlyPerformance> {
+    const mapped = FinancialService.mapEntityType(entityType);
     const params = new URLSearchParams({
-      ano: year.toString(),
-      ...(natureza && natureza !== 'all' ? { natureza } : {})
+      year: year.toString(),
+      ...(mapped ? { entity_type: mapped } : {})
     });
     const res = await fetch(
-      `${API_BASE_URL}/dashboard/rendimento-periodo?${params}`
+      `${API_BASE_URL}/dashboard/period-income?${params}`
     );
     if (!res.ok) {
       throw new Error(`Erro ${res.status} ao buscar rendimento anual`);
@@ -54,17 +65,18 @@ export class FinancialService {
   // 3. Gastos por categoria (saídas) com filtro de natureza
   static async getCategoryBreakdown(
     dateRange: { from: Date; to: Date },
-    natureza?: 'pf' | 'pj' | 'all',
-    tipo: string = 'saida',
+    entityType?: string,
+    type: string = 'expense',
   ): Promise<CategoryBreakdown> {
+    const mapped = FinancialService.mapEntityType(entityType);
     const params = new URLSearchParams({
-      data_inicio: dateRange.from.toLocaleDateString('pt-BR'),
-      data_final: dateRange.to.toLocaleDateString('pt-BR'),
-      tipo,
-      natureza: natureza || 'pf'
+      start_date: dateRange.from.toLocaleDateString('pt-BR'),
+      end_date: dateRange.to.toLocaleDateString('pt-BR'),
+      type: type,
+      entity_type: mapped || 'individual'
     })
     const res = await fetch(
-      `${API_BASE_URL}/dashboard/gastos-por-categoria?${params}`
+      `${API_BASE_URL}/dashboard/expenses-by-category?${params}`
     )
     if (!res.ok) {
       throw new Error(`Erro ${res.status} ao buscar gastos por categoria`)
@@ -72,35 +84,37 @@ export class FinancialService {
     return res.json()
   }
 
-  // 4. Entradas por categoria (agora opcional natureza)
+  // 4. Entradas por subcategoria
   static async getCategoryIncome(
     dateRange: { from: Date; to: Date },
-    natureza?: 'pf' | 'pj' | 'all'
-  ): Promise<CategoryBreakdown> {
+    entityType?: string
+  ): Promise<IncomeBySubcategoria> {
+    const mapped = FinancialService.mapEntityType(entityType);
     const params = new URLSearchParams({
-      data_inicio: dateRange.from.toLocaleDateString('pt-BR'),
-      data_final: dateRange.to.toLocaleDateString('pt-BR'),
-      natureza: natureza || 'pf'
+      start_date: dateRange.from.toLocaleDateString('pt-BR'),
+      end_date: dateRange.to.toLocaleDateString('pt-BR'),
+      entity_type: mapped || 'individual'
     });
     const res = await fetch(
-      `${API_BASE_URL}/dashboard/entradas-por-categoria?${params}`
+      `${API_BASE_URL}/dashboard/income-by-category?${params}`
     );
     if (!res.ok) {
-      throw new Error(`Erro ${res.status} ao buscar entradas por categoria`);
+      throw new Error(`Erro ${res.status} ao buscar entradas por subcategoria`);
     }
     return res.json();
   }
 
   // 5. Mapa de categoria → subcategorias (opcional natureza e tipo)
   static async getCategorySubcategories(
-    natureza?: 'pf' | 'pj' | 'all',
-    tipo?: string
+    entityType?: string,
+    type?: string
   ): Promise<CategorySubcategories> {
     const params = new URLSearchParams()
-    if (natureza) params.set('natureza', natureza)
-    if (tipo) params.set('tipo', tipo)
+    const mapped = FinancialService.mapEntityType(entityType);
+    if (mapped) params.set('entity_type', mapped)
+    if (type) params.set('type', type)
     const query = params.toString() ? `?${params.toString()}` : ''
-    const res = await fetch(`${API_BASE_URL}/dashboard/opcoes-categorias${query}`)
+    const res = await fetch(`${API_BASE_URL}/dashboard/category-options${query}`)
     if (!res.ok) {
       throw new Error(`Erro ${res.status} ao buscar categorias`)
     }
@@ -109,9 +123,10 @@ export class FinancialService {
 
   // 6. Todas as transações (opcional natureza)
   static async getAllTransactions(
-    natureza?: 'pf' | 'pj'
+    entityType?: string
   ): Promise<Transaction[]> {
-    const query = natureza ? `?natureza=${natureza}` : '';
+    const mapped = FinancialService.mapEntityType(entityType);
+    const query = mapped ? `?entity_type=${mapped}` : '';
     const res = await fetch(`${API_BASE_URL}/transacoes${query}`);
     if (!res.ok) {
       throw new Error(`Erro ${res.status} ao listar transações`);
@@ -119,37 +134,18 @@ export class FinancialService {
     return res.json();
   }
 
-  // 7. Transações por mês (agora com filtro de natureza)
-  static async getTransactionsByMonth(
-    year: number,
-    month: number,
-    natureza?: 'pf' | 'pj'
-  ): Promise<Transaction[]> {
-    const params = new URLSearchParams({
-      ano: year.toString(),
-      mes: month.toString(),
-      ...(natureza ? { natureza } : {})
-    });
-    const res = await fetch(
-      `${API_BASE_URL}/dashboard/transacoes-por-mes?${params}`
-    );
-    if (!res.ok) {
-      throw new Error(`Erro ${res.status} ao buscar transações por mês`);
-    }
-    return res.json();
-  }
-
-  // 7b. Transacoes do ano inteiro (para o grafico anual)
+  // 7. Transacoes do ano inteiro (para o grafico anual)
   static async getYearTransactions(
     year: number,
-    natureza?: string
+    entityType?: string
   ): Promise<Transaction[]> {
+    const mapped = FinancialService.mapEntityType(entityType);
     const from = new Date(year, 0, 1);
     const to = new Date(year, 11, 31);
     const params = new URLSearchParams({
-      data_inicio: from.toLocaleDateString('pt-BR'),
-      data_final: to.toLocaleDateString('pt-BR'),
-      ...(natureza && natureza !== 'all' ? { natureza } : {}),
+      start_date: from.toLocaleDateString('pt-BR'),
+      end_date: to.toLocaleDateString('pt-BR'),
+      ...(mapped ? { entity_type: mapped } : {}),
     });
     const res = await fetch(`${API_BASE_URL}/transacoes/?${params}`);
     if (!res.ok) {
@@ -160,7 +156,7 @@ export class FinancialService {
 
   // 8. Verificar duplicatas (single ou bulk)
   static async checkDuplicates(
-    params: { data_transacao?: string; valor?: number; transacoes?: Array<{ index: number; data_transacao: string; valor: number }> }
+    params: { transaction_date?: string; amount?: number; transactions?: Array<{ index: number; transaction_date: string; amount: number }> }
   ): Promise<DuplicateCheckResponse> {
     const res = await fetch(`${API_BASE_URL}/transacoes/check-duplicates`, {
       method: 'POST',
@@ -231,7 +227,7 @@ export class FinancialService {
   }
 
   static async getLimits(): Promise<LimitsPayload> {
-    const res = await fetch(`${API_BASE_URL}/categorias/`);
+    const res = await fetch(`${API_BASE_URL}/categories/`);
     if (!res.ok) throw new Error(`Erro ${res.status}`);
     return res.json();
   }
@@ -246,5 +242,3 @@ export class FinancialService {
     return res.json();
   }
 }
-
-

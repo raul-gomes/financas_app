@@ -23,32 +23,32 @@ def parse_date(date_str: str, field_name: str) -> datetime:
         raise HTTPException(status_code=400, detail=f"Formato inválido para {field_name}. Use DD/MM/YYYY.")
 
 @router.get(
-    "/extrato",
+    "/statement",
     response_model=ExtratoResponse,
     summary="Extrato financeiro completo",
     description="Retorna entradas, saídas, meta e lista de transações no período",
     status_code=status.HTTP_200_OK
 )
 async def extrato_financeiro(
-    data_inicio: str = Query(..., description="Data inicial DD/MM/YYYY"),
-    data_final: str = Query(..., description="Data final DD/MM/YYYY"),
-    natureza: str = Query(default='pf', description="Natureza jurídica: pf, pj ou all"),
+    start_date: str = Query(..., description="Data inicial DD/MM/YYYY"),
+    end_date: str = Query(..., description="Data final DD/MM/YYYY"),
+    entity_type: str = Query(default='individual', description="Entity type: individual, business ou all"),
     db: AsyncSession = Depends(get_session)
 ):
-    api_logger = log_api_request("GET", "/dashboard/extrato")
+    api_logger = log_api_request("GET", "/dashboard/statement")
 
-    dt_i = parse_date(data_inicio, "data_inicio")
-    dt_f = parse_date(data_final, "data_final")
+    dt_i = parse_date(start_date, "start_date")
+    dt_f = parse_date(end_date, "end_date")
     dt_f = datetime.combine(dt_f.date(), datetime.max.time())
 
     dashboard_repo = DashboardRepository(db)
-    extrato = await dashboard_repo.extrato_financeiro(dt_i, dt_f, natureza, data_inicio, data_final)
+    extrato = await dashboard_repo.extrato_financeiro(dt_i, dt_f, entity_type, start_date, end_date)
 
     api_logger.success(
         "Extrato gerado", 
-        entradas=extrato.entradas, 
-        saidas=extrato.saidas, 
-        count=len(extrato.transacoes)
+        total_income=extrato.total_income, 
+        total_expenses=extrato.total_expenses, 
+        count=len(extrato.transactions)
     )
 
     return extrato
@@ -56,94 +56,94 @@ async def extrato_financeiro(
 
 
 @router.get(
-    "/rendimento-periodo",
+    "/period-income",
     response_model=RendimentoPeriodoResponse,
     summary="Rendimento por período",
     description="Retorna entradas/saídas agregadas por mês no ano"
 )
 async def rendimento_periodo(
-    ano: int = Query(..., description="Ano para agregação (YYYY)"),
-    natureza: str = Query(default='pf', description="Natureza jurídica: pf, pj ou all"),
+    year: int = Query(..., description="Ano para agregação (YYYY)"),
+    entity_type: str = Query(default='individual', description="Entity type: individual, business ou all"),
     db: AsyncSession = Depends(get_session)
 ):
-    api_logger = log_api_request("GET", "/dashboard/rendimento-periodo")
+    api_logger = log_api_request("GET", "/dashboard/period-income")
 
     dashboard_repo = DashboardRepository(db)
-    rendimento_ano = await dashboard_repo.rendimento_por_periodo(ano, natureza)
+    rendimento_ano = await dashboard_repo.rendimento_por_periodo(year, entity_type)
 
-    api_logger.success("Rendimento por período gerado", year=ano)
+    api_logger.success("Rendimento por período gerado", year=year)
 
     return rendimento_ano
 
 @router.get(
-    "/gastos-por-categoria",
+    "/expenses-by-category",
     response_model=GastosPorCategoriaResponse,
     summary="Gastos por categoria/subcategoria",
-    description="Retorna valores agregados por categoria e subcategoria para 'entrada' ou 'saida'",
+    description="Retorna valores agregados por categoria e subcategoria para 'income' ou 'expense'",
     status_code=status.HTTP_200_OK,
 )
 async def gastos_por_categoria(
-    data_inicio: str = Query(..., description="Data inicial DD/MM/YYYY"),
-    data_final: str = Query(..., description="Data final DD/MM/YYYY"),
-    natureza: str = Query(default='pf', description="Natureza jurídica: pf, pj ou all"),
-    tipo: Literal["entrada", "saida"] = Query(..., description="Tipo de transação"),
+    start_date: str = Query(..., description="Data inicial DD/MM/YYYY"),
+    end_date: str = Query(..., description="Data final DD/MM/YYYY"),
+    entity_type: str = Query(default='individual', description="Entity type: individual, business ou all"),
+    type: Literal["income", "expense"] = Query(..., description="Tipo de transação"),
     db: AsyncSession = Depends(get_session),
 ):
-    dt_i = datetime.strptime(data_inicio, "%d/%m/%Y")
-    dt_f = datetime.strptime(data_final, "%d/%m/%Y")
+    dt_i = datetime.strptime(start_date, "%d/%m/%Y")
+    dt_f = datetime.strptime(end_date, "%d/%m/%Y")
     dt_f = datetime.combine(dt_f.date(), datetime.max.time())
 
     repo = DashboardRepository(db)
     categorias = await repo.gastos_por_categoria(
-        dt_i, dt_f, natureza, TipoTrans(tipo)
+        dt_i, dt_f, entity_type, TipoTrans(type)
     )
 
     return GastosPorCategoriaResponse(
-        data_inicial=data_inicio,
-        data_final=data_final,
-        categorias=categorias,
+        start_date=start_date,
+        end_date=end_date,
+        categories=categorias,
     )
 @router.get(
-    '/opcoes-categorias',
+    '/category-options',
     response_model=OpcoesCategoriaResponse,
     summary='Opções de categorias e subcategorias',
     description='Retorna lista de categorias com suas respectivas subcategorias.'
 )
 async def opcoes_categorias(
-    natureza: Literal['pf', 'pj', 'all'] = Query('all'),
-    tipo: Optional[str] = Query(None, description="Filtrar por tipo de transacao: entrada, saida, investimento"),
+    entity_type: Literal['individual', 'business', 'all'] = Query('all'),
+    type: Optional[str] = Query(None, description="Filtrar por tipo de transacao: income, expense, investment"),
     db: AsyncSession = Depends(get_session)
 ) -> OpcoesCategoriaResponse:
     
-    api_logger = log_api_request('GET', '/dashboard/opcoes-categorias', natureza=natureza, tipo=tipo)
-    api_logger.info('Gerando opções de categorias', natureza=natureza, tipo=tipo)
+    api_logger = log_api_request('GET', '/dashboard/category-options', entity_type=entity_type, type=type)
+    api_logger.info('Gerando opções de categorias', entity_type=entity_type, type=type)
 
     dashboard_repo = DashboardRepository(db)
-    opcoes = await dashboard_repo.opcoes_categorias(natureza, tipo)
+    opcoes = await dashboard_repo.opcoes_categorias(entity_type, type)
 
-    api_logger.success('Opções de categorias retornadas', count=len(opcoes.opcoes))
+    api_logger.success('Opções de categorias retornadas', count=len(opcoes.options))
     return opcoes
 
 @router.get(
-    '/entradas-por-categoria',
+    '/income-by-category',
     response_model=EntradasPorCategoriaResponse,
     summary='Entradas por subcategoria',
     description='Retorna valores de entradas por subcategoria agrupados por categoria'
 )
 async def entradas_por_categoria(
-    data_inicio: str = Query(..., description='Data inicial DD/MM/YYYY'),
-    data_final: str = Query(..., description='Data final DD/MM/YYYY'),
-    natureza: str = Query(default='pf', description='Natureza jurídica: pf, pj ou all'),
+    start_date: str = Query(..., description='Data inicial DD/MM/YYYY'),
+    end_date: str = Query(..., description='Data final DD/MM/YYYY'),
+    entity_type: str = Query(default='individual', description='Entity type: individual, business ou all'),
     db: AsyncSession = Depends(get_session)
 ):
-    api_logger = log_api_request('GET', '/dashboard/entradas-por-categoria')
+    api_logger = log_api_request('GET', '/dashboard/income-by-category')
     
-    dt_i = parse_date(data_inicio, 'data_inicio')
-    dt_f = parse_date(data_final, 'data_final')
+    dt_i = parse_date(start_date, 'start_date')
+    dt_f = parse_date(end_date, 'end_date')
     dt_f = datetime.combine(dt_f.date(), datetime.max.time())
 
     dashboard_repo = DashboardRepository(db)
-    resultado = await dashboard_repo.entradas_por_categoria(dt_i, dt_f, natureza, data_inicio, data_final)
+    resultado = await dashboard_repo.entradas_por_categoria(dt_i, dt_f, entity_type, start_date, end_date)
 
-    api_logger.success('Entradas por categoria geradas', count=len(resultado.subcategorias))
+    api_logger.success('Entradas por categoria geradas', count=len(resultado.subcategories))
     return resultado

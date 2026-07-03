@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
-from typing import List
+from typing import List, Optional
 from datetime import date, datetime
 
 from app.db.repositories.shopping import ShoppingRepository
@@ -18,12 +18,13 @@ router = APIRouter(prefix="/shopping", tags=["Shopping"])
 )
 async def list_shopping(
     request: Request,
-    mes: date = Query(..., description="Mês de referência (YYYY-MM-DD, primeiro dia do mês)"),
+    month: date = Query(..., description="Mês de referência (YYYY-MM-DD, primeiro dia do mês)"),
+    entity_type: Optional[str] = Query(None, description="Filtrar por tipo de entidade: individual, business"),
     repo: ShoppingRepository = Depends(ShoppingRepository),
 ):
-    log = log_api_request(method="GET", endpoint=str(request.url), mes=str(mes))
+    log = log_api_request(method="GET", endpoint=str(request.url), month=str(month), entity_type=entity_type)
     try:
-        items = await repo.list_by_month(mes)
+        items = await repo.list_by_month(month, entity_type=entity_type)
         log.info(f"{len(items)} itens encontrados")
         return items
     except Exception as e:
@@ -123,26 +124,26 @@ async def delete_shopping_item(
 
 
 @router.post(
-    "/migrar",
+    "/migrate",
     summary="Migrar itens não-marcados",
     description="Copia itens não-marcados do mês de origem para o mês de destino."
 )
 async def migrar_itens(
     request: Request,
-    mes_origem: date = Query(..., description="Mês de origem (YYYY-MM-DD)"),
-    mes_destino: date = Query(..., description="Mês de destino (YYYY-MM-DD)"),
+    source_month: date = Query(..., description="Mês de origem (YYYY-MM-DD)"),
+    target_month: date = Query(..., description="Mês de destino (YYYY-MM-DD)"),
     repo: ShoppingRepository = Depends(ShoppingRepository),
 ):
     log = log_api_request(
         method="POST",
         endpoint=str(request.url),
-        mes_origem=str(mes_origem),
-        mes_destino=str(mes_destino),
+        source_month=str(source_month),
+        target_month=str(target_month),
     )
     try:
-        qtd = await repo.migrar_nao_marcados(mes_origem, mes_destino)
+        qtd = await repo.migrate_unchecked(source_month, target_month)
         log.info(f"{qtd} itens migrados")
-        return {"mensagem": f"{qtd} itens migrados com sucesso", "quantidade": qtd}
+        return {"message": f"{qtd} itens migrados com sucesso", "count": qtd}
     except Exception as e:
         log.error(f"Erro ao migrar itens: {e}")
         raise HTTPException(

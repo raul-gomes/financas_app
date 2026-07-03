@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ContaRecorrente, ContaRecorrenteCreate, ContaRecorrenteUpdate } from '@/types/conta_recorrente';
-import { ContaRecorrenteService } from '@/services/contaRecorrenteService';
+import { ContaRecorrente, ContaRecorrenteCreate, ContaRecorrenteUpdate } from '@/types/recurring_account';
+import { ContaRecorrenteService } from '@/services/recurringAccountService';
 import { Button } from '@/components/ui/button';
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -64,18 +64,18 @@ const RecurrentBills = () => {
   };
 
   const handleToggleActive = async (conta: ContaRecorrente) => {
-    const action = conta.ativo ? 'desativar' : 'ativar';
-    const msg = conta.ativo
-      ? `Isso cancelara as ${conta.parcelas_restantes} parcelas futuras. Desativar mesmo?`
+    const action = conta.active ? 'desativar' : 'ativar';
+    const msg = conta.active
+      ? `Isso cancelara as ${conta.remaining_installments} parcelas futuras. Desativar mesmo?`
       : 'Ativar esta conta recorrente?';
     if (!confirm(msg)) return;
 
     try {
-      await ContaRecorrenteService.update(conta.id, { ativo: !conta.ativo });
+      await ContaRecorrenteService.update(conta.id, { ativo: !conta.active });
       toast({
         title: 'Sucesso',
-        description: conta.ativo
-          ? `Conta desativada. ${conta.parcelas_restantes} parcelas futuras canceladas.`
+        description: conta.active
+          ? `Conta desativada. ${conta.remaining_installments} parcelas futuras canceladas.`
           : 'Conta ativada.',
       });
       loadContas();
@@ -98,21 +98,21 @@ const RecurrentBills = () => {
   };
 
   const isEndingSoon = (conta: ContaRecorrente): boolean => {
-    return conta.ativo && conta.parcelas_restantes <= 2 && conta.parcelas_restantes > 0;
+    return conta.active && conta.remaining_installments <= 2 && conta.remaining_installments > 0;
   };
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(value);
 
   const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('pt-BR');
+    new Date(dateStr).toLocaleDateString('en-US');
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Contas Recorrentes</h1>
+            <h1 className="text-2xl font-bold text-foreground">Recurring Accounts</h1>
             <p className="text-muted-foreground mt-1">Gerencie suas despesas mensais fixas — cada conta gera 12 parcelas automaticamente</p>
           </div>
           <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-primary">
@@ -143,10 +143,10 @@ const RecurrentBills = () => {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {contas.map((conta) => (
-                    <tr key={conta.id} className={`hover:bg-muted/30 ${!conta.ativo ? 'opacity-50' : ''}`}>
+                    <tr key={conta.id} className={`hover:bg-muted/30 ${!conta.active ? 'opacity-50' : ''}`}>
                       <td className="px-4 py-3 text-sm font-medium text-foreground">
                         <div className="flex items-center gap-2">
-                          {conta.descricao}
+                          {conta.description}
                           {isEndingSoon(conta) && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
                               <AlertTriangle className="w-3 h-3" />
@@ -155,27 +155,27 @@ const RecurrentBills = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-foreground">{formatCurrency(conta.valor)}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">Dia {conta.dia_vencimento}</td>
+                      <td className="px-4 py-3 text-sm text-foreground">{formatCurrency(conta.amount)}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">Dia {conta.due_day}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {conta.categoria_nome}
-                        {conta.subcategoria_nome && ` / ${conta.subcategoria_nome}`}
+                        {conta.category_name}
+                        {conta.subcategory_name && ` / ${conta.subcategory_name}`}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {conta.parcelas_restantes}/{conta.total_parcelas}
+                        {conta.remaining_installments}/{conta.total_installments}
                       </td>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => handleToggleActive(conta)}
                           className="flex items-center gap-1 text-sm"
                         >
-                          {conta.ativo ? (
+                          {conta.active ? (
                             <ToggleRight className="w-5 h-5 text-green-500" />
                           ) : (
                             <ToggleLeft className="w-5 h-5 text-muted-foreground" />
                           )}
-                          <span className={conta.ativo ? 'text-green-500' : 'text-muted-foreground'}>
-                            {conta.ativo ? 'Ativa' : 'Inativa'}
+                          <span className={conta.active ? 'text-green-500' : 'text-muted-foreground'}>
+                            {conta.active ? 'Ativa' : 'Inativa'}
                           </span>
                         </button>
                       </td>
@@ -195,9 +195,9 @@ const RecurrentBills = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRenew(conta.id)}
-                            disabled={renewingId === conta.id || (conta.ativo && conta.parcelas_restantes > 2)}
+                            disabled={renewingId === conta.id || (conta.active && conta.remaining_installments > 2)}
                             title={
-                              conta.ativo && conta.parcelas_restantes > 2
+                              conta.active && conta.remaining_installments > 2
                                 ? 'Ainda ha parcelas restantes'
                                 : 'Renovar por mais 12 meses'
                             }

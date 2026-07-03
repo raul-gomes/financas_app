@@ -172,13 +172,13 @@ export function D3BarChart({
         .attr('fill', 'hsl(var(--destructive))')
         .style('font-size', '13px')
         .style('font-weight', 'bold')
-        .text(`Limite: R$ ${monthlyGoal.toLocaleString('pt-BR')}`);
+        .text(`Limite: R$ ${monthlyGoal.toLocaleString('en-US')}`);
 
       // Add hover effect to goal line
       goalLine
         .on('mouseover', function(event) {
           const formatCurrency = (amount: number) => {
-            return new Intl.NumberFormat('pt-BR', {
+            return new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: 'BRL'
             }).format(amount);
@@ -245,7 +245,7 @@ export function D3BarChart({
       .style('cursor', 'pointer')
         .on('mouseover', function(event, d: any) {
           const formatCurrency = (amount: number) => {
-            return new Intl.NumberFormat('pt-BR', {
+            return new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: 'BRL'
             }).format(amount);
@@ -256,9 +256,9 @@ export function D3BarChart({
           const isInvestment = d3.select(this).classed('investment-bar');
           let value = 0;
           let type = '';
-          if (isIncome) { value = d.income; type = 'Entradas'; }
-          else if (isExpense) { value = d.expenses; type = 'Saídas'; }
-          else if (isInvestment) { value = d.investment; type = 'Investimento'; }
+          if (isIncome) { value = d.income; type = 'Income'; }
+          else if (isExpense) { value = d.expenses; type = 'Expenses'; }
+          else if (isInvestment) { value = d.investment; type = 'Investment'; }
           
           tooltip
             .style('visibility', 'visible')

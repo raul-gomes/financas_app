@@ -13,8 +13,12 @@ import { useToast } from '@/hooks/use-toast'
 import { ShoppingService } from '@/services/shoppingService'
 import type { ShoppingItem } from '@/types/shopping'
 
+interface ComprasTabProps {
+    entityTypeFilter?: 'pf' | 'pj' | 'all'
+}
+
 // ===== Compras Tab =====
-export const ComprasTab = () => {
+export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
     const [items, setItems] = useState<ShoppingItem[]>([])
     const [loading, setLoading] = useState(false)
     const [newNome, setNewNome] = useState('')
@@ -29,21 +33,23 @@ export const ComprasTab = () => {
     const loadItems = useCallback(async () => {
         setLoading(true)
         try {
-            const data = await ShoppingService.listByMonth(mesRefStr)
+            const entityTypeParam = entityTypeFilter === 'all' ? undefined : (entityTypeFilter === 'pf' ? 'individual' : 'business')
+            const data = await ShoppingService.listByMonth(mesRefStr, entityTypeParam)
             setItems(data)
         } catch {
             toast({ title: 'Erro', description: 'Falha ao carregar compras.', variant: 'destructive' })
         } finally {
             setLoading(false)
         }
-    }, [toast, mesRefStr])
+    }, [toast, mesRefStr, entityTypeFilter])
 
     useEffect(() => { loadItems() }, [loadItems])
 
     const handleCreate = async () => {
         if (!newNome.trim()) return
         try {
-            await ShoppingService.create({ nome: newNome.trim(), mes_ref: mesRefStr })
+            const entity_type = entityTypeFilter === 'all' ? 'individual' : (entityTypeFilter === 'pf' ? 'individual' : 'business')
+            await ShoppingService.create({ name: newNome.trim(), reference_month: mesRefStr, entity_type })
             toast({ title: 'Sucesso', description: 'Item adicionado!' })
             setNewNome('')
             loadItems()
@@ -54,7 +60,7 @@ export const ComprasTab = () => {
 
     const handleToggle = async (item: ShoppingItem) => {
         try {
-            await ShoppingService.update(item.id, { marcado: !item.marcado })
+            await ShoppingService.update(item.id, { checked: !item.checked })
             loadItems()
         } catch {
             toast({ title: 'Erro', description: 'Falha ao atualizar item.', variant: 'destructive' })
@@ -64,7 +70,7 @@ export const ComprasTab = () => {
     const handleUpdateNome = async (id: number) => {
         if (!editNome.trim()) return
         try {
-            await ShoppingService.update(id, { nome: editNome.trim() })
+            await ShoppingService.update(id, { name: editNome.trim() })
             toast({ title: 'Sucesso', description: 'Item atualizado!' })
             setEditingItem(null)
             loadItems()
@@ -84,13 +90,13 @@ export const ComprasTab = () => {
         }
     }
 
-    const pendentes = items.filter(i => !i.marcado)
-    const concluidos = items.filter(i => i.marcado)
+    const pendentes = items.filter(i => !i.checked)
+    const concluidos = items.filter(i => i.checked)
     const pendentesFiltrados = pendentes.filter(i =>
-        i.nome.toLowerCase().includes(searchPendentes.toLowerCase())
+        i.name.toLowerCase().includes(searchPendentes.toLowerCase())
     )
     const concluidosFiltrados = concluidos.filter(i =>
-        i.nome.toLowerCase().includes(searchConcluidas.toLowerCase())
+        i.name.toLowerCase().includes(searchConcluidas.toLowerCase())
     )
 
     return (
@@ -157,7 +163,7 @@ export const ComprasTab = () => {
                                         <div className="flex items-end gap-2 w-full">
                                             <div className="flex-1 space-y-1">
                                                 <Label className="text-xs">Nome</Label>
-                                                <Input value={editNome} onChange={e => setEditNome(e.target.value)} />
+                                                <Input value={editNome} onChange={e => setEditNome(e.target.value)} placeholder="Nome" />
                                             </div>
                                             <Button size="sm" onClick={() => handleUpdateNome(item.id)} disabled={!editNome.trim()}>
                                                 <Save className="h-3.5 w-3.5 mr-1" />Salvar
@@ -169,14 +175,14 @@ export const ComprasTab = () => {
                                             <div className="flex items-center gap-3">
                                                 <input
                                                     type="checkbox"
-                                                    checked={item.marcado}
+                                                    checked={item.checked}
                                                     onChange={() => handleToggle(item)}
                                                     className="h-4 w-4 rounded border-gray-300"
                                                 />
-                                                <span className="font-medium">{item.nome}</span>
+                                                <span className="font-medium">{item.name}</span>
                                             </div>
                                             <div className="flex gap-1">
-                                                <Button variant="ghost" size="sm" onClick={() => { setEditingItem(item); setEditNome(item.nome) }}>
+                                                <Button variant="ghost" size="sm" onClick={() => { setEditingItem(item); setEditNome(item.name) }}>
                                                     <Pencil className="h-3.5 w-3.5" />
                                                 </Button>
                                                 <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
@@ -220,15 +226,15 @@ export const ComprasTab = () => {
                                         <div className="flex items-center gap-3">
                                             <input
                                                 type="checkbox"
-                                                checked={item.marcado}
+                                                checked={item.checked}
                                                 onChange={() => handleToggle(item)}
                                                 className="h-4 w-4 rounded border-gray-300"
                                             />
                                             <div>
-                                                <span className="font-medium text-green-700 line-through">{item.nome}</span>
-                                                {item.data_conclusao && (
+                                                <span className="font-medium text-green-700 line-through">{item.name}</span>
+                                                {item.completed_at && (
                                                     <p className="text-xs text-muted-foreground">
-                                                        Concluído em {new Date(item.data_conclusao + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                                        Concluído em {new Date(item.completed_at + 'T12:00:00').toLocaleDateString('en-US')}
                                                     </p>
                                                 )}
                                             </div>

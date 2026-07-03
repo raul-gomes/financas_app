@@ -7,16 +7,16 @@ from typing import List, Optional, Union
 class SubcategoriaLimiteUpdate(BaseModel):
     """Schema para subcategoria dentro de payload de limites"""
     id: Optional[int] = Field(None, description="ID da subcategoria (null para novas)")
-    subcategoria_nome: str = Field(..., description="Nome da subcategoria")
+    subcategory_name: str = Field(..., description="Nome da subcategoria")
 
 
 class CategoriaLimiteUpdate(BaseModel):
     """Schema para categoria dentro de payload de limites"""
     id: Optional[int] = Field(None, description="ID da categoria (null para novas)")
-    categoria_nome: str = Field(..., description="Nome da categoria")
-    natureza: str = Field(..., description="Natureza: pf, pj ou mensal")
-    limite: float = Field(0, description="Limite da categoria")
-    subcategorias: List[SubcategoriaLimiteUpdate] = Field(default_factory=list)
+    category_name: str = Field(..., description="Nome da categoria")
+    entity_type: str = Field(..., description="Entity type: individual, business ou mensal")
+    limit: float = Field(0, description="Limite da categoria")
+    subcategories: List[SubcategoriaLimiteUpdate] = Field(default_factory=list)
 
 
 class LimitsUpdatePayload(BaseModel):

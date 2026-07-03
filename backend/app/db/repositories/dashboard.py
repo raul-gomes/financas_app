@@ -6,10 +6,10 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
-from app.db.models.transacao import TransacaoORM
-from app.db.models.categoria import CategoriaORM
+from app.db.models.transaction import TransactionORM
+from app.db.models.category import CategoryORM
 from app.schemas.dashboard import CategoriaOpcao, EntradasPorCategoriaResponse, ExtratoResponse, OpcoesCategoriaResponse, RendimentoPeriodoResponse, SubcategoriaOpcao, TipoTrans, TransacaoExtrato
-from app.schemas.transacao import NaturezaTransacao, TransacaoResponse
+from app.schemas.transaction import NaturezaTransacao, TransacaoResponse
 
 class DashboardRepository:
     def __init__(self, db: AsyncSession):
@@ -17,21 +17,21 @@ class DashboardRepository:
 
     async def gastos_por_categoria(
         self,
-        data_inicio: datetime,
-        data_final: datetime,
-        natureza: str,
-        tipo: TipoTrans,
+        start_date: datetime,
+        end_date: datetime,
+        entity_type: str,
+        type: TipoTrans,
     ) -> List[Dict[str, Any]]:
         stmt = (
-            select(TransacaoORM)
-            .where(TransacaoORM.data_transacao >= data_inicio)
-            .where(TransacaoORM.data_transacao <= data_final)
+            select(TransactionORM)
+            .where(TransactionORM.transaction_date >= start_date)
+            .where(TransactionORM.transaction_date <= end_date)
         )
-        if natureza != 'all':
-            stmt = stmt.where(TransacaoORM.natureza == NaturezaTransacao(natureza))
-        stmt = stmt.where(TransacaoORM.tipo == tipo.value).options(
-            selectinload(TransacaoORM.categoria),
-            selectinload(TransacaoORM.subcategoria),
+        if entity_type != 'all':
+            stmt = stmt.where(TransactionORM.entity_type == NaturezaTransacao(entity_type))
+        stmt = stmt.where(TransactionORM.type == type.value).options(
+            selectinload(TransactionORM.category),
+            selectinload(TransactionORM.subcategory),
         )
 
         result = await self.db.execute(stmt)
@@ -39,32 +39,32 @@ class DashboardRepository:
 
         gastos: Dict[int, Dict[str, Any]] = {}
         for t in transacoes:
-            if not t.categoria or not t.subcategoria:
+            if not t.category or not t.subcategory:
                 continue
-            cid = t.categoria.id
-            cat_nome = t.categoria.categoria_nome
-            sub_nome = t.subcategoria.subcategoria_nome
-            limite = t.categoria.limite
+            cid = t.category.id
+            cat_nome = t.category.name
+            sub_nome = t.subcategory.name
+            limite = t.category.limit
 
             cat = gastos.setdefault(
                 cid,
-                {"nome": cat_nome, "total": 0.0, "limite": limite, "subcategorias": {}},
+                {"name": cat_nome, "total": 0.0, "limit": limite, "subcategories": {}},
             )
-            cat["total"] += t.valor
-            cat["subcategorias"].setdefault(sub_nome, 0.0)
-            cat["subcategorias"][sub_nome] += t.valor
+            cat["total"] += t.amount
+            cat["subcategories"].setdefault(sub_nome, 0.0)
+            cat["subcategories"][sub_nome] += t.amount
 
         resultado = []
         for data in gastos.values():
             if data["total"] > 0:
                 resultado.append(
                     {
-                        "nome": data["nome"],
+                        "name": data["name"],
                         "total": round(data["total"], 2),
-                        "limite": data["limite"],
-                        "subcategorias": [
-                            {"nome": sn, "valor": f"{round(v,2):.2f}"}
-                            for sn, v in data["subcategorias"].items()
+                        "limit": data["limit"],
+                        "subcategories": [
+                            {"name": sn, "amount": f"{round(v,2):.2f}"}
+                            for sn, v in data["subcategories"].items()
                         ],
                     }
                 )
@@ -74,164 +74,165 @@ class DashboardRepository:
     async def rendimento_por_periodo(
         self, 
         ano: int,
-        natureza: str) -> Dict[str, Dict[str, float]]:
+        entity_type: str) -> Dict[str, Dict[str, float]]:
 
         # Single query with GROUP BY month instead of 12 queries
         from sqlalchemy import func as sa_func, extract
 
         stmt = (
             select(
-                extract('month', TransacaoORM.data_transacao).label('mes'),
-                TransacaoORM.tipo,
-                sa_func.sum(TransacaoORM.valor).label('total'),
+                extract('month', TransactionORM.transaction_date).label('mes'),
+                TransactionORM.type,
+                sa_func.sum(TransactionORM.amount).label('total'),
             )
             .where(
-                extract('year', TransacaoORM.data_transacao) == ano,
+                extract('year', TransactionORM.transaction_date) == ano,
             )
         )
-        if natureza != 'all':
-            stmt = stmt.where(TransacaoORM.natureza == natureza)
-        stmt = stmt.group_by('mes', TransacaoORM.tipo)
+        if entity_type != 'all':
+            stmt = stmt.where(TransactionORM.entity_type == entity_type)
+        stmt = stmt.group_by('mes', TransactionORM.type)
 
         result = await self.db.execute(stmt)
         rows = result.all()
 
         meses_data: Dict[str, Dict[str, float]] = {}
         for m in range(1, 13):
-            meses_data[calendar.month_name[m].lower()] = {"entrada": 0.0, "saida": 0.0}
+            meses_data[calendar.month_name[m].lower()] = {"income": 0.0, "expense": 0.0}
 
         for row in rows:
             mes_nome = calendar.month_name[int(row.mes)].lower()
-            if row.tipo in ("entrada", "saida"):
-                meses_data[mes_nome][row.tipo] = round(float(row.total), 2)
+            if row.type in ("income", "expense"):
+                meses_data[mes_nome][row.type] = round(float(row.total), 2)
 
         mensal_cat = await self.db.execute(
-            select(CategoriaORM)
-            .where(func.lower(CategoriaORM.categoria_nome) == 'mensal pf')
-            .where(CategoriaORM.natureza == 'pf')
+            select(CategoryORM)
+            .where(func.lower(CategoryORM.name) == 'mensal pf')
+            .where(CategoryORM.entity_type == 'individual')
         )
         mensal_pf_obj = mensal_cat.scalars().first()
 
         mensal_pj_cat = await self.db.execute(
-            select(CategoriaORM)
-            .where(func.lower(CategoriaORM.categoria_nome) == 'mensal pj')
-            .where(CategoriaORM.natureza == 'pj')
+            select(CategoryORM)
+            .where(func.lower(CategoryORM.name) == 'mensal pj')
+            .where(CategoryORM.entity_type == 'business')
         )
         mensal_pj_obj = mensal_pj_cat.scalars().first()
 
-        if natureza == 'pf':
-            limite_mensal = mensal_pf_obj.limite if mensal_pf_obj else 1000.0
-        elif natureza == 'pj':
-            limite_mensal = mensal_pj_obj.limite if mensal_pj_obj else 1000.0
+        if entity_type == 'individual':
+            limite_mensal = mensal_pf_obj.limit if mensal_pf_obj else 1000.0
+        elif entity_type == 'business':
+            limite_mensal = mensal_pj_obj.limit if mensal_pj_obj else 1000.0
         else:
             limite_mensal = max(
-                (mensal_pf_obj.limite if mensal_pf_obj else 0),
-                (mensal_pj_obj.limite if mensal_pj_obj else 0)
+                (mensal_pf_obj.limit if mensal_pf_obj else 0),
+                (mensal_pj_obj.limit if mensal_pj_obj else 0)
             )
             if limite_mensal == 0:
                 limite_mensal = 1000.0
 
-        return RendimentoPeriodoResponse(limite=limite_mensal, meses=meses_data)
+        return RendimentoPeriodoResponse(limit=limite_mensal, months=meses_data)
     
     async def extrato_financeiro(
         self,
-        data_inicio: datetime,
-        data_final: datetime,
-        natureza: str,
-        data_inicio_str: str,
-        data_final_str: str
+        start_date: datetime,
+        end_date: datetime,
+        entity_type: str,
+        start_date_str: str,
+        end_date_str: str
     ) -> ExtratoResponse:
         stmt = (
-            select(TransacaoORM)
-            .where(TransacaoORM.data_transacao >= data_inicio)
-            .where(TransacaoORM.data_transacao <= data_final)
+            select(TransactionORM)
+            .where(TransactionORM.transaction_date >= start_date)
+            .where(TransactionORM.transaction_date <= end_date)
         )
-        if natureza != 'all':
-            stmt = stmt.where(TransacaoORM.natureza == natureza)
+        if entity_type != 'all':
+            stmt = stmt.where(TransactionORM.entity_type == entity_type)
         stmt = stmt.options(
-            selectinload(TransacaoORM.categoria),
-            selectinload(TransacaoORM.subcategoria),
-            selectinload(TransacaoORM.conta_recorrente),
-        ).order_by(TransacaoORM.data_transacao.desc())
+            selectinload(TransactionORM.category),
+            selectinload(TransactionORM.subcategory),
+            selectinload(TransactionORM.recurring_account),
+        ).order_by(TransactionORM.transaction_date.desc())
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
     
-        entradas = sum(t.valor for t in transacoes if t.tipo == "entrada")
-        saidas = sum(t.valor for t in transacoes if t.tipo == "saida")
+        total_income = sum(t.amount for t in transacoes if t.type == "income")
+        total_expenses = sum(t.amount for t in transacoes if t.type == "expense")
     
         txs = [
             TransacaoExtrato(
                 id=t.id,
-                tipo=t.tipo,
-                valor=t.valor,
-                descricao=t.descricao,
-                categoria_id=t.categoria_id,
-                subcategoria_id=t.subcategoria_id,
-                categoria_nome=t.categoria.categoria_nome if t.categoria else "",
-                subcategoria_nome=t.subcategoria.subcategoria_nome if t.subcategoria else "",
-                forma_pagamento=t.forma_pagamento,
-                parcela=t.parcela,
-                total_parcelas=t.total_parcelas,
-                natureza=t.natureza,
-                data_transacao=t.data_transacao,
-                conta_recorrente_id=t.conta_recorrente_id,
+                type=t.type,
+                amount=t.amount,
+                description=t.description,
+                category_id=t.category_id,
+                subcategory_id=t.subcategory_id,
+                category_name=t.category.name if t.category else "",
+                subcategory_name=t.subcategory.name if t.subcategory else "",
+                payment_method=t.payment_method,
+                installment_number=t.installment_number,
+                total_installments=t.total_installments,
+                is_installment=t.is_installment,
+                entity_type=t.entity_type,
+                transaction_date=t.transaction_date,
+                recurring_account_id=t.recurring_account_id,
                 bank_code=t.bank_code,
             )
             for t in transacoes
         ]
 
-        # Gastos fixos (com conta_recorrente_id) vs variáveis
-        gastos_fixos = sum(t.valor for t in transacoes if t.tipo == "saida" and t.conta_recorrente_id is not None)
-        gastos_variaveis = sum(t.valor for t in transacoes if t.tipo == "saida" and t.conta_recorrente_id is None)
+        # Gastos fixos (com recurring_account_id) vs variáveis
+        fixed_expenses = sum(t.amount for t in transacoes if t.type == "expense" and t.recurring_account_id is not None)
+        variable_expenses = sum(t.amount for t in transacoes if t.type == "expense" and t.recurring_account_id is None)
 
-        # Helper to read category limit by name
-        async def _get_cat_limit(cat_name: str, default: float = 1000.0) -> float:
-            result = await self.db.execute(
-                select(CategoriaORM)
-                .where(func.lower(CategoriaORM.categoria_nome) == cat_name.lower())
-            )
+        # Helper to read category limit by name and optional entity_type
+        async def _get_cat_limit(cat_name: str, default: float = 1000.0, cat_entity_type: Optional[str] = None) -> float:
+            query = select(CategoryORM).where(func.lower(CategoryORM.name) == cat_name.lower())
+            if cat_entity_type:
+                query = query.where(CategoryORM.entity_type == cat_entity_type)
+            result = await self.db.execute(query)
             obj = result.scalars().first()
-            return obj.limite if obj else default
+            return obj.limit if obj else default
 
-        # Meta mensal por natureza
-        if natureza == 'pf':
-            limite_mensal = await _get_cat_limit('Mensal PF')
-        elif natureza == 'pj':
-            limite_mensal = await _get_cat_limit('Mensal PJ')
+        # Meta mensal por entity_type
+        if entity_type == 'individual':
+            monthly_goal = await _get_cat_limit('Mensal PF')
+        elif entity_type == 'business':
+            monthly_goal = await _get_cat_limit('Mensal PJ')
         else:
-            limite_mensal = max(
+            monthly_goal = max(
                 await _get_cat_limit('Mensal PF', 0),
                 await _get_cat_limit('Mensal PJ', 0)
             )
-            if limite_mensal == 0:
-                limite_mensal = 1000.0
+            if monthly_goal == 0:
+                monthly_goal = 1000.0
 
-        limite_cartao = await _get_cat_limit('Limite Cartao Credito', 0)
+        credit_card_limit = await _get_cat_limit('Limite Cartao Credito', 0, cat_entity_type=entity_type if entity_type != 'all' else None)
 
-        total_investido = sum(t.valor for t in transacoes if t.tipo == "investimento")
+        total_invested = sum(t.amount for t in transacoes if t.type == "investment")
 
         return ExtratoResponse(
-            entradas=entradas,
-            saidas=saidas,
-            data_inicial=data_inicio_str,
-            data_final=data_final_str,
-            meta_mensal=limite_mensal,
-            total_investido=total_investido,
-            transacoes=txs,
-            limite_cartao_credito=limite_cartao,
-            gastos_fixos=gastos_fixos,
-            gastos_variaveis=gastos_variaveis,
+            total_income=total_income,
+            total_expenses=total_expenses,
+            start_date=start_date_str,
+            end_date=end_date_str,
+            monthly_goal=monthly_goal,
+            total_invested=total_invested,
+            transactions=txs,
+            credit_card_limit=credit_card_limit,
+            fixed_expenses=fixed_expenses,
+            variable_expenses=variable_expenses,
         )
 
-    async def opcoes_categorias(self, natureza: str = 'all', tipo: Optional[str] = None) -> OpcoesCategoriaResponse:
-        stmt = select(CategoriaORM).options(
-            selectinload(CategoriaORM.subcategorias)
+    async def opcoes_categorias(self, entity_type: str = 'all', tipo: Optional[str] = None) -> OpcoesCategoriaResponse:
+        stmt = select(CategoryORM).options(
+            selectinload(CategoryORM.subcategories)
         )
-        if natureza != 'all':
-            stmt = stmt.where(CategoriaORM.natureza == NaturezaTransacao(natureza))
+        if entity_type != 'all':
+            stmt = stmt.where(CategoryORM.entity_type == NaturezaTransacao(entity_type))
         if tipo:
             stmt = stmt.where(
-                or_(CategoriaORM.tipo == tipo, CategoriaORM.tipo.is_(None))
+                or_(CategoryORM.type == tipo, CategoryORM.type.is_(None))
             )
         result = await self.db.execute(stmt)
         categorias = result.unique().scalars().all()
@@ -241,79 +242,58 @@ class DashboardRepository:
             subs = [
                 SubcategoriaOpcao(
                     id=sub.id,
-                    nome=sub.subcategoria_nome
+                    name=sub.name
                 )
-                for sub in categoria.subcategorias
+                for sub in categoria.subcategories
             ]
             opcoes.append(
                 CategoriaOpcao(
                     id=categoria.id,
-                    categoria=categoria.categoria_nome,
-                    tipo=categoria.tipo,
-                    subcategorias=subs
+                    name=categoria.name,
+                    type=categoria.type,
+                    subcategories=subs
                 )
             )
 
-        return OpcoesCategoriaResponse(opcoes=opcoes)
+        return OpcoesCategoriaResponse(options=opcoes)
 
     async def entradas_por_categoria(
         self, 
-        data_inicio: datetime, 
-        data_final: datetime, 
-        natureza: str,
-        data_inicio_str: str,
-        data_final_str: str
+        start_date: datetime, 
+        end_date: datetime, 
+        entity_type: str,
+        start_date_str: str,
+        end_date_str: str
     ) -> EntradasPorCategoriaResponse:
         
-        # Buscar todas as categorias
-        stmt_categorias = select(CategoriaORM)
-        result = await self.db.execute(stmt_categorias)
-        categorias = result.unique().scalars().all()
+        # Buscar transações de entrada com subcategoria carregada
+        stmt = (
+            select(TransactionORM)
+            .where(TransactionORM.transaction_date >= start_date)
+            .where(TransactionORM.transaction_date <= end_date)
+            .where(TransactionORM.type == "income")
+            .options(selectinload(TransactionORM.subcategory))
+        )
+        if entity_type != 'all':
+            stmt = stmt.where(TransactionORM.entity_type == entity_type)
         
-        output: List[Dict[str, Any]] = []
+        result = await self.db.execute(stmt)
+        transacoes = result.unique().scalars().all()
         
-        for categoria in categorias:
-            # Buscar transações de entrada para esta categoria
-            stmt_transacoes = (
-                select(TransacaoORM)
-                .where(TransacaoORM.data_transacao >= data_inicio)
-                .where(TransacaoORM.data_transacao <= data_final)
-            )
-            if natureza != 'all':
-                stmt_transacoes = stmt_transacoes.where(TransacaoORM.natureza == natureza)
-            stmt_transacoes = (
-                stmt_transacoes
-                .where(TransacaoORM.categoria_id == categoria.id)
-                .where(TransacaoORM.tipo == "entrada")
-                .options(selectinload(TransacaoORM.subcategoria))
-            )
-            
-            result_trans = await self.db.execute(stmt_transacoes)
-            transacoes = result_trans.unique().scalars().all()
-            
-            subs: Dict[str, float] = {}
-            total = 0.0
-            
-            for transacao in transacoes:
-                valor = transacao.valor
-                total += valor
-                
-                if transacao.subcategoria:
-                    sub_nome = transacao.subcategoria.subcategoria_nome
-                    subs.setdefault(sub_nome, 0.0)
-                    subs[sub_nome] += valor
-            
-            # Só adiciona se tiver algum valor
-            if total > 0:
-                categoria_data = {
-                    'total': round(total, 2),
-                    categoria.categoria_nome.lower(): {k: round(v, 2) for k, v in subs.items()}
-                }
-                output.append(categoria_data)
+        # Agrupar por subcategoria
+        subs: Dict[str, float] = {}
+        for transacao in transacoes:
+            sub_nome = transacao.subcategory.name if transacao.subcategory else 'Sem subcategoria'
+            subs[sub_nome] = subs.get(sub_nome, 0.0) + transacao.amount
+        
+        output = [
+            {'name': nome, 'total': round(valor, 2)}
+            for nome, valor in sorted(subs.items(), key=lambda x: x[1], reverse=True)
+        ]
         
         return EntradasPorCategoriaResponse(
-            data_inicial=data_inicio_str,
-            data_final=data_final_str,
-            subcategorias=output
+            start_date=start_date_str,
+            end_date=end_date_str,
+            subcategories=output
         )
 

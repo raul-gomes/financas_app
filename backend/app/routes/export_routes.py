@@ -7,8 +7,8 @@ import csv
 import io
 
 from app.core.database import get_session
-from app.db.models.transacao import TransacaoORM
-from app.db.models.categoria import CategoriaORM, SubcategoriaORM
+from app.db.models.transaction import TransactionORM
+from app.db.models.category import CategoryORM, SubcategoryORM
 from app.logger import log_api_request
 
 router = APIRouter(prefix="/export", tags=["Exportação"])
@@ -16,13 +16,13 @@ router = APIRouter(prefix="/export", tags=["Exportação"])
 
 async def _fetch_transactions_for_export(
     db: AsyncSession,
-    data_inicio: str,
-    data_final: str,
+    start_date: str,
+    end_date: str,
 ):
     """Fetch transactions with joined category/subcategory within date range."""
     try:
-        dt_i = datetime.strptime(data_inicio, "%d/%m/%Y") if data_inicio else datetime(2000, 1, 1)
-        dt_f = datetime.strptime(data_final, "%d/%m/%Y") if data_final else datetime.now()
+        dt_i = datetime.strptime(start_date, "%d/%m/%Y") if start_date else datetime(2000, 1, 1)
+        dt_f = datetime.strptime(end_date, "%d/%m/%Y") if end_date else datetime.now()
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -30,10 +30,10 @@ async def _fetch_transactions_for_export(
         )
 
     result = await db.execute(
-        select(TransacaoORM)
-        .where(TransacaoORM.data_transacao >= dt_i)
-        .where(TransacaoORM.data_transacao <= dt_f)
-        .order_by(TransacaoORM.data_transacao.desc())
+        select(TransactionORM)
+        .where(TransactionORM.transaction_date >= dt_i)
+        .where(TransactionORM.transaction_date <= dt_f)
+        .order_by(TransactionORM.transaction_date.desc())
     )
     return result.unique().scalars().all()
 
@@ -45,15 +45,15 @@ async def _fetch_transactions_for_export(
 )
 async def export_csv(
     request: Request,
-    data_inicio: str = Query("01/01/2000", description="Data inicial DD/MM/YYYY"),
-    data_final: str = Query(None, description="Data final DD/MM/YYYY"),
+    start_date: str = Query("01/01/2000", description="Data inicial DD/MM/YYYY"),
+    end_date: str = Query(None, description="Data final DD/MM/YYYY"),
     db: AsyncSession = Depends(get_session),
 ):
     log = log_api_request(method="GET", endpoint=str(request.url))
-    if not data_final:
-        data_final = datetime.now().strftime("%d/%m/%Y")
+    if not end_date:
+        end_date = datetime.now().strftime("%d/%m/%Y")
 
-    transactions = await _fetch_transactions_for_export(db, data_inicio, data_final)
+    transactions = await _fetch_transactions_for_export(db, start_date, end_date)
     log.info(f"Exportando {len(transactions)} transações para CSV")
 
     output = io.StringIO()
@@ -68,17 +68,17 @@ async def export_csv(
 
     for t in transactions:
         writer.writerow([
-            t.data_transacao.strftime("%d/%m/%Y") if t.data_transacao else "",
-            t.descricao,
-            f"{t.valor:.2f}",
-            t.tipo,
-            t.natureza,
-            t.forma_pagamento,
-            t.categoria.categoria_nome if t.categoria else "",
-            t.subcategoria.subcategoria_nome if t.subcategoria else "",
+            t.transaction_date.strftime("%d/%m/%Y") if t.transaction_date else "",
+            t.description,
+            f"{t.amount:.2f}",
+            t.type,
+            t.entity_type,
+            t.payment_method,
+            t.category.name if t.category else "",
+            t.subcategory.name if t.subcategory else "",
             t.bank_code or "",
-            t.parcela or "",
-            t.total_parcelas or "",
+            t.installment_number or "",
+            t.total_installments or "",
         ])
 
     output.seek(0)
@@ -98,15 +98,15 @@ async def export_csv(
 )
 async def export_ofx(
     request: Request,
-    data_inicio: str = Query("01/01/2000", description="Data inicial DD/MM/YYYY"),
-    data_final: str = Query(None, description="Data final DD/MM/YYYY"),
+    start_date: str = Query("01/01/2000", description="Data inicial DD/MM/YYYY"),
+    end_date: str = Query(None, description="Data final DD/MM/YYYY"),
     db: AsyncSession = Depends(get_session),
 ):
     log = log_api_request(method="GET", endpoint=str(request.url))
-    if not data_final:
-        data_final = datetime.now().strftime("%d/%m/%Y")
+    if not end_date:
+        end_date = datetime.now().strftime("%d/%m/%Y")
 
-    transactions = await _fetch_transactions_for_export(db, data_inicio, data_final)
+    transactions = await _fetch_transactions_for_export(db, start_date, end_date)
     log.info(f"Exportando {len(transactions)} transações para OFX")
 
     # Generate OFX (OFX 1.0 / QFX format)
@@ -140,16 +140,16 @@ async def export_ofx(
 
     # Add transactions
     for t in transactions:
-        trntype = "DEBIT" if t.tipo == "saida" else "CREDIT"
-        date_str = t.data_transacao.strftime("%Y%m%d") if t.data_transacao else ""
-        cat = t.categoria.categoria_nome if t.categoria else ""
-        subcat = t.subcategoria.subcategoria_nome if t.subcategoria else ""
-        memo = f"{cat}/{subcat}: {t.descricao}"[:255]
+        trntype = "DEBIT" if t.type == "expense" else "CREDIT"
+        date_str = t.transaction_date.strftime("%Y%m%d") if t.transaction_date else ""
+        cat = t.category.name if t.category else ""
+        subcat = t.subcategory.name if t.subcategory else ""
+        memo = f"{cat}/{subcat}: {t.description}"[:255]
 
         lines.append("      <STMTTRN>")
         lines.append(f"        <TRNTYPE>{trntype}</TRNTYPE>")
         lines.append(f"        <DTPOSTED>{date_str}</DTPOSTED>")
-        lines.append(f"        <TRNAMT>{t.valor:.2f}</TRNAMT>")
+        lines.append(f"        <TRNAMT>{t.amount:.2f}</TRNAMT>")
         lines.append(f"        <MEMO>{memo}</MEMO>")
         lines.append("      </STMTTRN>")
 

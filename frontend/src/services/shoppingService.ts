@@ -3,8 +3,10 @@ import type { ShoppingItem, ShoppingItemCreate, ShoppingItemUpdate } from '@/typ
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8005';
 
 export const ShoppingService = {
-  async listByMonth(mes: string): Promise<ShoppingItem[]> {
-    const res = await fetch(`${API_BASE_URL}/shopping/?mes=${encodeURIComponent(mes)}`);
+  async listByMonth(month: string, entityType?: string): Promise<ShoppingItem[]> {
+    const params = new URLSearchParams({ month });
+    if (entityType) params.set('entity_type', entityType);
+    const res = await fetch(`${API_BASE_URL}/shopping/?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao listar itens`);
     return res.json();
   },
@@ -37,9 +39,9 @@ export const ShoppingService = {
     return res.json();
   },
 
-  async migrar(mes_origem: string, mes_destino: string): Promise<{ mensagem: string; quantidade: number }> {
+  async migrar(sourceMonth: string, targetMonth: string): Promise<{ message: string; quantity: number }> {
     const res = await fetch(
-      `${API_BASE_URL}/shopping/migrar?mes_origem=${encodeURIComponent(mes_origem)}&mes_destino=${encodeURIComponent(mes_destino)}`,
+      `${API_BASE_URL}/shopping/migrate?source_month=${encodeURIComponent(sourceMonth)}&target_month=${encodeURIComponent(targetMonth)}`,
       { method: 'POST' }
     );
     if (!res.ok) throw new Error(`Erro ${res.status} ao migrar itens`);

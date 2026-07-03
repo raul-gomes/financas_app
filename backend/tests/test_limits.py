@@ -13,12 +13,12 @@ async def test_bulk_update_limits_create_new(client):
     payload = {
         "new": [
             {
-                "categoria_nome": "NovaLimite",
-                "natureza": "pf",
-                "limite": 1000.0,
-                "subcategorias": [
-                    {"subcategoria_nome": "SubNova1"},
-                    {"subcategoria_nome": "SubNova2"},
+                "category_name": "NovaLimite",
+                "entity_type": "individual",
+                "limit": 1000.0,
+                "subcategories": [
+                    {"subcategory_name": "SubNova1"},
+                    {"subcategory_name": "SubNova2"},
                 ],
             }
         ],
@@ -39,11 +39,11 @@ async def test_bulk_update_limits_modify_existing(client):
         "modified": [
             {
                 "id": cat_id,
-                "categoria_nome": "Alimentacao",
-                "natureza": "pf",
-                "limite": 2000.0,
-                "subcategorias": [
-                    {"id": sub_id, "subcategoria_nome": "Supermercado"},
+                "category_name": "Alimentacao",
+                "entity_type": "individual",
+                "limit": 2000.0,
+                "subcategories": [
+                    {"id": sub_id, "subcategory_name": "Supermercado"},
                 ],
             }
         ],
@@ -65,15 +65,15 @@ async def test_bulk_update_limits_empty(client):
 
 
 async def _create_cat(client):
-    resp = await client.post("/categorias/", json={
-        "categoria_nome": "Alimentacao",
-        "natureza": "pf",
-        "limite": 1000.0,
-        "subcategorias": [{"subcategoria_nome": "Supermercado"}],
+    resp = await client.post("/categories/", json={
+        "category_name": "Alimentacao",
+        "entity_type": "individual",
+        "limit": 1000.0,
+        "subcategories": [{"subcategory_name": "Supermercado"}],
     })
     assert resp.status_code == 201
     cat = resp.json()
-    opts = await client.get("/dashboard/opcoes-categorias")
-    opt = next((c for c in opts.json()["opcoes"] if c["categoria"] == "Alimentacao"), None)
-    sub_id = opt["subcategorias"][0]["id"] if opt and opt["subcategorias"] else None
+    opts = await client.get("/dashboard/category-options")
+    opt = next((c for c in opts.json()["options"] if c["name"] == "Alimentacao"), None)
+    sub_id = opt["subcategories"][0]["id"] if opt and opt["subcategories"] else None
     return cat, cat["id"], sub_id

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import List
 
 from app.db.repositories.settings import SettingsRepository
-from app.db.repositories.transacao import TransacaoRepository
+from app.db.repositories.transaction import TransacaoRepository
 from app.schemas.settings import ProfileResponse, ProfileUpdate, BankResponse, BankCreate
 from app.logger import log_api_request
 

@@ -160,12 +160,12 @@ export class SettingsService {
 
   // ── Export ──────────────────────────────────────────────
 
-  static getExportCsvUrl(dataInicio: string, dataFinal: string): string {
-    return `${API_BASE_URL}/export/csv?data_inicio=${encodeURIComponent(dataInicio)}&data_final=${encodeURIComponent(dataFinal)}`;
+  static getExportCsvUrl(startDate: string, endDate: string): string {
+    return `${API_BASE_URL}/export/csv?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
   }
 
-  static getExportOfxUrl(dataInicio: string, dataFinal: string): string {
-    return `${API_BASE_URL}/export/ofx?data_inicio=${encodeURIComponent(dataInicio)}&data_final=${encodeURIComponent(dataFinal)}`;
+  static getExportOfxUrl(startDate: string, endDate: string): string {
+    return `${API_BASE_URL}/export/ofx?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
   }
 
   static downloadExport(url: string, filename: string) {

@@ -1,18 +1,21 @@
 export interface ShoppingItem {
   id: number;
-  nome: string;
-  mes_ref: string;
-  marcado: boolean;
-  data_conclusao: string | null;
+  name: string;
+  reference_month: string;
+  checked: boolean;
+  completed_at: string | null;
   created_at?: string;
+  entity_type: string;
 }
 
 export interface ShoppingItemCreate {
-  nome: string;
-  mes_ref: string;
+  name: string;
+  reference_month: string;
+  entity_type?: string;
 }
 
 export interface ShoppingItemUpdate {
-  nome?: string;
-  marcado?: boolean;
+  name?: string;
+  checked?: boolean;
+  entity_type?: string;
 }

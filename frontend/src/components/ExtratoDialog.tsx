@@ -7,10 +7,10 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Upload, FileText, CheckCircle, AlertCircle, X, Plus, Banknote, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { ExtractoService } from '@/services/extractoService'
+import { ExtractoService } from '@/services/extractService'
 import { FinancialService } from '@/services/financialService'
 import { SettingsService } from '@/services/settingsService'
-import { SessionData, ParsedTransaction, ConfirmTransaction } from '@/types/extracto'
+import { SessionData, ParsedTransaction, ConfirmTransaction } from '@/types/extract'
 import { CategorySubcategories, DuplicateInfo } from '@/types/financial'
 import { UserBank, BankCreate } from '@/types/settingsService'
 import { DuplicateDialog, DialogAction } from '@/components/DuplicateDialog'
@@ -43,23 +43,23 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     const [duplicateConflicts, setDuplicateConflicts] = useState<Array<{
         index: number
         existing: DuplicateInfo
-        newData: { descricao: string; valor: number; data_transacao: string }
+        newData: { description: string; amount: number; transaction_date: string }
     }>>([])
     const [pendingConfirmPayload, setPendingConfirmPayload] = useState<{
-        transacoes: ConfirmTransaction[]
+        transactions: ConfirmTransaction[]
     } | null>(null)
     const [pendingSIdx, setPendingSIdx] = useState<number | null>(null)
     const sessionSkipMapRef = useRef<Set<number>>(new Set())
 
-    // Per-row "Outros" state
-    const [showNewCategoria, setShowNewCategoria] = useState<Record<string, boolean>>({})
-    const [newCategoriaNome, setNewCategoriaNome] = useState<Record<string, string>>({})
-    const [showNewSubcategoria, setShowNewSubcategoria] = useState<Record<string, boolean>>({})
-    const [newSubcategoriaNome, setNewSubcategoriaNome] = useState<Record<string, string>>({})
-    const [showNewFormaPagamento, setShowNewFormaPagamento] = useState<Record<string, boolean>>({})
-    const [newFormaPagamentoNome, setNewFormaPagamentoNome] = useState<Record<string, string>>({})
-    const [parceladoMap, setParceladoMap] = useState<Record<string, boolean>>({})
-    const [totalParcelasMap, setTotalParcelasMap] = useState<Record<string, number>>({})
+    // Per-row "Other" state
+    const [showNewCategory, setShowNewCategory] = useState<Record<string, boolean>>({})
+    const [newCategoryName, setNewCategoryName] = useState<Record<string, string>>({})
+    const [showNewSubcategory, setShowNewSubcategory] = useState<Record<string, boolean>>({})
+    const [newSubcategoryName, setNewSubcategoryName] = useState<Record<string, string>>({})
+    const [showNewPaymentMethod, setShowNewPaymentMethod] = useState<Record<string, boolean>>({})
+    const [newPaymentMethodName, setNewPaymentMethodName] = useState<Record<string, string>>({})
+    const [installmentMap, setInstallmentMap] = useState<Record<string, boolean>>({})
+    const [totalInstallmentsMap, setTotalInstallmentsMap] = useState<Record<string, number>>({})
 
     const { toast } = useToast()
 
@@ -110,51 +110,51 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     }
 
     // ---- Row edit handlers ----
-    const handleFormaPagamentoChange = (sIdx: number, rIdx: number, value: string) => {
+    const handlePaymentMethodChange = (sIdx: number, rIdx: number, value: string) => {
         const key = rowKey(sIdx, rIdx)
-        if (value === 'outros') {
-            setShowNewFormaPagamento(prev => ({ ...prev, [key]: true }))
-            updateTransaction(sIdx, rIdx, { forma_pagamento: '' })
+        if (value === 'other') {
+            setShowNewPaymentMethod(prev => ({ ...prev, [key]: true }))
+            updateTransaction(sIdx, rIdx, { payment_method: '' })
         } else {
-            setShowNewFormaPagamento(prev => ({ ...prev, [key]: false }))
-            setNewFormaPagamentoNome(prev => ({ ...prev, [key]: '' }))
-            updateTransaction(sIdx, rIdx, { forma_pagamento: value })
+            setShowNewPaymentMethod(prev => ({ ...prev, [key]: false }))
+            setNewPaymentMethodName(prev => ({ ...prev, [key]: '' }))
+            updateTransaction(sIdx, rIdx, { payment_method: value })
         }
     }
 
-    const handleCategoriaChange = (sIdx: number, rIdx: number, value: string) => {
+    const handleCategoryChange = (sIdx: number, rIdx: number, value: string) => {
         const key = rowKey(sIdx, rIdx)
-        if (value === 'outros') {
-            setShowNewCategoria(prev => ({ ...prev, [key]: true }))
-            updateTransaction(sIdx, rIdx, { categoria_id: undefined, subcategoria_id: undefined })
+        if (value === 'other') {
+            setShowNewCategory(prev => ({ ...prev, [key]: true }))
+            updateTransaction(sIdx, rIdx, { category_id: undefined, subcategory_id: undefined })
         } else {
             const catId = parseInt(value)
-            setShowNewCategoria(prev => ({ ...prev, [key]: false }))
-            setNewCategoriaNome(prev => ({ ...prev, [key]: '' }))
+            setShowNewCategory(prev => ({ ...prev, [key]: false }))
+            setNewCategoryName(prev => ({ ...prev, [key]: '' }))
             // Auto-select first subcategory
-            const catObj = categoryOptions?.opcoes.find(c => c.id === catId)
-            const firstSub = catObj?.subcategorias[0]
+            const catObj = categoryOptions?.options.find(c => c.id === catId)
+            const firstSub = catObj?.subcategories[0]
             updateTransaction(sIdx, rIdx, {
-                categoria_id: catId,
-                subcategoria_id: firstSub?.id,
+                category_id: catId,
+                subcategory_id: firstSub?.id,
             })
         }
     }
 
-    const handleSubcategoriaChange = (sIdx: number, rIdx: number, value: string) => {
+    const handleSubcategoryChange = (sIdx: number, rIdx: number, value: string) => {
         const key = rowKey(sIdx, rIdx)
-        if (value === 'outros') {
-            setShowNewSubcategoria(prev => ({ ...prev, [key]: true }))
-            updateTransaction(sIdx, rIdx, { subcategoria_id: undefined })
+        if (value === 'other') {
+            setShowNewSubcategory(prev => ({ ...prev, [key]: true }))
+            updateTransaction(sIdx, rIdx, { subcategory_id: undefined })
         } else {
-            setShowNewSubcategoria(prev => ({ ...prev, [key]: false }))
-            setNewSubcategoriaNome(prev => ({ ...prev, [key]: '' }))
-            updateTransaction(sIdx, rIdx, { subcategoria_id: parseInt(value) })
+            setShowNewSubcategory(prev => ({ ...prev, [key]: false }))
+            setNewSubcategoryName(prev => ({ ...prev, [key]: '' }))
+            updateTransaction(sIdx, rIdx, { subcategory_id: parseInt(value) })
         }
     }
 
-    const handleNaturezaChange = (sIdx: number, rIdx: number, natureza: string) => {
-        updateTransaction(sIdx, rIdx, { natureza })
+    const handleEntityTypeChange = (sIdx: number, rIdx: number, entity_type: string) => {
+        updateTransaction(sIdx, rIdx, { entity_type })
     }
 
     // ---- Bank ----
@@ -201,30 +201,31 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         return session.transactions.map((t, rIdx) => {
             const key = rowKey(sessions.indexOf(session), rIdx)
             const base: ConfirmTransaction = {
-                data: t.data,
-                descricao: t.descricao,
-                valor: t.valor,
-                tipo: t.tipo,
-                forma_pagamento: showNewFormaPagamento[key] ? newFormaPagamentoNome[key] : t.forma_pagamento,
-                natureza: t.natureza,
+                date: t.date,
+                description: t.description,
+                amount: t.amount,
+                type: t.type,
+                payment_method: showNewPaymentMethod[key] ? newPaymentMethodName[key] : t.payment_method,
+                entity_type: t.entity_type,
                 bank_code: session.bankCode || undefined,
             }
 
-            if (showNewCategoria[key]) {
-                base.categoria_nome = newCategoriaNome[key]
+            if (showNewCategory[key]) {
+                base.category_name = newCategoryName[key]
             } else {
-                base.categoria_id = t.categoria_id!
+                base.category_id = t.category_id!
             }
 
-            if (showNewSubcategoria[key]) {
-                base.subcategoria_nome = newSubcategoriaNome[key]
+            if (showNewSubcategory[key]) {
+                base.subcategory_name = newSubcategoryName[key]
             } else {
-                base.subcategoria_id = t.subcategoria_id
+                base.subcategory_id = t.subcategory_id
             }
 
-            // Parcelamento
-            if (parceladoMap[key]) {
-                base.total_parcelas = totalParcelasMap[key] || 2
+            // Installments
+            if (installmentMap[key]) {
+                base.total_installments = totalInstallmentsMap[key] || 2
+                base.is_installment = true
             }
 
             return base
@@ -232,26 +233,26 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     }
 
     const validateSession = (session: SessionData, sIdx: number): string | null => {
-        if (!session.bankCode) return 'Selecione um banco para esta sessão.'
+        if (!session.bankCode) return 'Select a bank for this session.'
 
         for (let i = 0; i < session.transactions.length; i++) {
             const t = session.transactions[i]
             const key = rowKey(sIdx, i)
 
-            const hasCategoria = showNewCategoria[key]
-                ? newCategoriaNome[key]?.trim()
-                : t.categoria_id
+            const hasCategory = showNewCategory[key]
+                ? newCategoryName[key]?.trim()
+                : t.category_id
 
-            const hasDescricao = t.descricao?.trim()
-            const hasValor = t.valor > 0
-            const hasFormaPagamento = showNewFormaPagamento[key]
-                ? newFormaPagamentoNome[key]?.trim()
-                : t.forma_pagamento
+            const hasDescription = t.description?.trim()
+            const hasAmount = t.amount > 0
+            const hasPaymentMethod = showNewPaymentMethod[key]
+                ? newPaymentMethodName[key]?.trim()
+                : t.payment_method
 
-            if (!hasDescricao) return `Transação #${i + 1}: descrição vazia.`
-            if (!hasValor) return `Transação #${i + 1}: valor inválido.`
-            if (!hasCategoria) return `Transação #${i + 1}: categoria não atribuída.`
-            if (!hasFormaPagamento) return `Transação #${i + 1}: forma de pagamento não preenchida.`
+            if (!hasDescription) return `Transaction #${i + 1}: empty description.`
+            if (!hasAmount) return `Transaction #${i + 1}: invalid amount.`
+            if (!hasCategory) return `Transaction #${i + 1}: category not assigned.`
+            if (!hasPaymentMethod) return `Transaction #${i + 1}: payment method not filled.`
         }
         return null
     }
@@ -259,15 +260,15 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     // ── Duplicate check helper ──
     const checkAndConfirmSession = async (sIdx: number) => {
         const session = sessions[sIdx]
-        const payload = { transacoes: buildConfirmPayload(session) }
+        const payload = { transactions: buildConfirmPayload(session) }
 
         // Check duplicates for all transactions in this session
         try {
             const checkPayload = {
-                transacoes: payload.transacoes.map((t, idx) => ({
+                transactions: payload.transactions.map((t, idx) => ({
                     index: idx,
-                    data_transacao: t.data.split('/').reverse().join('-'), // DD/MM/YYYY → YYYY-MM-DD
-                    valor: t.valor,
+                    transaction_date: t.date.split('/').reverse().join('-'), // DD/MM/YYYY → YYYY-MM-DD
+                    amount: t.amount,
                 })),
             }
             const checkResult = await FinancialService.checkDuplicates(checkPayload)
@@ -275,19 +276,19 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
             const conflicts: Array<{
                 index: number
                 existing: DuplicateInfo
-                newData: { descricao: string; valor: number; data_transacao: string }
+                newData: { description: string; amount: number; transaction_date: string }
             }> = []
 
             for (const r of checkResult.results) {
                 if (r.has_duplicate && r.duplicates.length > 0) {
-                    const t = payload.transacoes[r.index]
+                    const t = payload.transactions[r.index]
                     conflicts.push({
                         index: r.index,
                         existing: r.duplicates[0],
                         newData: {
-                            descricao: t.descricao,
-                            valor: t.valor,
-                            data_transacao: t.data,
+                            description: t.description,
+                            amount: t.amount,
+                            transaction_date: t.date,
                         },
                     })
                 }
@@ -307,17 +308,17 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         await doConfirmSession(sIdx, payload)
     }
 
-    const doConfirmSession = async (sIdx: number, payload?: { transacoes: ConfirmTransaction[] }) => {
+    const doConfirmSession = async (sIdx: number, payload?: { transactions: ConfirmTransaction[] }) => {
         const session = sessions[sIdx]
         if (!payload) {
-            payload = { transacoes: buildConfirmPayload(session) }
+            payload = { transactions: buildConfirmPayload(session) }
         }
 
         setIsConfirming(true)
         try {
             const result = await ExtractoService.confirm(payload)
             updateSession(sIdx, { isConfirmed: true })
-            toast({ title: 'Sucesso', description: `${result.criadas} transações importadas de "${session.filename}"!` })
+            toast({ title: 'Success', description: `${result.created} transactions imported from "${session.filename}"!` })
 
             const updated = sessions.map((s, i) => i === sIdx ? { ...s, isConfirmed: true } : s)
             const allDone = updated.every(s => s.isConfirmed)
@@ -329,7 +330,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                 }, 1000)
             }
         } catch {
-            toast({ title: 'Erro', description: `Falha ao confirmar sessão "${session.filename}".`, variant: 'destructive' })
+            toast({ title: 'Error', description: `Failed to confirm session "${session.filename}".`, variant: 'destructive' })
         } finally {
             setIsConfirming(false)
         }
@@ -363,7 +364,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         for (let i = 0; i < sessions.length; i++) {
             if (sessions[i].isConfirmed) continue
             try {
-                const payload = { transacoes: buildConfirmPayload(sessions[i]) }
+                const payload = { transactions: buildConfirmPayload(sessions[i]) }
                 // Check duplicates inline for confirmAll (simplified: skip dialog, just proceed)
                 await ExtractoService.confirm(payload)
                 updateSession(i, { isConfirmed: true })
@@ -408,14 +409,14 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     }
 
     /** Confirms a session and always closes the ExtratoDialog + refreshes dashboard */
-    const doConfirmAndClose = async (sIdx: number, payload: { transacoes: ConfirmTransaction[] }) => {
+    const doConfirmAndClose = async (sIdx: number, payload: { transactions: ConfirmTransaction[] }) => {
         setIsConfirming(true)
         try {
             const session = sessions[sIdx]
             const result = await ExtractoService.confirm(payload)
             toast({
                 title: 'Sucesso',
-                description: `${result.criadas} transações importadas${session ? ` de "${session.filename}"` : ''}!`,
+                description: `${result.created} transações importadas${session ? ` de "${session.filename}"` : ''}!`,
             })
         } catch {
             toast({ title: 'Erro', description: 'Falha ao confirmar transações.', variant: 'destructive' })
@@ -435,27 +436,27 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     const handleCancel = () => {
         setSessions([])
         setAddingBankSessionIdx(null)
-        setShowNewCategoria({})
-        setNewCategoriaNome({})
-        setShowNewSubcategoria({})
-        setNewSubcategoriaNome({})
-        setShowNewFormaPagamento({})
-        setNewFormaPagamentoNome({})
-        setParceladoMap({})
-        setTotalParcelasMap({})
+        setShowNewCategory({})
+        setNewCategoryName({})
+        setShowNewSubcategory({})
+        setNewSubcategoryName({})
+        setShowNewPaymentMethod({})
+        setNewPaymentMethodName({})
+        setInstallmentMap({})
+        setTotalInstallmentsMap({})
         onOpenChange(false)
     }
 
     const formatCurrency = (value: number) =>
-        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+        new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(value)
 
     const totals = sessions.reduce((acc, s) => ({
         total: acc.total + s.transactions.length,
-        entradas: acc.entradas + s.transactions.filter(t => t.tipo === 'entrada').length,
-        saidas: acc.saidas + s.transactions.filter(t => t.tipo === 'saida').length,
-        totalEntradas: acc.totalEntradas + s.transactions.filter(t => t.tipo === 'entrada').reduce((sum, t) => sum + t.valor, 0),
-        totalSaidas: acc.totalSaidas + s.transactions.filter(t => t.tipo === 'saida').reduce((sum, t) => sum + t.valor, 0),
-    }), { total: 0, entradas: 0, saidas: 0, totalEntradas: 0, totalSaidas: 0 })
+        income: acc.income + s.transactions.filter(t => t.type === 'income').length,
+        expense: acc.expense + s.transactions.filter(t => t.type === 'expense').length,
+        totalIncome: acc.totalIncome + s.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0),
+        totalExpense: acc.totalExpense + s.transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0),
+    }), { total: 0, income: 0, expense: 0, totalIncome: 0, totalExpense: 0 })
 
     const allConfirmed = sessions.length > 0 && sessions.every(s => s.isConfirmed)
     const pendingCount = sessions.filter(s => !s.isConfirmed).length
@@ -468,7 +469,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>Importar Extrato Bancário</DialogTitle>
+                        <DialogTitle>Import Bank Statement</DialogTitle>
                     </DialogHeader>
                     <div
                         onDrop={handleDrop}
@@ -490,13 +491,13 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                         {isUploading ? (
                             <div className="flex flex-col items-center gap-4">
                                 <FileText className="w-12 h-12 text-muted-foreground animate-pulse" />
-                                <p className="text-lg text-muted-foreground">{uploadProgress || 'Processando extrato...'}</p>
+                                <p className="text-lg text-muted-foreground">{uploadProgress || 'Processing statement...'}</p>
                             </div>
                         ) : (
                             <div className="flex flex-col items-center gap-4">
                                 <Upload className="w-12 h-12 text-muted-foreground" />
-                                <p className="text-lg text-muted-foreground">Arraste os arquivos aqui ou clique para selecionar</p>
-                                <p className="text-sm text-muted-foreground">Formatos aceitos: CSV, OFX, QFX (múltiplos arquivos)</p>
+                                <p className="text-lg text-muted-foreground">Drag files here or click to select</p>
+                                <p className="text-sm text-muted-foreground">Accepted formats: CSV, OFX, QFX (multiple files)</p>
                             </div>
                         )}
                     </div>
@@ -511,7 +512,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                 <DialogHeader className="shrink-0">
                     <div className="flex justify-between items-center">
                         <div>
-                            <DialogTitle>Revisar Extrato</DialogTitle>
+                            <DialogTitle>Review Statement</DialogTitle>
                             <p className="text-muted-foreground text-sm mt-1">
                                 {sessions.length} arquivo{sessions.length > 1 ? 's' : ''} — {totals.total} transações
                             </p>
@@ -532,7 +533,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                     ) : (
                                         <CheckCircle className="w-4 h-4 mr-2" />
                                     )}
-                                    {isConfirming ? 'Importando...' : `Confirmar Todas (${pendingCount})`}
+                                    {isConfirming ? 'Importing...' : `Confirm All (${pendingCount})`}
                                 </Button>
                             )}
                         </div>
@@ -546,18 +547,18 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                         <p className="text-2xl font-bold">{totals.total}</p>
                     </div>
                     <div className="bg-card rounded-lg p-4 border border-border">
-                        <p className="text-sm text-muted-foreground">Entradas</p>
-                        <p className="text-2xl font-bold text-green-600">{totals.entradas}</p>
+                        <p className="text-sm text-muted-foreground">Income</p>
+                        <p className="text-2xl font-bold text-green-600">{totals.income}</p>
                     </div>
                     <div className="bg-card rounded-lg p-4 border border-border">
-                        <p className="text-sm text-muted-foreground">Saídas</p>
-                        <p className="text-2xl font-bold text-red-600">{totals.saidas}</p>
+                        <p className="text-sm text-muted-foreground">Expenses</p>
+                        <p className="text-2xl font-bold text-red-600">{totals.expense}</p>
                     </div>
                     <div className="bg-card rounded-lg p-4 border border-border">
-                        <p className="text-sm text-green-600">Total Entradas</p>
-                        <p className="text-lg font-bold text-green-600">{formatCurrency(totals.totalEntradas)}</p>
-                        <p className="text-sm text-red-600">Total Saídas</p>
-                        <p className="text-lg font-bold text-red-600">{formatCurrency(totals.totalSaidas)}</p>
+                        <p className="text-sm text-green-600">Total Income</p>
+                        <p className="text-lg font-bold text-green-600">{formatCurrency(totals.totalIncome)}</p>
+                        <p className="text-sm text-red-600">Total Expenses</p>
+                        <p className="text-lg font-bold text-red-600">{formatCurrency(totals.totalExpense)}</p>
                     </div>
                 </div>
 
@@ -691,70 +692,70 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                         <table className="w-full text-sm">
                                             <thead className="bg-muted/50 border-b border-border">
                                                 <tr>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Data</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Descrição</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Valor</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tipo</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Date</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Description</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Amount</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Type</th>
                                                     <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Parcelas</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Forma Pagto</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Payment</th>
                                                     <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Nat.</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Categoria</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Subcategoria</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Category</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Subcategory</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-border">
                                                 {session.transactions.map((trans, rIdx) => {
                                                     const key = rowKey(sIdx, rIdx)
-                                                    const catObj = categoryOptions?.opcoes.find(c => c.id === trans.categoria_id)
-                                                    const subs = catObj?.subcategorias || []
-                                                    const filteredCats = categoryOptions?.opcoes.filter(
-                                                        c => !trans.tipo || !c.tipo || c.tipo === trans.tipo
+                                                    const catObj = categoryOptions?.options.find(c => c.id === trans.category_id)
+                                                    const subs = catObj?.subcategories || []
+                                                    const filteredCats = categoryOptions?.options.filter(
+                                                        c => !trans.type || !c.type || c.type === trans.type
                                                     ) || []
 
                                                     return (
                                                         <tr key={rIdx} className="hover:bg-muted/30">
-                                                            <td className="px-3 py-2 text-xs whitespace-nowrap">{trans.data}</td>
+                                                            <td className="px-3 py-2 text-xs whitespace-nowrap">                                                            {trans.date}</td>
                                                             <td className="px-3 py-2 min-w-[140px]">
                                                                 <input
                                                                     type="text"
-                                                                    value={trans.descricao}
-                                                                    onChange={(e) => updateTransaction(sIdx, rIdx, { descricao: e.target.value })}
+                                                                    value={trans.description}
+                                                                    onChange={(e) => updateTransaction(sIdx, rIdx, { description: e.target.value })}
                                                                     className="w-full text-xs bg-transparent border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
                                                                 />
                                                             </td>
                                                             <td className={`px-3 py-2 text-xs font-medium whitespace-nowrap ${
-                                                                trans.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'
+                                                                trans.type === 'income' ? 'text-green-600' : 'text-red-600'
                                                             }`}>
-                                                                {trans.tipo === 'saida' ? '-' : ''}{formatCurrency(trans.valor)}
+                                                                {trans.type === 'expense' ? '-' : ''}{formatCurrency(trans.amount)}
                                                             </td>
                                                             <td className="px-3 py-2">
                                                                 <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                                                                    trans.tipo === 'entrada'
+                                                                    trans.type === 'income'
                                                                         ? 'bg-green-100 text-green-700'
                                                                         : 'bg-red-100 text-red-700'
                                                                 }`}>
-                                                                    {trans.tipo === 'entrada' ? 'Entrada' : 'Saída'}
+                                                                    {trans.type === 'income' ? 'Income' : 'Expense'}
                                                                 </span>
                                                             </td>
                                                             <td className="px-3 py-2 whitespace-nowrap">
                                                                 <div className="flex items-center gap-1">
                                                                     <Switch
                                                                         id={`parcelado-${key}`}
-                                                                        checked={parceladoMap[key] || false}
+                                                                        checked={installmentMap[key] || false}
                                                                         onCheckedChange={(checked) => {
-                                                                            setParceladoMap(prev => ({ ...prev, [key]: checked }))
-                                                                            if (checked && !totalParcelasMap[key]) {
-                                                                                setTotalParcelasMap(prev => ({ ...prev, [key]: 2 }))
+                                                                            setInstallmentMap(prev => ({ ...prev, [key]: checked }))
+                                                                            if (checked && !totalInstallmentsMap[key]) {
+                                                                                setTotalInstallmentsMap(prev => ({ ...prev, [key]: 2 }))
                                                                             }
                                                                         }}
                                                                         className="scale-75"
                                                                     />
-                                                                    {parceladoMap[key] && (
+                                                                    {installmentMap[key] && (
                                                                         <Input
                                                                             type="number"
                                                                             min="2"
-                                                                            value={totalParcelasMap[key] || 2}
-                                                                            onChange={e => setTotalParcelasMap(prev => ({ ...prev, [key]: parseInt(e.target.value) || 2 }))}
+                                                                            value={totalInstallmentsMap[key] || 2}
+                                                                            onChange={e => setTotalInstallmentsMap(prev => ({ ...prev, [key]: parseInt(e.target.value) || 2 }))}
                                                                             className="h-7 w-14 text-xs"
                                                                         />
                                                                     )}
@@ -762,8 +763,8 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                                             </td>
                                                             <td className="px-3 py-2 min-w-[120px]">
                                                                 <Select
-                                                                    value={showNewFormaPagamento[key] ? 'outros' : trans.forma_pagamento}
-                                                                    onValueChange={(v) => handleFormaPagamentoChange(sIdx, rIdx, v)}
+                                                                    value={showNewPaymentMethod[key] ? 'outros' : trans.payment_method}
+                                                                    onValueChange={(v) => handlePaymentMethodChange(sIdx, rIdx, v)}
                                                                 >
                                                                     <SelectTrigger className="h-7 text-xs">
                                                                         <SelectValue />
@@ -778,13 +779,13 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                                                         <SelectItem value="outros">Outros...</SelectItem>
                                                                     </SelectContent>
                                                                 </Select>
-                                                                {showNewFormaPagamento[key] && (
+                                                                {showNewPaymentMethod[key] && (
                                                                     <Input
                                                                         placeholder="Nova forma de pagamento"
-                                                                        value={newFormaPagamentoNome[key] || ''}
+                                                                        value={newPaymentMethodName[key] || ''}
                                                                         onChange={e => {
-                                                                            setNewFormaPagamentoNome(prev => ({ ...prev, [key]: e.target.value }))
-                                                                            updateTransaction(sIdx, rIdx, { forma_pagamento: e.target.value })
+                                                                            setNewPaymentMethodName(prev => ({ ...prev, [key]: e.target.value }))
+                                                                            updateTransaction(sIdx, rIdx, { payment_method: e.target.value })
                                                                         }}
                                                                         className="h-7 text-xs mt-1"
                                                                     />
@@ -792,19 +793,19 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                                             </td>
                                                             <td className="px-3 py-2">
                                                                 <div className="flex items-center gap-1">
-                                                                    <span className={`text-[10px] font-medium ${trans.natureza === 'pj' ? 'text-muted-foreground' : 'text-foreground'}`}>PF</span>
+                                                                    <span className={`text-[10px] font-medium ${trans.entity_type === 'business' ? 'text-muted-foreground' : 'text-foreground'}`}>PF</span>
                                                                     <Switch
-                                                                        checked={trans.natureza === 'pj'}
-                                                                        onCheckedChange={(checked) => handleNaturezaChange(sIdx, rIdx, checked ? 'pj' : 'pf')}
+                                                                        checked={trans.entity_type === 'business'}
+                                                                        onCheckedChange={(checked) => handleEntityTypeChange(sIdx, rIdx, checked ? 'business' : 'individual')}
                                                                         className="scale-75"
                                                                     />
-                                                                    <span className={`text-[10px] font-medium ${trans.natureza === 'pj' ? 'text-foreground' : 'text-muted-foreground'}`}>PJ</span>
+                                                                    <span className={`text-[10px] font-medium ${trans.entity_type === 'business' ? 'text-foreground' : 'text-muted-foreground'}`}>PJ</span>
                                                                 </div>
                                                             </td>
                                                             <td className="px-3 py-2 min-w-[130px]">
                                                                 <Select
-                                                                    value={showNewCategoria[key] ? 'outros' : (trans.categoria_id ? String(trans.categoria_id) : '')}
-                                                                    onValueChange={(v) => handleCategoriaChange(sIdx, rIdx, v)}
+                                                                    value={showNewCategory[key] ? 'outros' : (trans.category_id ? String(trans.category_id) : '')}
+                                                                    onValueChange={(v) => handleCategoryChange(sIdx, rIdx, v)}
                                                                 >
                                                                     <SelectTrigger className="h-7 text-xs">
                                                                         <SelectValue placeholder="Selecione..." />
@@ -812,19 +813,19 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                                                     <SelectContent>
                                                                         {filteredCats.map(cat => (
                                                                             <SelectItem key={cat.id} value={String(cat.id)}>
-                                                                                {cat.categoria}
+                                                                                {cat.name}
                                                                             </SelectItem>
                                                                         ))}
                                                                         <SelectItem value="outros">Outros...</SelectItem>
                                                                     </SelectContent>
                                                                 </Select>
-                                                                {showNewCategoria[key] && (
+                                                                {showNewCategory[key] && (
                                                                     <Input
                                                                         placeholder="Nova categoria"
-                                                                        value={newCategoriaNome[key] || ''}
+                                                                        value={newCategoryName[key] || ''}
                                                                         onChange={e => {
-                                                                            setNewCategoriaNome(prev => ({ ...prev, [key]: e.target.value }))
-                                                                            updateTransaction(sIdx, rIdx, { categoria_id: undefined })
+                                                                            setNewCategoryName(prev => ({ ...prev, [key]: e.target.value }))
+                                                                            updateTransaction(sIdx, rIdx, { category_id: undefined })
                                                                         }}
                                                                         className="h-7 text-xs mt-1"
                                                                     />
@@ -834,8 +835,8 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                                                 {catObj ? (
                                                                     <>
                                                                         <Select
-                                                                            value={showNewSubcategoria[key] ? 'outros' : (trans.subcategoria_id ? String(trans.subcategoria_id) : '')}
-                                                                            onValueChange={(v) => handleSubcategoriaChange(sIdx, rIdx, v)}
+                                                                            value={showNewSubcategory[key] ? 'outros' : (trans.subcategory_id ? String(trans.subcategory_id) : '')}
+                                                                            onValueChange={(v) => handleSubcategoryChange(sIdx, rIdx, v)}
                                                                         >
                                                                             <SelectTrigger className="h-7 text-xs">
                                                                                 <SelectValue placeholder="Selecione..." />
@@ -843,19 +844,19 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                                                             <SelectContent>
                                                                                 {subs.map(sub => (
                                                                                     <SelectItem key={sub.id} value={String(sub.id)}>
-                                                                                        {sub.nome}
+                                                                                        {sub.name}
                                                                                     </SelectItem>
                                                                                 ))}
                                                                                 <SelectItem value="outros">Outros...</SelectItem>
                                                                             </SelectContent>
                                                                         </Select>
-                                                                        {showNewSubcategoria[key] && (
+                                                                        {showNewSubcategory[key] && (
                                                                             <Input
                                                                                 placeholder="Nova subcategoria"
-                                                                                value={newSubcategoriaNome[key] || ''}
+                                                                                value={newSubcategoryName[key] || ''}
                                                                                 onChange={e => {
-                                                                                    setNewSubcategoriaNome(prev => ({ ...prev, [key]: e.target.value }))
-                                                                                    updateTransaction(sIdx, rIdx, { subcategoria_id: undefined })
+                                                                                    setNewSubcategoryName(prev => ({ ...prev, [key]: e.target.value }))
+                                                                                    updateTransaction(sIdx, rIdx, { subcategory_id: undefined })
                                                                                 }}
                                                                                 className="h-7 text-xs mt-1"
                                                                             />
@@ -874,11 +875,11 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                 )}
 
                                 {/* Session validation warnings */}
-                                {isPending && session.transactions.some(t => !t.categoria_id) && (
+                                {isPending && session.transactions.some(t => !t.category_id) && (
                                     <div className="px-4 py-2 flex items-center gap-2 text-amber-600 bg-amber-50/50 border-t border-border">
                                         <AlertCircle className="w-4 h-4 shrink-0" />
                                         <span className="text-xs">
-                                            {session.transactions.filter(t => !t.categoria_id).length} transação(ões) sem categoria
+                                            {session.transactions.filter(t => !t.category_id).length} transação(ões) sem categoria
                                         </span>
                                     </div>
                                 )}
@@ -907,10 +908,10 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                     onDone={() => {
                         // All conflicts resolved — confirm with filtered transactions
                         if (pendingSIdx !== null && pendingConfirmPayload) {
-                            const filteredTx = pendingConfirmPayload.transacoes.filter(
+                            const filteredTx = pendingConfirmPayload.transactions.filter(
                                 (_, idx) => !sessionSkipMapRef.current.has(idx)
                             )
-                            doConfirmAndClose(pendingSIdx, { transacoes: filteredTx })
+                            doConfirmAndClose(pendingSIdx, { transactions: filteredTx })
                         }
                     }}
                     onClose={() => {

@@ -180,7 +180,7 @@ export function D3DailyChart({
         .attr('fill', 'hsl(var(--destructive))')
         .style('font-size', '13px')
         .style('font-weight', 'bold')
-        .text(`Meta: R$ ${monthlyGoal.toLocaleString('pt-BR')}`);
+        .text(`Meta: R$ ${monthlyGoal.toLocaleString('en-US')}`);
     }
 
     // Tooltip
@@ -203,16 +203,16 @@ export function D3DailyChart({
       .style('cursor', 'default')
       .on('mouseover', function (event, d: any) {
         const formatCurrency = (amount: number) =>
-          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
+          new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(amount);
 
         const isIncome = d3.select(this).classed('income-bar');
         const isExpense = d3.select(this).classed('expense-bar');
         const isInvestment = d3.select(this).classed('investment-bar');
         let value = 0;
         let type = '';
-        if (isIncome) { value = d.income; type = 'Entradas'; }
-        else if (isExpense) { value = d.expenses; type = 'Saídas'; }
-        else if (isInvestment) { value = d.investment; type = 'Investimentos'; }
+        if (isIncome) { value = d.income; type = 'Income'; }
+        else if (isExpense) { value = d.expenses; type = 'Expenses'; }
+        else if (isInvestment) { value = d.investment; type = 'Investments'; }
 
         tooltip
           .style('visibility', 'visible')

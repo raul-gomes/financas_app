@@ -8,7 +8,7 @@ interface CategoryBreakdownSectionProps {
 }
 
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('pt-BR', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'BRL',
   }).format(amount);
@@ -28,22 +28,22 @@ export function CategoryBreakdownSection({
 
   // Converter dados de categoria do payload para formato interno
   const dynamicCategoryExpenses: CategoryExpense[] = useMemo(() => {
-    return categoryBreakdown?.categorias
-      ? categoryBreakdown.categorias
+    return categoryBreakdown?.categories
+      ? categoryBreakdown.categories
           .map((category, idx) => {
             if (category.total <= 0) return null;
 
-            const barMax = category.limite > 0 ? category.limite : category.total;
+            const barMax = category.limit > 0 ? category.limit : category.total;
             const hue = (idx * 40) % 360;
 
-            // Converte array subcategorias (obj[] tipo {nome, valor}) em objeto Record<nome, number>
+            // Converte array subcategorias (obj[] tipo {name, amount}) em objeto Record<name, number>
             const subcategoriesMap: Record<string, number> = {};
-            category.subcategorias.forEach((sub) => {
-              subcategoriesMap[sub.nome] = parseFloat(sub.valor);
+            category.subcategories.forEach((sub) => {
+              subcategoriesMap[sub.name] = parseFloat(sub.amount);
             });
 
             return {
-              category: category.nome,
+              category: category.name,
               amount: category.total,
               percentage: barMax > 0 ? (category.total / barMax) * 100 : 0,
               color: `hsl(${hue}, 60%, 55%)`,

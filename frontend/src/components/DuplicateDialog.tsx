@@ -16,9 +16,9 @@ interface ConflictItem {
   index: number
   existing: DuplicateInfo
   newData: {
-    descricao: string
-    valor: number
-    data_transacao: string
+    description: string
+    amount: number
+    transaction_date: string
   }
 }
 
@@ -52,7 +52,7 @@ export function DuplicateDialog({
   const total = conflicts.length
 
   const formatCurrency = (v: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(v)
 
   const handleAction = (action: DialogAction) => {
     if (!current) return
@@ -102,13 +102,13 @@ export function DuplicateDialog({
           {/* Existing */}
           <div className="rounded-lg border border-border p-3">
             <p className="text-xs font-medium text-muted-foreground mb-2">Transação existente:</p>
-            <p className="font-medium">{current.existing.descricao}</p>
+            <p className="font-medium">{current.existing.description}</p>
             <p className="text-sm text-muted-foreground">
-              {formatCurrency(current.existing.valor)} — {new Date(current.existing.data_transacao).toLocaleDateString('pt-BR')}
+              {formatCurrency(current.existing.amount)} — {new Date(current.existing.transaction_date).toLocaleDateString('en-US')}
             </p>
-            {current.existing.categoria_nome && (
+            {current.existing.category_name && (
               <p className="text-xs text-muted-foreground mt-1">
-                {current.existing.categoria_nome}{current.existing.subcategoria_nome ? ` / ${current.existing.subcategoria_nome}` : ''}
+                {current.existing.category_name}{current.existing.subcategory_name ? ` / ${current.existing.subcategory_name}` : ''}
               </p>
             )}
           </div>
@@ -116,9 +116,9 @@ export function DuplicateDialog({
           {/* Nova */}
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
             <p className="text-xs font-medium text-primary mb-2">Nova transação:</p>
-            <p className="font-medium">{current.newData.descricao}</p>
+            <p className="font-medium">{current.newData.description}</p>
             <p className="text-sm text-muted-foreground">
-              {formatCurrency(current.newData.valor)} — {new Date(current.newData.data_transacao + 'T12:00:00').toLocaleDateString('pt-BR')}
+              {formatCurrency(current.newData.amount)} — {new Date(current.newData.transaction_date + 'T12:00:00').toLocaleDateString('en-US')}
             </p>
           </div>
         </div>

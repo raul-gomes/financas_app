@@ -27,7 +27,7 @@ export const InvestmentTable = ({
   const [searchTerm, setSearchTerm] = useState('');
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('pt-BR', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'BRL'
     }).format(amount);
