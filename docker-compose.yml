@@ -1,5 +1,5 @@
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database — NAO exposto externamente
   db:
     image: postgres:16-alpine
     container_name: financas-db
@@ -8,8 +8,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-financas}
-    ports:
-      - "5436:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -18,42 +16,50 @@ services:
       timeout: 5s
       retries: 5
 
-  # FastAPI Backend — dev mode with hot-reload
-  # For production, see docker-compose.prod.yml
+  # FastAPI Backend — NAO exposto externamente, acessivel apenas via nginx
   backend:
     build: 
-      context: ./backend
+      context: ./app/backend
     container_name: financas-api
     restart: unless-stopped
+    expose:
+      - "8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-financas}
-    ports:
-      - "8005:8000"
     volumes:
-      - ./backend/app:/app/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      - ./app/backend/app:/app/app
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     depends_on:
       db:
         condition: service_healthy
 
-  # React Frontend — dev mode with hot-reload
-  # For production, see docker-compose.prod.yml
+  # React Frontend — NAO exposto externamente, acessivel apenas via nginx
   frontend:
     build:
-      context: ./frontend
+      context: ./app/frontend
       dockerfile: Dockerfile.dev
     container_name: financas-web
     restart: unless-stopped
-    ports:
-      - "8087:8080"
+    expose:
+      - "8080"
     volumes:
-      # Mount entire frontend project for hot-reload
-      - ./frontend:/app
-      # Keep container's node_modules (don't override with host's)
+      - ./app/frontend:/app
       - /app/node_modules
-      # Keep container's dist (not needed but avoid conflicts)
       - /app/dist
     depends_on:
+      - backend
+
+  # Nginx — UNICO ponto de acesso externo
+  nginx:
+    image: nginx:alpine
+    container_name: financas-nginx
+    restart: unless-stopped
+    ports:
+      - "8087:80"
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
       - backend
 
 volumes:
