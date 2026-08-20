@@ -6,9 +6,16 @@
 # Node
 node_modules/
 dist/
+dist-ssr/
 build/
 .next/
 .cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Python
 __pycache__/
@@ -30,14 +37,31 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+wheels/
+*.egg-info
 
 # Docker
 *.db
 *.sqlite
 
+# Backend-specific
+mongo-data/*
+mongo-keyfile
+logs/*
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
 # Visual companion mockups
 .superpowers/
