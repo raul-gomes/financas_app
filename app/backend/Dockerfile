@@ -28,8 +28,9 @@ COPY . .
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# Create logs directory
-RUN mkdir -p logs
+# Create logs directory and strip pip/setuptools from the runtime image
+# (dependencies come exclusively from the uv-managed .venv — no pip in runtime)
+RUN mkdir -p logs && pip uninstall --yes pip setuptools wheel || true
 
 # Expose the application port
 EXPOSE 8000

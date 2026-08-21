@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -79,13 +79,23 @@ export const EditInvestmentDialog = ({ open, onOpenChange, investment, onEdit }:
   const availableCategories = INVESTMENT_CATEGORIES[formData.type];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Editar Investimento</DialogTitle>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Editar Investimento"
+      size="sm"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="edit-investment-form">
+            Salvar
+          </Button>
+        </>
+      }
+    >
+        <form id="edit-investment-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Nome do Investimento</Label>
             <Input
@@ -188,16 +198,7 @@ export const EditInvestmentDialog = ({ open, onOpenChange, investment, onEdit }:
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit">
-              Salvar
-            </Button>
-          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 };

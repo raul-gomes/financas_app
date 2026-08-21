@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,13 +77,23 @@ export const AddInvestmentDialog = ({ open, onOpenChange, onAdd }: AddInvestment
   const availableCategories = INVESTMENT_CATEGORIES[formData.type];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Adicionar Investimento</DialogTitle>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Adicionar Investimento"
+      size="sm"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="add-investment-form">
+            Adicionar
+          </Button>
+        </>
+      }
+    >
+        <form id="add-investment-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Nome do Investimento</Label>
             <Input
@@ -186,16 +196,7 @@ export const AddInvestmentDialog = ({ open, onOpenChange, onAdd }: AddInvestment
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit">
-              Adicionar
-            </Button>
-          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 };

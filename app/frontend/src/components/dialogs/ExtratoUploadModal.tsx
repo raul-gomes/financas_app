@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ResponsiveModal } from '@/components/ui/responsive-modal'
 import { Button } from '@/components/ui/button'
 import { Upload, FileText, X, Loader2, CheckCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -49,12 +49,7 @@ export function ExtratoUploadModal({ open, onOpenChange, onUploadComplete }: Ext
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Importar Extrato Bancário</DialogTitle>
-        </DialogHeader>
-
+    <ResponsiveModal open={open} onOpenChange={handleClose} size="lg" title="Importar Extrato Bancário">
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
@@ -105,7 +100,6 @@ export function ExtratoUploadModal({ open, onOpenChange, onUploadComplete }: Ext
             </Button>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   )
 }

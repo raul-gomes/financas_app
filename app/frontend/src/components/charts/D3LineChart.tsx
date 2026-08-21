@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { formatCurrency, formatDate } from '@/lib/format';
 import * as d3 from 'd3';
 import { PortfolioEvolution } from '@/types/financial';
 
@@ -145,15 +146,6 @@ export function D3LineChart({ data, width = 800, height = 250 }: D3LineChartProp
     // Add hover effects
     g.selectAll('.dot')
       .on('mouseover', function(event, d: any) {
-        const formatCurrency = (amount: number) => {
-          return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'BRL'
-          }).format(amount);
-        };
-
-        const formatDate = d3.timeFormat('%B %Y');
-        
         tooltip
           .style('visibility', 'visible')
           .html(`

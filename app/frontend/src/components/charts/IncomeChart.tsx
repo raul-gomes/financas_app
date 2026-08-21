@@ -1,6 +1,7 @@
 // src/components/IncomeChart.tsx
 
 import { useMemo } from 'react'
+import { formatCurrency } from '@/lib/format';
 import { D3PieChart } from './D3PieChart'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { TrendingUp } from 'lucide-react'
@@ -13,12 +14,6 @@ interface IncomeChartProps {
 
 
 export function IncomeChart({ breakdown }: IncomeChartProps) {
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(amount)
-
   const incomeData = useMemo(() => {
     if (!breakdown?.subcategories?.length) {
       return { chartData: [], total: 0, count: 0 }

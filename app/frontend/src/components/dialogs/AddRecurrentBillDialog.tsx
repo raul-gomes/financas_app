@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -109,12 +104,22 @@ export function AddRecurrentBillDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Nova Conta Recorrente</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <ResponsiveModal
+      open={isOpen}
+      onOpenChange={(open) => !open && handleClose()}
+      title="Nova Conta Recorrente"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
+            Cancelar
+          </Button>
+          <Button type="submit" form="add-recurrent-bill-form" className="flex-1 bg-gradient-primary">
+            Criar
+          </Button>
+        </>
+      }
+    >
+        <form id="add-recurrent-bill-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="descricao">Descricao *</Label>
             <Input
@@ -295,16 +300,7 @@ export function AddRecurrentBillDialog({
             </div>
           )}
 
-          <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-              Cancelar
-            </Button>
-            <Button type="submit" className="flex-1 bg-gradient-primary">
-              Criar
-            </Button>
-          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 }

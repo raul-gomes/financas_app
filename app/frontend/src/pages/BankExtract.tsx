@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
+import { formatCurrency } from '@/lib/format';
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
@@ -15,7 +16,8 @@ import { FinancialService } from '@/services/financialService'
 import { SettingsService } from '@/services/settingsService'
 import type { SessionData, ParsedTransaction, ConfirmTransaction } from '@/types/extract'
 import type { CategorySubcategories, DuplicateInfo } from '@/types/financial'
-import type { UserBank, BankCreate } from '@/types/settingsService'
+import type { UserBank, BankCreate } from '@/services/settingsService'
+import { BankLogo } from '@/components/ui/bank-logo'
 
 interface DuplicateItem {
   sIdx: number
@@ -26,7 +28,6 @@ interface DuplicateItem {
   resolved?: 'skip' | 'replace'
 }
 
-const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png'
 const KNOWN_PAYMENT_METHODS = ['dinheiro', 'pix', 'debito', 'credito', 'transferencia', 'boleto']
 
 const BankExtract = () => {
@@ -41,7 +42,6 @@ const BankExtract = () => {
   const [uploadProgress, setUploadProgress] = useState('')
   const [banks, setBanks] = useState<UserBank[]>([])
   const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null)
-  const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set())
 
   // Inline "add bank" state
   const [addingBankSessionIdx, setAddingBankSessionIdx] = useState<number | null>(null)
@@ -81,7 +81,7 @@ const BankExtract = () => {
         if (dupItems.length > 0) {
           toast({
             title: `${dupItems.length} duplicata${dupItems.length > 1 ? 's' : ''} encontrada${dupItems.length > 1 ? 's' : ''}`,
-            description: 'Revise e resolva as duplicatas no topo da página antes de confirmar.',
+            description: 'Revise e resolva as duplicatas no topo da pÃ¡gina antes de confirmar.',
           })
         }
       }).catch(err => {
@@ -114,7 +114,7 @@ const BankExtract = () => {
     const checkResult = await FinancialService.checkDuplicates(checkPayload)
 
     if (!checkResult?.results) {
-      throw new Error('Resposta inválida do servidor')
+      throw new Error('Resposta invÃ¡lida do servidor')
     }
 
     const dupItems: DuplicateItem[] = []
@@ -162,7 +162,7 @@ const BankExtract = () => {
         if (found.length > 0) {
           toast({
             title: `${found.length} duplicata${found.length > 1 ? 's' : ''} encontrada${found.length > 1 ? 's' : ''}`,
-            description: 'Revise e resolva as duplicatas no topo da página antes de confirmar.',
+            description: 'Revise e resolva as duplicatas no topo da pÃ¡gina antes de confirmar.',
           })
         }
       } catch (err) {
@@ -210,7 +210,7 @@ const BankExtract = () => {
 
   // ---- Duplicate resolution (post-upload) ----
   const skipDuplicate = (key: string) => {
-    // Mark as "skip" — transaction won't be imported
+    // Mark as "skip" â€” transaction won't be imported
     setDuplicateItems(prev => prev.map(d => d.key === key ? { ...d, resolved: 'skip' } : d))
   }
 
@@ -225,9 +225,9 @@ const BankExtract = () => {
           ? { ...s, transactions: [...s.transactions, item.transaction] }
           : s
       ))
-      toast({ title: 'Substituído', description: 'Transação existente removida. A nova será importada.' })
+      toast({ title: 'SubstituÃ­do', description: 'TransaÃ§Ã£o existente removida. A nova serÃ¡ importada.' })
     } catch {
-      toast({ title: 'Erro', description: 'Falha ao remover transação existente.', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Falha ao remover transaÃ§Ã£o existente.', variant: 'destructive' })
     }
   }
 
@@ -292,7 +292,7 @@ const BankExtract = () => {
 
   const handleAddBank = async (sIdx: number) => {
     if (!newBankCode.trim() || !newBankName.trim()) {
-      toast({ title: 'Erro', description: 'Preencha código e nome do banco.', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Preencha cÃ³digo e nome do banco.', variant: 'destructive' })
       return
     }
     try {
@@ -353,7 +353,7 @@ const BankExtract = () => {
   }
 
   const validateSession = (session: SessionData, sIdx: number): string | null => {
-    if (!session.bankCode) return 'Selecione um banco para esta sessão.'
+    if (!session.bankCode) return 'Selecione um banco para esta sessÃ£o.'
 
     for (let i = 0; i < session.transactions.length; i++) {
       const t = session.transactions[i]
@@ -369,10 +369,10 @@ const BankExtract = () => {
         ? newPaymentMethodName[key]?.trim()
         : t.payment_method
 
-      if (!hasDescription) return `Transação #${i + 1}: descrição vazia.`
-      if (!hasAmount) return `Transação #${i + 1}: valor inválido.`
-      if (!hasCategory) return `Transação #${i + 1}: categoria não atribuída.`
-      if (!hasPaymentMethod) return `Transação #${i + 1}: forma de pagamento não preenchida.`
+      if (!hasDescription) return `TransaÃ§Ã£o #${i + 1}: descriÃ§Ã£o vazia.`
+      if (!hasAmount) return `TransaÃ§Ã£o #${i + 1}: valor invÃ¡lido.`
+      if (!hasCategory) return `TransaÃ§Ã£o #${i + 1}: categoria nÃ£o atribuÃ­da.`
+      if (!hasPaymentMethod) return `TransaÃ§Ã£o #${i + 1}: forma de pagamento nÃ£o preenchida.`
     }
     return null
   }
@@ -389,18 +389,18 @@ const BankExtract = () => {
       updateSession(sIdx, { isConfirmed: true })
       toast({
         title: 'Sucesso',
-        description: `${result.created} transações importadas de "${session.filename}"!`,
+        description: `${result.created} transaÃ§Ãµes importadas de "${session.filename}"!`,
       })
 
       // Check if all sessions are now confirmed
       const updated = sessions.map((s, i) => i === sIdx ? { ...s, isConfirmed: true } : s)
       const allDone = updated.every(s => s.isConfirmed)
       if (allDone) {
-        toast({ title: 'Concluído', description: 'Todas as transações foram importadas!' })
+        toast({ title: 'ConcluÃ­do', description: 'Todas as transaÃ§Ãµes foram importadas!' })
         setTimeout(() => navigate('/financial'), 800)
       }
     } catch {
-      toast({ title: 'Erro', description: `Falha ao confirmar sessão "${session.filename}".`, variant: 'destructive' })
+      toast({ title: 'Erro', description: `Falha ao confirmar sessÃ£o "${session.filename}".`, variant: 'destructive' })
     } finally {
       setIsConfirming(false)
     }
@@ -410,10 +410,10 @@ const BankExtract = () => {
     const session = sessions[sIdx]
     const error = validateSession(session, sIdx)
     if (error) {
-      toast({ title: 'Validação', description: error, variant: 'destructive' })
+      toast({ title: 'ValidaÃ§Ã£o', description: error, variant: 'destructive' })
       return
     }
-    // Duplicate check already done at upload time — confirm directly
+    // Duplicate check already done at upload time â€” confirm directly
     const payload = { transactions: buildConfirmPayload(session) }
     await doConfirmSession(sIdx, payload)
   }
@@ -424,7 +424,7 @@ const BankExtract = () => {
       if (s.isConfirmed) continue
       const error = validateSession(s, i)
       if (error) {
-        toast({ title: `Validação em "${s.filename}"`, description: error, variant: 'destructive' })
+        toast({ title: `ValidaÃ§Ã£o em "${s.filename}"`, description: error, variant: 'destructive' })
         return
       }
     }
@@ -450,7 +450,7 @@ const BankExtract = () => {
     setIsConfirming(false)
 
     if (allOk) {
-      toast({ title: 'Sucesso', description: 'Todas as sessões foram importadas!' })
+      toast({ title: 'Sucesso', description: 'Todas as sessÃµes foram importadas!' })
       setTimeout(() => navigate('/financial'), 800)
     }
   }
@@ -459,9 +459,6 @@ const BankExtract = () => {
     setSessions([])
     navigate('/financial')
   }
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(value)
 
   const totals = sessions.reduce((acc, s) => ({
     total: acc.total + s.transactions.length,
@@ -486,8 +483,8 @@ const BankExtract = () => {
               <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Extrato Bancário</h1>
-              <p className="text-muted-foreground mt-1">Importe seu extrato bancário em CSV ou OFX</p>
+              <h1 className="text-2xl font-bold text-foreground">Extrato BancÃ¡rio</h1>
+              <p className="text-muted-foreground mt-1">Importe seu extrato bancÃ¡rio em CSV ou OFX</p>
             </div>
           </div>
 
@@ -517,7 +514,7 @@ const BankExtract = () => {
               <div className="flex flex-col items-center gap-4">
                 <Upload className="w-12 h-12 text-muted-foreground" />
                 <p className="text-lg text-muted-foreground">Arraste os arquivos aqui ou clique para selecionar</p>
-                <p className="text-sm text-muted-foreground">Formatos aceitos: CSV, OFX, QFX (múltiplos arquivos)</p>
+                <p className="text-sm text-muted-foreground">Formatos aceitos: CSV, OFX, QFX (mÃºltiplos arquivos)</p>
               </div>
             )}
           </div>
@@ -541,7 +538,7 @@ const BankExtract = () => {
             <div>
               <h1 className="text-2xl font-bold">Revisar Extrato</h1>
               <p className="text-muted-foreground text-sm mt-1">
-                {sessions.length} arquivo{sessions.length > 1 ? 's' : ''} — {totals.total} transações
+                {sessions.length} arquivo{sessions.length > 1 ? 's' : ''} â€” {totals.total} transaÃ§Ãµes
               </p>
             </div>
           </div>
@@ -578,13 +575,13 @@ const BankExtract = () => {
             <p className="text-2xl font-bold text-green-600">{totals.income}</p>
           </div>
           <div className="bg-card rounded-lg p-4 border border-border">
-            <p className="text-sm text-muted-foreground">Saídas</p>
+            <p className="text-sm text-muted-foreground">SaÃ­das</p>
             <p className="text-2xl font-bold text-red-600">{totals.expense}</p>
           </div>
           <div className="bg-card rounded-lg p-4 border border-border">
             <p className="text-sm text-green-600">Total Entradas</p>
             <p className="text-lg font-bold text-green-600">{formatCurrency(totals.totalIncome)}</p>
-            <p className="text-sm text-red-600">Total Saídas</p>
+            <p className="text-sm text-red-600">Total SaÃ­das</p>
             <p className="text-lg font-bold text-red-600">{formatCurrency(totals.totalExpense)}</p>
           </div>
         </div>
@@ -594,7 +591,7 @@ const BankExtract = () => {
           <div className="flex items-center gap-2">
             <AlertCircle className={`w-5 h-5 ${duplicateItems.length > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
             <h2 className="text-lg font-semibold">
-              {duplicateItems.length > 0 ? 'Transações Duplicadas Detectadas' : 'Verificação de Duplicatas'}
+              {duplicateItems.length > 0 ? 'TransaÃ§Ãµes Duplicadas Detectadas' : 'VerificaÃ§Ã£o de Duplicatas'}
             </h2>
             {duplicateItems.length > 0 && (
               <span className="text-sm text-muted-foreground">
@@ -606,7 +603,7 @@ const BankExtract = () => {
           {duplicateItems.length === 0 ? (
             <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
               <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
-              <p className="text-sm">Nenhuma duplicata encontrada. Todas as transações são inéditas.</p>
+              <p className="text-sm">Nenhuma duplicata encontrada. Todas as transaÃ§Ãµes sÃ£o inÃ©ditas.</p>
             </div>
           ) : (
             <div className="rounded-lg border-2 border-amber-300 overflow-hidden">
@@ -615,11 +612,11 @@ const BankExtract = () => {
                   <thead className="bg-amber-50 border-b border-amber-200">
                     <tr>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Data</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Descrição</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">DescriÃ§Ã£o</th>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Valor</th>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tipo</th>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Existente</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Ação</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">AÃ§Ã£o</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -638,22 +635,22 @@ const BankExtract = () => {
                             <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                               item.transaction.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                             }`}>
-                              {item.transaction.type === 'income' ? 'Entrada' : 'Saída'}
+                              {item.transaction.type === 'income' ? 'Entrada' : 'SaÃ­da'}
                             </span>
                           </td>
                           <td className="px-3 py-2 text-xs">
                             <div className="space-y-0.5">
                               <span className="font-medium">{item.existing.description}</span>
                               <div className="text-muted-foreground">
-                                {item.existing.transaction_date} — {formatCurrency(item.existing.amount)}
-                                {item.existing.category_name && <span> · {item.existing.category_name}</span>}
+                                {item.existing.transaction_date} â€” {formatCurrency(item.existing.amount)}
+                                {item.existing.category_name && <span> Â· {item.existing.category_name}</span>}
                               </div>
                             </div>
                           </td>
                           <td className="px-3 py-2">
                             {isResolved ? (
                               <span className="text-xs text-green-600 font-medium">
-                                {item.resolved === 'skip' ? '✓ Ignorado' : '✓ Substituído'}
+                                {item.resolved === 'skip' ? 'âœ“ Ignorado' : 'âœ“ SubstituÃ­do'}
                               </span>
                             ) : (
                               <div className="flex gap-1">
@@ -711,11 +708,11 @@ const BankExtract = () => {
                     <span className="font-semibold text-sm truncate">{session.filename}</span>
                     {session.isConfirmed && (
                       <span className="bg-green-600 text-white text-xs px-2 py-0.5 rounded-full shrink-0">
-                        Confirmado ✓
+                        Confirmado âœ“
                       </span>
                     )}
                     <span className="text-xs text-muted-foreground shrink-0">
-                      {session.transactions.length} transação{session.transactions.length > 1 ? 'ões' : ''}
+                      {session.transactions.length} transaÃ§Ã£o{session.transactions.length > 1 ? 'Ãµes' : ''}
                     </span>
                   </div>
 
@@ -733,18 +730,7 @@ const BankExtract = () => {
                         {banks.map((b) => (
                           <SelectItem key={b.id} value={b.bank_code}>
                             <div className="flex items-center gap-2">
-                              {!logoErrors.has(b.bank_code) ? (
-                                <img
-                                  src={`${BANK_LOGO_CDN}/${b.bank_code.padStart(3, '0')}.png`}
-                                  alt=""
-                                  className="w-4 h-4 rounded object-contain bg-card"
-                                  onError={() => setLogoErrors((prev) => new Set(prev).add(b.bank_code))}
-                                />
-                              ) : (
-                                <div className="w-4 h-4 rounded bg-primary/10 text-primary font-bold text-[6px] flex items-center justify-center">
-                                  {b.bank_code}
-                                </div>
-                              )}
+                              <BankLogo code={b.bank_code} size="xs" />
                               <span>{b.bank_name} ({b.bank_code})</span>
                             </div>
                           </SelectItem>
@@ -781,7 +767,7 @@ const BankExtract = () => {
                   <div className="px-4 py-3 bg-white border-b border-border">
                     <div className="flex items-end gap-3 max-w-lg flex-wrap">
                       <div className="space-y-1">
-                        <Label className="text-xs">Código</Label>
+                        <Label className="text-xs">CÃ³digo</Label>
                         <Input
                           placeholder="Ex: 260"
                           value={newBankCode}
@@ -815,7 +801,7 @@ const BankExtract = () => {
                       <thead className="bg-muted/50 border-b border-border">
                         <tr>
                           <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Data</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Descrição</th>
+                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">DescriÃ§Ã£o</th>
                           <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Valor</th>
                           <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tipo</th>
                           <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Parcelas</th>
@@ -857,7 +843,7 @@ const BankExtract = () => {
                                     ? 'bg-green-100 text-green-700'
                                     : 'bg-red-100 text-red-700'
                                 }`}>
-                                  {trans.type === 'income' ? 'Entrada' : 'Saída'}
+                                  {trans.type === 'income' ? 'Entrada' : 'SaÃ­da'}
                                 </span>
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap">
@@ -895,9 +881,9 @@ const BankExtract = () => {
                                   <SelectContent>
                                     <SelectItem value="dinheiro">Dinheiro</SelectItem>
                                     <SelectItem value="pix">PIX</SelectItem>
-                                    <SelectItem value="debito">Débito</SelectItem>
-                                    <SelectItem value="credito">Crédito</SelectItem>
-                                    <SelectItem value="transferencia">Transferência</SelectItem>
+                                    <SelectItem value="debito">DÃ©bito</SelectItem>
+                                    <SelectItem value="credito">CrÃ©dito</SelectItem>
+                                    <SelectItem value="transferencia">TransferÃªncia</SelectItem>
                                     <SelectItem value="boleto">Boleto</SelectItem>
                                     <SelectItem value="outros">Outros...</SelectItem>
                                   </SelectContent>
@@ -995,7 +981,7 @@ const BankExtract = () => {
                                   size="sm"
                                   className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                                   onClick={() => deleteTransaction(sIdx, rIdx)}
-                                  title="Remover transação"
+                                  title="Remover transaÃ§Ã£o"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
@@ -1013,7 +999,7 @@ const BankExtract = () => {
                   <div className="px-4 py-2 flex items-center gap-2 text-amber-600 bg-amber-50/50 border-t border-border">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span className="text-xs">
-                      {session.transactions.filter(t => !t.category_id).length} transação(ões) sem categoria
+                      {session.transactions.filter(t => !t.category_id).length} transaÃ§Ã£o(Ãµes) sem categoria
                     </span>
                   </div>
                 )}
@@ -1026,7 +1012,7 @@ const BankExtract = () => {
         {pendingCount > 0 && (
           <div className="sticky bottom-0 mt-6 bg-card border border-border rounded-lg p-4 flex justify-between items-center shadow-lg">
             <span className="text-sm text-muted-foreground">
-              {pendingCount} sessão(ões) pendente(s) — {totals.total - sessions.filter(s => s.isConfirmed).reduce((sum, s) => sum + s.transactions.length, 0)} transações
+              {pendingCount} sessÃ£o(Ãµes) pendente(s) â€” {totals.total - sessions.filter(s => s.isConfirmed).reduce((sum, s) => sum + s.transactions.length, 0)} transaÃ§Ãµes
             </span>
             <Button
               onClick={confirmAll}

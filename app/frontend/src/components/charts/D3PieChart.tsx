@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { formatCurrency } from '@/lib/format';
 import * as d3 from 'd3';
 
 interface PieChartData {
@@ -100,13 +101,6 @@ export function D3PieChart({ data, width = 400, height = 300 }: D3PieChartProps)
           .duration(200)
           .style('opacity', 1)
           .attr('transform', 'scale(1.05)');
-
-        const formatCurrency = (amount: number) => {
-          return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'BRL'
-          }).format(amount);
-        };
 
         const totalSpent = d.data.value;
         const limit = d.data.limit || 0;

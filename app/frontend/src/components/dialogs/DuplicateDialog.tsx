@@ -1,11 +1,6 @@
 import { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
+import { formatCurrency } from '@/lib/format';
+import { ResponsiveModal } from '@/components/ui/responsive-modal'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Trash2, Edit3, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { DuplicateInfo, Transaction } from '@/types/financial'
@@ -51,9 +46,6 @@ export function DuplicateDialog({
   const current = conflicts[safeIdx]
   const total = conflicts.length
 
-  const formatCurrency = (v: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(v)
-
   const handleAction = (action: DialogAction) => {
     if (!current) return
     onResolve(action, current.index)
@@ -74,20 +66,45 @@ export function DuplicateDialog({
   if (!current) return null
 
   return (
-    <Dialog open={open} onOpenChange={o => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
-            <DialogTitle>Duplicata Encontrada</DialogTitle>
+    <ResponsiveModal
+      open={open}
+      onOpenChange={o => !o && onClose()}
+      size="sm"
+      title={
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-amber-500" />
+          Duplicata Encontrada
+        </div>
+      }
+      description="Já existe uma transação com a mesma data e valor."
+      footer={
+        <div className="flex flex-col gap-2 w-full">
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => handleAction('keep')}>
+              Manter
+            </Button>
+            <Button variant="destructive" className="flex-1" onClick={() => handleAction('replace')}>
+              <Trash2 className="h-4 w-4 mr-2" /> Excluir
+            </Button>
+            <Button variant="default" className="flex-1" onClick={() => handleAction('edit')}>
+              <Edit3 className="h-4 w-4 mr-2" /> Editar
+            </Button>
           </div>
-          <DialogDescription>
-            Já existe uma transação com a mesma data e valor.
-          </DialogDescription>
-        </DialogHeader>
-
+          {isBulk && onResolveAll && (
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" className="flex-1 text-xs" onClick={() => handleResolveAll('keep')}>
+                Manter todos
+              </Button>
+              <Button variant="ghost" size="sm" className="flex-1 text-xs text-destructive" onClick={() => handleResolveAll('replace')}>
+                Excluir todos
+              </Button>
+            </div>
+          )}
+        </div>
+      }
+    >
         {isBulk && (
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
             <Button variant="ghost" size="sm" disabled={currentIdx === 0} onClick={() => setCurrentIdx(i => i - 1)}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -122,31 +139,6 @@ export function DuplicateDialog({
             </p>
           </div>
         </div>
-
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={() => handleAction('keep')}>
-              Manter
-            </Button>
-            <Button variant="destructive" className="flex-1" onClick={() => handleAction('replace')}>
-              <Trash2 className="h-4 w-4 mr-2" /> Excluir
-            </Button>
-            <Button variant="default" className="flex-1" onClick={() => handleAction('edit')}>
-              <Edit3 className="h-4 w-4 mr-2" /> Editar
-            </Button>
-          </div>
-          {isBulk && onResolveAll && (
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="flex-1 text-xs" onClick={() => handleResolveAll('keep')}>
-                Manter todos
-              </Button>
-              <Button variant="ghost" size="sm" className="flex-1 text-xs text-destructive" onClick={() => handleResolveAll('replace')}>
-                Excluir todos
-              </Button>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   )
 }

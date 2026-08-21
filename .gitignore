@@ -68,3 +68,7 @@ Thumbs.db
 
 # Docs (estrutura de pastas mantida localmente)
 docs/
+
+# Runtime/build artifacts
+logs/
+*.tsbuildinfo

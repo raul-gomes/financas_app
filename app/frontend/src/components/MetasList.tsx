@@ -4,6 +4,7 @@ import type { MetaProgresso } from '@/types/goals';
 import { TrendingUp, Target, Plus, Minus, CheckCircle2, RotateCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/hooks/use-toast';
 
 interface MetasListProps {
@@ -134,9 +135,7 @@ export function MetasList({ sidebarOpen, entityType }: MetasListProps) {
 
       {/* Empty state */}
       {metas.length === 0 && !showCreate && (
-        <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
-          <Target className="mb-2 h-8 w-8" />
-          <p className="text-sm">Nenhuma meta definida</p>
+        <EmptyState icon={Target} title="Nenhuma meta definida">
           <Button
             variant="link"
             size="sm"
@@ -145,7 +144,7 @@ export function MetasList({ sidebarOpen, entityType }: MetasListProps) {
           >
             Create primeira meta
           </Button>
-        </div>
+        </EmptyState>
       )}
 
       {/* Metas list — separate active and completed */}

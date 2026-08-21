@@ -3,12 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -24,6 +19,7 @@ import { Transaction, CategorySubcategories } from '@/types/financial';
 import { useToast } from '@/hooks/use-toast';
 import { FinancialService } from '@/services/financialService';
 import { SettingsService, UserBank } from '@/services/settingsService';
+import { BankLogo } from '@/components/ui/bank-logo';
 
 interface EditTransactionDialogProps {
   isOpen: boolean;
@@ -32,7 +28,6 @@ interface EditTransactionDialogProps {
   transaction: Transaction;
 }
 
-const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
 
 export function EditTransactionDialog({
   isOpen,
@@ -54,7 +49,6 @@ export function EditTransactionDialog({
   const [addingNewBank, setAddingNewBank] = useState(false);
   const [newBankCode, setNewBankCode] = useState('');
   const [newBankName, setNewBankName] = useState('');
-  const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set());
 
   const KNOWN_PAYMENT_METHODS = ['cash', 'pix', 'debit', 'credit', 'transfer'];
   const { toast } = useToast();
@@ -163,12 +157,20 @@ export function EditTransactionDialog({
     ?.subcategories.map(s => s.name) || [];
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Transaction</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <ResponsiveModal
+      open={isOpen}
+      onOpenChange={(open) => !open && handleClose()}
+      title="Edit Transaction"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="edit-transaction-form">Save</Button>
+        </>
+      }
+    >
+        <form id="edit-transaction-form" onSubmit={handleSubmit} className="space-y-4">
           {/* Type + Entity Type (inline) */}
           <div className="space-y-2">
             <Label>Type</Label>
@@ -213,17 +215,31 @@ export function EditTransactionDialog({
             </div>
           </div>
 
-          {/* Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount *</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              value={formData.amount!}
-              onChange={e => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
-              required
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Amount */}
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount *</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                value={formData.amount!}
+                onChange={e => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
+                required
+              />
+            </div>
+
+            {/* Date */}
+            <div className="space-y-2">
+              <Label htmlFor="transaction_date">Date *</Label>
+              <Input
+                id="transaction_date"
+                type="date"
+                value={formData.transaction_date?.split('T')[0] || ''}
+                onChange={e => setFormData(prev => ({ ...prev, transaction_date: e.target.value }))}
+                required
+              />
+            </div>
           </div>
 
           {/* Description */}
@@ -384,22 +400,10 @@ export function EditTransactionDialog({
               </SelectTrigger>
               <SelectContent>
                 {banks.map((bank) => {
-                  const hasLogo = !logoErrors.has(bank.bank_code);
                   return (
                     <SelectItem key={bank.id} value={bank.bank_code}>
                       <div className="flex items-center gap-2">
-                        {hasLogo ? (
-                          <img
-                            src={`${BANK_LOGO_CDN}/${bank.bank_code.padStart(3, '0')}.png`}
-                            alt=""
-                            className="w-5 h-5 rounded object-contain bg-card"
-                            onError={() => setLogoErrors((prev) => new Set(prev).add(bank.bank_code))}
-                          />
-                        ) : (
-                          <div className="w-5 h-5 rounded bg-primary/10 text-primary font-bold text-[8px] flex items-center justify-center">
-                            {bank.bank_code}
-                          </div>
-                        )}
+                        <BankLogo code={bank.bank_code} size="sm" />
                         <span>{bank.bank_name}</span>
                         <span className="text-muted-foreground text-xs">({bank.bank_code})</span>
                       </div>
@@ -554,27 +558,7 @@ export function EditTransactionDialog({
             </div>
           )}
 
-          {/* Date */}
-          <div className="space-y-2">
-            <Label htmlFor="transaction_date">Date *</Label>
-            <Input
-              id="transaction_date"
-              type="date"
-              value={formData.transaction_date?.split('T')[0] || ''}
-              onChange={e => setFormData(prev => ({ ...prev, transaction_date: e.target.value }))}
-              required
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button type="submit">Save</Button>
-          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 }

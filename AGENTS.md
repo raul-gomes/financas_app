@@ -12,6 +12,16 @@
 >
 > **IMPORTANT**: Whenever there is ANY database change — new/changed ORM model (`app/db/models/`), new Alembic migration (`app/db/migrations/versions/`), or a repository/route/service that starts reading/writing different tables — update `docs/lineage_data.md` in the same change (tables catalog, route→table matrix, flow graph, migration history, and its "Última atualização" date).
 
+## Design System & Componentes
+
+> For the component catalog and design tokens, see: `docs/components.md`
+>
+> **IMPORTANT**:
+> - **Sempre reutilize** os componentes existentes (`src/components/ui/` e compostos documentados) antes de escrever UI nova — nunca duplique primitivos (input, select, dialog, table etc.).
+> - Todo modal novo deve usar `ResponsiveModal` (não `Dialog`/`DialogContent` direto).
+> - Se, ao implementar algo, surgir um pedaço de UI que pode virar componente reutilizável, **crie o componente** na pasta apropriada (`ui/` para genéricos, `components/<domínio>/` para padrões de negócio) e **atualize `docs/components.md` na mesma mudança**.
+> - Use apenas os design tokens (`primary`, `success`, `warning`, `destructive`, gradientes) — nunca hardcode cores.
+
 ## Architecture
 
 - **Monorepo**: `app/backend/` (FastAPI, Python 3.12) + `app/frontend/` (Vite, React 18, TypeScript)
@@ -47,6 +57,8 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 cd app/frontend
 npm install
 npm run dev                    # Vite dev server (default port 8080)
+npm run test                   # Vitest (smoke tests, jsdom) — roda no container: docker exec financas-web sh -c "cd /app && npm run test"
+npm run typecheck              # tsc -b --noEmit — SEMPRE usar este formato (tsc puro não valida nada num tsconfig solution-style)
 ```
 
 ### Migrations (PostgreSQL via Alembic)
@@ -85,12 +97,40 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5436/financas alem
 - Hooks: `src/hooks/` — Custom React hooks
 - Contexts: `src/contexts/` — SidebarContext
 
+## Development Rules
+
+### TDD (Test-Driven Development) — MANDATORY
+
+Every new feature or bug fix MUST follow the TDD cycle:
+
+1. **RED**: Write failing tests first that describe the expected behavior
+2. **GREEN**: Write the minimum code to make the tests pass
+3. **REFACTOR**: Clean up the code while keeping tests green
+
+- Backend tests: `tests/` (pytest + pytest-asyncio, SQLite in-memory via `conftest.py`) — run with `uv run pytest`
+- Frontend tests: Vitest + Testing Library (jsdom) já configurados — coloque `*.test.tsx`/`*.test.ts` ao lado do componente/serviço e rode com `npm run test` (ou via container); valide tipos com `npm run typecheck` (`tsc -b --noEmit`)
+- Never deliver a feature without tests covering its core behavior (happy path + edge cases + error handling)
+- When fixing a bug, first write a test that reproduces it, then apply the fix
+
+### Security Best Practices — PRIORITY
+
+Always prioritize security when writing code:
+
+- **Never commit secrets** (keys, passwords, tokens) — use `.env` / env vars only
+- **Validate all external input** with Pydantic schemas on every endpoint (never trust raw request data)
+- **Use parameterized queries** via SQLAlchemy ORM — never build SQL by string concatenation
+- **Hash passwords** with bcrypt (see `settings_routes.py`); never store or log plain secrets (e.g., `pluggy_api_key`)
+- **Sanitize file uploads** (extract CSV/OFX): enforce size limits, parse defensively, never execute content
+- Keep dependencies updated and avoid introducing packages with known vulnerabilities (`npm audit` / `uv lock`)
+- Apply least privilege: only expose what is necessary through nginx; backend/DB stay internal
+
 ## Important Quirks
 
 - **Nginx is the only exposed service** — backend and frontend are internal to Docker network
 - **API calls** go through nginx proxy: frontend → `/api/*` → backend
 - **Alembic runs on startup** — `docker compose up` automatically applies migrations
 - **Alembic URL mismatch**: `alembic.ini` defaults to SQLite — always pass `DATABASE_URL` env var when running alembic manually
+- **Backend usa uv, nunca pip**: Dockerfile instala com `uv sync --frozen` (imagem final nem tem pip). Dependências travadas no `uv.lock` — para mudar deps, edite `pyproject.toml` e rode `uv lock` (ou `uv lock --check` para validar). Sem uv no host? Rode via container efêmero: `docker run --rm -v ./app/backend:/app -w /app ghcr.io/astral-sh/uv:python3.12-alpine sh -c "uv sync && DATABASE_URL=sqlite+aiosqlite:///:memory: uv run pytest -q"`
 - **No linter/formatter** configured on backend; frontend uses eslint
 
 ## Env Vars

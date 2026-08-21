@@ -1,5 +1,6 @@
 // TransactionList.tsx
 import { useState, useEffect } from 'react';
+import { formatCurrency } from '@/lib/format';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import {
   Search,
 } from 'lucide-react';
 import { Transaction, MonthlyBalance } from '@/types/financial';
+import { BankLogo } from '@/components/ui/bank-logo';
 import { AnimatedNumber } from './AnimatedNumber';
 import { AddTransactionDialog } from '@/components/dialogs/AddTransactionDialog';
 import { EditTransactionDialog } from '@/components/dialogs/EditTransactionDialog';
@@ -54,7 +56,6 @@ export function TransactionList({
   const [uploadOpen, setUploadOpen] = useState(false);
   const [banks, setBanks] = useState<UserBank[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Load banks once on mount (banks change rarely)
@@ -68,10 +69,6 @@ export function TransactionList({
     return bank?.bank_name || null;
   };
 
-  const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
-
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(amount);
 
   const handleEditTransaction = (id: number) => {
     const transaction = transactions.find(t => t.id === id);
@@ -270,16 +267,7 @@ export function TransactionList({
                     )}
                     {t.bank_code && bankName && (
                       <span className="shrink-0" title={bankName}>
-                        {!logoErrors.has(t.bank_code) ? (
-                          <img
-                            src={`${BANK_LOGO_CDN}/${t.bank_code.padStart(3, '0')}.png`}
-                            alt={bankName}
-                            className="w-4 h-4 rounded object-contain bg-card"
-                            onError={() => setLogoErrors((prev) => new Set(prev).add(t.bank_code!))}
-                          />
-                        ) : (
-                          <span className="text-[8px] font-bold text-muted-foreground border rounded px-0.5">{t.bank_code}</span>
-                        )}
+                        <BankLogo code={t.bank_code} size="xs" alt={bankName} />
                       </span>
                     )}
                     {!t.recurring_account_id && (

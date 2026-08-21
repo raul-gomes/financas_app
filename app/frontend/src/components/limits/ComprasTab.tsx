@@ -12,6 +12,7 @@ import { ShoppingCart, PlusCircle, Pencil, Trash2, CheckCircle2, Search, Save } 
 import { useToast } from '@/hooks/use-toast'
 import { ShoppingService } from '@/services/shoppingService'
 import type { ShoppingItem } from '@/types/shopping'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface ComprasTabProps {
     entityTypeFilter?: 'pf' | 'pj' | 'all'
@@ -26,6 +27,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
     const [editNome, setEditNome] = useState('')
     const [searchPendentes, setSearchPendentes] = useState('')
     const [searchConcluidas, setSearchConcluidas] = useState('')
+    const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
     const { toast } = useToast()
     const mesRef = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
     const mesRefStr = mesRef.toISOString().slice(0, 10)
@@ -79,8 +81,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
         }
     }
 
-    const handleDelete = async (id: number) => {
-        if (!confirm('Excluir este item?')) return
+    const doDelete = async (id: number) => {
         try {
             await ShoppingService.delete(id)
             toast({ title: 'Sucesso', description: 'Item excluído!' })
@@ -89,6 +90,8 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
             toast({ title: 'Erro', description: 'Falha ao excluir item.', variant: 'destructive' })
         }
     }
+
+    const handleDelete = (id: number) => setPendingDeleteId(id)
 
     const pendentes = items.filter(i => !i.checked)
     const concluidos = items.filter(i => i.checked)
@@ -249,6 +252,16 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                     </CardContent>
                 </Card>
             )}
+
+            <ConfirmDialog
+                open={pendingDeleteId !== null}
+                onOpenChange={(open) => { if (!open) setPendingDeleteId(null) }}
+                title="Excluir este item?"
+                description="Esta ação não pode ser desfeita."
+                destructive
+                confirmLabel="Excluir"
+                onConfirm={() => { if (pendingDeleteId !== null) void doDelete(pendingDeleteId) }}
+            />
         </div>
     )
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { formatCurrency } from '@/lib/format';
 import * as d3 from 'd3';
 import { YearlyData } from '@/types/financial';
 
@@ -177,13 +178,6 @@ export function D3BarChart({
       // Add hover effect to goal line
       goalLine
         .on('mouseover', function(event) {
-          const formatCurrency = (amount: number) => {
-            return new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'BRL'
-            }).format(amount);
-          };
-          
           tooltip
             .style('visibility', 'visible')
             .html(`
@@ -214,8 +208,9 @@ export function D3BarChart({
     // Y Axis
     g.append('g')
       .call(d3.axisLeft(yScale).ticks(6).tickFormat(d => {
-        if (d >= 1000) return `${(d / 1000).toFixed(0)}k`;
-        return d.toString();
+        const value = Number(d);
+        if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+        return value.toString();
       }))
       .selectAll('text')
       .attr('fill', 'hsl(var(--muted-foreground))')
@@ -244,13 +239,6 @@ export function D3BarChart({
     g.selectAll('.income-bar, .expense-bar, .investment-bar')
       .style('cursor', 'pointer')
         .on('mouseover', function(event, d: any) {
-          const formatCurrency = (amount: number) => {
-            return new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'BRL'
-            }).format(amount);
-          };
-
           const isIncome = d3.select(this).classed('income-bar');
           const isExpense = d3.select(this).classed('expense-bar');
           const isInvestment = d3.select(this).classed('investment-bar');
