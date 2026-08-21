@@ -25,6 +25,8 @@ import {
   BrasilApiBank,
   PluggyAccount,
 } from '@/services/settingsService';
+import { BankLogo } from '@/components/ui/bank-logo';
+import { PageHeader } from '@/components/ui/page-header';
 
 const Settings = () => {
   const { toast } = useToast();
@@ -45,7 +47,6 @@ const Settings = () => {
   const searchRef = useRef<HTMLDivElement>(null);
   const [addingBank, setAddingBank] = useState(false);
   const [loadingBanks, setLoadingBanks] = useState(false);
-  const [logoErrors, setLogoErrors] = useState<Set<number>>(new Set());
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -67,8 +68,6 @@ const Settings = () => {
   });
 
   // ── Bank logo helper ──
-  const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
-  const getBankLogoUrl = (code: string) => `${BANK_LOGO_CDN}/${code.padStart(3, '0')}.png`;
 
   // ── Load initial data ──
   const loadData = useCallback(async () => {
@@ -278,15 +277,12 @@ const Settings = () => {
     <div className="min-h-screen bg-gradient-subtle px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-2.5 rounded-xl bg-primary/10">
-            <SettingsIcon className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
-            <p className="text-muted-foreground">Gerencie seu perfil e bancos vinculados</p>
-          </div>
-        </div>
+        <PageHeader
+          icon={SettingsIcon}
+          title="Configurações"
+          description="Gerencie seu perfil e bancos vinculados"
+          className="mb-8"
+        />
 
         {/* ── Perfil ── */}
         <Card className="shadow-card border-none mb-8">
@@ -485,20 +481,19 @@ const Settings = () => {
                       className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border border-border/60 hover:border-border transition-colors group"
                     >
                       <div className="flex items-center gap-4">
-                        {logoErrors.has(bank.id) || !bank.bank_code ? (
-                          <div
-                            className={`w-10 h-10 rounded-xl ${bankColors[idx % bankColors.length]} text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-sm`}
-                          >
-                            {bankInitials(bank.bank_name)}
-                          </div>
-                        ) : (
-                          <img
-                            src={getBankLogoUrl(bank.bank_code)}
-                            alt={bank.bank_name}
-                            className="w-10 h-10 rounded-xl object-contain bg-card border border-border/40 shrink-0 shadow-sm p-1"
-                            onError={() => setLogoErrors((prev) => new Set(prev).add(bank.id))}
-                          />
-                        )}
+                        <BankLogo
+                          code={bank.bank_code}
+                          size="lg"
+                          className="rounded-xl border border-border/40 p-1 shadow-sm"
+                          alt={bank.bank_name}
+                          fallback={
+                            <div
+                              className={`w-10 h-10 rounded-xl ${bankColors[idx % bankColors.length]} text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-sm`}
+                            >
+                              {bankInitials(bank.bank_name)}
+                            </div>
+                          }
+                        />
                         <div>
                           <div className="font-medium text-sm text-foreground">
                             {bank.bank_name}

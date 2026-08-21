@@ -12,6 +12,7 @@ import { Target, PlusCircle, Pencil, Trash2, CheckCircle2, Search, RotateCcw, Sa
 import { useToast } from '@/hooks/use-toast'
 import { MetasService } from '@/services/goalsService'
 import type { Meta } from '@/types/goals'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface MetasTabProps {
     entityTypeFilter?: 'pf' | 'pj' | 'all'
@@ -28,6 +29,7 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
     const [editValor, setEditValor] = useState('')
     const [searchAtivas, setSearchAtivas] = useState('')
     const [searchConcluidas, setSearchConcluidas] = useState('')
+    const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
     const { toast } = useToast()
 
     const loadMetas = useCallback(async () => {
@@ -78,8 +80,7 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
         }
     }
 
-    const handleDelete = async (id: number) => {
-        if (!confirm('Delete esta meta?')) return
+    const doDelete = async (id: number) => {
         try {
             await MetasService.delete(id)
             toast({ title: 'Sucesso', description: 'Meta excluída!' })
@@ -88,6 +89,8 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
             toast({ title: 'Erro', description: 'Falha ao excluir meta.', variant: 'destructive' })
         }
     }
+
+    const handleDelete = (id: number) => setPendingDeleteId(id)
 
     const handleConcluir = async (id: number) => {
         try {
@@ -115,8 +118,8 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
         setEditValor(meta.target_amount.toString())
     }
 
-    const ativas = metas.filter(m => !m.concluida)
-    const concluidas = metas.filter(m => m.concluida)
+    const ativas = metas.filter(m => !m.completed)
+    const concluidas = metas.filter(m => m.completed)
     const ativasFiltradas = ativas.filter(m =>
         m.subcategory_name.toLowerCase().includes(searchAtivas.toLowerCase())
     )
@@ -290,6 +293,16 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                     </CardContent>
                 </Card>
             )}
+
+            <ConfirmDialog
+                open={pendingDeleteId !== null}
+                onOpenChange={(open) => { if (!open) setPendingDeleteId(null) }}
+                title="Excluir esta meta?"
+                description="Esta ação não pode ser desfeita."
+                destructive
+                confirmLabel="Excluir"
+                onConfirm={() => { if (pendingDeleteId !== null) void doDelete(pendingDeleteId) }}
+            />
         </div>
     )
 }

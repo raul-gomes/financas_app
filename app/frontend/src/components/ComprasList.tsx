@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ShoppingService } from '@/services/shoppingService';
 import type { ShoppingItem } from '@/types/shopping';
 import { Plus, ShoppingCart, Trash2, Search } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -57,7 +58,7 @@ export function ComprasList({ sidebarOpen, entityType }: ComprasListProps) {
     if (!nome) return;
     try {
       const entity_type = !entityType || entityType === 'all' ? 'individual' : (entityType === 'pf' ? 'individual' : 'business');
-      await ShoppingService.create({ name: nome, mes_ref: mesRefStr, entity_type });
+      await ShoppingService.create({ name: nome, reference_month: mesRefStr, entity_type });
       setNewItemName('');
       await fetchItems();
     } catch {
@@ -122,10 +123,7 @@ export function ComprasList({ sidebarOpen, entityType }: ComprasListProps) {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
-          <ShoppingCart className="mb-2 h-8 w-8" />
-          <p className="text-sm">Nenhum item na lista</p>
-        </div>
+        <EmptyState icon={ShoppingCart} title="Nenhum item na lista" />
       ) : (
         <div className="space-y-3">
           {/* Pendentes */}

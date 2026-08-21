@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
@@ -8,6 +8,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    // Necessário no Docker (bind mount do Windows não propaga inotify):
+    // garante HMR e invalidação de cache de transform ao editar arquivos
+    watch: {
+      usePolling: true,
+      interval: 300,
+    },
   },
   plugins: [
     react(),
@@ -18,5 +24,11 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    globals: false,
+    css: false,
   },
 }));

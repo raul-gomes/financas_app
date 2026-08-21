@@ -5,6 +5,7 @@ import { D3HorizontalBarChart } from '@/components/charts/D3HorizontalBarChart';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { TrendingUp, DollarSign, PiggyBank, Building2, TrendingDown, BarChart3 } from 'lucide-react';
 import { Investment, PortfolioEvolution } from '@/types/financial';
+import { formatCurrency } from '@/lib/format';
 
 interface InvestmentDashboardProps {
   investments: Investment[];
@@ -15,13 +16,6 @@ export function InvestmentDashboard({
   investments,
   portfolioEvolution
 }: InvestmentDashboardProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(amount);
-  };
-
   const formatPercentage = (percentage: number) => {
     const sign = percentage >= 0 ? '+' : '';
     return `${sign}${percentage.toFixed(2)}%`;

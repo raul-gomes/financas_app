@@ -1,13 +1,10 @@
 // BankBreakdownModal.tsx
-import { useState, type LucideIcon } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { type LucideIcon } from 'lucide-react';
+import { formatCurrency } from '@/lib/format';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { DialogTitle } from '@/components/ui/dialog';
+import { BankLogo } from '@/components/ui/bank-logo';
 import { cn } from '@/lib/utils';
-
-const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
 
 export interface BankBreakdownItem {
   bank_code: string;
@@ -78,17 +75,18 @@ export function BankBreakdownModal({
   icon: Icon,
   theme,
 }: BankBreakdownModalProps) {
-  const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set());
   const sorted = [...items].sort((a, b) => b.amount - a.amount);
-
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(amount);
 
   const style = themeStyles[theme];
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-sm p-0 gap-0 overflow-hidden">
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onClose}
+      size="sm"
+      className="p-0"
+      bodyClassName="p-0"
+    >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         {/* Header com cor do card */}
         <div className={cn('flex items-center gap-3 px-5 py-4', style.headerBg)}>
@@ -120,18 +118,7 @@ export function BankBreakdownModal({
                 >
                   {/* Logo */}
                   <div className="w-8 flex justify-center shrink-0">
-                    {!logoErrors.has(item.bank_code) ? (
-                      <img
-                        src={`${BANK_LOGO_CDN}/${item.bank_code.padStart(3, '0')}.png`}
-                        alt={item.bank_name}
-                        className="w-6 h-6 rounded object-contain"
-                        onError={() => setLogoErrors((prev) => new Set(prev).add(item.bank_code))}
-                      />
-                    ) : (
-                      <span className="w-6 h-6 rounded bg-muted text-muted-foreground font-bold text-[10px] flex items-center justify-center">
-                        {item.bank_code}
-                      </span>
-                    )}
+                    <BankLogo code={item.bank_code} size="md" alt={item.bank_name} />
                   </div>
 
                   {/* Barra de progresso */}
@@ -159,7 +146,6 @@ export function BankBreakdownModal({
             </p>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 }

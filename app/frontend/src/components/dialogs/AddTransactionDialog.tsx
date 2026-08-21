@@ -1,12 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -23,6 +19,7 @@ import { FinancialService } from '@/services/financialService';
 import { SettingsService, UserBank } from '@/services/settingsService';
 import { Plus } from 'lucide-react';
 import { DuplicateDialog, DialogAction } from '@/components/dialogs/DuplicateDialog';
+import { BankLogo } from '@/components/ui/bank-logo';
 
 interface AddTransactionDialogProps {
   isOpen: boolean;
@@ -30,7 +27,6 @@ interface AddTransactionDialogProps {
   onAddTransaction: (transaction: Transaction) => void;
 }
 
-const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
 
 export function AddTransactionDialog({
   isOpen,
@@ -60,7 +56,6 @@ export function AddTransactionDialog({
   const [addingNewBank, setAddingNewBank] = useState(false);
   const [newBankCode, setNewBankCode] = useState('');
   const [newBankName, setNewBankName] = useState('');
-  const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Duplicate checking state
@@ -234,12 +229,28 @@ export function AddTransactionDialog({
   const installmentAmount = calculateInstallmentAmount();
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>New Transaction</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      <ResponsiveModal
+        open={isOpen}
+        onOpenChange={(open) => !open && handleClose()}
+        title="New Transaction"
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="add-transaction-form"
+              className="flex-1 bg-gradient-primary"
+              disabled={isCheckingDuplicate}
+            >
+              {isCheckingDuplicate ? 'Checking...' : 'Add'}
+            </Button>
+          </>
+        }
+      >
+        <form id="add-transaction-form" onSubmit={handleSubmit} className="space-y-4">
           {/* Type + Entity Type (inline) */}
           <div className="space-y-2">
             <Label>Type</Label>
@@ -282,18 +293,29 @@ export function AddTransactionDialog({
             </div>
           </div>
 
-          {/* Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount *</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              required
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Amount */}
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount *</Label>
+              <CurrencyInput
+                id="amount"
+                placeholder="0,00"
+                value={formData.amount}
+                onChange={(amount) => setFormData({ ...formData, amount })}
+                required
+              />
+            </div>
+
+            {/* Date */}
+            <div className="space-y-2">
+              <Label htmlFor="transaction_date">Date</Label>
+              <Input
+                id="transaction_date"
+                type="date"
+                value={formData.transaction_date}
+                onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+              />
+            </div>
           </div>
 
           {/* Description */}
@@ -308,9 +330,10 @@ export function AddTransactionDialog({
             />
           </div>
 
-          {/* Category */}
-          <div className="space-y-2">
-            <Label htmlFor="category_name">Category *</Label>
+          {/* Category + Subcategory */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="category_name">Category *</Label>
 
             {/* When income/investment: disabled input with fixed value (category might not exist in DB yet) */}
             {formData.type === 'income' || formData.type === 'investment' ? (
@@ -369,11 +392,10 @@ export function AddTransactionDialog({
                 )}
               </>
             )}
-          </div>
+            </div>
 
-          {/* Subcategory */}
-          {formData.category_name && (
-            <div className="space-y-2">
+            {formData.category_name && (
+              <div className="space-y-2">
               <Label htmlFor="subcategory_name">Subcategory *</Label>
               <Select
                 value={showNewSubcategoryInput ? 'other' : formData.subcategory_name}
@@ -421,12 +443,14 @@ export function AddTransactionDialog({
                   />
                 </div>
               )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
-          {/* Bank */}
-          <div className="space-y-2">
-            <Label htmlFor="bank">Bank</Label>
+          {/* Bank + Payment Method */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="bank">Bank</Label>
             <Select
               value={addingNewBank ? '+add' : bankCode}
               onValueChange={(value) => {
@@ -445,22 +469,10 @@ export function AddTransactionDialog({
               </SelectTrigger>
               <SelectContent>
                 {banks.map((bank) => {
-                  const hasLogo = !logoErrors.has(bank.bank_code);
                   return (
                     <SelectItem key={bank.id} value={bank.bank_code}>
                       <div className="flex items-center gap-2">
-                        {hasLogo ? (
-                          <img
-                            src={`${BANK_LOGO_CDN}/${bank.bank_code.padStart(3, '0')}.png`}
-                            alt=""
-                            className="w-5 h-5 rounded object-contain bg-card"
-                            onError={() => setLogoErrors((prev) => new Set(prev).add(bank.bank_code))}
-                          />
-                        ) : (
-                          <div className="w-5 h-5 rounded bg-primary/10 text-primary font-bold text-[8px] flex items-center justify-center">
-                            {bank.bank_code}
-                          </div>
-                        )}
+                        <BankLogo code={bank.bank_code} size="sm" />
                         <span>{bank.bank_name}</span>
                         <span className="text-muted-foreground text-xs">({bank.bank_code})</span>
                       </div>
@@ -476,7 +488,7 @@ export function AddTransactionDialog({
               </SelectContent>
             </Select>
             {addingNewBank && (
-              <div className="mt-2 flex items-end gap-2">
+              <div className="mt-2 flex flex-wrap items-end gap-2">
                 <div className="flex-1 space-y-1">
                   <Label className="text-xs">Code</Label>
                   <Input
@@ -520,10 +532,10 @@ export function AddTransactionDialog({
                 </Button>
               </div>
             )}
-          </div>
+            </div>
 
-          {/* Payment Method + Installment Switch */}
-          <div className="space-y-2">
+            {/* Payment Method + Installment Switch */}
+            <div className="space-y-2">
             <Label htmlFor="payment_method">Payment Method</Label>
             <div className="flex items-center gap-3">
               <div className="flex-1">
@@ -575,6 +587,7 @@ export function AddTransactionDialog({
                 <Label htmlFor="isInstallment" className="text-sm font-medium cursor-pointer">Installment</Label>
               </div>
             </div>
+            </div>
           </div>
 
           {/* Installments (conditional) */}
@@ -604,28 +617,8 @@ export function AddTransactionDialog({
             </div>
           )}
 
-          {/* Date */}
-          <div className="space-y-2">
-            <Label htmlFor="transaction_date">Date</Label>
-            <Input
-              id="transaction_date"
-              type="date"
-              value={formData.transaction_date}
-              onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1 bg-gradient-primary" disabled={isCheckingDuplicate}>
-              {isCheckingDuplicate ? 'Checking...' : 'Add'}
-            </Button>
-          </div>
         </form>
-      </DialogContent>
+      </ResponsiveModal>
 
       {/* Duplicate Dialog */}
       {duplicateConflict && (
@@ -644,6 +637,6 @@ export function AddTransactionDialog({
           onClose={() => setDuplicateConflict(null)}
         />
       )}
-    </Dialog>
+    </>
   );
 }

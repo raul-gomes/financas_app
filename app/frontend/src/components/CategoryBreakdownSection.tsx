@@ -2,17 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card } from 'primereact/card';
 import { AnimatedNumber } from './AnimatedNumber';
 import { CategoryBreakdown, CategoryExpense } from '@/types/financial';
+import { formatCurrency } from '@/lib/format';
 
 interface CategoryBreakdownSectionProps {
   categoryBreakdown: CategoryBreakdown | null;
 }
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(amount);
-};
 
 export function CategoryBreakdownSection({
   categoryBreakdown,

@@ -1,12 +1,16 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, Date, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Boolean, Date, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
 class CategoryORM(Base):
     __tablename__ = 'categorias'
+    # Alinhado com a migração dfc6bf881c13: unicidade por nome DENTRO de cada natureza
+    __table_args__ = (
+        UniqueConstraint('name', 'entity_type', name='uq_categorias_name_entity_type'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
+    name = Column(String, nullable=False)
     entity_type = Column(String, nullable=False)
     limit = Column(Float, default=0)
     type = Column(String, nullable=True)  # 'income', 'expense', 'investment' or None (special)

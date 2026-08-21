@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { formatCurrency } from '@/lib/format';
 import * as d3 from 'd3';
 
 interface D3HorizontalBarChartProps {
@@ -37,13 +38,6 @@ export function D3HorizontalBarChart({
     const xScale = d3.scaleLinear()
       .domain([0, d3.max(data, d => d.value) || 0])
       .range([0, innerWidth]);
-
-    // Formatador de moeda
-    const formatCurrency = (value: number) => 
-      new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'BRL'
-      }).format(value);
 
     // Barras
     container.selectAll('.bar')

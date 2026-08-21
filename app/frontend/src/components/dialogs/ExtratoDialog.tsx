@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { formatCurrency } from '@/lib/format';
+import { ResponsiveModal } from '@/components/ui/responsive-modal'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -12,10 +13,10 @@ import { FinancialService } from '@/services/financialService'
 import { SettingsService } from '@/services/settingsService'
 import { SessionData, ParsedTransaction, ConfirmTransaction } from '@/types/extract'
 import { CategorySubcategories, DuplicateInfo } from '@/types/financial'
-import { UserBank, BankCreate } from '@/types/settingsService'
+import { UserBank, BankCreate } from '@/services/settingsService'
 import { DuplicateDialog, DialogAction } from '@/components/dialogs/DuplicateDialog'
+import { BankLogo } from '@/components/ui/bank-logo'
 
-const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png';
 
 const KNOWN_PAYMENT_METHODS = ['dinheiro', 'pix', 'debito', 'credito', 'transferencia', 'boleto'];
 
@@ -32,7 +33,6 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     const [uploadProgress, setUploadProgress] = useState('')
     const [banks, setBanks] = useState<UserBank[]>([])
     const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null)
-    const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set())
 
     // Inline "add bank" state
     const [addingBankSessionIdx, setAddingBankSessionIdx] = useState<number | null>(null)
@@ -447,9 +447,6 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         onOpenChange(false)
     }
 
-    const formatCurrency = (value: number) =>
-        new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(value)
-
     const totals = sessions.reduce((acc, s) => ({
         total: acc.total + s.transactions.length,
         income: acc.income + s.transactions.filter(t => t.type === 'income').length,
@@ -466,11 +463,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     // ============================================================
     if (sessions.length === 0) {
         return (
-            <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Import Bank Statement</DialogTitle>
-                    </DialogHeader>
+            <ResponsiveModal open={open} onOpenChange={onOpenChange} size="lg" title="Import Bank Statement">
                     <div
                         onDrop={handleDrop}
                         onDragOver={(e) => e.preventDefault()}
@@ -501,47 +494,43 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                             </div>
                         )}
                     </div>
-                </DialogContent>
-            </Dialog>
+            </ResponsiveModal>
         )
     }
 
     return (
-        <Dialog open={open} onOpenChange={(open) => { if (!open) handleCancel() }}>
-            <DialogContent className="max-w-7xl max-h-[90vh] flex flex-col">
-                <DialogHeader className="shrink-0">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <DialogTitle>Review Statement</DialogTitle>
-                            <p className="text-muted-foreground text-sm mt-1">
-                                {sessions.length} arquivo{sessions.length > 1 ? 's' : ''} — {totals.total} transações
-                            </p>
-                        </div>
-                        <div className="flex gap-3">
-                            <Button variant="outline" size="sm" onClick={handleCancel}>
-                                <X className="w-4 h-4 mr-2" />Cancelar
+        <>
+            <ResponsiveModal
+                open={open}
+                onOpenChange={(o) => { if (!o) handleCancel() }}
+                size="xl"
+                title="Review Statement"
+                description={`${sessions.length} arquivo${sessions.length > 1 ? 's' : ''} — ${totals.total} transações`}
+                footer={
+                    <div className="flex flex-wrap gap-3 w-full sm:justify-end">
+                        <Button variant="outline" size="sm" onClick={handleCancel}>
+                            <X className="w-4 h-4 mr-2" />Cancelar
+                        </Button>
+                        {pendingCount > 0 && (
+                            <Button
+                                onClick={confirmAll}
+                                disabled={isConfirming || allConfirmed}
+                                size="sm"
+                                className="bg-gradient-primary"
+                            >
+                                {isConfirming ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                )}
+                                {isConfirming ? 'Importing...' : `Confirm All (${pendingCount})`}
                             </Button>
-                            {pendingCount > 0 && (
-                                <Button
-                                    onClick={confirmAll}
-                                    disabled={isConfirming || allConfirmed}
-                                    size="sm"
-                                    className="bg-gradient-primary"
-                                >
-                                    {isConfirming ? (
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    ) : (
-                                        <CheckCircle className="w-4 h-4 mr-2" />
-                                    )}
-                                    {isConfirming ? 'Importing...' : `Confirm All (${pendingCount})`}
-                                </Button>
-                            )}
-                        </div>
+                        )}
                     </div>
-                </DialogHeader>
-
+                }
+            >
                 {/* Summary cards */}
-                <div className="grid grid-cols-4 gap-4 shrink-0">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="bg-card rounded-lg p-4 border border-border">
                         <p className="text-sm text-muted-foreground">Total</p>
                         <p className="text-2xl font-bold">{totals.total}</p>
@@ -563,7 +552,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                 </div>
 
                 {/* Sessions */}
-                <div className="mt-4 flex-1 overflow-y-auto space-y-4">
+                <div className="mt-4 space-y-4">
                     {sessions.map((session, sIdx) => {
                         const bank = selectedBank(sIdx)
                         const hasBank = !!session.bankCode
@@ -611,18 +600,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                                 {banks.map((b) => (
                                                     <SelectItem key={b.id} value={b.bank_code}>
                                                         <div className="flex items-center gap-2">
-                                                            {!logoErrors.has(b.bank_code) ? (
-                                                                <img
-                                                                    src={`${BANK_LOGO_CDN}/${b.bank_code.padStart(3, '0')}.png`}
-                                                                    alt=""
-                                                                    className="w-4 h-4 rounded object-contain bg-card"
-                                                                    onError={() => setLogoErrors((prev) => new Set(prev).add(b.bank_code))}
-                                                                />
-                                                            ) : (
-                                                                <div className="w-4 h-4 rounded bg-primary/10 text-primary font-bold text-[6px] flex items-center justify-center">
-                                                                    {b.bank_code}
-                                                                </div>
-                                                            )}
+                                                            <BankLogo code={b.bank_code} size="xs" />
                                                             <span>{b.bank_name} ({b.bank_code})</span>
                                                         </div>
                                                     </SelectItem>
@@ -887,7 +865,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                         )
                     })}
                 </div>
-            </DialogContent>
+            </ResponsiveModal>
 
             {/* Duplicate Dialog for extracto conflicts */}
             {duplicateConflicts.length > 0 && (
@@ -922,6 +900,6 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                     }}
                 />
             )}
-        </Dialog>
+        </>
     )
 }

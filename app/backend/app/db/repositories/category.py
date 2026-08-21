@@ -99,8 +99,9 @@ class CategoriaRepository:
             
         except IntegrityError as e:
             await self.db.rollback()
-            if "categorias.name" in str(e):
-                log.error("Violação de unicidade em name")
+            err = str(e)
+            if "categorias.name" in err or "uq_categorias_name_entity_type" in err:
+                log.error("Violação de unicidade em (name, entity_type)")
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"Categoria com nome '{obj_in.category_name}' já existe"

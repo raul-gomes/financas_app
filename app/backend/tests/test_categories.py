@@ -121,6 +121,25 @@ async def test_create_duplicate_categoria(client):
 
 
 @pytest.mark.asyncio
+async def test_create_same_name_different_entity_type_allowed(client):
+    """Unicidade é (name, entity_type): 'Limite Cartao Credito' deve existir para PF e PJ."""
+    pf = await client.post("/categories/", json={
+        "category_name": "Limite Cartao Credito",
+        "entity_type": "individual",
+        "limit": 15000.0,
+        "subcategories": []
+    })
+    assert pf.status_code == 201
+    pj = await client.post("/categories/", json={
+        "category_name": "Limite Cartao Credito",
+        "entity_type": "business",
+        "limit": 30000.0,
+        "subcategories": []
+    })
+    assert pj.status_code == 201
+
+
+@pytest.mark.asyncio
 async def test_update_categoria_duplicate_name(client):
     await client.post("/categories/", json={
         "category_name": "Cat1",

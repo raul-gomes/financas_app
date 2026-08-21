@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, TrendingUp, TrendingDown, Search } from 'lucide-react';
 import { AddInvestmentDialog } from '@/components/dialogs/AddInvestmentDialog';
 import { EditInvestmentDialog } from '@/components/dialogs/EditInvestmentDialog';
+import { formatCurrency } from '@/lib/format';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface InvestmentTableProps {
   investments: Investment[];
@@ -25,13 +27,6 @@ export const InvestmentTable = ({
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(amount);
-  };
 
   const formatPercentage = (percentage: number) => {
     const sign = percentage >= 0 ? '+' : '';
@@ -138,9 +133,7 @@ export const InvestmentTable = ({
                   <InvestmentRow key={investment.id} investment={investment} />
                 ))
               ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  <p>Nenhum investimento de renda variável encontrado</p>
-                </div>
+                <EmptyState title="Nenhum investimento de renda variável encontrado" />
               )}
             </div>
           </TabsContent>
@@ -152,9 +145,7 @@ export const InvestmentTable = ({
                   <InvestmentRow key={investment.id} investment={investment} />
                 ))
               ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  <p>Nenhum investimento de renda fixa encontrado</p>
-                </div>
+                <EmptyState title="Nenhum investimento de renda fixa encontrado" />
               )}
             </div>
           </TabsContent>

@@ -1,5 +1,12 @@
 import pytest
+from datetime import datetime
 from httpx import AsyncClient
+
+
+def _expected_remaining_2026(total: int = 12) -> int:
+    """Parcelas de jan/2026..dez/2026 com data >= dia 1 do mês atual (mesma regra do repository)."""
+    now = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    return sum(1 for i in range(total) if datetime(2026, 1 + i, 1) >= now)
 
 
 async def create_categoria_with_sub(client, nome, entity_type="individual", limit=1000.0):
@@ -38,8 +45,8 @@ async def test_create_conta_recorrente(client):
     assert data["description"] == "Aluguel"
     assert data["amount"] == 1500.0
     assert data["total_installments"] == 12
-    # 12 parcels from Jan 2026 → Jul-Dec = 6 remaining (current month is included)
-    assert data["remaining_installments"] == 6
+    # Parcelas restantes = meses de 2026 a partir do mês corrente (inclui o mês atual)
+    assert data["remaining_installments"] == _expected_remaining_2026()
 
 
 @pytest.mark.asyncio
@@ -61,7 +68,7 @@ async def test_create_conta_recorrente_com_parcelas(client):
     assert response.status_code == 201
     data = response.json()
     assert data["total_installments"] == 12
-    assert data["remaining_installments"] == 6
+    assert data["remaining_installments"] == _expected_remaining_2026()
 
 
 @pytest.mark.asyncio

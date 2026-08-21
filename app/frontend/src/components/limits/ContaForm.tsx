@@ -20,10 +20,7 @@ import { useToast } from '@/hooks/use-toast'
 import { FinancialService } from '@/services/financialService'
 import { ContaRecorrente, ContaRecorrenteCreate, ContaRecorrenteUpdate } from '@/types/recurringAccount'
 import { CategorySubcategories } from '@/types/financial'
-import { SettingsService } from '@/services/settingsService'
-import type { UserBank } from '@/services/settingsService'
-
-const BANK_LOGO_CDN = 'https://cdn.jsdelivr.net/gh/wesguirra/brazil-bank-data@main/bank-logos/256/png'
+import { BankSelect } from '@/components/ui/bank-select'
 
 // ===== Shared Form =====
 export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
@@ -49,16 +46,7 @@ export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
     const [showNewCategoryInput, setShowNewCategoryInput] = useState(false)
     const [showNewSubcategoryInput, setShowNewSubcategoryInput] = useState(false)
     const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null)
-    const [banks, setBanks] = useState<UserBank[]>([])
-    const [logoErrors, setLogoErrors] = useState<Set<string>>(new Set())
-    const [addingNewBank, setAddingNewBank] = useState(false)
-    const [newBankCode, setNewBankCode] = useState('')
-    const [newBankName, setNewBankName] = useState('')
     const { toast } = useToast()
-
-    useEffect(() => {
-        SettingsService.listBanks().then(setBanks).catch(() => {})
-    }, [])
 
     useEffect(() => {
         FinancialService.getCategorySubcategories(form.entity_type, 'expense')
@@ -126,80 +114,10 @@ export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
                     </div>
                     <div className="space-y-2">
                         <Label>Banco</Label>
-                        <Select
-                            value={addingNewBank ? '+add' : form.bank_code}
-                            onValueChange={value => {
-                                if (value === '+add') {
-                                    setAddingNewBank(true);
-                                } else {
-                                    setAddingNewBank(false);
-                                    setForm({...form, bank_code: value});
-                                }
-                            }}
-                        >
-                            <SelectTrigger><SelectValue placeholder="Selecione um banco" /></SelectTrigger>
-                            <SelectContent>
-                                {banks.map(bank => (
-                                    <SelectItem key={bank.id} value={bank.bank_code}>
-                                        <div className="flex items-center gap-2">
-                                            {!logoErrors.has(bank.bank_code) ? (
-                                                <img
-                                                    src={`${BANK_LOGO_CDN}/${bank.bank_code.padStart(3, '0')}.png`}
-                                                    alt=""
-                                                    className="w-5 h-5 rounded object-contain bg-card"
-                                                    onError={() => setLogoErrors(prev => new Set(prev).add(bank.bank_code))}
-                                                />
-                                            ) : (
-                                                <div className="w-5 h-5 rounded bg-primary/10 text-primary font-bold text-[8px] flex items-center justify-center">
-                                                    {bank.bank_code}
-                                                </div>
-                                            )}
-                                            <span>{bank.bank_name}</span>
-                                            <span className="text-muted-foreground text-xs">({bank.bank_code})</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                                <SelectItem value="+add">
-                                    <div className="flex items-center gap-2 text-primary font-medium">
-                                        <Plus className="w-4 h-4" />
-                                        <span>Add new bank</span>
-                                    </div>
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {addingNewBank && (
-                            <div className="mt-2 flex items-end gap-2">
-                                <div className="flex-1 space-y-1">
-                                    <Label className="text-xs">Código</Label>
-                                    <Input placeholder="Ex: 260" value={newBankCode} onChange={e => setNewBankCode(e.target.value)} className="h-8 text-sm" />
-                                </div>
-                                <div className="flex-1 space-y-1">
-                                    <Label className="text-xs">Nome</Label>
-                                    <Input placeholder="Ex: Nubank" value={newBankName} onChange={e => setNewBankName(e.target.value)} className="h-8 text-sm" />
-                                </div>
-                                <Button size="sm" variant="outline" onClick={() => setAddingNewBank(false)}>Cancel</Button>
-                                <Button size="sm" onClick={async () => {
-                                    if (!newBankCode.trim() || !newBankName.trim()) {
-                                        toast({ title: 'Erro', description: 'Preencha código e nome do banco.', variant: 'destructive' });
-                                        return;
-                                    }
-                                    try {
-                                        const created = await SettingsService.addBank({
-                                            bank_code: newBankCode.trim(),
-                                            bank_name: newBankName.trim(),
-                                        });
-                                        setBanks(prev => [...prev, created]);
-                                        setForm({...form, bank_code: created.bank_code});
-                                        setAddingNewBank(false);
-                                        toast({ title: 'Banco adicionado', description: `${created.bank_name} (${created.bank_code})` });
-                                    } catch {
-                                        toast({ title: 'Erro', description: 'Falha ao adicionar banco.', variant: 'destructive' });
-                                    }
-                                }}>
-                                    <Plus className="w-4 h-4 mr-1" /> Add
-                                </Button>
-                            </div>
-                        )}
+                        <BankSelect
+                            value={form.bank_code || undefined}
+                            onValueChange={code => setForm(prev => ({ ...prev, bank_code: code ?? '' }))}
+                        />
                     </div>
                     <div className="space-y-2"><Label>Start Date</Label><Input type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} required /></div>
                     <div className="space-y-2"><Label>End Date (optional)</Label><Input type="date" value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} /></div>

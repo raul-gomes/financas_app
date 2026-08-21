@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { formatCurrency } from '@/lib/format';
 import { D3BarChart } from './D3BarChart';
 import { D3DailyChart } from './D3DailyChart';
 import { YearlyData, DailyData, SelectedMonth } from '@/types/financial';
@@ -16,9 +17,6 @@ interface FlippableChartProps {
   onPrevMonth?: () => void;
   onNextMonth?: () => void;
 }
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(amount);
 
 export function FlippableChart({
   yearlyData,

@@ -4,7 +4,7 @@ import { FlippableChart } from '@/components/charts/FlippableChart';
 import { IncomeChart } from '@/components/charts/IncomeChart';
 import { CategoryBreakdownSection } from '@/components/CategoryBreakdownSection';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
-import { Send, CreditCard, Banknote, Receipt } from 'lucide-react';
+import { Send, CreditCard, Banknote, Receipt, type LucideIcon } from 'lucide-react';
 import {
   YearlyData,
   DailyData,
@@ -61,7 +61,7 @@ export function FinancialDashboard({
     title: string;
     total: number;
     items: BankBreakdownItem[];
-    icon: React.ComponentType<{ className?: string }>;
+    icon: LucideIcon;
     theme: 'primary' | 'success' | 'destructive' | 'warning';
   } | null>(null);
 

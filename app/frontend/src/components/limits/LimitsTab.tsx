@@ -152,8 +152,11 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
     }
 
     const preparePayloadForSave = () => {
-        // Track (name, entity_type) combos to avoid duplicates across PF/PJ
-        const existingKeys = new Set(data.map(c => `${c.name.trim().toLowerCase()}|${c.entity_type}`))
+        // Track (name, entity_type) combos of DB-backed categories to avoid duplicates;
+        // keys are added here as new categories are processed so duplicates among them are skipped
+        const existingKeys = new Set(
+            data.filter(c => !c.isNew).map(c => `${c.name.trim().toLowerCase()}|${c.entity_type}`)
+        )
         const payload: any = { new: [], modified: [], deleted: deletedCategoryIds }
         data.forEach(cat => {
             if (cat.isNew) {

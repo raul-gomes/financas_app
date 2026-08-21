@@ -1,11 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
+import { formatCurrency } from '@/lib/format';
 import { ContaRecorrente, ContaRecorrenteCreate, ContaRecorrenteUpdate } from '@/types/recurringAccount';
 import { ContaRecorrenteService } from '@/services/recurringAccountService';
 import { Button } from '@/components/ui/button';
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Plus, RefreshCw, Wallet, ToggleRight, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddRecurrentBillDialog } from '@/components/dialogs/AddRecurrentBillDialog';
 import { EditRecurrentBillDialog } from '@/components/dialogs/EditRecurrentBillDialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { RecurringBillsTable, currentInstallment, isEndingSoon } from '@/components/recorrentes/RecurringBillsTable';
 
 const RecurrentBills = () => {
   const [contas, setContas] = useState<ContaRecorrente[]>([]);
@@ -13,6 +19,8 @@ const RecurrentBills = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingConta, setEditingConta] = useState<ContaRecorrente | null>(null);
   const [renewingId, setRenewingId] = useState<number | null>(null);
+  const [pendingToggle, setPendingToggle] = useState<ContaRecorrente | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const { toast } = useToast();
 
   const loadContas = useCallback(async () => {
@@ -52,8 +60,7 @@ const RecurrentBills = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Tem certeza que deseja excluir esta conta recorrente?')) return;
+  const doDelete = async (id: number) => {
     try {
       await ContaRecorrenteService.delete(id);
       toast({ title: 'Sucesso', description: 'Conta recorrente excluida!' });
@@ -63,15 +70,11 @@ const RecurrentBills = () => {
     }
   };
 
-  const handleToggleActive = async (conta: ContaRecorrente) => {
-    const action = conta.active ? 'desativar' : 'ativar';
-    const msg = conta.active
-      ? `Isso cancelara as ${conta.remaining_installments} parcelas futuras. Desativar mesmo?`
-      : 'Ativar esta conta recorrente?';
-    if (!confirm(msg)) return;
+  const handleDelete = (id: number) => setPendingDeleteId(id);
 
+  const doToggleActive = async (conta: ContaRecorrente) => {
     try {
-      await ContaRecorrenteService.update(conta.id, { ativo: !conta.active });
+      await ContaRecorrenteService.update(conta.id, { active: !conta.active });
       toast({
         title: 'Sucesso',
         description: conta.active
@@ -83,6 +86,8 @@ const RecurrentBills = () => {
       toast({ title: 'Erro', description: 'Falha ao alterar status.', variant: 'destructive' });
     }
   };
+
+  const handleToggleActive = (conta: ContaRecorrente) => setPendingToggle(conta);
 
   const handleRenew = async (id: number) => {
     setRenewingId(id);
@@ -97,127 +102,68 @@ const RecurrentBills = () => {
     }
   };
 
-  const isEndingSoon = (conta: ContaRecorrente): boolean => {
-    return conta.active && conta.remaining_installments <= 2 && conta.remaining_installments > 0;
-  };
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(value);
-
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('en-US');
+  const activeContas = contas.filter((c) => c.active);
+  const monthlyTotal = activeContas.reduce((sum, c) => sum + c.amount, 0);
+  const endingCount = contas.filter(isEndingSoon).length;
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Recurring Accounts</h1>
-            <p className="text-muted-foreground mt-1">Gerencie suas despesas mensais fixas — cada conta gera 12 parcelas automaticamente</p>
+        <PageHeader
+          title="Recurring Accounts"
+          description="Gerencie suas despesas mensais fixas — cada conta gera 12 parcelas automaticamente"
+          action={
+            <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-primary">
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Conta Recorrente
+            </Button>
+          }
+        />
+
+        {contas.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <StatCard
+              icon={Wallet}
+              label="Total mensal ativo"
+              value={formatCurrency(monthlyTotal)}
+              hint={`${activeContas.length} conta(s) ativa(s)`}
+            />
+            <StatCard
+              icon={ToggleRight}
+              tone="success"
+              label="Ativas"
+              value={String(activeContas.length)}
+              hint={`${contas.length - activeContas.length} inativa(s)`}
+            />
+            <StatCard
+              icon={AlertTriangle}
+              tone="warning"
+              label="Acabando em breve"
+              value={String(endingCount)}
+              hint="A partir da 10ª parcela de 12"
+            />
           </div>
-          <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-primary">
-            <Plus className="w-4 h-4 mr-2" />
-            Nova Conta Recorrente
-          </Button>
-        </div>
+        )}
 
         <div className="bg-card rounded-lg shadow-card border border-border overflow-hidden">
           {contas.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="text-muted-foreground text-lg">Nenhuma conta recorrente cadastrada.</p>
-              <p className="text-muted-foreground text-sm mt-2">Clique no botão acima para adicionar.</p>
-            </div>
+            <EmptyState
+              icon={RefreshCw}
+              title="Nenhuma conta recorrente cadastrada."
+              description="Clique no botão acima para adicionar."
+            />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50 border-b border-border">
-                  <tr>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Descricao</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Valor</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Vencimento</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Categoria</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Parcelas</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Acoes</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {contas.map((conta) => (
-                    <tr key={conta.id} className={`hover:bg-muted/30 ${!conta.active ? 'opacity-50' : ''}`}>
-                      <td className="px-4 py-3 text-sm font-medium text-foreground">
-                        <div className="flex items-center gap-2">
-                          {conta.description}
-                          {isEndingSoon(conta) && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                              <AlertTriangle className="w-3 h-3" />
-                              Acabando
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-foreground">{formatCurrency(conta.amount)}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">Dia {conta.due_day}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {conta.category_name}
-                        {conta.subcategory_name && ` / ${conta.subcategory_name}`}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {conta.remaining_installments}/{conta.total_installments}
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleToggleActive(conta)}
-                          className="flex items-center gap-1 text-sm"
-                        >
-                          {conta.active ? (
-                            <ToggleRight className="w-5 h-5 text-green-500" />
-                          ) : (
-                            <ToggleLeft className="w-5 h-5 text-muted-foreground" />
-                          )}
-                          <span className={conta.active ? 'text-green-500' : 'text-muted-foreground'}>
-                            {conta.active ? 'Ativa' : 'Inativa'}
-                          </span>
-                        </button>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEditingConta(conta);
-                              setShowEditDialog(true);
-                            }}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRenew(conta.id)}
-                            disabled={renewingId === conta.id || (conta.active && conta.remaining_installments > 2)}
-                            title={
-                              conta.active && conta.remaining_installments > 2
-                                ? 'Ainda ha parcelas restantes'
-                                : 'Renovar por mais 12 meses'
-                            }
-                          >
-                            <RefreshCw className={`w-4 h-4 ${renewingId === conta.id ? 'animate-spin' : ''}`} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(conta.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <RecurringBillsTable
+              contas={contas}
+              onToggleActive={handleToggleActive}
+              onEdit={(conta) => {
+                setEditingConta(conta);
+                setShowEditDialog(true);
+              }}
+              onDelete={handleDelete}
+              onRenew={handleRenew}
+              renewingId={renewingId}
+            />
           )}
         </div>
 
@@ -240,6 +186,30 @@ const RecurrentBills = () => {
             onSubmit={handleUpdate}
           />
         )}
+
+        <ConfirmDialog
+          open={pendingToggle !== null}
+          onOpenChange={(open) => { if (!open) setPendingToggle(null); }}
+          title={pendingToggle?.active ? 'Desativar conta recorrente?' : 'Ativar conta recorrente?'}
+          description={
+            pendingToggle?.active
+              ? `Isso cancelará as ${pendingToggle.remaining_installments} parcelas futuras.`
+              : undefined
+          }
+          confirmLabel={pendingToggle?.active ? 'Desativar' : 'Ativar'}
+          destructive={!!pendingToggle?.active}
+          onConfirm={() => { if (pendingToggle) void doToggleActive(pendingToggle); }}
+        />
+
+        <ConfirmDialog
+          open={pendingDeleteId !== null}
+          onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}
+          title="Excluir esta conta recorrente?"
+          description="Esta ação não pode ser desfeita."
+          destructive
+          confirmLabel="Excluir"
+          onConfirm={() => { if (pendingDeleteId !== null) void doDelete(pendingDeleteId); }}
+        />
       </main>
     </div>
   );

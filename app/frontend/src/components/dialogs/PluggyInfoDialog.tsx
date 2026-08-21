@@ -1,34 +1,36 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { useState } from 'react';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Button } from '@/components/ui/button';
 import { HelpCircle, ExternalLink, ShieldCheck, Upload, Key, CreditCard, ArrowRight } from 'lucide-react';
 
 export function PluggyInfoDialog() {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full text-muted-foreground hover:text-foreground">
-          <HelpCircle className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-lg">
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 rounded-full text-muted-foreground hover:text-foreground"
+        onClick={() => setOpen(true)}
+      >
+        <HelpCircle className="h-4 w-4" />
+      </Button>
+      <ResponsiveModal
+        open={open}
+        onOpenChange={setOpen}
+        size="sm"
+        title={
+          <span className="flex items-center gap-2">
             <svg className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
             </svg>
             Meu Pluggy — Open Finance
-          </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            Entenda por que usar o Pluggy e como configurar sua chave em poucos passos.
-          </DialogDescription>
-        </DialogHeader>
+          </span>
+        }
+        description="Entenda por que usar o Pluggy e como configurar sua chave em poucos passos."
+      >
 
         <div className="space-y-6 py-2">
           {/* ── Why Pluggy ── */}
@@ -152,7 +154,7 @@ export function PluggyInfoDialog() {
             </div>
           </section>
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
+    </>
   );
 }
