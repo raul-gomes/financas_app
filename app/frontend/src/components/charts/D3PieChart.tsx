@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { formatCurrency } from '@/lib/format';
 import * as d3 from 'd3';
 
@@ -15,7 +15,7 @@ interface D3PieChartProps {
   height?: number;
 }
 
-export function D3PieChart({ data, width = 400, height = 300 }: D3PieChartProps) {
+function D3PieChartBase({ data, width = 400, height = 300 }: D3PieChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -171,3 +171,6 @@ export function D3PieChart({ data, width = 400, height = 300 }: D3PieChartProps)
     />
   );
 }
+
+/** Memoizado: evita re-render do SVG quando props não mudam. */
+export const D3PieChart = memo(D3PieChartBase);

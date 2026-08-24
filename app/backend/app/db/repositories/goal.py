@@ -4,7 +4,6 @@ from typing import List, Optional
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
 from datetime import date
 
 from app.core.database import get_session
@@ -31,7 +30,6 @@ class MetaRepository:
         """Retorna a categoria 'Metas' para o entity_type informado, criando se não existir."""
         result = await self.db.execute(
             select(CategoryORM)
-            .options(selectinload(CategoryORM.subcategories))
             .where(
                 CategoryORM.name == METAS_CATEGORIA_NOME,
                 CategoryORM.entity_type == entity_type,
@@ -50,24 +48,25 @@ class MetaRepository:
             await self.db.refresh(categoria)
         return categoria
 
-    async def list_metas(self, completed: Optional[bool] = None, entity_type: Optional[str] = None) -> List[SubcategoryORM]:
+    async def list_metas(self, completed: Optional[bool] = None, entity_type: Optional[str] = None, limit: int = 100, offset: int = 0) -> List[SubcategoryORM]:
         """Lista todas as subcategorias que são metas (possuem target_amount).
         
         Args:
             completed: Se True, retorna apenas concluídas. Se False, apenas ativas. Se None, todas.
             entity_type: Filtrar por tipo de entidade (individual, business). Se None, todas.
+            limit: Limite de itens por página
+            offset: Offset para paginação
         """
-        log = log_database_operation(operation="read_all", collection="metas")
+        log = log_database_operation(operation="read_all", collection="metas", limit=limit, offset=offset)
         query = (
             select(self.model)
-            .options(selectinload(self.model.category))
             .where(self.model.target_amount.isnot(None))
         )
         if completed is not None:
             query = query.where(self.model.completed == completed)
         if entity_type:
             query = query.join(CategoryORM, self.model.category).where(CategoryORM.entity_type == entity_type)
-        query = query.order_by(self.model.name)
+        query = query.order_by(self.model.name).limit(limit).offset(offset)
 
         result = await self.db.execute(query)
         metas = result.unique().scalars().all()

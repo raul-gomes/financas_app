@@ -1,4 +1,4 @@
-import { Card } from 'primereact/card';
+import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { D3LineChart } from '@/components/charts/D3LineChart';
 import { D3HorizontalBarChart } from '@/components/charts/D3HorizontalBarChart';

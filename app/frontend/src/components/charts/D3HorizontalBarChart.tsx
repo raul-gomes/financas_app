@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { formatCurrency } from '@/lib/format';
 import * as d3 from 'd3';
 
@@ -8,7 +8,7 @@ interface D3HorizontalBarChartProps {
   height?: number;
 }
 
-export function D3HorizontalBarChart({ 
+function D3HorizontalBarChartBase({ 
   data, 
   width = 400, 
   height = 300 
@@ -126,3 +126,6 @@ export function D3HorizontalBarChart({
     />
   );
 }
+
+/** Memoizado: evita re-render do SVG quando props não mudam. */
+export const D3HorizontalBarChart = memo(D3HorizontalBarChartBase);

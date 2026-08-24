@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Card } from 'primereact/card';
+import { Card } from '@/components/ui/card';
 import { AnimatedNumber } from './AnimatedNumber';
 import { CategoryBreakdown, CategoryExpense } from '@/types/financial';
 import { formatCurrency } from '@/lib/format';

@@ -88,11 +88,13 @@ async def create_conta_recorrente(
 async def list_contas_recorrentes(
     request: Request,
     entity_type: Optional[str] = Query(None, description="Filtrar por tipo de entidade: individual, business"),
+    limit: int = Query(100, ge=1, le=500, description="Limite de itens por página"),
+    offset: int = Query(0, ge=0, description="Offset para paginação"),
     repo: ContaRecorrenteRepository = Depends(),
 ):
-    log = log_api_request(method="GET", endpoint=str(request.url), entity_type=entity_type)
+    log = log_api_request(method="GET", endpoint=str(request.url), entity_type=entity_type, limit=limit, offset=offset)
     try:
-        contas = await repo.get_all(entity_type=entity_type)
+        contas = await repo.get_all(entity_type=entity_type, limit=limit, offset=offset)
         log.info(f"{len(contas)} contas recorrentes listadas")
         return contas
     except Exception as e:

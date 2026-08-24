@@ -74,77 +74,88 @@ async def sync_pluggy(
         if not accounts:
             return {"message": "Nenhuma conta encontrada no Meu Pluggy.", "imported": 0}
 
-        total_imported = 0
-        all_created_ids: List[int] = []
+        # Build all transaction data first
+        all_transactions_data = []
         for account in accounts:
             account_id = account.get("id")
             if not account_id:
                 continue
 
-            # Fetch transactions for this account
             transactions = await pluggy.fetch_transactions(account_id)
             log.info(f"Conta {account.get('name', '?')}: {len(transactions)} transações")
 
             for tx in transactions:
-                # Map Pluggy transaction to our model
                 tx_date_str = tx.get("date", tx.get("transactionDate"))
                 tx_date = datetime.fromisoformat(tx_date_str.replace("Z", "+00:00")) if tx_date_str else datetime.now()
 
                 amount = abs(tx.get("amount", 0))
-                # Determine type: DEBIT = expense, CREDIT = income
                 tipo = TipoTransacao.SAIDA if tx.get("type") == "DEBIT" else TipoTransacao.ENTRADA
 
-                # Determine payment_method from transaction type info
                 form = tx.get("paymentMethod", tx.get("category", "pix")).lower()
 
-                # Map bank code from account
                 bank_code = None
                 if account.get("type") == "BANK":
                     bank_code = str(account.get("number", ""))[:3]
 
-                created = await transacao_repo.create(
-                    TransacaoCreate(
-                        amount=amount,
-                        description=tx.get("description", tx.get("descriptionRaw", "Sin cronizar"))[:255],
-                        transaction_date=tx_date,
-                        type=tipo,
-                        entity_type=NaturezaTransacao.PF,
-                        payment_method=form,
-                        category_name="Importado",
-                        subcategory_name="Pluggy",
-                        bank_code=bank_code,
-                    )
-                )
-                all_created_ids.append(created.id)
-                total_imported += 1
+                all_transactions_data.append({
+                    'date': tx_date.strftime('%d/%m/%Y'),
+                    'description': tx.get("description", tx.get("descriptionRaw", "Sin cronizar"))[:255],
+                    'amount': amount,
+                    'type': tipo.value,
+                    'entity_type': NaturezaTransacao.PF.value,
+                    'payment_method': form,
+                    'category_name': 'Importado',
+                    'subcategory_name': 'Pluggy',
+                    'bank_code': bank_code,
+                    'total_installments': None,
+                    'is_installment': False,
+                })
 
-        # After all imports, detect duplicates among newly created transactions
+        # Batch create all transactions
+        criadas, erros = await transacao_repo.create_batch_from_extract(all_transactions_data)
+        
+        # Bulk duplicate check for newly created transactions
         duplicates_list = []
-        for new_id in all_created_ids:
-            new_t = await transacao_repo.get_by_id(new_id)
-            if not new_t:
-                continue
-            existing = await transacao_repo.check_duplicates(
-                new_t.transaction_date.date(), new_t.amount
-            )
-            # Filter out self and any others already in this sync batch
-            real_dups = [t for t in existing if t.id != new_id and t.id not in all_created_ids]
-            if real_dups:
-                for dup in real_dups:
-                    duplicates_list.append({
-                        "new_id": new_id,
-                        "existing_id": dup.id,
-                        "description": new_t.description,
-                        "amount": new_t.amount,
-                        "transaction_date": new_t.transaction_date.isoformat(),
-                        "existing_description": dup.description,
-                        "existing_date": dup.transaction_date.isoformat(),
-                    })
-                    break  # Only report one per new transaction
+        if criadas > 0:
+            # Get the newly created transactions (we need their IDs and dates/amounts)
+            # We'll fetch them by checking duplicates in bulk
+            from sqlalchemy import select
+            from app.db.models.transaction import TransactionORM
+            
+            # Get recently created transactions by description pattern
+            stmt = select(TransactionORM).where(
+                TransactionORM.description.like('%Sin cronizar%') | TransactionORM.description.like('%Pluggy%')
+            ).order_by(TransactionORM.created_at.desc()).limit(criadas)
+            result = await transacao_repo.db.execute(stmt)
+            new_transactions = list(result.unique().scalars().all())
+            
+            if new_transactions:
+                # Bulk duplicate check: group by date+amount
+                dup_check = {}
+                for t in new_transactions:
+                    key = (t.transaction_date.date(), t.amount)
+                    dup_check.setdefault(key, []).append(t)
+                
+                # Check duplicates for each unique date+amount
+                for key, txs in dup_check.items():
+                    existing = await transacao_repo.check_duplicates(key[0], key[1])
+                    real_dups = [d for d in existing if d.id not in [t.id for t in txs]]
+                    if real_dups:
+                        for t in txs:
+                            duplicates_list.append({
+                                "new_id": t.id,
+                                "existing_id": real_dups[0].id,
+                                "description": t.description,
+                                "amount": t.amount,
+                                "transaction_date": t.transaction_date.isoformat(),
+                                "existing_description": real_dups[0].description,
+                                "existing_date": real_dups[0].transaction_date.isoformat(),
+                            })
+                            break
 
         result = {
-            "message": f"{total_imported} transações importadas de {len(accounts)} contas.",
-            "imported": total_imported,
+            "message": f"{criadas} transações importadas de {len(accounts)} contas.",
+            "imported": criadas,
             "accounts": len(accounts),
             "duplicates": duplicates_list,
         }

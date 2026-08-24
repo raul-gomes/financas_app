@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
 import { formatCurrency } from '@/lib/format';
 import * as d3 from 'd3';
 import { YearlyData } from '@/types/financial';
@@ -12,7 +12,7 @@ interface D3BarChartProps {
   onBarClick?: (month: string) => void;
 }
 
-export function D3BarChart({ 
+function D3BarChartBase({ 
   data, 
   width = 900, 
   height = 420, 
@@ -289,3 +289,6 @@ export function D3BarChart({
     </div>
   );
 }
+
+/** Memoizado: evita re-render do SVG quando props não mudam. */
+export const D3BarChart = memo(D3BarChartBase);

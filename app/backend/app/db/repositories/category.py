@@ -12,6 +12,7 @@ from app.db.models.category import CategoryORM
 from app.db.repositories.subcategory import SubcategoriaRepository
 from app.schemas.categories import CategoriaCreate, CategoriaUpdate
 from app.logger import log_database_operation
+from app.db.repositories.dashboard import _invalidate_opcoes_categorias_cache
 
 
 class CategoriaRepository:
@@ -30,7 +31,7 @@ class CategoriaRepository:
         """
         log = log_database_operation(operation="read", collection="categorias", categoria_id=id)
         result = await self.db.execute(
-            select(self.model).options(selectinload(self.model.subcategories)).where(self.model.id == id)
+            select(self.model).where(self.model.id == id)
         )
         categoria = result.scalars().first()
         if categoria:
@@ -41,13 +42,13 @@ class CategoriaRepository:
 
     async def get_by_nome(self, nome: str) -> Optional[CategoryORM]:
         result = await self.db.execute(
-            select(self.model).options(selectinload(self.model.subcategories)).where(self.model.name == nome)
+            select(self.model).where(self.model.name == nome)
         )
         return result.scalars().first()
 
     async def get_by_nome_and_entity_type(self, nome: str, entity_type: str) -> Optional[CategoryORM]:
         result = await self.db.execute(
-            select(self.model).options(selectinload(self.model.subcategories)).where(
+            select(self.model).where(
                 self.model.name == nome,
                 self.model.entity_type == entity_type,
             )
@@ -57,7 +58,7 @@ class CategoriaRepository:
     async def get_by_tipo(self, tipo: str) -> Optional[CategoryORM]:
         """Busca a primeira categoria com o tipo informado (ex: 'income', 'investment')."""
         result = await self.db.execute(
-            select(self.model).options(selectinload(self.model.subcategories)).where(self.model.type == tipo)
+            select(self.model).where(self.model.type == tipo)
         )
         return result.scalars().first()
     
@@ -90,6 +91,7 @@ class CategoriaRepository:
                 await self.sub_repo.create_many(instance.id, obj_in.subcategories)
 
             log.info(f"Categoria {instance.id} criada")
+            _invalidate_opcoes_categorias_cache()
             
             # Recarrega categoria completa com subcategorias
             result = await self.db.execute(
@@ -117,7 +119,7 @@ class CategoriaRepository:
         Recupera todas as categorias, incluindo subcategorias.
         """
         log = log_database_operation(operation="read_all", collection="categorias")
-        stmt = select(self.model).options(selectinload(self.model.subcategories)).order_by(self.model.name)
+        stmt = select(self.model).order_by(self.model.name)
         result = await self.db.execute(stmt)
         categorias = result.unique().scalars().all()
         log.info(f"{len(categorias)} categorias recuperadas")
@@ -168,8 +170,9 @@ class CategoriaRepository:
 
         # 4) Recarrega e retorna
         result = await self.db.execute(
-            select(self.model).options(selectinload(self.model.subcategories)).where(self.model.id == id)
+            select(self.model).where(self.model.id == id)
         )
+        _invalidate_opcoes_categorias_cache()
         return result.scalars().first()
 
     async def delete(self, id: int) -> Optional[CategoryORM]:
@@ -182,5 +185,6 @@ class CategoriaRepository:
             return None
         await self.db.delete(categoria)
         await self.db.commit()
+        _invalidate_opcoes_categorias_cache()
         log.info(f"Categoria {id} excluída")
         return categoria

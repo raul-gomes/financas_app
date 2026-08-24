@@ -74,31 +74,26 @@ async def confirm_extracto(
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), count=len(payload.transactions))
 
-    criadas = 0
-    erros = []
-
+    # Convert ParsedTransaction to dict for batch processing
+    transactions_data = []
     for trans in payload.transactions:
-        try:
-            data_dt = datetime.strptime(trans.date, '%d/%m/%Y')
+        transactions_data.append({
+            'date': trans.date,
+            'description': trans.description,
+            'amount': trans.amount,
+            'type': trans.type,
+            'entity_type': trans.entity_type,
+            'payment_method': trans.payment_method,
+            'category_id': trans.category_id,
+            'subcategory_id': trans.subcategory_id,
+            'category_name': trans.category_name,
+            'subcategory_name': trans.subcategory_name,
+            'bank_code': trans.bank_code,
+            'total_installments': trans.total_installments,
+            'is_installment': trans.is_installment or False,
+        })
 
-            await repo.create_from_extract(
-                amount=trans.amount,
-                description=trans.description,
-                transaction_date=data_dt,
-                type=trans.type,
-                entity_type=trans.entity_type,
-                payment_method=trans.payment_method,
-                category_id=trans.category_id,
-                subcategory_id=trans.subcategory_id,
-                category_name=trans.category_name,
-                subcategory_name=trans.subcategory_name,
-                bank_code=trans.bank_code,
-                total_installments=trans.total_installments,
-                is_installment=trans.is_installment or False,
-            )
-            criadas += 1
-        except Exception as e:
-            erros.append(f"Erro ao criar '{trans.description}': {str(e)}")
+    criadas, erros = await repo.create_batch_from_extract(transactions_data)
 
     log.info(f"{criadas} transacoes criadas do extrato")
 
