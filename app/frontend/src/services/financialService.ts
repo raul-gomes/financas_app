@@ -9,8 +9,6 @@ import {
   Category,
   LimitsUpdateResponse,
   DuplicateCheckResponse,
-  DuplicateResolution,
-  ResolveDuplicatesResponse,
 } from '@/types/financial';
 
 // Base real do backend
@@ -121,19 +119,6 @@ export class FinancialService {
     return res.json()
   }
 
-  // 6. Todas as transações (opcional natureza)
-  static async getAllTransactions(
-    entityType?: string
-  ): Promise<Transaction[]> {
-    const mapped = FinancialService.mapEntityType(entityType);
-    const query = mapped ? `?entity_type=${mapped}` : '';
-    const res = await fetch(`${API_BASE_URL}/transacoes${query}`);
-    if (!res.ok) {
-      throw new Error(`Erro ${res.status} ao listar transações`);
-    }
-    return res.json();
-  }
-
   // 7. Transacoes do ano inteiro (para o grafico anual)
   static async getYearTransactions(
     year: number,
@@ -165,21 +150,6 @@ export class FinancialService {
     });
     if (!res.ok) {
       throw new Error(`Erro ${res.status} ao verificar duplicatas`);
-    }
-    return res.json();
-  }
-
-  // 8b. Resolver duplicatas (Pluggy pós-sync)
-  static async resolveDuplicates(
-    resolutions: DuplicateResolution[]
-  ): Promise<ResolveDuplicatesResponse> {
-    const res = await fetch(`${API_BASE_URL}/transacoes/resolve-duplicates`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resolutions }),
-    });
-    if (!res.ok) {
-      throw new Error(`Erro ${res.status} ao resolver duplicatas`);
     }
     return res.json();
   }
