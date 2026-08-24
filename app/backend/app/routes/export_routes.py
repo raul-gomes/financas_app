@@ -1,41 +1,15 @@
-from fastapi import APIRouter, Depends, Request, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Request, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from datetime import datetime
 import csv
 import io
 
 from app.core.database import get_session
-from app.db.models.transaction import TransactionORM
-from app.db.models.category import CategoryORM, SubcategoryORM
+from app.db.repositories.export import ExportRepository
 from app.logger import log_api_request
 
 router = APIRouter(prefix="/export", tags=["Exportação"])
-
-
-async def _fetch_transactions_for_export(
-    db: AsyncSession,
-    start_date: str,
-    end_date: str,
-):
-    """Fetch transactions with joined category/subcategory within date range."""
-    try:
-        dt_i = datetime.strptime(start_date, "%d/%m/%Y") if start_date else datetime(2000, 1, 1)
-        dt_f = datetime.strptime(end_date, "%d/%m/%Y") if end_date else datetime.now()
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Formato de data inválido. Use DD/MM/YYYY.",
-        )
-
-    result = await db.execute(
-        select(TransactionORM)
-        .where(TransactionORM.transaction_date >= dt_i)
-        .where(TransactionORM.transaction_date <= dt_f)
-        .order_by(TransactionORM.transaction_date.desc())
-    )
-    return result.unique().scalars().all()
 
 
 @router.get(
@@ -53,7 +27,7 @@ async def export_csv(
     if not end_date:
         end_date = datetime.now().strftime("%d/%m/%Y")
 
-    transactions = await _fetch_transactions_for_export(db, start_date, end_date)
+    transactions = await ExportRepository(db).get_transactions_for_export(start_date, end_date)
     log.info(f"Exportando {len(transactions)} transações para CSV")
 
     output = io.StringIO()
@@ -106,7 +80,7 @@ async def export_ofx(
     if not end_date:
         end_date = datetime.now().strftime("%d/%m/%Y")
 
-    transactions = await _fetch_transactions_for_export(db, start_date, end_date)
+    transactions = await ExportRepository(db).get_transactions_for_export(start_date, end_date)
     log.info(f"Exportando {len(transactions)} transações para OFX")
 
     # Generate OFX (OFX 1.0 / QFX format)
