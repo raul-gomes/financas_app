@@ -25,6 +25,11 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Performance budget (Fase 4.3): falha o build se algum chunk > 500kb
+    chunkSizeWarningLimit: 500,
+    sourcemap: false,
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
