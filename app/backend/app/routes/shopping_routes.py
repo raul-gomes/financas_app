@@ -3,7 +3,7 @@ from typing import List, Optional
 from datetime import date, datetime
 
 from app.db.repositories.shopping import ShoppingRepository
-from app.schemas.shopping import ShoppingItemCreate, ShoppingItemUpdate, ShoppingItemResponse
+from app.schemas.shopping import ShoppingItemCreate, ShoppingItemUpdate, ShoppingItemResponse, GenerateRecurringShoppingRequest
 from app.logger import log_api_request
 
 router = APIRouter(prefix="/shopping", tags=["Shopping"])
@@ -150,3 +150,23 @@ async def migrar_itens(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao migrar itens"
         )
+
+
+@router.post(
+    "/generate-recurring",
+    summary="Gerar itens recorrentes de compras",
+    description="Cria cópias de itens marcados como recorrentes para os meses subsequentes."
+)
+async def generate_recurring_shopping(
+    request: Request,
+    payload: GenerateRecurringShoppingRequest,
+    repo: ShoppingRepository = Depends(ShoppingRepository),
+):
+    log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
+    try:
+        gerados = await repo.generate_recurring_items(payload)
+        log.info(f"{gerados} itens recorrentes de compras gerados")
+        return {"generated": gerados, "message": f"{gerados} itens recorrentes gerados"}
+    except Exception as e:
+        log.error(f"Erro ao gerar itens recorrentes: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")

@@ -12,3 +12,7 @@ class ShoppingItemORM(Base):
     completed_at = Column(Date, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     entity_type = Column(String, nullable=False, server_default='individual')
+    # Recurring fields
+    is_recurring = Column(Boolean, default=False, nullable=False, server_default='false')
+    recurrence_group_id = Column(String, nullable=True, index=True)  # groups recurring instances
+    recurrence_end_date = Column(Date, nullable=True)  # when to stop recurring

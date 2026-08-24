@@ -140,3 +140,57 @@ Set in `.env` at repo root (copy from `.env.example`):
 ```
 POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
 ```
+
+## API Design Philosophy — Backend for Frontend (BFF) — MANDATORY
+
+**Princípio:** A API deve retornar payloads **prontos para consumo** pelo frontend/mobile, eliminando transformações, agregações ou múltiplas chamadas no cliente.
+
+### Regras Obrigatórias
+
+1. **Uma chamada = uma tela/feature**
+   - Endpoints agregam dados necessários para uma view completa
+   - Ex: `GET /dashboard/statement` retorna totais, metas, limites, transações — **zero joins no frontend**
+
+2. **Cálculos e derivados no backend**
+   - `% progresso`, `remaining`, `is_ending_soon`, `current_installment`, `percent_used` — computados no repository/schema
+   - Frontend **nunca** calcula: `progress = (current/target)*100`, `remaining = limit - spent`
+
+3. **Formatação padronizada na resposta**
+   - Datas: `DD/MM/YYYY` (string) ou ISO 8601
+   - Valores: `float` com 2 casas decimais
+   - Enums: `income`/`expense`/`investment`, `individual`/`business` — frontend só renderiza
+
+4. **Endpoints compostos para dashboards/listas complexas**
+   - `GET /limits/with-spending?year=2024&month=8` → limites + gastos + % em 1 request
+   - `GET /goals?include_progress=true&month=8` → metas + progresso embutido
+   - Evitar: frontend fazer `fetch(goals)` + `fetch(progress)` e cruzar em memória
+
+5. **Schemas de resposta (Pydantic) = contrato da tela**
+   - `ResponseModel` inclui **todos** campos que o frontend precisa
+   - Campos computados via `@model_validator(mode='before')` no schema
+   - Documentar no schema: `# Frontend usa: is_ending_soon para badge "Acabando"`
+
+6. **Repository methods retornam DTOs agregados**
+   - `DashboardRepository.extrato_financeiro()` → `ExtratoResponse` (não lista crua de ORM)
+   - `LimitsRepository.get_limits_with_spending()` → dict pronto para `LimitsWithSpendingResponse`
+   - Queries com `GROUP BY`, `SUM`, `JOIN` no SQL — não em Python loop
+
+### Checklist ao criar/modificar endpoint
+
+- [ ] Uma tela/feature = 1 endpoint (ou 1 composto + 1 de detalhe)
+- [ ] Zero lógica de negócio no frontend (cálculos, formatação, ordenação, filtros derivados)
+- [ ] Response schema inclui campos computados (`progress`, `remaining`, `percent`, `is_ending_soon`)
+- [ ] Repository faz agregação SQL (1 query) — não N+1 nem Python loop
+- [ ] Datas/valores/enums formatados no backend
+- [ ] Paginação/metadados (`total`, `page`, `has_more`) em listas
+- [ ] Erros padronizados: `{code, message, field?}`
+
+### Exemplos no Projeto (seguir este padrão)
+
+| Endpoint | Entrega Pronta | Evita no Frontend |
+|----------|----------------|-------------------|
+| `GET /dashboard/statement` | `total_income`, `total_expenses`, `monthly_goal`, `credit_card_limit`, `fixed_expenses`, `variable_expenses`, `transactions[]` | 5+ queries + agregações |
+| `GET /dashboard/period-income` | `{limit, months: {jan: {income, expense}, ...}}` | GROUP BY 12 meses + busca de limite |
+| `GET /goals/progress` | `[{subcategory_id, name, target, current, progress%, completed}]` | JOIN metas + transações + cálculo % |
+| `GET /limits/with-spending` | `[{limit, spent, remaining, percent_used, subcategories[]}]` | Cruzar limites + gastos manualmente |
+| `GET /recurring-accounts` | `remaining_installments`, `current_installment`, `is_ending_soon` | Calcular parcela atual + badge "Acabando" |

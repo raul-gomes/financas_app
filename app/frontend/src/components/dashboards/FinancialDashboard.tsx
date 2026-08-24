@@ -150,7 +150,7 @@ export function FinancialDashboard({
 
   return (
     <div className="flex flex-col h-full gap-4 overflow-y-auto">
-      {/* Métricas Principais */}
+      {/* Métricas Principais - 4 cards uniformes */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-shrink-0">
         {/* Pix Card */}
         <div
@@ -170,7 +170,7 @@ export function FinancialDashboard({
             }
           }}
         >
-          <Card className="shadow-card border-none bg-primary/10 h-full hover:brightness-95 transition-all">
+          <Card className="shadow-card border-none bg-primary/10 h-full hover:brightness-95 transition-all flex flex-col">
             <div className="p-4 flex flex-col h-full justify-between">
               <div className="flex items-center justify-between">
                 <div>
@@ -181,6 +181,7 @@ export function FinancialDashboard({
                 </div>
                 <Send className="h-6 w-6 text-primary/70" />
               </div>
+              <div className="h-4" /> {/* spacer for uniform height */}
             </div>
           </Card>
         </div>
@@ -203,7 +204,7 @@ export function FinancialDashboard({
             }
           }}
         >
-          <Card className="shadow-card border-none bg-success/10 h-full hover:brightness-95 transition-all">
+          <Card className="shadow-card border-none bg-success/10 h-full hover:brightness-95 transition-all flex flex-col">
             <div className="p-4 flex flex-col h-full justify-between">
               <div className="flex items-center justify-between">
                 <div>
@@ -256,7 +257,7 @@ export function FinancialDashboard({
             }
           }}
         >
-          <Card className="shadow-card border-none bg-destructive/10 h-full hover:brightness-95 transition-all">
+          <Card className="shadow-card border-none bg-destructive/10 h-full hover:brightness-95 transition-all flex flex-col">
             <div className="p-4 flex flex-col h-full justify-between">
               <div className="flex items-center justify-between">
                 <div>
@@ -267,6 +268,7 @@ export function FinancialDashboard({
                 </div>
                 <Banknote className="h-6 w-6 text-destructive/70" />
               </div>
+              <div className="h-4" /> {/* spacer for uniform height */}
             </div>
           </Card>
         </div>
@@ -299,7 +301,7 @@ export function FinancialDashboard({
             }
           }}
         >
-          <Card className="shadow-card border-none bg-warning/10 h-full hover:brightness-95 transition-all">
+          <Card className="shadow-card border-none bg-warning/10 h-full hover:brightness-95 transition-all flex flex-col">
             <div className="p-4 flex flex-col h-full justify-between">
               <div className="flex items-center justify-between">
                 <div>
@@ -321,8 +323,8 @@ export function FinancialDashboard({
       </div>
 
       {/* Grafico de Barras - Rendimento Anual / Diario */}
-      <div className="animate-slide-up shadow-card border-none rounded-lg bg-card flex-shrink-0" style={{ animationDelay: '400ms', maxHeight: '420px' }}>
-        <div className="px-4 py-2 h-[400px]">
+      <div className="animate-slide-up shadow-card border-none rounded-lg bg-card flex-shrink-0" style={{ animationDelay: '400ms' }}>
+        <div className="px-4 py-2 h-[400px] w-full">
           <FlippableChart
             yearlyData={yearlyData}
             dailyData={dailyData}

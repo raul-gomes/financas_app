@@ -69,6 +69,8 @@ class ContaRecorrenteResponse(ContaRecorrenteBase):
     category_name: Optional[str] = None
     subcategory_name: Optional[str] = None
     remaining_installments: int = 0
+    current_installment: int = 0
+    is_ending_soon: bool = False
 
     class Config:
         from_attributes = True
@@ -82,6 +84,16 @@ class ContaRecorrenteResponse(ContaRecorrenteBase):
         if hasattr(data, 'subcategory') and data.subcategory:
             if not hasattr(data, 'subcategory_name') or data.subcategory_name is None:
                 setattr(data, 'subcategory_name', data.subcategory.name)
+        
+        total = getattr(data, 'total_installments', 12) or 12
+        remaining = getattr(data, 'remaining_installments', 0) or 0
+        current = total - remaining + 1
+        if current < 1:
+            current = 1
+        if current > total:
+            current = total
+        setattr(data, 'current_installment', current)
+        setattr(data, 'is_ending_soon', remaining > 0 and remaining <= 2)
         return data
 
 
