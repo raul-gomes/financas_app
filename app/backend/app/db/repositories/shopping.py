@@ -5,10 +5,12 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 from datetime import date, timedelta
+from uuid import uuid4
+from dateutil.relativedelta import relativedelta
 
 from app.core.database import get_session
 from app.db.models.shopping_item import ShoppingItemORM
-from app.schemas.shopping import ShoppingItemCreate, ShoppingItemUpdate
+from app.schemas.shopping import ShoppingItemCreate, ShoppingItemUpdate, GenerateRecurringShoppingRequest
 from app.logger import log_database_operation
 
 
@@ -135,3 +137,71 @@ class ShoppingRepository:
         await self.db.commit()
         log.info(f"{len(novos)} itens migrados de {source_month} para {target_month}")
         return len(novos)
+
+    async def generate_recurring_items(self, req: GenerateRecurringShoppingRequest) -> int:
+        """
+        Gera itens de compras recorrentes para os meses no intervalo.
+        Busca itens marcados como recorrentes (is_recurring=true) e cria cópias
+        para cada mês subsequente até recurrence_end_date ou end_month.
+        """
+        log = log_database_operation(
+            operation="generate_recurring",
+            collection="shopping_items",
+            start_month=str(req.start_month),
+            end_month=str(req.end_month),
+        )
+
+        # Busca itens recorrentes ativos no mês inicial
+        stmt = select(self.model).where(
+            self.model.reference_month == req.start_month,
+            self.model.is_recurring == True,
+            self.model.checked == False,  # só itens não comprados
+        )
+        if req.entity_type:
+            stmt = stmt.where(self.model.entity_type == req.entity_type)
+
+        result = await self.db.execute(stmt)
+        recurring_items = result.scalars().all()
+
+        if not recurring_items:
+            log.info("Nenhum item recorrente encontrado")
+            return 0
+
+        gerados = 0
+        current_month = req.start_month + relativedelta(months=1)
+
+        while current_month <= req.end_month:
+            for item in recurring_items:
+                # Verifica se já passou da data fim da recorrência
+                if item.recurrence_end_date and current_month > item.recurrence_end_date:
+                    continue
+
+                # Verifica se já existe este item neste mês (pelo grupo de recorrência)
+                if item.recurrence_group_id:
+                    existing = await self.db.execute(
+                        select(self.model).where(
+                            self.model.recurrence_group_id == item.recurrence_group_id,
+                            self.model.reference_month == current_month,
+                        )
+                    )
+                    if existing.scalars().first():
+                        continue  # já existe
+
+                # Cria o item para este mês
+                novo = self.model(
+                    name=item.name,
+                    reference_month=current_month,
+                    entity_type=item.entity_type,
+                    is_recurring=True,
+                    recurrence_group_id=item.recurrence_group_id or str(uuid4()),
+                    recurrence_end_date=item.recurrence_end_date,
+                )
+                self.db.add(novo)
+                gerados += 1
+
+            current_month = current_month + relativedelta(months=1)
+
+        if gerados > 0:
+            await self.db.commit()
+            log.info(f"{gerados} itens recorrentes gerados")
+        return gerados

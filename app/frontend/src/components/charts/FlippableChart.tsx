@@ -120,8 +120,6 @@ export function FlippableChart({
             <div className="flex-1 min-h-0 relative">
               <D3BarChart
                 data={yearlyData}
-                width={900}
-                height={320}
                 monthlyGoal={monthlyGoal}
                 selectedMonth={highlightedMonth?.name ?? null}
                 onBarClick={onMonthClick}
@@ -189,8 +187,6 @@ export function FlippableChart({
             <div className="flex-1 min-h-0 relative">
               <D3DailyChart
                 data={dailyData}
-                width={900}
-                height={320}
                 selectedMonth={monthLabel}
                 monthlyGoal={monthlyGoal}
               />

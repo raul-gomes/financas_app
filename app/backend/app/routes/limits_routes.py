@@ -1,12 +1,12 @@
 # app/routes/limits.py
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from app.core.database import get_session
 from app.db.repositories.limits import LimitsRepository
-from app.schemas.limits import LimitsUpdatePayload, LimitsUpdateResponse
+from app.schemas.limits import LimitsUpdatePayload, LimitsUpdateResponse, LimitsWithSpendingResponse
 
 router = APIRouter(prefix="/limits", tags=["Limits"])
 
@@ -75,3 +75,24 @@ async def update_limits_bulk(
     """
     limits_repo = LimitsRepository(db)
     return await limits_repo.bulk_update_limits(payload)
+
+
+@router.get(
+    "/with-spending",
+    response_model=LimitsWithSpendingResponse,
+    summary="Listar limites com gastos do mês",
+    description="Retorna todas as categorias com limites, gastos realizados, saldo restante e % usado no mês informado"
+)
+async def get_limits_with_spending(
+    year: int = Query(..., description="Ano (ex: 2024)"),
+    month: int = Query(..., ge=1, le=12, description="Mês (1-12)"),
+    entity_type: Optional[str] = Query(None, description="Filtrar por tipo de entidade: individual, business"),
+    db: AsyncSession = Depends(get_session)
+):
+    """
+    Endpoint para buscar limites com gastos reais do período.
+    
+    Útil para tela de "Limites" mostrar: limite, gasto, restante, % usado.
+    """
+    limits_repo = LimitsRepository(db)
+    return await limits_repo.get_limits_with_spending(year, month, entity_type)

@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 from typing import List, Optional, Union
+from datetime import date
 
 
 class SubcategoriaLimiteUpdate(BaseModel):
@@ -36,3 +37,32 @@ class LimitsUpdateResponse(BaseModel):
     created_subcategories: int = Field(0, description="Número de subcategorias criadas")
     updated_subcategories: int = Field(0, description="Número de subcategorias atualizadas")
     errors: List[str] = Field(default_factory=list, description="Lista de erros, se houver")
+
+
+class SubcategoriaLimiteSpending(BaseModel):
+    """Subcategoria com gasto no período"""
+    id: int
+    subcategory_name: str
+    spent: float = Field(0, description="Valor gasto no período")
+    limit: Optional[float] = Field(None, description="Limite da subcategoria (se houver)")
+
+
+class CategoriaLimiteSpending(BaseModel):
+    """Categoria com limite e gasto no período"""
+    id: int
+    category_name: str
+    entity_type: str
+    limit: float = Field(0, description="Limite da categoria")
+    spent: float = Field(0, description="Total gasto na categoria no período")
+    remaining: float = Field(0, description="Limite - gasto")
+    percent_used: float = Field(0, description="Porcentagem usada (0-100)")
+    subcategories: List[SubcategoriaLimiteSpending] = Field(default_factory=list)
+
+
+class LimitsWithSpendingResponse(BaseModel):
+    """Resposta com limites e gastos para um período"""
+    month: str = Field(..., description="Mês de referência (YYYY-MM)")
+    categories: List[CategoriaLimiteSpending]
+    total_limit: float = Field(0, description="Soma dos limites das categorias")
+    total_spent: float = Field(0, description="Total gasto no período")
+    total_remaining: float = Field(0, description="Total restante")

@@ -28,7 +28,18 @@ interface DuplicateItem {
   resolved?: 'skip' | 'replace'
 }
 
-const KNOWN_PAYMENT_METHODS = ['dinheiro', 'pix', 'debito', 'credito', 'transferencia', 'boleto']
+const KNOWN_PAYMENT_METHODS = ['cash', 'pix', 'debit', 'credit', 'transfer', 'boleto']
+
+// Inline validation error type
+interface TransactionErrors {
+  description?: string
+  amount?: string
+  category?: string
+  subcategory?: string
+  payment_method?: string
+  total_installments?: string
+  date?: string
+}
 
 const BankExtract = () => {
   const location = useLocation()
@@ -60,6 +71,8 @@ const BankExtract = () => {
   const [newPaymentMethodName, setNewPaymentMethodName] = useState<Record<string, string>>({})
   const [installmentMap, setInstallmentMap] = useState<Record<string, boolean>>({})
   const [totalInstallmentsMap, setTotalInstallmentsMap] = useState<Record<string, number>>({})
+  // Inline validation errors per transaction
+  const [transactionErrors, setTransactionErrors] = useState<Record<string, TransactionErrors>>({})
 
   useEffect(() => {
     FinancialService.getCategorySubcategories('all').then(setCategoryOptions).catch(() => {})
@@ -352,29 +365,80 @@ const BankExtract = () => {
     })
   }
 
-  const validateSession = (session: SessionData, sIdx: number): string | null => {
-    if (!session.bankCode) return 'Selecione um banco para esta sessÃ£o.'
-
-    for (let i = 0; i < session.transactions.length; i++) {
-      const t = session.transactions[i]
-      const key = rowKey(sIdx, i)
-
-      const hasCategory = showNewCategory[key]
-        ? newCategoryName[key]?.trim()
-        : t.category_id
-
-      const hasDescription = t.description?.trim()
-      const hasAmount = t.amount > 0
-      const hasPaymentMethod = showNewPaymentMethod[key]
-        ? newPaymentMethodName[key]?.trim()
-        : t.payment_method
-
-      if (!hasDescription) return `TransaÃ§Ã£o #${i + 1}: descriÃ§Ã£o vazia.`
-      if (!hasAmount) return `TransaÃ§Ã£o #${i + 1}: valor invÃ¡lido.`
-      if (!hasCategory) return `TransaÃ§Ã£o #${i + 1}: categoria nÃ£o atribuÃ­da.`
-      if (!hasPaymentMethod) return `TransaÃ§Ã£o #${i + 1}: forma de pagamento nÃ£o preenchida.`
+const validateTransaction = (sIdx: number, rIdx: number, t: ParsedTransaction, key: string): TransactionErrors => {
+    const errors: TransactionErrors = {}
+    
+    // Description required
+    if (!t.description?.trim()) {
+      errors.description = 'Descrição é obrigatória'
     }
-    return null
+    
+    // Amount required and > 0
+    if (!t.amount || t.amount <= 0) {
+      errors.amount = 'Valor inválido'
+    }
+    
+    // Category required
+    const hasCategory = showNewCategory[key]
+      ? newCategoryName[key]?.trim()
+      : t.category_id
+    if (!hasCategory) {
+      errors.category = 'Categoria é obrigatória'
+    }
+    
+    // Subcategory required if category exists
+    const catObj = categoryOptions?.options.find(c => c.id === t.category_id)
+    if (catObj && catObj.subcategories.length > 0) {
+      const hasSubcategory = showNewSubcategory[key]
+        ? newSubcategoryName[key]?.trim()
+        : t.subcategory_id
+      if (!hasSubcategory) {
+        errors.subcategory = 'Subcategoria é obrigatória'
+      }
+    }
+    
+    // Payment method required
+    const hasPaymentMethod = showNewPaymentMethod[key]
+      ? newPaymentMethodName[key]?.trim()
+      : t.payment_method
+    if (!hasPaymentMethod) {
+      errors.payment_method = 'Forma de pagamento é obrigatória'
+    }
+    
+    // Installments validation
+    if (installmentMap[key]) {
+      const total = totalInstallmentsMap[key] || 0
+      if (total < 2) {
+        errors.total_installments = 'Mínimo 2 parcelas'
+      }
+    }
+    
+    // Date validation
+    if (!t.date) {
+      errors.date = 'Data é obrigatória'
+    }
+    
+    return errors
+  }
+
+  const validateSession = (session: SessionData, sIdx: number): { hasErrors: boolean; errorCount: number } => {
+    if (!session.bankCode) return { hasErrors: true, errorCount: 1 }
+
+    const allErrors: Record<string, TransactionErrors> = {}
+    let errorCount = 0
+
+    session.transactions.forEach((t, rIdx) => {
+      const key = rowKey(sIdx, rIdx)
+      const errors = validateTransaction(sIdx, rIdx, t, key)
+      const hasErrors = Object.keys(errors).length > 0
+      if (hasErrors) {
+        allErrors[key] = errors
+        errorCount += Object.keys(errors).length
+      }
+    })
+
+setTransactionErrors(allErrors)
+    return { hasErrors: errorCount > 0, errorCount }
   }
 
   const doConfirmSession = async (sIdx: number, payload?: { transactions: ConfirmTransaction[] }) => {
@@ -389,18 +453,18 @@ const BankExtract = () => {
       updateSession(sIdx, { isConfirmed: true })
       toast({
         title: 'Sucesso',
-        description: `${result.created} transaÃ§Ãµes importadas de "${session.filename}"!`,
+        description: `${result.created} transações importadas de "${session.filename}"!`,
       })
 
       // Check if all sessions are now confirmed
       const updated = sessions.map((s, i) => i === sIdx ? { ...s, isConfirmed: true } : s)
       const allDone = updated.every(s => s.isConfirmed)
       if (allDone) {
-        toast({ title: 'ConcluÃ­do', description: 'Todas as transaÃ§Ãµes foram importadas!' })
+        toast({ title: 'Concluído', description: 'Todas as transações foram importadas!' })
         setTimeout(() => navigate('/financial'), 800)
       }
     } catch {
-      toast({ title: 'Erro', description: `Falha ao confirmar sessÃ£o "${session.filename}".`, variant: 'destructive' })
+      toast({ title: 'Erro', description: `Falha ao confirmar sessão "${session.filename}".`, variant: 'destructive' })
     } finally {
       setIsConfirming(false)
     }
@@ -408,25 +472,28 @@ const BankExtract = () => {
 
   const confirmSession = async (sIdx: number) => {
     const session = sessions[sIdx]
-    const error = validateSession(session, sIdx)
-    if (error) {
-      toast({ title: 'ValidaÃ§Ã£o', description: error, variant: 'destructive' })
+    const validation = validateSession(session, sIdx)
+    if (validation.hasErrors) {
+      toast({ title: 'Validação', description: `Corrija os ${validation.errorCount} erro(s) antes de confirmar.`, variant: 'destructive' })
       return
     }
-    // Duplicate check already done at upload time â€” confirm directly
+    // Duplicate check already done at upload time — confirm directly
     const payload = { transactions: buildConfirmPayload(session) }
     await doConfirmSession(sIdx, payload)
   }
 
   const confirmAll = async () => {
+    // Validate all sessions first
+    let totalErrors = 0
     for (let i = 0; i < sessions.length; i++) {
       const s = sessions[i]
       if (s.isConfirmed) continue
-      const error = validateSession(s, i)
-      if (error) {
-        toast({ title: `ValidaÃ§Ã£o em "${s.filename}"`, description: error, variant: 'destructive' })
-        return
-      }
+      const validation = validateSession(s, i)
+      totalErrors += validation.errorCount
+    }
+    if (totalErrors > 0) {
+      toast({ title: 'Validação', description: `Corrija os ${totalErrors} erro(s) antes de confirmar tudo.`, variant: 'destructive' })
+      return
     }
 
     setIsConfirming(true)
@@ -450,11 +517,10 @@ const BankExtract = () => {
     setIsConfirming(false)
 
     if (allOk) {
-      toast({ title: 'Sucesso', description: 'Todas as sessÃµes foram importadas!' })
+      toast({ title: 'Sucesso', description: 'Todas as sessões foram importadas!' })
       setTimeout(() => navigate('/financial'), 800)
     }
   }
-
   const handleCancel = () => {
     setSessions([])
     navigate('/financial')
