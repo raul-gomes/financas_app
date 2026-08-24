@@ -1,5 +1,6 @@
 // TransactionList.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { formatCurrency } from '@/lib/format';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,31 @@ export function TransactionList({
     const bank = banks.find(b => b.bank_code === bankCode);
     return bank?.bank_name || null;
   };
+
+  // Filtro memoizado — só recalcula quando transações, busca ou bancos mudam
+  const filteredTransactions = useMemo(() => {
+    if (!searchQuery.trim()) return transactions;
+    const q = searchQuery.toLowerCase();
+    return transactions.filter(t => (
+      t.description.toLowerCase().includes(q) ||
+      t.category_name.toLowerCase().includes(q) ||
+      t.subcategory_name.toLowerCase().includes(q) ||
+      t.payment_method.toLowerCase().includes(q) ||
+      t.amount.toString().includes(q) ||
+      (t.bank_code || '').toLowerCase().includes(q) ||
+      (getBankName(t.bank_code) || '').toLowerCase().includes(q)
+    ));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transactions, searchQuery, banks]);
+
+  // Virtualização: apenas linhas visíveis (+ overscan) são montadas no DOM
+  const listRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredTransactions.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 96,
+    overscan: 6,
+  });
 
 
   const handleEditTransaction = (id: number) => {
@@ -181,108 +207,103 @@ export function TransactionList({
         />
       </div>
 
-      {/* Lista de Transações */}
-      <div className="flex-1 min-h-0 overflow-y-auto mt-3 space-y-2">
-        {transactions
-          .filter(t => {
-            if (!searchQuery.trim()) return true;
-            const q = searchQuery.toLowerCase();
-            return (
-              t.description.toLowerCase().includes(q) ||
-              t.category_name.toLowerCase().includes(q) ||
-              t.subcategory_name.toLowerCase().includes(q) ||
-              t.payment_method.toLowerCase().includes(q) ||
-              t.amount.toString().includes(q) ||
-              (t.bank_code || '').toLowerCase().includes(q) ||
-              (getBankName(t.bank_code) || '').toLowerCase().includes(q)
-            );
-          })
-          .map((t, idx) => {
+      {/* Lista de Transações (virtualizada) */}
+      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto mt-3">
+        <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const t = filteredTransactions[virtualRow.index];
             const bankName = getBankName(t.bank_code);
-          return (
-            <div
-              key={t.id}
-              className={`animate-slide-up bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors ${
-                t.recurring_account_id ? 'bg-blue-50/60 border-blue-200 hover:bg-blue-50' : ''
-              }`}
-              style={{ animationDelay: `${idx * 50}ms` }}
-              onClick={() => handleItemClick(t.id)}
-            >
-              {/* Top row: icon + description + value + delete */}
-              <div className="flex items-start gap-3">
-                <div className={cn(
-                  "p-2 rounded-lg shrink-0",
-                  t.recurring_account_id ? 'bg-blue-100 text-blue-600' :
-                  t.type === 'income' ? 'bg-success/10 text-success' : 
-                  t.type === 'investment' ? 'bg-warning/10 text-warning' : 
-                  'bg-destructive/10 text-destructive'
-                )}>
-                  {t.recurring_account_id ? <ArrowDownRight className="h-4 w-4" /> :
-                   t.type === 'income' ? <ArrowUpRight className="h-4 w-4" /> : 
-                   t.type === 'investment' ? <ArrowUpRight className="h-4 w-4" /> : 
-                   <ArrowDownRight className="h-4 w-4" />}
-                </div>
+            return (
+              <div
+                key={t.id}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                className="absolute left-0 top-0 w-full pb-2"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+                onClick={() => handleItemClick(t.id)}
+              >
+                <div
+                  className={`bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors ${
+                    t.recurring_account_id ? 'bg-blue-50/60 border-blue-200 hover:bg-blue-50' : ''
+                  }`}
+                >
+                  {/* Top row: icon + description + value + delete */}
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "p-2 rounded-lg shrink-0",
+                      t.recurring_account_id ? 'bg-blue-100 text-blue-600' :
+                      t.type === 'income' ? 'bg-success/10 text-success' : 
+                      t.type === 'investment' ? 'bg-warning/10 text-warning' : 
+                      'bg-destructive/10 text-destructive'
+                    )}>
+                      {t.recurring_account_id ? <ArrowDownRight className="h-4 w-4" /> :
+                      t.type === 'income' ? <ArrowUpRight className="h-4 w-4" /> : 
+                      t.type === 'investment' ? <ArrowUpRight className="h-4 w-4" /> : 
+                      <ArrowDownRight className="h-4 w-4" />}
+                    </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-medium text-foreground truncate">{t.description}</p>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <p className={cn("font-semibold text-lg", 
-                        t.recurring_account_id ? 'text-blue-600' :
-                        t.type === 'income' ? 'text-success' : 
-                        t.type === 'investment' ? 'text-warning' : 
-                        'text-destructive')}>
-                        {formatCurrency(t.amount)}
-                      </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 focus-visible:bg-destructive/20 shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onDeleteTransaction(t.id)
-                        }}
-                        aria-label="Excluir transação"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-medium text-foreground truncate">{t.description}</p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <p className={cn("font-semibold text-lg", 
+                            t.recurring_account_id ? 'text-blue-600' :
+                            t.type === 'income' ? 'text-success' : 
+                            t.type === 'investment' ? 'text-warning' : 
+                            'text-destructive')}>
+                            {formatCurrency(t.amount)}
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 focus-visible:bg-destructive/20 shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onDeleteTransaction(t.id)
+                            }}
+                            aria-label="Excluir transação"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Bottom row: badges */}
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
+                        {t.recurring_account_id ? (
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                            Recorrente
+                          </span>
+                        ) : (
+                          <Badge variant='outline' className="shrink-0">
+                            {format(new Date(t.transaction_date), 'dd/MM/yyyy')}
+                          </Badge>
+                        )}
+                        {t.total_installments && t.total_installments > 1 && !t.recurring_account_id && (
+                          <Badge className="shrink-0">
+                            {t.installment_number}/{t.total_installments}
+                          </Badge>
+                        )}
+                        {t.bank_code && bankName && (
+                          <span className="shrink-0" title={bankName}>
+                            <BankLogo code={t.bank_code} size="xs" alt={bankName} />
+                          </span>
+                        )}
+                        {!t.recurring_account_id && (
+                          <span className="text-slate-400 truncate">• {t.category_name}</span>
+                        )}
+                        {t.recurring_account_id && (
+                          <span className="text-blue-400 truncate">• {t.category_name}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Bottom row: badges */}
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
-                    {t.recurring_account_id ? (
-                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                        Recorrente
-                      </span>
-                    ) : (
-                      <Badge variant='outline' className="shrink-0">
-                        {format(new Date(t.transaction_date), 'dd/MM/yyyy')}
-                      </Badge>
-                    )}
-                    {t.total_installments && t.total_installments > 1 && !t.recurring_account_id && (
-                      <Badge className="shrink-0">
-                        {t.installment_number}/{t.total_installments}
-                      </Badge>
-                    )}
-                    {t.bank_code && bankName && (
-                      <span className="shrink-0" title={bankName}>
-                        <BankLogo code={t.bank_code} size="xs" alt={bankName} />
-                      </span>
-                    )}
-                    {!t.recurring_account_id && (
-                      <span className="text-slate-400 truncate">• {t.category_name}</span>
-                    )}
-                    {t.recurring_account_id && (
-                      <span className="text-blue-400 truncate">• {t.category_name}</span>
-                    )}
-                  </div>
                 </div>
               </div>
-
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {/* Modais */}

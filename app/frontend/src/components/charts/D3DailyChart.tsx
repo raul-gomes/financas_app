@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { formatCurrency } from '@/lib/format';
 import * as d3 from 'd3';
 import { DailyData } from '@/types/financial';
@@ -11,7 +11,7 @@ interface D3DailyChartProps {
   monthlyGoal?: number;
 }
 
-export function D3DailyChart({
+function D3DailyChartBase({
   data,
   width = 900,
   height = 420,
@@ -257,3 +257,6 @@ export function D3DailyChart({
     </div>
   );
 }
+
+/** Memoizado: evita re-render do SVG quando props não mudam. */
+export const D3DailyChart = memo(D3DailyChartBase);

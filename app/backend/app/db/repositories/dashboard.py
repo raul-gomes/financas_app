@@ -1,6 +1,7 @@
 # app/db/repositories/dashboard.py
 
 import calendar
+import time
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +11,32 @@ from app.db.models.transaction import TransactionORM
 from app.db.models.category import CategoryORM
 from app.schemas.dashboard import CategoriaOpcao, EntradasPorCategoriaResponse, ExtratoResponse, OpcoesCategoriaResponse, RendimentoPeriodoResponse, SubcategoriaOpcao, TipoTrans, TransacaoExtrato
 from app.schemas.transaction import NaturezaTransacao, TransacaoResponse
+
+# Simple in-memory cache for opcoes_categorias (key: (entity_type, tipo), value: (timestamp, data))
+_opcoes_categorias_cache: Dict[tuple, tuple] = {}
+_CACHE_TTL_SECONDS = 300  # 5 minutes
+
+def _invalidate_opcoes_categorias_cache():
+    """Invalidates the opcoes_categorias cache."""
+    global _opcoes_categorias_cache
+    _opcoes_categorias_cache.clear()
+
+def _get_cached_opcoes_categorias(entity_type: str, tipo: Optional[str]) -> Optional[OpcoesCategoriaResponse]:
+    """Gets cached opcoes_categorias if not expired."""
+    key = (entity_type, tipo or '')
+    if key in _opcoes_categorias_cache:
+        timestamp, data = _opcoes_categorias_cache[key]
+        if time.time() - timestamp < _CACHE_TTL_SECONDS:
+            return data
+        else:
+            del _opcoes_categorias_cache[key]
+    return None
+
+def _set_cached_opcoes_categorias(entity_type: str, tipo: Optional[str], data: OpcoesCategoriaResponse):
+    """Sets opcoes_categorias in cache with current timestamp."""
+    key = (entity_type, tipo or '')
+    _opcoes_categorias_cache[key] = (time.time(), data)
+
 
 class DashboardRepository:
     def __init__(self, db: AsyncSession):
@@ -29,10 +56,7 @@ class DashboardRepository:
         )
         if entity_type != 'all':
             stmt = stmt.where(TransactionORM.entity_type == NaturezaTransacao(entity_type))
-        stmt = stmt.where(TransactionORM.type == type.value).options(
-            selectinload(TransactionORM.category),
-            selectinload(TransactionORM.subcategory),
-        )
+        stmt = stmt.where(TransactionORM.type == type.value)
 
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
@@ -149,8 +173,6 @@ class DashboardRepository:
         if entity_type != 'all':
             stmt = stmt.where(TransactionORM.entity_type == entity_type)
         stmt = stmt.options(
-            selectinload(TransactionORM.category),
-            selectinload(TransactionORM.subcategory),
             selectinload(TransactionORM.recurring_account),
         ).order_by(TransactionORM.transaction_date.desc())
         result = await self.db.execute(stmt)
@@ -185,29 +207,34 @@ class DashboardRepository:
         fixed_expenses = sum(t.amount for t in transacoes if t.type == "expense" and t.recurring_account_id is not None)
         variable_expenses = sum(t.amount for t in transacoes if t.type == "expense" and t.recurring_account_id is None)
 
-        # Helper to read category limit by name and optional entity_type
-        async def _get_cat_limit(cat_name: str, default: float = 1000.0, cat_entity_type: Optional[str] = None) -> float:
-            query = select(CategoryORM).where(func.lower(CategoryORM.name) == cat_name.lower())
-            if cat_entity_type:
-                query = query.where(CategoryORM.entity_type == cat_entity_type)
-            result = await self.db.execute(query)
-            obj = result.scalars().first()
-            return obj.limit if obj else default
+        # Single query to fetch all needed category limits (avoids N+1)
+        # Busca: Mensal PF, Mensal PJ, Limite Cartao Credito
+        needed_names = ['Mensal PF', 'Mensal PJ', 'Limite Cartao Credito']
+        limits_result = await self.db.execute(
+            select(CategoryORM.name, CategoryORM.limit, CategoryORM.entity_type).where(
+                func.lower(CategoryORM.name).in_([n.lower() for n in needed_names])
+            )
+        )
+        limits_map = {(row.name.lower(), row.entity_type or ''): row.limit for row in limits_result}
+
+        # Helper to get limit from map
+        def _get_limit(name: str, entity: str = '', default: float = 1000.0) -> float:
+            return limits_map.get((name.lower(), entity), limits_map.get((name.lower(), ''), default))
 
         # Meta mensal por entity_type
         if entity_type == 'individual':
-            monthly_goal = await _get_cat_limit('Mensal PF')
+            monthly_goal = _get_limit('Mensal PF', 'individual')
         elif entity_type == 'business':
-            monthly_goal = await _get_cat_limit('Mensal PJ')
+            monthly_goal = _get_limit('Mensal PJ', 'business')
         else:
             monthly_goal = max(
-                await _get_cat_limit('Mensal PF', 0),
-                await _get_cat_limit('Mensal PJ', 0)
+                _get_limit('Mensal PF', 'individual', 0),
+                _get_limit('Mensal PJ', 'business', 0)
             )
             if monthly_goal == 0:
                 monthly_goal = 1000.0
 
-        credit_card_limit = await _get_cat_limit('Limite Cartao Credito', 0, cat_entity_type=entity_type if entity_type != 'all' else None)
+        credit_card_limit = _get_limit('Limite Cartao Credito', entity_type if entity_type != 'all' else '', 0)
 
         total_invested = sum(t.amount for t in transacoes if t.type == "investment")
 
@@ -225,9 +252,12 @@ class DashboardRepository:
         )
 
     async def opcoes_categorias(self, entity_type: str = 'all', tipo: Optional[str] = None) -> OpcoesCategoriaResponse:
-        stmt = select(CategoryORM).options(
-            selectinload(CategoryORM.subcategories)
-        )
+        # Check cache first
+        cached = _get_cached_opcoes_categorias(entity_type, tipo)
+        if cached is not None:
+            return cached
+
+        stmt = select(CategoryORM)
         if entity_type != 'all':
             stmt = stmt.where(CategoryORM.entity_type == NaturezaTransacao(entity_type))
         if tipo:
@@ -255,7 +285,9 @@ class DashboardRepository:
                 )
             )
 
-        return OpcoesCategoriaResponse(options=opcoes)
+        response = OpcoesCategoriaResponse(options=opcoes)
+        _set_cached_opcoes_categorias(entity_type, tipo, response)
+        return response
 
     async def entradas_por_categoria(
         self, 
@@ -272,7 +304,6 @@ class DashboardRepository:
             .where(TransactionORM.transaction_date >= start_date)
             .where(TransactionORM.transaction_date <= end_date)
             .where(TransactionORM.type == "income")
-            .options(selectinload(TransactionORM.subcategory))
         )
         if entity_type != 'all':
             stmt = stmt.where(TransactionORM.entity_type == entity_type)

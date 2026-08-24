@@ -21,11 +21,13 @@ async def list_metas(
     request: Request,
     completed: Optional[bool] = Query(None, description="Filtrar por concluída (true=concluídas, false=ativas)"),
     entity_type: Optional[str] = Query(None, description="Filtrar por tipo de entidade: individual, business"),
+    limit: int = Query(100, ge=1, le=500, description="Limite de itens por página"),
+    offset: int = Query(0, ge=0, description="Offset para paginação"),
     repo: MetaRepository = Depends(MetaRepository),
 ):
-    log = log_api_request(method="GET", endpoint=str(request.url), completed=completed, entity_type=entity_type)
+    log = log_api_request(method="GET", endpoint=str(request.url), completed=completed, entity_type=entity_type, limit=limit, offset=offset)
     try:
-        metas = await repo.list_metas(completed=completed, entity_type=entity_type)
+        metas = await repo.list_metas(completed=completed, entity_type=entity_type, limit=limit, offset=offset)
         log.info(f"{len(metas)} metas listadas")
         return metas
     except Exception as e:

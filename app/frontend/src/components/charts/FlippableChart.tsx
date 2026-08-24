@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { formatCurrency } from '@/lib/format';
 import { D3BarChart } from './D3BarChart';
 import { D3DailyChart } from './D3DailyChart';
@@ -18,7 +18,7 @@ interface FlippableChartProps {
   onNextMonth?: () => void;
 }
 
-export function FlippableChart({
+function FlippableChartBase({
   yearlyData,
   dailyData,
   monthlyGoal,
@@ -215,3 +215,6 @@ export function FlippableChart({
     </div>
   );
 }
+
+/** Memoizado: só re-renderiza quando dados/props de interação mudam. */
+export const FlippableChart = memo(FlippableChartBase);

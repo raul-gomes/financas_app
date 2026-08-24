@@ -2,7 +2,7 @@
 
 import calendar
 import random
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import date, datetime, time
 
 from fastapi import Depends, HTTPException, status
@@ -202,11 +202,12 @@ class TransacaoRepository:
     async def get_all(
         self,
         start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        end_date: Optional[datetime] = None,
+        limit: int = 100,
+        offset: int = 0,
     ) -> List[TransactionORM]:
         stmt = select(TransactionORM).options(
-            selectinload(TransactionORM.category),
-            selectinload(TransactionORM.subcategory)
+            selectinload(TransactionORM.recurring_account)
         )
         if start_date:
             stmt = stmt.where(TransactionORM.transaction_date >= start_date)
@@ -215,14 +216,13 @@ class TransacaoRepository:
             data_final_completo = datetime.combine(end_date.date(), time.max)
             stmt = stmt.where(TransactionORM.transaction_date <= data_final_completo)
 
-        stmt = stmt.order_by(TransactionORM.transaction_date.desc())
+        stmt = stmt.order_by(TransactionORM.transaction_date.desc()).limit(limit).offset(offset)
         result = await self.db.execute(stmt)
         return result.unique().scalars().all()
 
     async def get_by_id(self, id: int) -> Optional[TransactionORM]:
         stmt = select(TransactionORM).options(
-            selectinload(TransactionORM.category),
-            selectinload(TransactionORM.subcategory)
+            selectinload(TransactionORM.recurring_account)
         ).where(TransactionORM.id == id)
         result = await self.db.execute(stmt)
         return result.scalars().first()
@@ -318,10 +318,6 @@ class TransacaoRepository:
         end = datetime.combine(transaction_date, time.max)
         stmt = (
             select(TransactionORM)
-            .options(
-                selectinload(TransactionORM.category),
-                selectinload(TransactionORM.subcategory)
-            )
             .where(
                 TransactionORM.transaction_date >= start,
                 TransactionORM.transaction_date <= end,
@@ -332,19 +328,170 @@ class TransacaoRepository:
         return list(result.unique().scalars().all())
 
     async def assign_random_banks(self, bank_codes: List[str]) -> int:
-        """Atribui um bank_code aleatório às transações sem bank_code."""
-        from sqlalchemy import update as sql_update
+        """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto."""
+        from sqlalchemy import text
+        
+        if not bank_codes:
+            return 0
 
-        result = await self.db.execute(
-            select(TransactionORM).where(TransactionORM.bank_code.is_(None))
-        )
-        transacoes = result.unique().scalars().all()
+        # Single SQL statement using CTE + row_number() for random assignment
+        stmt = text("""
+            WITH banks AS (
+                SELECT bank_code, row_number() OVER (ORDER BY random()) AS rn
+                FROM UNNEST(:bank_codes::text[]) AS bank_code
+            ), txs AS (
+                SELECT id, row_number() OVER (ORDER BY id) AS rn
+                FROM transacoes
+                WHERE bank_code IS NULL
+            )
+            UPDATE transacoes t
+            SET bank_code = b.bank_code
+            FROM txs
+            JOIN banks b ON txs.rn = b.rn
+            WHERE t.id = txs.id
+        """)
 
-        for t in transacoes:
-            t.bank_code = random.choice(bank_codes)
-
+        result = await self.db.execute(stmt, {'bank_codes': bank_codes})
         await self.db.commit()
-        return len(transacoes)
+        return result.rowcount
+
+    async def create_batch_from_extract(
+        self,
+        transactions: List[Dict],
+    ) -> tuple[int, List[str]]:
+        """
+        Creates multiple transactions from extract in a single batch.
+        Returns (created_count, errors_list).
+        """
+        log = log_database_operation(operation="batch_create", collection="transacoes", count=len(transactions))
+        
+        # 1) Collect all unique category/subcategory resolutions needed
+        cat_keys = set()
+        sub_keys = set()
+        for t in transactions:
+            if t.get('category_id'):
+                cat_keys.add(('id', t['category_id']))
+            elif t.get('category_name'):
+                cat_keys.add(('name', t['category_name'], t['entity_type']))
+            if t.get('subcategory_id'):
+                sub_keys.add(('id', t['subcategory_id']))
+            elif t.get('subcategory_name') and (t.get('category_id') or t.get('category_name')):
+                cat_key = t.get('category_id') or t.get('category_name')
+                sub_keys.add(('name', t['subcategory_name'], cat_key))
+
+        # 2) Resolve all categories
+        cat_cache: Dict[tuple, any] = {}
+        for key in cat_keys:
+            if key[0] == 'id':
+                cat = await self.categoria_repo.get_by_id(key[1])
+            else:  # name
+                cat = await self.categoria_repo.get_by_nome_and_entity_type(key[1], key[2])
+                if not cat:
+                    cat = await self.categoria_repo.create(
+                        CategoriaCreate(
+                            category_name=key[1],
+                            entity_type=key[2],
+                            limit=0,
+                            type=None,  # will be overridden per transaction
+                            subcategories=[],
+                        )
+                    )
+            cat_cache[key] = cat
+
+        # 3) Resolve all subcategories
+        sub_cache: Dict[tuple, any] = {}
+        for key in sub_keys:
+            if key[0] == 'id':
+                sub = await self.subcategoria_repo.get_by_id(key[1])
+            else:  # name
+                cat = cat_cache.get(('id', key[2])) or cat_cache.get(('name', key[2], None))
+                if cat:
+                    sub = await self.subcategoria_repo.get_by_nome_and_categoria(key[1], cat.id)
+                    if not sub:
+                        sub = await self.subcategoria_repo.create(
+                            categoria_id=cat.id,
+                            obj_in=SubcategoriaCreate(subcategory_name=key[1]),
+                        )
+            sub_cache[key] = sub
+
+        # 4) Build all TransactionORM objects
+        all_instances = []
+        errors = []
+
+        for t in transactions:
+            try:
+                group_id = str(uuid4())
+                cat_key = ('id', t['category_id']) if t.get('category_id') else ('name', t['category_name'], t['entity_type'])
+                cat = cat_cache[cat_key]
+                
+                sub_key = None
+                if t.get('subcategory_id'):
+                    sub_key = ('id', t['subcategory_id'])
+                elif t.get('subcategory_name'):
+                    sub_key = ('name', t['subcategory_name'], cat_key)
+                sub = sub_cache.get(sub_key) if sub_key else None
+
+                transaction_date = datetime.strptime(t['date'], '%d/%m/%Y')
+                total_installments = t.get('total_installments')
+                is_installment = t.get('is_installment', False)
+
+                if total_installments and total_installments > 1:
+                    # Create installments
+                    valor_parcela = self._calculate_installment_amount(t['amount'], total_installments)
+                    datas = self._generate_installment_dates(transaction_date, total_installments)
+                    for i in range(total_installments):
+                        inst = TransactionORM(
+                            amount=valor_parcela,
+                            description=f"{t['description']} - parcela {i + 1}/{total_installments}",
+                            installment_number=i + 1,
+                            total_installments=total_installments,
+                            is_installment=True,
+                            transaction_date=datas[i],
+                            type=t['type'],
+                            entity_type=t['entity_type'],
+                            payment_method=t['payment_method'],
+                            category_id=cat.id,
+                            subcategory_id=sub.id if sub else None,
+                            bank_code=t.get('bank_code'),
+                            group_id=group_id,
+                        )
+                        all_instances.append(inst)
+                    self._adjust_last_installment(all_instances[-total_installments:], t['amount'])
+                else:
+                    inst = TransactionORM(
+                        amount=t['amount'],
+                        description=t['description'],
+                        installment_number=1,
+                        total_installments=1,
+                        transaction_date=transaction_date,
+                        type=t['type'],
+                        entity_type=t['entity_type'],
+                        payment_method=t['payment_method'],
+                        category_id=cat.id,
+                        subcategory_id=sub.id if sub else None,
+                        bank_code=t.get('bank_code'),
+                        group_id=group_id,
+                        is_installment=is_installment,
+                    )
+                    all_instances.append(inst)
+            except Exception as e:
+                errors.append(f"Erro ao preparar '{t.get('description', 'N/A')}': {str(e)}")
+
+        # 5) Batch insert all
+        if all_instances:
+            try:
+                self.db.add_all(all_instances)
+                await self.db.commit()
+                for inst in all_instances:
+                    await self.db.refresh(inst)
+                log.info(f"Batch created {len(all_instances)} transactions")
+            except Exception as e:
+                await self.db.rollback()
+                log.error(f"Batch commit failed: {e}")
+                errors.append(f"Erro no commit em lote: {str(e)}")
+                return 0, errors
+
+        return len(all_instances), errors
 
     async def create_from_extract(
         self,

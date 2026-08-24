@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { memo, useEffect, useRef } from 'react';
 import { formatCurrency, formatDate } from '@/lib/format';
 import * as d3 from 'd3';
 import { PortfolioEvolution } from '@/types/financial';
@@ -9,7 +9,7 @@ interface D3LineChartProps {
   height?: number;
 }
 
-export function D3LineChart({ data, width = 800, height = 250 }: D3LineChartProps) {
+function D3LineChartBase({ data, width = 800, height = 250 }: D3LineChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -183,3 +183,6 @@ export function D3LineChart({ data, width = 800, height = 250 }: D3LineChartProp
     </div>
   );
 }
+
+/** Memoizado: evita re-render do SVG quando props não mudam. */
+export const D3LineChart = memo(D3LineChartBase);

@@ -1,6 +1,6 @@
 // src/components/IncomeChart.tsx
 
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { formatCurrency } from '@/lib/format';
 import { D3PieChart } from './D3PieChart'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
@@ -13,7 +13,7 @@ interface IncomeChartProps {
 }
 
 
-export function IncomeChart({ breakdown }: IncomeChartProps) {
+function IncomeChartBase({ breakdown }: IncomeChartProps) {
   const incomeData = useMemo(() => {
     if (!breakdown?.subcategories?.length) {
       return { chartData: [], total: 0, count: 0 }
@@ -95,3 +95,6 @@ export function IncomeChart({ breakdown }: IncomeChartProps) {
     </div>
   )
 }
+
+/** Memoizado: evita re-render quando breakdown não muda. */
+export const IncomeChart = memo(IncomeChartBase);

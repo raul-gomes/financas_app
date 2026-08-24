@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Card } from 'primereact/card';
+import { Card } from '@/components/ui/card';
 import { FlippableChart } from '@/components/charts/FlippableChart';
 import { IncomeChart } from '@/components/charts/IncomeChart';
 import { CategoryBreakdownSection } from '@/components/CategoryBreakdownSection';

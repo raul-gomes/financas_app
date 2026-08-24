@@ -159,16 +159,18 @@ async def create_transacao(
     response_model=List[TransacaoResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar transações",
-    description="Lista todas as transações, com filtros opcionais por data."
+    description="Lista todas as transações, com filtros opcionais por data e paginação."
 )
 async def list_transacoes(
     request: Request,
     start_date: Optional[str] = Query(None, description="Data inicial DD/MM/YYYY"),
     end_date: Optional[str] = Query(None, description="Data final DD/MM/YYYY"),
+    limit: int = Query(100, ge=1, le=500, description="Limite de itens por página"),
+    offset: int = Query(0, ge=0, description="Offset para paginação"),
     repo: TransacaoRepository = Depends(TransacaoRepository)
 ):
     """
-    Obtém transações entre start_date e end_date, se fornecidas.
+    Obtém transações entre start_date e end_date, se fornecidas, com paginação.
     """
     dt_i = parse_date(start_date, "start_date") if start_date else None
     dt_f = parse_date(end_date, "end_date") if end_date else None
@@ -180,10 +182,12 @@ async def list_transacoes(
         method="GET",
         endpoint=str(request.url),
         start_date=dt_i,
-        end_date=dt_f
+        end_date=dt_f,
+        limit=limit,
+        offset=offset
     )
     try:
-        transacoes = await repo.get_all(dt_i, dt_f)
+        transacoes = await repo.get_all(dt_i, dt_f, limit=limit, offset=offset)
         log.info(f"{len(transacoes)} transações listadas")
         return transacoes
     except Exception as e:
