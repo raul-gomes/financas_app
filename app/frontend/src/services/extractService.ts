@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import {
   UploadResponse,
   ConfirmPayload,
@@ -5,25 +6,20 @@ import {
   SessionData,
 } from '@/types/extract';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-
 export class ExtractoService {
   static async upload(file: File): Promise<UploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
-
-    const res = await fetch(`${API_BASE_URL}/extracts/upload`, {
+    const res = await apiFetch(`/extracts/upload`, {
       method: 'POST',
       body: formData,
     });
-
     if (!res.ok) throw new Error(`Erro ${res.status} ao fazer upload do extrato`);
     return res.json();
   }
 
   static async uploadMultiple(files: File[]): Promise<SessionData[]> {
     if (files.length === 0) throw new Error('Nenhum arquivo selecionado');
-
     const results = await Promise.all(
       files.map(async (file) => {
         const response = await ExtractoService.upload(file);
@@ -41,17 +37,15 @@ export class ExtractoService {
         } as SessionData;
       })
     );
-
     return results;
   }
 
   static async confirm(payload: ConfirmPayload): Promise<ConfirmResponse> {
-    const res = await fetch(`${API_BASE_URL}/extracts/confirm`, {
+    const res = await apiFetch(`/extracts/confirm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-
     if (!res.ok) throw new Error(`Erro ${res.status} ao confirmar extrato`);
     return res.json();
   }

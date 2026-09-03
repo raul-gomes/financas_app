@@ -22,9 +22,11 @@ import { cn } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSidebar } from '@/contexts/SidebarContext';
+import { useRole } from '@/contexts/RoleContext';
 
 const Financial = () => {
   const isMobile = useIsMobile();
+  const { isAdmin } = useRole();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [yearlyPerformance, setYearlyPerformance] = useState<YearlyPerformance | null>(null);
@@ -262,21 +264,25 @@ const Financial = () => {
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <div className="flex">
-        <SidebarPanel open={sidebar.open} onClose={() => sidebar.toggle()} entityType={selectedEntityType} />
+        {isAdmin && (
+          <SidebarPanel open={sidebar.open} onClose={() => sidebar.toggle()} entityType={selectedEntityType} />
+        )}
         <div className="flex-1 min-w-0">
           <main className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
             {/* Date Range Picker + Sidebar Toggle */}
             <div className="w-full flex justify-between items-center gap-2 mb-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => sidebar.toggle()}
-                className="flex items-center gap-1.5"
-                title="Metas e Compras"
-              >
-                <PanelRightOpen className={`h-4 w-4 transition-transform ${sidebar.open ? 'rotate-180' : ''}`} />
-                <span className="hidden sm:inline text-xs">Metas/Objetivos</span>
-              </Button>
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => sidebar.toggle()}
+                  className="flex items-center gap-1.5"
+                  title="Metas e Compras"
+                >
+                  <PanelRightOpen className={`h-4 w-4 transition-transform ${sidebar.open ? 'rotate-180' : ''}`} />
+                  <span className="hidden sm:inline text-xs">Metas/Objetivos</span>
+                </Button>
+              )}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button

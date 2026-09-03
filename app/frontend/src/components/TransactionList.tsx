@@ -25,6 +25,7 @@ import { EditTransactionDialog } from '@/components/dialogs/EditTransactionDialo
 import { ExtratoUploadModal } from '@/components/dialogs/ExtratoUploadModal';
 import { SettingsService, UserBank } from '@/services/settingsService';
 import { useToast } from '@/hooks/use-toast';
+import { useRole } from '@/contexts/RoleContext';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -58,6 +59,7 @@ export function TransactionList({
   const [banks, setBanks] = useState<UserBank[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
+  const { isAdmin } = useRole();
 
   // Load banks once on mount (banks change rarely)
   useEffect(() => {
@@ -321,14 +323,16 @@ export function TransactionList({
         />
       )}
 
-      <ExtratoUploadModal
-        open={uploadOpen}
-        onOpenChange={setUploadOpen}
-        onUploadComplete={(sessions) => {
-          setUploadOpen(false)
-          navigate('/extrato-bancario', { state: { sessions } })
-        }}
-      />
+      {isAdmin && (
+        <ExtratoUploadModal
+          open={uploadOpen}
+          onOpenChange={setUploadOpen}
+          onUploadComplete={(sessions) => {
+            setUploadOpen(false)
+            navigate('/extrato-bancario', { state: { sessions } })
+          }}
+        />
+      )}
     </div>
   );
 }
