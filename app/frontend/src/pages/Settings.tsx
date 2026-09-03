@@ -27,9 +27,11 @@ import {
 } from '@/services/settingsService';
 import { BankLogo } from '@/components/ui/bank-logo';
 import { PageHeader } from '@/components/ui/page-header';
+import { useRole } from '@/contexts/RoleContext';
 
 const Settings = () => {
   const { toast } = useToast();
+  const { isAdmin } = useRole();
 
   // ── Profile state ──
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -361,7 +363,8 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* ── Meus Bancos ── */}
+        {/* ── Meus Bancos ── (admin only) */}
+        {isAdmin && (
         <Card className="shadow-card border-none">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -518,8 +521,10 @@ const Settings = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        {/* ── Meu Pluggy ── */}
+        {/* ── Meu Pluggy ── (admin only) */}
+        {isAdmin && (
         <Card className="shadow-card border-none mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -612,8 +617,10 @@ const Settings = () => {
             )}
           </CardContent>
         </Card>
+        )}
 
-        {/* ── Exportar Dados ── */}
+        {/* ── Exportar Dados ── (admin only) */}
+        {isAdmin && (
         <Card className="shadow-card border-none">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -655,6 +662,7 @@ const Settings = () => {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );

@@ -4,8 +4,10 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { DollarSign, BarChart3, TrendingUp, SlidersHorizontal, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SidebarProvider } from '@/contexts/SidebarContext';
+import { useRole } from '@/contexts/RoleContext';
 
 function LayoutContent() {
+  const { isAdmin } = useRole();
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     isActive
       ? 'bg-primary text-white'
@@ -29,11 +31,13 @@ function LayoutContent() {
                 <DollarSign className="h-4 w-4" /><span className="hidden sm:inline">Financeiro</span>
               </Button>
             </NavLink>
-            <NavLink to="/investments" className={linkClass}>
-              <Button variant="ghost" size="sm" className="flex items-center gap-1">
-                <TrendingUp className="h-4 w-4" /><span className="hidden sm:inline">Investimentos</span>
-              </Button>
-            </NavLink>
+            {isAdmin && (
+              <NavLink to="/investments" className={linkClass}>
+                <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                  <TrendingUp className="h-4 w-4" /><span className="hidden sm:inline">Investimentos</span>
+                </Button>
+              </NavLink>
+            )}
             <NavLink to="/limits" className={linkClass}>
               <Button variant="ghost" size="sm" className="flex items-center gap-1">
                 <SlidersHorizontal className="h-4 w-4" /><span className="hidden sm:inline">Limites/Recorrente</span>

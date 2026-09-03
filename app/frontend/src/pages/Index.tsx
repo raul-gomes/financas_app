@@ -2,8 +2,10 @@ import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DollarSign, BarChart3, TrendingUp } from 'lucide-react';
+import { useRole } from '@/contexts/RoleContext';
 
 export default function Index() {
+  const { isAdmin } = useRole();
   return (
     <div className="min-h-screen bg-gradient-subtle flex flex-col items-center justify-center p-6">
       <h1 className="text-4xl font-bold mb-8">Bem-vindo ao FinanceTracker</h1>
@@ -32,17 +34,19 @@ export default function Index() {
           </Link>
         </Card>
 
-        {/* Cartão Investimentos */}
-        <Card className="shadow-card border-none p-6 flex flex-col items-center">
-          <TrendingUp className="h-12 w-12 text-accent mb-4" />
-          <h2 className="text-2xl font-semibold mb-2">Investimentos</h2>
-          <p className="text-center text-muted-foreground mb-4">
-            Acompanhamento da evolução da carteira.
-          </p>
-          <Link to="/investments">
-            <Button variant="outline">Acessar Investimentos</Button>
-          </Link>
-        </Card>
+        {/* Cartão Investimentos (admin only) */}
+        {isAdmin && (
+          <Card className="shadow-card border-none p-6 flex flex-col items-center">
+            <TrendingUp className="h-12 w-12 text-accent mb-4" />
+            <h2 className="text-2xl font-semibold mb-2">Investimentos</h2>
+            <p className="text-center text-muted-foreground mb-4">
+              Acompanhamento da evolução da carteira.
+            </p>
+            <Link to="/investments">
+              <Button variant="outline">Acessar Investimentos</Button>
+            </Link>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -5,11 +5,13 @@ import { RecorrentesTab } from '@/components/limits/RecorrentesTab'
 import { MetasTab } from '@/components/limits/MetasTab'
 import { ComprasTab } from '@/components/limits/ComprasTab'
 import { cn } from '@/lib/utils'
+import { useRole } from '@/contexts/RoleContext'
 
 type EntityTypeFilter = 'pf' | 'pj' | 'all'
 
 // ===== Main Page =====
 const Limits = () => {
+    const { isAdmin } = useRole();
     const [entityType, setEntityType] = useState<EntityTypeFilter>('pf')
 
     return (
@@ -49,16 +51,16 @@ const Limits = () => {
                     </div>
                 </div>
                 <Tabs defaultValue="limits" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 mb-8">
+                    <TabsList className={cn("grid w-full mb-8", isAdmin ? "grid-cols-4" : "grid-cols-1")}>
                         <TabsTrigger value="limits">Limites</TabsTrigger>
-                        <TabsTrigger value="recorrentes">Recorrentes</TabsTrigger>
-                        <TabsTrigger value="metas">Metas</TabsTrigger>
-                        <TabsTrigger value="compras">Compras</TabsTrigger>
+                        {isAdmin && <TabsTrigger value="recorrentes">Recorrentes</TabsTrigger>}
+                        {isAdmin && <TabsTrigger value="metas">Metas</TabsTrigger>}
+                        {isAdmin && <TabsTrigger value="compras">Compras</TabsTrigger>}
                     </TabsList>
                     <TabsContent value="limits"><LimitsTab entityTypeFilter={entityType} /></TabsContent>
-                    <TabsContent value="recorrentes"><RecorrentesTab entityTypeFilter={entityType} /></TabsContent>
-                    <TabsContent value="metas"><MetasTab entityTypeFilter={entityType} /></TabsContent>
-                    <TabsContent value="compras"><ComprasTab entityTypeFilter={entityType} /></TabsContent>
+                    {isAdmin && <TabsContent value="recorrentes"><RecorrentesTab entityTypeFilter={entityType} /></TabsContent>}
+                    {isAdmin && <TabsContent value="metas"><MetasTab entityTypeFilter={entityType} /></TabsContent>}
+                    {isAdmin && <TabsContent value="compras"><ComprasTab entityTypeFilter={entityType} /></TabsContent>}
                 </Tabs>
             </div>
         </div>

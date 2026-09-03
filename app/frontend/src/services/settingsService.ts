@@ -1,10 +1,11 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+import { apiFetch } from '@/lib/api';
 
 export interface Profile {
   id: number;
   name: string;
   email: string;
   pluggy_api_key?: string;
+  role?: string;
   created_at: string;
   updated_at: string;
 }
@@ -58,13 +59,13 @@ export interface BrasilApiBank {
 
 export class SettingsService {
   static async getProfile(): Promise<Profile> {
-    const res = await fetch(`${API_BASE_URL}/settings/profile`);
+    const res = await apiFetch(`/settings/profile`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao obter perfil`);
     return res.json();
   }
 
   static async updateProfile(payload: ProfileUpdate): Promise<Profile> {
-    const res = await fetch(`${API_BASE_URL}/settings/profile`, {
+    const res = await apiFetch(`/settings/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -74,13 +75,13 @@ export class SettingsService {
   }
 
   static async listBanks(): Promise<UserBank[]> {
-    const res = await fetch(`${API_BASE_URL}/settings/banks`);
+    const res = await apiFetch(`/settings/banks`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao listar bancos`);
     return res.json();
   }
 
   static async addBank(payload: BankCreate): Promise<UserBank> {
-    const res = await fetch(`${API_BASE_URL}/settings/banks`, {
+    const res = await apiFetch(`/settings/banks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -90,7 +91,7 @@ export class SettingsService {
   }
 
   static async removeBank(bankId: number): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/settings/banks/${bankId}`, {
+    const res = await apiFetch(`/settings/banks/${bankId}`, {
       method: 'DELETE',
     });
     if (!res.ok && res.status !== 204) throw new Error(`Erro ${res.status} ao remover banco`);
@@ -141,19 +142,19 @@ export class SettingsService {
   // ── Meu Pluggy ─────────────────────────────────────────
 
   static async validatePluggyKey(): Promise<{ valid: boolean; message: string }> {
-    const res = await fetch(`${API_BASE_URL}/pluggy/validate-key`);
+    const res = await apiFetch(`/pluggy/validate-key`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao validar chave`);
     return res.json();
   }
 
   static async listPluggyAccounts(): Promise<{ accounts: PluggyAccount[]; items: PluggyItem[] }> {
-    const res = await fetch(`${API_BASE_URL}/pluggy/accounts`);
+    const res = await apiFetch(`/pluggy/accounts`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao listar contas`);
     return res.json();
   }
 
   static async syncPluggy(): Promise<SyncResult> {
-    const res = await fetch(`${API_BASE_URL}/pluggy/sync`, { method: 'POST' });
+    const res = await apiFetch(`/pluggy/sync`, { method: 'POST' });
     if (!res.ok) throw new Error(`Erro ${res.status} ao sincronizar`);
     return res.json();
   }
@@ -161,10 +162,12 @@ export class SettingsService {
   // ── Export ──────────────────────────────────────────────
 
   static getExportCsvUrl(startDate: string, endDate: string): string {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
     return `${API_BASE_URL}/export/csv?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
   }
 
   static getExportOfxUrl(startDate: string, endDate: string): string {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
     return `${API_BASE_URL}/export/ofx?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
   }
 
