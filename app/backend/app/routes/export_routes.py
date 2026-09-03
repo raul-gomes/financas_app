@@ -6,10 +6,13 @@ import csv
 import io
 
 from app.core.database import get_session
+from app.db.models.user import UserORM
+from app.core.security import get_current_user, require_admin
 from app.db.repositories.export import ExportRepository
 from app.logger import log_api_request
 
-router = APIRouter(prefix="/export", tags=["Exportação"])
+router = APIRouter(prefix="/export", tags=["Exportação"],
+                   dependencies=[Depends(require_admin)])
 
 
 @router.get(
@@ -19,6 +22,7 @@ router = APIRouter(prefix="/export", tags=["Exportação"])
 )
 async def export_csv(
     request: Request,
+    current_user: UserORM = Depends(get_current_user),
     start_date: str = Query("01/01/2000", description="Data inicial DD/MM/YYYY"),
     end_date: str = Query(None, description="Data final DD/MM/YYYY"),
     db: AsyncSession = Depends(get_session),
@@ -27,7 +31,7 @@ async def export_csv(
     if not end_date:
         end_date = datetime.now().strftime("%d/%m/%Y")
 
-    transactions = await ExportRepository(db).get_transactions_for_export(start_date, end_date)
+    transactions = await ExportRepository(db).get_transactions_for_export(start_date, end_date, current_user.id)
     log.info(f"Exportando {len(transactions)} transações para CSV")
 
     output = io.StringIO()
@@ -72,6 +76,7 @@ async def export_csv(
 )
 async def export_ofx(
     request: Request,
+    current_user: UserORM = Depends(get_current_user),
     start_date: str = Query("01/01/2000", description="Data inicial DD/MM/YYYY"),
     end_date: str = Query(None, description="Data final DD/MM/YYYY"),
     db: AsyncSession = Depends(get_session),
@@ -80,7 +85,7 @@ async def export_ofx(
     if not end_date:
         end_date = datetime.now().strftime("%d/%m/%Y")
 
-    transactions = await ExportRepository(db).get_transactions_for_export(start_date, end_date)
+    transactions = await ExportRepository(db).get_transactions_for_export(start_date, end_date, current_user.id)
     log.info(f"Exportando {len(transactions)} transações para OFX")
 
     # Generate OFX (OFX 1.0 / QFX format)

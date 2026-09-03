@@ -18,12 +18,12 @@ class ExportRepository:
         self.db = db
 
     async def get_transactions_for_export(
-        self, start_date: str, end_date: str
+        self, start_date: str, end_date: str, user_id: Optional[int] = None
     ) -> List[TransactionORM]:
         """Retorna transações no período com categoria/subcategoria carregadas (selectinload)."""
         log = log_database_operation(
             operation="export", collection="transacoes",
-            payload={"start_date": start_date, "end_date": end_date},
+            payload={"start_date": start_date, "end_date": end_date, "user_id": user_id},
         )
         try:
             dt_i = datetime.strptime(start_date, "%d/%m/%Y") if start_date else datetime(2000, 1, 1)
@@ -45,5 +45,8 @@ class ExportRepository:
             .order_by(TransactionORM.transaction_date.desc())
         )
         transacoes = list(result.unique().scalars().all())
+        if user_id is not None:
+            # Filtra em memória para manter compatibilidade (o model já expõe user_id).
+            transacoes = [t for t in transacoes if t.user_id == user_id]
         log.info(f"{len(transacoes)} transações recuperadas para exportação")
         return transacoes

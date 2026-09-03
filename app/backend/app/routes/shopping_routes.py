@@ -3,10 +3,13 @@ from typing import List, Optional
 from datetime import date, datetime
 
 from app.db.repositories.shopping import ShoppingRepository
+from app.db.models.user import UserORM
+from app.core.security import get_current_user, require_admin
 from app.schemas.shopping import ShoppingItemCreate, ShoppingItemUpdate, ShoppingItemResponse, GenerateRecurringShoppingRequest
 from app.logger import log_api_request
 
-router = APIRouter(prefix="/shopping", tags=["Shopping"])
+router = APIRouter(prefix="/shopping", tags=["Shopping"],
+                   dependencies=[Depends(require_admin)])
 
 
 @router.get(
@@ -18,13 +21,14 @@ router = APIRouter(prefix="/shopping", tags=["Shopping"])
 )
 async def list_shopping(
     request: Request,
+    current_user: UserORM = Depends(get_current_user),
     month: date = Query(..., description="Mês de referência (YYYY-MM-DD, primeiro dia do mês)"),
     entity_type: Optional[str] = Query(None, description="Filtrar por tipo de entidade: individual, business"),
     repo: ShoppingRepository = Depends(ShoppingRepository),
 ):
     log = log_api_request(method="GET", endpoint=str(request.url), month=str(month), entity_type=entity_type)
     try:
-        items = await repo.list_by_month(month, entity_type=entity_type)
+        items = await repo.list_by_month(month, entity_type=entity_type, user_id=current_user.id)
         log.info(f"{len(items)} itens encontrados")
         return items
     except Exception as e:
@@ -45,11 +49,12 @@ async def list_shopping(
 async def create_shopping_item(
     request: Request,
     payload: ShoppingItemCreate,
+    current_user: UserORM = Depends(get_current_user),
     repo: ShoppingRepository = Depends(ShoppingRepository),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
     try:
-        item = await repo.create(payload)
+        item = await repo.create(payload, current_user.id)
         log.info(f"Item {item.id} criado")
         return item
     except Exception as e:
@@ -70,11 +75,12 @@ async def update_shopping_item(
     request: Request,
     item_id: int,
     payload: ShoppingItemUpdate,
+    current_user: UserORM = Depends(get_current_user),
     repo: ShoppingRepository = Depends(ShoppingRepository),
 ):
     log = log_api_request(method="PUT", endpoint=str(request.url), item_id=item_id)
     try:
-        item = await repo.update(item_id, payload)
+        item = await repo.update(item_id, payload, current_user.id)
         if not item:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -101,11 +107,12 @@ async def update_shopping_item(
 async def delete_shopping_item(
     request: Request,
     item_id: int,
+    current_user: UserORM = Depends(get_current_user),
     repo: ShoppingRepository = Depends(ShoppingRepository),
 ):
     log = log_api_request(method="DELETE", endpoint=str(request.url), item_id=item_id)
     try:
-        item = await repo.delete(item_id)
+        item = await repo.delete(item_id, current_user.id)
         if not item:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -130,6 +137,7 @@ async def delete_shopping_item(
 )
 async def migrar_itens(
     request: Request,
+    current_user: UserORM = Depends(get_current_user),
     source_month: date = Query(..., description="Mês de origem (YYYY-MM-DD)"),
     target_month: date = Query(..., description="Mês de destino (YYYY-MM-DD)"),
     repo: ShoppingRepository = Depends(ShoppingRepository),
@@ -141,7 +149,7 @@ async def migrar_itens(
         target_month=str(target_month),
     )
     try:
-        qtd = await repo.migrate_unchecked(source_month, target_month)
+        qtd = await repo.migrate_unchecked(source_month, target_month, current_user.id)
         log.info(f"{qtd} itens migrados")
         return {"message": f"{qtd} itens migrados com sucesso", "count": qtd}
     except Exception as e:
@@ -160,11 +168,12 @@ async def migrar_itens(
 async def generate_recurring_shopping(
     request: Request,
     payload: GenerateRecurringShoppingRequest,
+    current_user: UserORM = Depends(get_current_user),
     repo: ShoppingRepository = Depends(ShoppingRepository),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
     try:
-        gerados = await repo.generate_recurring_items(payload)
+        gerados = await repo.generate_recurring_items(payload, current_user.id)
         log.info(f"{gerados} itens recorrentes de compras gerados")
         return {"generated": gerados, "message": f"{gerados} itens recorrentes gerados"}
     except Exception as e:

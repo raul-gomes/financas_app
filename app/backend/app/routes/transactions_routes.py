@@ -5,6 +5,8 @@ from typing import List, Optional
 from datetime import datetime
 
 from app.db.repositories.transaction import TransacaoRepository
+from app.db.models.user import UserORM
+from app.core.security import get_current_user
 from app.schemas.transaction import (
     TransacaoCreate, TransacaoResponse, TransacaoUpdate,
     DuplicateCheckRequest, DuplicateCheckResponse, SingleDuplicateCheckResult, DuplicateInfo,
@@ -30,6 +32,7 @@ router = APIRouter(prefix="/transacoes", tags=["Transações"])
 async def check_duplicates(
     request: Request,
     payload: DuplicateCheckRequest,
+    current_user: UserORM = Depends(get_current_user),
     repo: TransacaoRepository = Depends(),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url))
@@ -38,7 +41,7 @@ async def check_duplicates(
     if payload.transactions is not None:
         # Bulk check (including empty list)
         for item in payload.transactions:
-            duplicates = await repo.check_duplicates(item.transaction_date, item.amount)
+            duplicates = await repo.check_duplicates(item.transaction_date, item.amount, current_user.id)
             dup_info = [
                 DuplicateInfo(
                     id=t.id,
@@ -61,7 +64,7 @@ async def check_duplicates(
             ))
     elif payload.transaction_date is not None and payload.amount is not None:
         # Single check
-        duplicates = await repo.check_duplicates(payload.transaction_date, payload.amount)
+        duplicates = await repo.check_duplicates(payload.transaction_date, payload.amount, current_user.id)
         dup_info = [
             DuplicateInfo(
                 id=t.id,
@@ -104,6 +107,7 @@ async def check_duplicates(
 async def resolve_duplicates(
     request: Request,
     payload: ResolveDuplicatesRequest,
+    current_user: UserORM = Depends(get_current_user),
     repo: TransacaoRepository = Depends(),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), resolutions=len(payload.resolutions))
@@ -112,8 +116,8 @@ async def resolve_duplicates(
     kept = 0
 
     for res in payload.resolutions:
-        existing = await repo.get_by_id(res.existing_id)
-        new_t = await repo.get_by_id(res.new_id)
+        existing = await repo.get_by_id(res.existing_id, current_user.id)
+        new_t = await repo.get_by_id(res.new_id, current_user.id)
 
         if res.action == "keep_both":
             kept += 1
@@ -121,12 +125,12 @@ async def resolve_duplicates(
         elif res.action == "keep_new":
             resolved += 1
             if existing:
-                await repo.delete(existing.id)
+                await repo.delete(existing.id, current_user.id)
                 deleted += 1
         elif res.action == "keep_existing":
             resolved += 1
             if new_t:
-                await repo.delete(new_t.id)
+                await repo.delete(new_t.id, current_user.id)
                 deleted += 1
 
     log.info(f"Duplicatas resolvidas: {resolved} resolvidas, {deleted} deletadas, {kept} mantidas")
@@ -137,6 +141,7 @@ async def resolve_duplicates(
 async def create_transacao(
     request: Request,
     payload: TransacaoCreate,
+    current_user: UserORM = Depends(get_current_user),
     status_code=status.HTTP_201_CREATED,
     repo: TransacaoRepository = Depends()
 ):
@@ -145,7 +150,7 @@ async def create_transacao(
     """
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
     try:
-        return await repo.create(payload)
+        return await repo.create(payload, current_user.id)
     except HTTPException:
         raise
     except Exception as e:
@@ -163,6 +168,7 @@ async def create_transacao(
 )
 async def list_transacoes(
     request: Request,
+    current_user: UserORM = Depends(get_current_user),
     start_date: Optional[str] = Query(None, description="Data inicial DD/MM/YYYY"),
     end_date: Optional[str] = Query(None, description="Data final DD/MM/YYYY"),
     limit: int = Query(100, ge=1, le=500, description="Limite de itens por página"),
@@ -187,7 +193,7 @@ async def list_transacoes(
         offset=offset
     )
     try:
-        transacoes = await repo.get_all(dt_i, dt_f, limit=limit, offset=offset)
+        transacoes = await repo.get_all(dt_i, dt_f, limit=limit, offset=offset, user_id=current_user.id)
         log.info(f"{len(transacoes)} transações listadas")
         return transacoes
     except Exception as e:
@@ -208,13 +214,14 @@ async def list_transacoes(
 async def get_transacao_by_id(
     request: Request,
     transacao_id: int,
+    current_user: UserORM = Depends(get_current_user),
     repo: TransacaoRepository = Depends(TransacaoRepository)
 ):
     """
     Busca transação pelo seu identificador.
     """
     log = log_api_request(method="GET", endpoint=str(request.url), transacao_id=transacao_id)
-    trans = await repo.get_by_id(transacao_id)
+    trans = await repo.get_by_id(transacao_id, current_user.id)
     if not trans:
         log.warning(f"Transação {transacao_id} não encontrada")
         raise HTTPException(
@@ -234,10 +241,11 @@ async def update_transacao(
     request: Request,
     transacao_id: int,
     payload: TransacaoUpdate,
+    current_user: UserORM = Depends(get_current_user),
     repo: TransacaoRepository = Depends(TransacaoRepository)
 ):
     log = log_api_request(method="PUT", endpoint=str(request.url), transacao_id=transacao_id, payload=payload.dict(exclude_unset=True))
-    trans = await repo.update(transacao_id, payload)
+    trans = await repo.update(transacao_id, payload, current_user.id)
     if not trans:
         log.warning(f"Transação {transacao_id} não encontrada")
         raise HTTPException(status_code=404, detail="Transação não encontrada")
@@ -255,6 +263,7 @@ async def update_transacao(
 async def delete_transacao(
     request: Request,
     transacao_id: int,
+    current_user: UserORM = Depends(get_current_user),
     repo: TransacaoRepository = Depends(TransacaoRepository)
 ):
     """
@@ -262,7 +271,7 @@ async def delete_transacao(
     """
     log = log_api_request(method="DELETE", endpoint=str(request.url), transacao_id=transacao_id)
     try:
-        deleted = await repo.delete(transacao_id)
+        deleted = await repo.delete(transacao_id, current_user.id)
         if not deleted:
             log.warning(f"Tentativa de excluir transação {transacao_id} não encontrada")
             raise HTTPException(

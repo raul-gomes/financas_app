@@ -2,11 +2,13 @@ from sqlalchemy import Column, Integer, String, Float, Boolean, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
+
 class CategoryORM(Base):
     __tablename__ = 'categorias'
     # Alinhado com a migração dfc6bf881c13: unicidade por nome DENTRO de cada natureza
+    # Etapa 5 (isolamento por usuário): unicidade agora é (name, entity_type, user_id)
     __table_args__ = (
-        UniqueConstraint('name', 'entity_type', name='uq_categorias_name_entity_type'),
+        UniqueConstraint('name', 'entity_type', 'user_id', name='uq_categorias_name_entity_type_user'),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -14,6 +16,12 @@ class CategoryORM(Base):
     entity_type = Column(String, nullable=False)
     limit = Column(Float, default=0)
     type = Column(String, nullable=True)  # 'income', 'expense', 'investment' or None (special)
+    user_id = Column(
+        Integer,
+        ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
     
     subcategories = relationship(
         'SubcategoryORM',

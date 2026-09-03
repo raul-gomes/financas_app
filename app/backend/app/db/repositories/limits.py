@@ -29,14 +29,15 @@ class LimitsRepository:
         self.categoria_repo = CategoriaRepository(db)
         self.subcategoria_repo = SubcategoriaRepository(db)
 
-    async def bulk_update_limits(self, payload: LimitsUpdatePayload) -> LimitsUpdateResponse:
+    async def bulk_update_limits(self, payload: LimitsUpdatePayload, user_id: int) -> LimitsUpdateResponse:
         """
         Processa atualizações em lote de limites de categorias e subcategorias.
         """
         log = log_database_operation(
             operation="bulk_update_limits",
             collection="categorias",
-            payload=payload.model_dump()
+            payload=payload.model_dump(),
+            user_id=user_id,
         )
 
         response = LimitsUpdateResponse(
@@ -48,9 +49,9 @@ class LimitsRepository:
             # Processa categorias a excluir
             for cat_id in payload.deleted:
                 try:
-                    cat = await self.categoria_repo.get_by_id(cat_id)
+                    cat = await self.categoria_repo.get_by_id(cat_id, user_id)
                     if cat:
-                        await self.categoria_repo.delete(cat_id)
+                        await self.categoria_repo.delete(cat_id, user_id)
                         response.deleted_categories += 1
                 except Exception as e:
                     response.errors.append(f"Erro ao excluir categoria ID {cat_id}: {str(e)}")
@@ -59,7 +60,7 @@ class LimitsRepository:
             # Processa categorias novas
             for new_cat in payload.new:
                 try:
-                    await self._create_new_category(new_cat, response)
+                    await self._create_new_category(new_cat, response, user_id)
                 except Exception as e:
                     response.errors.append(f"Erro ao criar categoria '{new_cat.categoria_nome}': {str(e)}")
                     log.error(f"Erro ao criar categoria: {e}")
@@ -67,7 +68,7 @@ class LimitsRepository:
             # Processa categorias modificadas
             for mod_cat in payload.modified:
                 try:
-                    await self._update_existing_category(mod_cat, response)
+                    await self._update_existing_category(mod_cat, response, user_id)
                 except Exception as e:
                     response.errors.append(f"Erro ao atualizar categoria ID {mod_cat.id}: {str(e)}")
                     log.error(f"Erro ao atualizar categoria: {e}")
@@ -90,11 +91,11 @@ class LimitsRepository:
                 detail=f"Erro interno ao processar limites: {str(e)}"
             )
 
-    async def _create_new_category(self, new_cat: CategoriaLimiteUpdate, response: LimitsUpdateResponse):
+    async def _create_new_category(self, new_cat: CategoriaLimiteUpdate, response: LimitsUpdateResponse, user_id: int):
         """Cria uma nova categoria com suas subcategorias."""
-        
+
         # Verifica se já existe categoria com mesmo nome E entity_type
-        existing = await self.categoria_repo.get_by_nome_and_entity_type(new_cat.category_name, new_cat.entity_type)
+        existing = await self.categoria_repo.get_by_nome_and_entity_type(new_cat.category_name, new_cat.entity_type, user_id)
         if existing:
             raise ValueError(f"Categoria '{new_cat.category_name}' com tipo '{new_cat.entity_type}' já existe")
 
@@ -106,7 +107,7 @@ class LimitsRepository:
             subcategories=[]  # Vamos criar as subcategorias separadamente
         )
 
-        categoria = await self.categoria_repo.create(categoria_create)
+        categoria = await self.categoria_repo.create(user_id, categoria_create)
         response.created_categories += 1
 
         # Cria subcategorias associadas
@@ -115,17 +116,17 @@ class LimitsRepository:
                 sub_create = SubcategoriaCreate(
                     subcategory_name=sub_data.subcategory_name
                 )
-                await self.subcategoria_repo.create(categoria.id, sub_create)
+                await self.subcategoria_repo.create(categoria.id, user_id, sub_create)
                 response.created_subcategories += 1
 
-    async def _update_existing_category(self, mod_cat: CategoriaLimiteUpdate, response: LimitsUpdateResponse):
+    async def _update_existing_category(self, mod_cat: CategoriaLimiteUpdate, response: LimitsUpdateResponse, user_id: int):
         """Atualiza uma categoria existente e suas subcategorias."""
         
         if not mod_cat.id:
             raise ValueError("ID da categoria é obrigatório para atualização")
 
         # Verifica se a categoria existe
-        categoria = await self.categoria_repo.get_by_id(mod_cat.id)
+        categoria = await self.categoria_repo.get_by_id(mod_cat.id, user_id)
         if not categoria:
             raise ValueError(f"Categoria ID {mod_cat.id} não encontrada")
 
@@ -137,13 +138,13 @@ class LimitsRepository:
             subcategories=[]  # Processaremos separadamente
         )
 
-        await self.categoria_repo.update(mod_cat.id, categoria_update)
+        await self.categoria_repo.update(mod_cat.id, user_id, categoria_update)
         response.updated_categories += 1
 
         # Processa subcategorias
-        await self._process_subcategories(mod_cat.id, mod_cat.subcategories, response)
+        await self._process_subcategories(mod_cat.id, mod_cat.subcategories, response, user_id)
 
-    async def _process_subcategories(self, categoria_id: int, subcategorias: List, response: LimitsUpdateResponse):
+    async def _process_subcategories(self, categoria_id: int, subcategorias: List, response: LimitsUpdateResponse, user_id: int):
         """Processa subcategorias de uma categoria (novas e atualizações)."""
         
         for sub_data in subcategorias:
@@ -155,7 +156,7 @@ class LimitsRepository:
                 sub_update = SubcategoriaUpdate(
                     subcategory_name=sub_data.subcategory_name
                 )
-                updated_sub = await self.subcategoria_repo.update(sub_data.id, sub_update)
+                updated_sub = await self.subcategoria_repo.update(sub_data.id, user_id, sub_update)
                 if updated_sub:
                     response.updated_subcategories += 1
             else:
@@ -163,17 +164,17 @@ class LimitsRepository:
                 sub_create = SubcategoriaCreate(
                     subcategory_name=sub_data.subcategory_name
                 )
-                await self.subcategoria_repo.create(categoria_id, sub_create)
+                await self.subcategoria_repo.create(categoria_id, user_id, sub_create)
                 response.created_subcategories += 1
 
-    async def get_all_limits(self) -> List[Dict[str, Any]]:
+    async def get_all_limits(self, user_id: int) -> List[Dict[str, Any]]:
         """
         Retorna todas as categorias formatadas para o frontend de limites.
         """
-        log = log_database_operation(operation="get_all_limits", collection="categorias")
+        log = log_database_operation(operation="get_all_limits", collection="categorias", user_id=user_id)
         
         # Busca todas as categorias com subcategorias
-        stmt = select(CategoryORM).order_by(CategoryORM.name)
+        stmt = select(CategoryORM).where(CategoryORM.user_id == user_id).order_by(CategoryORM.name)
         result = await self.db.execute(stmt)
         categorias = result.unique().scalars().all()
 
@@ -207,6 +208,7 @@ class LimitsRepository:
         self,
         year: int,
         month: int,
+        user_id: int,
         entity_type: Optional[str] = None
     ) -> Dict[str, Any]:
         """
@@ -215,6 +217,7 @@ class LimitsRepository:
         Args:
             year: Ano (ex: 2024)
             month: Mês (1-12)
+            user_id: Id do usuário autenticado
             entity_type: Filtrar por 'individual' ou 'business' (None = todos)
         """
         log = log_database_operation(
@@ -222,7 +225,8 @@ class LimitsRepository:
             collection="categorias",
             year=year,
             month=month,
-            entity_type=entity_type
+            entity_type=entity_type,
+            user_id=user_id,
         )
 
         # Range do mês
@@ -233,7 +237,7 @@ class LimitsRepository:
             mes_fim = datetime(year, month + 1, 1)
 
         # 1. Busca categorias com subcategorias
-        stmt = select(CategoryORM).order_by(CategoryORM.name)
+        stmt = select(CategoryORM).where(CategoryORM.user_id == user_id).order_by(CategoryORM.name)
         if entity_type:
             stmt = stmt.where(CategoryORM.entity_type == entity_type)
         result = await self.db.execute(stmt)

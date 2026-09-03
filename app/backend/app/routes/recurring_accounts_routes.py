@@ -4,6 +4,8 @@ from typing import List, Any, Optional
 from app.db.repositories.recurring_account import ContaRecorrenteRepository
 from app.db.repositories.category import CategoriaRepository
 from app.db.repositories.subcategory import SubcategoriaRepository
+from app.db.models.user import UserORM
+from app.core.security import get_current_user, require_admin
 from app.schemas.recurring_account import (
     ContaRecorrenteCreate,
     ContaRecorrenteUpdate,
@@ -15,10 +17,12 @@ from app.schemas.categories import CategoriaCreate
 from app.schemas.subcategory import SubcategoriaCreate
 from app.logger import log_api_request
 
-router = APIRouter(prefix="/recurring-accounts", tags=["Recurring Accounts"])
+router = APIRouter(prefix="/recurring-accounts", tags=["Recurring Accounts"],
+                   dependencies=[Depends(require_admin)])
 
 
 async def _resolve_categoria_subcategoria(
+    user_id: int,
     payload: Any,
     categoria_repo: CategoriaRepository,
     subcategoria_repo: SubcategoriaRepository,
@@ -31,11 +35,11 @@ async def _resolve_categoria_subcategoria(
     if categoria_id is None:
         if not payload.category_name:
             raise HTTPException(status_code=422, detail="category_id or category_name is required")
-        existing_cat = await categoria_repo.get_by_nome(payload.category_name)
+        existing_cat = await categoria_repo.get_by_nome(payload.category_name, user_id)
         if existing_cat:
             categoria_id = existing_cat.id
         else:
-            new_cat = await categoria_repo.create(CategoriaCreate(
+            new_cat = await categoria_repo.create(user_id, CategoriaCreate(
                 category_name=payload.category_name,
                 entity_type=payload.entity_type,
                 limit=0,
@@ -48,12 +52,12 @@ async def _resolve_categoria_subcategoria(
         if not payload.subcategory_name:
             raise HTTPException(status_code=422, detail="subcategory_id or subcategory_name is required")
         existing_sub = await subcategoria_repo.get_by_nome_and_categoria(
-            payload.subcategory_name, categoria_id
+            payload.subcategory_name, categoria_id, user_id
         )
         if existing_sub:
             subcategoria_id = existing_sub.id
         else:
-            new_sub = await subcategoria_repo.create(categoria_id, SubcategoriaCreate(
+            new_sub = await subcategoria_repo.create(categoria_id, user_id, SubcategoriaCreate(
                 subcategory_name=payload.subcategory_name,
             ))
             subcategoria_id = new_sub.id
@@ -65,16 +69,17 @@ async def _resolve_categoria_subcategoria(
 async def create_conta_recorrente(
     request: Request,
     payload: ContaRecorrenteCreate,
+    current_user: UserORM = Depends(get_current_user),
     repo: ContaRecorrenteRepository = Depends(),
     categoria_repo: CategoriaRepository = Depends(),
     subcategoria_repo: SubcategoriaRepository = Depends(),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
     try:
-        cat_id, sub_id = await _resolve_categoria_subcategoria(payload, categoria_repo, subcategoria_repo)
+        cat_id, sub_id = await _resolve_categoria_subcategoria(current_user.id, payload, categoria_repo, subcategoria_repo)
         payload.category_id = cat_id
         payload.subcategory_id = sub_id
-        result = await repo.create(payload)
+        result = await repo.create(payload, current_user.id)
         log.info(f"Conta recorrente {result.id} criada com {result.total_installments} parcelas")
         return result
     except HTTPException:
@@ -87,6 +92,7 @@ async def create_conta_recorrente(
 @router.get("/", response_model=List[ContaRecorrenteResponse])
 async def list_contas_recorrentes(
     request: Request,
+    current_user: UserORM = Depends(get_current_user),
     entity_type: Optional[str] = Query(None, description="Filtrar por tipo de entidade: individual, business"),
     limit: int = Query(100, ge=1, le=500, description="Limite de itens por página"),
     offset: int = Query(0, ge=0, description="Offset para paginação"),
@@ -94,7 +100,7 @@ async def list_contas_recorrentes(
 ):
     log = log_api_request(method="GET", endpoint=str(request.url), entity_type=entity_type, limit=limit, offset=offset)
     try:
-        contas = await repo.get_all(entity_type=entity_type, limit=limit, offset=offset)
+        contas = await repo.get_all(entity_type=entity_type, limit=limit, offset=offset, user_id=current_user.id)
         log.info(f"{len(contas)} contas recorrentes listadas")
         return contas
     except Exception as e:
@@ -106,10 +112,11 @@ async def list_contas_recorrentes(
 async def get_conta_recorrente(
     request: Request,
     conta_id: int,
+    current_user: UserORM = Depends(get_current_user),
     repo: ContaRecorrenteRepository = Depends(),
 ):
     log = log_api_request(method="GET", endpoint=str(request.url), conta_id=conta_id)
-    conta = await repo.get_by_id(conta_id)
+    conta = await repo.get_by_id(conta_id, current_user.id)
     if not conta:
         log.warning(f"Conta recorrente {conta_id} nao encontrada")
         raise HTTPException(status_code=404, detail="Conta recorrente nao encontrada")
@@ -122,6 +129,7 @@ async def update_conta_recorrente(
     request: Request,
     conta_id: int,
     payload: ContaRecorrenteUpdate,
+    current_user: UserORM = Depends(get_current_user),
     repo: ContaRecorrenteRepository = Depends(),
     categoria_repo: CategoriaRepository = Depends(),
     subcategoria_repo: SubcategoriaRepository = Depends(),
@@ -135,11 +143,11 @@ async def update_conta_recorrente(
     # Resolve categoria/subcategoria from names if provided
     if payload.category_name or payload.subcategory_name:
         cat_id, sub_id = await _resolve_categoria_subcategoria(
-            payload, categoria_repo, subcategoria_repo  # type: ignore
+            current_user.id, payload, categoria_repo, subcategoria_repo  # type: ignore
         )
         payload.category_id = cat_id
         payload.subcategory_id = sub_id
-    conta = await repo.update(conta_id, payload)
+    conta = await repo.update(conta_id, payload, current_user.id)
     if not conta:
         log.warning(f"Conta recorrente {conta_id} nao encontrada")
         raise HTTPException(status_code=404, detail="Conta recorrente nao encontrada")
@@ -151,11 +159,12 @@ async def update_conta_recorrente(
 async def delete_conta_recorrente(
     request: Request,
     conta_id: int,
+    current_user: UserORM = Depends(get_current_user),
     repo: ContaRecorrenteRepository = Depends(),
 ):
     log = log_api_request(method="DELETE", endpoint=str(request.url), conta_id=conta_id)
     try:
-        deleted = await repo.delete(conta_id)
+        deleted = await repo.delete(conta_id, current_user.id)
         if not deleted:
             log.warning(f"Conta recorrente {conta_id} nao encontrada")
             raise HTTPException(status_code=404, detail="Conta recorrente nao encontrada")
@@ -172,10 +181,11 @@ async def delete_conta_recorrente(
 async def renew_conta_recorrente(
     request: Request,
     conta_id: int,
+    current_user: UserORM = Depends(get_current_user),
     repo: ContaRecorrenteRepository = Depends(),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), conta_id=conta_id)
-    conta = await repo.renew(conta_id)
+    conta = await repo.renew(conta_id, current_user.id)
     if not conta:
         log.warning(f"Conta recorrente {conta_id} nao encontrada")
         raise HTTPException(status_code=404, detail="Conta recorrente nao encontrada")
@@ -187,11 +197,12 @@ async def renew_conta_recorrente(
 async def generate_recurrent_transactions(
     request: Request,
     payload: GenerateRequest,
+    current_user: UserORM = Depends(get_current_user),
     repo: ContaRecorrenteRepository = Depends(),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
     try:
-        geradas, detalhes = await repo.generate_pending_transactions(payload)
+        geradas, detalhes = await repo.generate_pending_transactions(payload, current_user.id)
         log.info(f"{geradas} transacoes recorrentes geradas")
         return GenerateResponse(generated=geradas, details=detalhes)
     except HTTPException:

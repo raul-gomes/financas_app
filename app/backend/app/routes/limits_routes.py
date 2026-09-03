@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Any, Optional
 
 from app.core.database import get_session
+from app.db.models.user import UserORM
+from app.core.security import get_current_user
 from app.db.repositories.limits import LimitsRepository
 from app.schemas.limits import LimitsUpdatePayload, LimitsUpdateResponse, LimitsWithSpendingResponse
 
@@ -18,13 +20,14 @@ router = APIRouter(prefix="/limits", tags=["Limits"])
     description="Retorna todas as categorias com subcategorias formatadas para gestão de limites"
 )
 async def get_all_limits(
+    current_user: UserORM = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
     Endpoint para buscar todas as categorias e subcategorias para gestão de limites.
     """
     limits_repo = LimitsRepository(db)
-    return await limits_repo.get_all_limits()
+    return await limits_repo.get_all_limits(current_user.id)
 
 
 @router.put(
@@ -36,6 +39,7 @@ async def get_all_limits(
 )
 async def update_limits_bulk(
     payload: LimitsUpdatePayload,
+    current_user: UserORM = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -74,7 +78,7 @@ async def update_limits_bulk(
     ```
     """
     limits_repo = LimitsRepository(db)
-    return await limits_repo.bulk_update_limits(payload)
+    return await limits_repo.bulk_update_limits(payload, current_user.id)
 
 
 @router.get(
@@ -84,6 +88,7 @@ async def update_limits_bulk(
     description="Retorna todas as categorias com limites, gastos realizados, saldo restante e % usado no mês informado"
 )
 async def get_limits_with_spending(
+    current_user: UserORM = Depends(get_current_user),
     year: int = Query(..., description="Ano (ex: 2024)"),
     month: int = Query(..., ge=1, le=12, description="Mês (1-12)"),
     entity_type: Optional[str] = Query(None, description="Filtrar por tipo de entidade: individual, business"),
@@ -95,4 +100,4 @@ async def get_limits_with_spending(
     Útil para tela de "Limites" mostrar: limite, gasto, restante, % usado.
     """
     limits_repo = LimitsRepository(db)
-    return await limits_repo.get_limits_with_spending(year, month, entity_type)
+    return await limits_repo.get_limits_with_spending(year, month, current_user.id, entity_type)

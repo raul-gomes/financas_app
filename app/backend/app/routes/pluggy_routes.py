@@ -4,11 +4,14 @@ from datetime import date, datetime
 
 from app.db.repositories.settings import SettingsRepository
 from app.db.repositories.transaction import TransacaoRepository
+from app.db.models.user import UserORM
+from app.core.security import get_current_user, require_admin
 from app.services.pluggy_service import PluggyService
 from app.schemas.transaction import DuplicateInfo, TransacaoCreate, TipoTransacao, NaturezaTransacao
 from app.logger import log_api_request
 
-router = APIRouter(prefix="/pluggy", tags=["Pluggy / Open Finance"])
+router = APIRouter(prefix="/pluggy", tags=["Pluggy / Open Finance"],
+                   dependencies=[Depends(require_admin)])
 
 
 @router.get(
@@ -18,10 +21,11 @@ router = APIRouter(prefix="/pluggy", tags=["Pluggy / Open Finance"])
 )
 async def list_pluggy_accounts(
     request: Request,
+    current_user: UserORM = Depends(get_current_user),
     settings_repo: SettingsRepository = Depends(),
 ):
     log = log_api_request(method="GET", endpoint=str(request.url))
-    user = await settings_repo.get_or_create_default_user()
+    user = current_user
     if not user.pluggy_api_key:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -56,11 +60,12 @@ async def list_pluggy_accounts(
 )
 async def sync_pluggy(
     request: Request,
+    current_user: UserORM = Depends(get_current_user),
     settings_repo: SettingsRepository = Depends(),
     transacao_repo: TransacaoRepository = Depends(),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url))
-    user = await settings_repo.get_or_create_default_user()
+    user = current_user
     if not user.pluggy_api_key:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -112,7 +117,7 @@ async def sync_pluggy(
                 })
 
         # Batch create all transactions
-        criadas, erros = await transacao_repo.create_batch_from_extract(all_transactions_data)
+        criadas, erros = await transacao_repo.create_batch_from_extract(all_transactions_data, current_user.id)
         
         # Bulk duplicate check for newly created transactions
         duplicates_list = []
@@ -125,7 +130,7 @@ async def sync_pluggy(
             # Get recently created transactions by description pattern
             stmt = select(TransactionORM).where(
                 TransactionORM.description.like('%Sin cronizar%') | TransactionORM.description.like('%Pluggy%')
-            ).order_by(TransactionORM.created_at.desc()).limit(criadas)
+            ).where(TransactionORM.user_id == current_user.id).order_by(TransactionORM.created_at.desc()).limit(criadas)
             result = await transacao_repo.db.execute(stmt)
             new_transactions = list(result.unique().scalars().all())
             
@@ -138,7 +143,7 @@ async def sync_pluggy(
                 
                 # Check duplicates for each unique date+amount
                 for key, txs in dup_check.items():
-                    existing = await transacao_repo.check_duplicates(key[0], key[1])
+                    existing = await transacao_repo.check_duplicates(key[0], key[1], current_user.id)
                     real_dups = [d for d in existing if d.id not in [t.id for t in txs]]
                     if real_dups:
                         for t in txs:
@@ -171,10 +176,11 @@ async def sync_pluggy(
 )
 async def validate_pluggy_key(
     request: Request,
+    current_user: UserORM = Depends(get_current_user),
     settings_repo: SettingsRepository = Depends(),
 ):
     log = log_api_request(method="GET", endpoint=str(request.url))
-    user = await settings_repo.get_or_create_default_user()
+    user = current_user
     if not user.pluggy_api_key:
         return {"valid": False, "message": "API Key não configurada."}
 

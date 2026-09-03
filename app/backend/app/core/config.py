@@ -13,3 +13,4 @@ class Config:
     DB_POOL_SIZE = int(os.getenv('DB_POOL_SIZE', '10'))
     DB_MAX_OVERFLOW = int(os.getenv('DB_MAX_OVERFLOW', '20'))
     DB_POOL_RECYCLE = int(os.getenv('DB_POOL_RECYCLE', '3600'))
+    SUPABASE_JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET', '')
