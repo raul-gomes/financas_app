@@ -58,7 +58,8 @@ class TransacaoRepository:
             amount: float,
             transaction_date: datetime,
             category_id=int,
-            sub_id=int
+            sub_id=int,
+            user_id: int = None,
     ) -> TransactionORM:
         return TransactionORM(
             group_id=group_id,
@@ -74,6 +75,7 @@ class TransacaoRepository:
             bank_code=obj_in.bank_code,
             category_id=category_id,
             subcategory_id=sub_id,
+            user_id=user_id,
         )
     
     def _adjust_last_installment(self, transactions: List, amount: float):
@@ -90,7 +92,8 @@ class TransacaoRepository:
                                       obj_in, 
                                       group_id: str, 
                                       category_id: int,
-                                      sub_id: int
+                                      sub_id: int,
+                                      user_id: int = None,
                                       ):
         total_installments = obj_in.total_installments
         amount = self._calculate_installment_amount(obj_in.amount, total_installments)
@@ -107,7 +110,8 @@ class TransacaoRepository:
                 amount=amount,
                 transaction_date=installment_dates[i],
                 category_id=category_id,
-                sub_id=sub_id
+                sub_id=sub_id,
+                user_id=user_id,
             )
             self.db.add(transacao)
             created_transactions.append(transacao)
@@ -121,20 +125,21 @@ class TransacaoRepository:
 
         return created_transactions
 
-    async def create(self, obj_in: TransacaoCreate) -> TransactionORM:
-        log = log_database_operation(operation="create", collection="transacoes", payload=obj_in.model_dump())
+    async def create(self, obj_in: TransacaoCreate, user_id: int) -> TransactionORM:
+        log = log_database_operation(operation="create", collection="transacoes", payload=obj_in.model_dump(), user_id=user_id)
         group_id = str(uuid4())
 
         # 1) Categoria: se id não informado, busca ou cria por nome
         if obj_in.category_id is not None:
-            categoria = await self.categoria_repo.get_by_id(obj_in.category_id)
+            categoria = await self.categoria_repo.get_by_id(obj_in.category_id, user_id)
             if not categoria:
                 raise HTTPException(status_code=400, detail="Categoria não encontrada")
         else:
-            categoria = await self.categoria_repo.get_by_nome(obj_in.category_name)
+            categoria = await self.categoria_repo.get_by_nome(obj_in.category_name, user_id)
             if not categoria:
                 # Cria a categoria com o nome exato enviado e tipo = tipo da transação
                 categoria = await self.categoria_repo.create(
+                    user_id,
                     CategoriaCreate(
                         category_name=obj_in.category_name,
                         entity_type=obj_in.entity_type,
@@ -146,23 +151,24 @@ class TransacaoRepository:
 
         # 2) Subcategoria: se id não informado, busca ou cria por nome sob a categoria
         if obj_in.subcategory_id is not None:
-            sub = await self.subcategoria_repo.get_by_id(obj_in.subcategory_id)
+            sub = await self.subcategoria_repo.get_by_id(obj_in.subcategory_id, user_id)
             if not sub or sub.category_id != categoria.id:
                 raise HTTPException(status_code=400, detail="Subcategoria inválida")
         else:
             sub = await self.subcategoria_repo.get_by_nome_and_categoria(
-                obj_in.subcategory_name, categoria.id
+                obj_in.subcategory_name, categoria.id, user_id
             )
             if not sub:
                 sub = await self.subcategoria_repo.create(
                     categoria_id=categoria.id,
+                    user_id=user_id,
                     obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name)
                 )
 
         # 3) Cria a transação usando os IDs resolvidos
         try:
             if (obj_in.total_installments is not None and obj_in.total_installments > 1):
-                transacoes = await self._create_installment_transactions(obj_in, group_id, categoria.id, sub.id)
+                transacoes = await self._create_installment_transactions(obj_in, group_id, categoria.id, sub.id, user_id)
                 log.info(f"Transação {group_id} criada, com {len(transacoes)} parcelas")
                 return transacoes[0]
             else: 
@@ -179,7 +185,8 @@ class TransacaoRepository:
                     bank_code=obj_in.bank_code,
                     category_id=categoria.id,
                     subcategory_id=sub.id,
-                    group_id=group_id
+                    group_id=group_id,
+                    user_id=user_id,
                 )
 
             self.db.add(inst)
@@ -188,7 +195,7 @@ class TransacaoRepository:
                 await self.db.refresh(inst)
             except Exception as refresh_err:
                 log.error(f"Erro ao refresh transação: {refresh_err}")
-                inst = await self.get_by_id(inst.id) or inst
+                inst = await self.get_by_id(inst.id, user_id) or inst
             log.info(f"Transação {inst.id} criada")
             return inst
         except IntegrityError:
@@ -205,10 +212,13 @@ class TransacaoRepository:
         end_date: Optional[datetime] = None,
         limit: int = 100,
         offset: int = 0,
+        user_id: Optional[int] = None,
     ) -> List[TransactionORM]:
         stmt = select(TransactionORM).options(
             selectinload(TransactionORM.recurring_account)
         )
+        if user_id is not None:
+            stmt = stmt.where(TransactionORM.user_id == user_id)
         if start_date:
             stmt = stmt.where(TransactionORM.transaction_date >= start_date)
         if end_date:
@@ -220,15 +230,17 @@ class TransacaoRepository:
         result = await self.db.execute(stmt)
         return result.unique().scalars().all()
 
-    async def get_by_id(self, id: int) -> Optional[TransactionORM]:
+    async def get_by_id(self, id: int, user_id: Optional[int] = None) -> Optional[TransactionORM]:
         stmt = select(TransactionORM).options(
             selectinload(TransactionORM.recurring_account)
         ).where(TransactionORM.id == id)
+        if user_id is not None:
+            stmt = stmt.where(TransactionORM.user_id == user_id)
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
-    async def update(self, id: int, obj_in: TransacaoUpdate) -> Optional[TransactionORM]:
-        trans = await self.get_by_id(id)
+    async def update(self, id: int, obj_in: TransacaoUpdate, user_id: int) -> Optional[TransactionORM]:
+        trans = await self.get_by_id(id, user_id)
         if not trans:
             return None
 
@@ -236,13 +248,14 @@ class TransacaoRepository:
         resolved_category_id = None
         if obj_in.category_id is not None or obj_in.category_name is not None:
             if obj_in.category_id is not None:
-                categoria = await self.categoria_repo.get_by_id(obj_in.category_id)
+                categoria = await self.categoria_repo.get_by_id(obj_in.category_id, user_id)
                 if not categoria:
                     raise HTTPException(status_code=400, detail="Categoria não encontrada")
             else:
-                categoria = await self.categoria_repo.get_by_nome(obj_in.category_name)
+                categoria = await self.categoria_repo.get_by_nome(obj_in.category_name, user_id)
                 if not categoria:
                     categoria = await self.categoria_repo.create(
+                        user_id,
                         CategoriaCreate(
                             category_name=obj_in.category_name,
                             entity_type=obj_in.entity_type or trans.entity_type,
@@ -257,16 +270,17 @@ class TransacaoRepository:
         if obj_in.subcategory_id is not None or obj_in.subcategory_name is not None:
             cat_id_for_sub = resolved_category_id or trans.category_id
             if obj_in.subcategory_id is not None:
-                sub = await self.subcategoria_repo.get_by_id(obj_in.subcategory_id)
+                sub = await self.subcategoria_repo.get_by_id(obj_in.subcategory_id, user_id)
                 if not sub or sub.category_id != cat_id_for_sub:
                     raise HTTPException(status_code=400, detail="Subcategoria inválida")
             else:
                 sub = await self.subcategoria_repo.get_by_nome_and_categoria(
-                    obj_in.subcategory_name, cat_id_for_sub
+                    obj_in.subcategory_name, cat_id_for_sub, user_id
                 )
                 if not sub:
                     sub = await self.subcategoria_repo.create(
                         categoria_id=cat_id_for_sub,
+                        user_id=user_id,
                         obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name)
                     )
             trans.subcategory_id = sub.id
@@ -302,15 +316,15 @@ class TransacaoRepository:
             await self.db.rollback()
             raise HTTPException(status_code=400, detail="Erro ao atualizar transação")
 
-    async def delete(self, id: int) -> Optional[TransactionORM]:
-        trans = await self.get_by_id(id)
+    async def delete(self, id: int, user_id: Optional[int] = None) -> Optional[TransactionORM]:
+        trans = await self.get_by_id(id, user_id)
         if not trans:
             return None
         await self.db.delete(trans)
         await self.db.commit()
         return trans
 
-    async def check_duplicates(self, transaction_date: date, amount: float) -> List[TransactionORM]:
+    async def check_duplicates(self, transaction_date: date, amount: float, user_id: Optional[int] = None) -> List[TransactionORM]:
         """Retorna transações existentes com a mesma data (ignorando hora) e valor."""
         from datetime import timedelta
 
@@ -324,10 +338,12 @@ class TransacaoRepository:
                 TransactionORM.amount == amount,
             )
         )
+        if user_id is not None:
+            stmt = stmt.where(TransactionORM.user_id == user_id)
         result = await self.db.execute(stmt)
         return list(result.unique().scalars().all())
 
-    async def assign_random_banks(self, bank_codes: List[str]) -> int:
+    async def assign_random_banks(self, bank_codes: List[str], user_id: Optional[int] = None) -> int:
         """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto."""
         from sqlalchemy import text
         
@@ -335,14 +351,15 @@ class TransacaoRepository:
             return 0
 
         # Single SQL statement using CTE + row_number() for random assignment
-        stmt = text("""
+        user_filter = "AND user_id = :user_id" if user_id is not None else ""
+        stmt = text(f"""
             WITH banks AS (
                 SELECT bank_code, row_number() OVER (ORDER BY random()) AS rn
                 FROM UNNEST(:bank_codes::text[]) AS bank_code
             ), txs AS (
                 SELECT id, row_number() OVER (ORDER BY id) AS rn
                 FROM transacoes
-                WHERE bank_code IS NULL
+                WHERE bank_code IS NULL {user_filter}
             )
             UPDATE transacoes t
             SET bank_code = b.bank_code
@@ -351,19 +368,23 @@ class TransacaoRepository:
             WHERE t.id = txs.id
         """)
 
-        result = await self.db.execute(stmt, {'bank_codes': bank_codes})
+        params = {'bank_codes': bank_codes}
+        if user_id is not None:
+            params['user_id'] = user_id
+        result = await self.db.execute(stmt, params)
         await self.db.commit()
         return result.rowcount
 
     async def create_batch_from_extract(
         self,
         transactions: List[Dict],
+        user_id: int,
     ) -> tuple[int, List[str]]:
         """
         Creates multiple transactions from extract in a single batch.
         Returns (created_count, errors_list).
         """
-        log = log_database_operation(operation="batch_create", collection="transacoes", count=len(transactions))
+        log = log_database_operation(operation="batch_create", collection="transacoes", count=len(transactions), user_id=user_id)
         
         # 1) Collect all unique category/subcategory resolutions needed
         cat_keys = set()
@@ -383,11 +404,12 @@ class TransacaoRepository:
         cat_cache: Dict[tuple, any] = {}
         for key in cat_keys:
             if key[0] == 'id':
-                cat = await self.categoria_repo.get_by_id(key[1])
+                cat = await self.categoria_repo.get_by_id(key[1], user_id)
             else:  # name
-                cat = await self.categoria_repo.get_by_nome_and_entity_type(key[1], key[2])
+                cat = await self.categoria_repo.get_by_nome_and_entity_type(key[1], key[2], user_id)
                 if not cat:
                     cat = await self.categoria_repo.create(
+                        user_id,
                         CategoriaCreate(
                             category_name=key[1],
                             entity_type=key[2],
@@ -402,14 +424,15 @@ class TransacaoRepository:
         sub_cache: Dict[tuple, any] = {}
         for key in sub_keys:
             if key[0] == 'id':
-                sub = await self.subcategoria_repo.get_by_id(key[1])
+                sub = await self.subcategoria_repo.get_by_id(key[1], user_id)
             else:  # name
                 cat = cat_cache.get(('id', key[2])) or cat_cache.get(('name', key[2], None))
                 if cat:
-                    sub = await self.subcategoria_repo.get_by_nome_and_categoria(key[1], cat.id)
+                    sub = await self.subcategoria_repo.get_by_nome_and_categoria(key[1], cat.id, user_id)
                     if not sub:
                         sub = await self.subcategoria_repo.create(
                             categoria_id=cat.id,
+                            user_id=user_id,
                             obj_in=SubcategoriaCreate(subcategory_name=key[1]),
                         )
             sub_cache[key] = sub
@@ -454,6 +477,7 @@ class TransacaoRepository:
                             subcategory_id=sub.id if sub else None,
                             bank_code=t.get('bank_code'),
                             group_id=group_id,
+                            user_id=user_id,
                         )
                         all_instances.append(inst)
                     self._adjust_last_installment(all_instances[-total_installments:], t['amount'])
@@ -472,6 +496,7 @@ class TransacaoRepository:
                         bank_code=t.get('bank_code'),
                         group_id=group_id,
                         is_installment=is_installment,
+                        user_id=user_id,
                     )
                     all_instances.append(inst)
             except Exception as e:
@@ -501,6 +526,7 @@ class TransacaoRepository:
         type: str,
         entity_type: str,
         payment_method: str,
+        user_id: int,
         category_id: Optional[int] = None,
         subcategory_id: Optional[int] = None,
         category_name: Optional[str] = None,
@@ -513,13 +539,14 @@ class TransacaoRepository:
 
         # 1) Resolve categoria: by ID or by name (cria se não existir)
         if category_id is not None:
-            cat = await self.categoria_repo.get_by_id(category_id)
+            cat = await self.categoria_repo.get_by_id(category_id, user_id)
             if not cat:
                 raise HTTPException(status_code=400, detail="Categoria não encontrada")
         elif category_name is not None:
-            cat = await self.categoria_repo.get_by_nome(category_name)
+            cat = await self.categoria_repo.get_by_nome(category_name, user_id)
             if not cat:
                 cat = await self.categoria_repo.create(
+                    user_id,
                     CategoriaCreate(
                         category_name=category_name,
                         entity_type=entity_type,
@@ -534,16 +561,17 @@ class TransacaoRepository:
         # 2) Resolve subcategoria: by ID or by nome (cria se não existir)
         sub = None
         if subcategory_id is not None:
-            sub = await self.subcategoria_repo.get_by_id(subcategory_id)
+            sub = await self.subcategoria_repo.get_by_id(subcategory_id, user_id)
             if not sub or sub.category_id != cat.id:
                 raise HTTPException(status_code=400, detail="Subcategoria inválida")
         elif subcategory_name is not None:
             sub = await self.subcategoria_repo.get_by_nome_and_categoria(
-                subcategory_name, cat.id
+                subcategory_name, cat.id, user_id
             )
             if not sub:
                 sub = await self.subcategoria_repo.create(
                     categoria_id=cat.id,
+                    user_id=user_id,
                     obj_in=SubcategoriaCreate(subcategory_name=subcategory_name),
                 )
 
@@ -567,6 +595,7 @@ class TransacaoRepository:
                     subcategory_id=sub.id if sub else None,
                     bank_code=bank_code,
                     group_id=group_id,
+                    user_id=user_id,
                 )
                 self.db.add(inst)
                 transacoes.append(inst)
@@ -590,6 +619,7 @@ class TransacaoRepository:
                 bank_code=bank_code,
                 group_id=group_id,
                 is_installment=is_installment,
+                user_id=user_id,
             )
             self.db.add(inst)
             await self.db.commit()

@@ -82,3 +82,13 @@ async def test_profile_roundtrip_name_update(client):
         json={"name": original["name"]},
     )
     assert restored.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_profile_includes_role(client):
+    get = await client.get("/settings/profile")
+    assert get.status_code == 200
+    body = get.json()
+    # Usuário padrão (seed single-user) deve ser admin por padrão
+    assert "role" in body
+    assert body["role"] == "admin"

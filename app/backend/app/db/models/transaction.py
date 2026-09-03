@@ -23,6 +23,7 @@ class TransactionORM(Base):
     category_id = Column(Integer, ForeignKey("categorias.id"), nullable=False)
     subcategory_id = Column(Integer, ForeignKey("subcategorias.id"), nullable=False)
     recurring_account_id = Column(Integer, ForeignKey("recurring_accounts.id"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
     category = relationship("CategoryORM", lazy="joined")
     subcategory = relationship("SubcategoryORM", lazy="joined")

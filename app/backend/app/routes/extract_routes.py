@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFi
 from typing import List
 
 from app.db.repositories.transaction import TransacaoRepository
+from app.db.models.user import UserORM
+from app.core.security import get_current_user, require_admin
 from app.schemas.extract import (
     UploadResponse,
     ParsedTransaction,
@@ -13,7 +15,8 @@ from app.logger import log_api_request
 from uuid import uuid4
 from datetime import datetime
 
-router = APIRouter(prefix="/extracts", tags=["Bank Extract"])
+router = APIRouter(prefix="/extracts", tags=["Bank Extract"],
+                   dependencies=[Depends(require_admin)])
 
 
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -22,6 +25,7 @@ MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 @router.post("/upload", response_model=UploadResponse)
 async def upload_extracto(
     request: Request,
+    current_user: UserORM = Depends(get_current_user),
     file: UploadFile = File(...),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), filename=file.filename)
@@ -70,6 +74,7 @@ async def upload_extracto(
 async def confirm_extracto(
     request: Request,
     payload: ConfirmPayload,
+    current_user: UserORM = Depends(get_current_user),
     repo: TransacaoRepository = Depends(),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), count=len(payload.transactions))
@@ -93,7 +98,7 @@ async def confirm_extracto(
             'is_installment': trans.is_installment or False,
         })
 
-    criadas, erros = await repo.create_batch_from_extract(transactions_data)
+    criadas, erros = await repo.create_batch_from_extract(transactions_data, current_user.id)
 
     log.info(f"{criadas} transacoes criadas do extrato")
 

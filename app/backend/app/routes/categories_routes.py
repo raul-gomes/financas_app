@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import List
 
 from app.db.repositories.category import CategoriaRepository
+from app.db.models.user import UserORM
+from app.core.security import get_current_user
 from app.schemas.categories import Categoria, CategoriaCreate, CategoriaUpdate
 from app.logger import log_api_request
 
@@ -17,6 +19,7 @@ router = APIRouter(prefix="/categories", tags=["Categories"])
 )
 async def list_categories(
     request: Request,
+    current_user: UserORM = Depends(get_current_user),
     repo: CategoriaRepository = Depends(CategoriaRepository)
 ):
     """
@@ -24,7 +27,7 @@ async def list_categories(
     """
     log = log_api_request(method="GET", endpoint=str(request.url))
     try:
-        categorias = await repo.get_all()
+        categorias = await repo.get_all(current_user.id)
         log.info("Categorias listadas com sucesso")
         return categorias
     except Exception as e:
@@ -45,13 +48,14 @@ async def list_categories(
 async def get_categoria_by_id(
     request: Request,
     categoria_id: int,
+    current_user: UserORM = Depends(get_current_user),
     repo: CategoriaRepository = Depends(CategoriaRepository)
 ):
     """
     Busca uma categoria pelo seu identificador.
     """
     log = log_api_request(method="GET", endpoint=str(request.url), categoria_id=categoria_id)
-    categoria = await repo.get_by_id(categoria_id)
+    categoria = await repo.get_by_id(categoria_id, current_user.id)
     if not categoria:
         log.warning(f"Categoria {categoria_id} não encontrada")
         raise HTTPException(
@@ -72,6 +76,7 @@ async def get_categoria_by_id(
 async def create_categoria(
     request: Request,
     payload: CategoriaCreate,
+    current_user: UserORM = Depends(get_current_user),
     repo: CategoriaRepository = Depends(CategoriaRepository)
 ):
     """
@@ -79,7 +84,7 @@ async def create_categoria(
     """
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.dict())
     try:
-        categoria = await repo.create(payload)
+        categoria = await repo.create(current_user.id, payload)
         log.info(f"Categoria criada com ID {categoria.id}")
         return categoria
     except HTTPException:
@@ -103,6 +108,7 @@ async def update_categoria(
     request: Request,
     categoria_id: int,
     payload: CategoriaUpdate,
+    current_user: UserORM = Depends(get_current_user),
     repo: CategoriaRepository = Depends(CategoriaRepository)
 ):
     """
@@ -113,7 +119,7 @@ async def update_categoria(
         categoria_id=categoria_id, payload=payload.dict(exclude_unset=True)
     )
     try:
-        categoria = await repo.update(categoria_id, payload)
+        categoria = await repo.update(categoria_id, current_user.id, payload)
         if not categoria:
             log.warning(f"Tentativa de atualizar categoria {categoria_id} não encontrada")
             raise HTTPException(
@@ -141,6 +147,7 @@ async def update_categoria(
 async def delete_categoria(
     request: Request,
     categoria_id: int,
+    current_user: UserORM = Depends(get_current_user),
     repo: CategoriaRepository = Depends(CategoriaRepository)
 ):
     """
@@ -148,7 +155,7 @@ async def delete_categoria(
     """
     log = log_api_request(method="DELETE", endpoint=str(request.url), categoria_id=categoria_id)
     try:
-        categoria = await repo.delete(categoria_id)
+        categoria = await repo.delete(categoria_id, current_user.id)
         if not categoria:
             log.warning(f"Tentativa de excluir categoria {categoria_id} não encontrada")
             raise HTTPException(

@@ -17,29 +17,11 @@ class SettingsRepository:
 
     # ── Profile ───────────────────────────────────────────────
 
-    async def get_or_create_default_user(self) -> UserORM:
-        """Return the first user, auto-creating one if none exists.
-
-        LIMITAÇÃO CONHECIDA (single-user): a aplicação não tem autenticação
-        multi-usuário. Todo dado é atrelado a um único usuário "default". Isto
-        funciona para o caso de uso atual (app pessoal de finanças), mas NÃO
-        isola dados entre pessoas.
-        TRABALHO FUTURO (multi-user): introduzir `user_id` em todas as queries
-        (transacoes, contas_recorrentes, metas, limites, etc.) e escopar os
-        repositórios por `user_id`, trocando este método por um
-        `get_current_user(user_id)` baseado em auth real.
-        """
-        result = await self.db.execute(select(UserORM).limit(1))
+    async def update_profile(self, user_id: int, payload: ProfileUpdate) -> UserORM:
+        result = await self.db.execute(select(UserORM).where(UserORM.id == user_id))
         user = result.scalars().first()
         if not user:
-            user = UserORM(name="", email="", password_hash="")
-            self.db.add(user)
-            await self.db.commit()
-            await self.db.refresh(user)
-        return user
-
-    async def update_profile(self, payload: ProfileUpdate) -> UserORM:
-        user = await self.get_or_create_default_user()
+            raise ValueError("Usuário não encontrado")
         if payload.name is not None:
             user.name = payload.name
         if payload.email is not None:

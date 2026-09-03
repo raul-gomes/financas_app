@@ -26,13 +26,14 @@ class MetaRepository:
         self.db = db
         self.model = SubcategoryORM
 
-    async def _get_or_create_metas_categoria(self, entity_type: str = "individual") -> CategoryORM:
+    async def _get_or_create_metas_categoria(self, entity_type: str = "individual", user_id: int = 1) -> CategoryORM:
         """Retorna a categoria 'Metas' para o entity_type informado, criando se não existir."""
         result = await self.db.execute(
             select(CategoryORM)
             .where(
                 CategoryORM.name == METAS_CATEGORIA_NOME,
                 CategoryORM.entity_type == entity_type,
+                CategoryORM.user_id == user_id,
             )
         )
         categoria = result.scalars().first()
@@ -42,13 +43,14 @@ class MetaRepository:
                 entity_type=entity_type,
                 type=None,
                 limit=0,
+                user_id=user_id,
             )
             self.db.add(categoria)
             await self.db.commit()
             await self.db.refresh(categoria)
         return categoria
 
-    async def list_metas(self, completed: Optional[bool] = None, entity_type: Optional[str] = None, limit: int = 100, offset: int = 0) -> List[SubcategoryORM]:
+    async def list_metas(self, completed: Optional[bool] = None, entity_type: Optional[str] = None, limit: int = 100, offset: int = 0, user_id: int = 1) -> List[SubcategoryORM]:
         """Lista todas as subcategorias que são metas (possuem target_amount).
         
         Args:
@@ -57,15 +59,19 @@ class MetaRepository:
             limit: Limite de itens por página
             offset: Offset para paginação
         """
-        log = log_database_operation(operation="read_all", collection="metas", limit=limit, offset=offset)
+        log = log_database_operation(operation="read_all", collection="metas", limit=limit, offset=offset, user_id=user_id)
         query = (
             select(self.model)
-            .where(self.model.target_amount.isnot(None))
+            .join(CategoryORM, self.model.category)
+            .where(
+                self.model.target_amount.isnot(None),
+                CategoryORM.user_id == user_id,
+            )
         )
         if completed is not None:
             query = query.where(self.model.completed == completed)
         if entity_type:
-            query = query.join(CategoryORM, self.model.category).where(CategoryORM.entity_type == entity_type)
+            query = query.where(CategoryORM.entity_type == entity_type)
         query = query.order_by(self.model.name).limit(limit).offset(offset)
 
         result = await self.db.execute(query)
@@ -73,10 +79,10 @@ class MetaRepository:
         log.info(f"{len(metas)} metas encontradas")
         return metas
 
-    async def create_meta(self, obj_in: MetaCreate) -> SubcategoryORM:
+    async def create_meta(self, obj_in: MetaCreate, user_id: int = 1) -> SubcategoryORM:
         """Cria uma nova meta (subcategoria com target_amount na categoria Metas)."""
-        log = log_database_operation(operation="create", collection="metas", payload=obj_in.model_dump())
-        categoria = await self._get_or_create_metas_categoria(entity_type=obj_in.entity_type)
+        log = log_database_operation(operation="create", collection="metas", payload=obj_in.model_dump(), user_id=user_id)
+        categoria = await self._get_or_create_metas_categoria(entity_type=obj_in.entity_type, user_id=user_id)
 
         # Verifica se já existe subcategoria com mesmo nome
         existente = await self.db.execute(
@@ -102,10 +108,10 @@ class MetaRepository:
         log.info(f"Meta {meta.id} criada: {meta.name}")
         return meta
 
-    async def update_meta(self, meta_id: int, obj_in: MetaUpdate) -> Optional[SubcategoryORM]:
+    async def update_meta(self, meta_id: int, obj_in: MetaUpdate, user_id: int = 1) -> Optional[SubcategoryORM]:
         """Atualiza uma meta existente."""
-        log = log_database_operation(operation="update", collection="metas", meta_id=meta_id)
-        meta = await self.db.get(self.model, meta_id)
+        log = log_database_operation(operation="update", collection="metas", meta_id=meta_id, user_id=user_id)
+        meta = await self._get_user_meta(meta_id, user_id)
         if not meta or meta.target_amount is None:
             log.warning(f"Meta {meta_id} não encontrada")
             return None
@@ -123,10 +129,10 @@ class MetaRepository:
         log.info(f"Meta {meta_id} atualizada")
         return meta
 
-    async def delete_meta(self, meta_id: int) -> Optional[SubcategoryORM]:
+    async def delete_meta(self, meta_id: int, user_id: int = 1) -> Optional[SubcategoryORM]:
         """Remove uma meta (deleta a subcategoria)."""
-        log = log_database_operation(operation="delete", collection="metas", meta_id=meta_id)
-        meta = await self.db.get(self.model, meta_id)
+        log = log_database_operation(operation="delete", collection="metas", meta_id=meta_id, user_id=user_id)
+        meta = await self._get_user_meta(meta_id, user_id)
         if not meta or meta.target_amount is None:
             log.warning(f"Meta {meta_id} não encontrada")
             return None
@@ -136,10 +142,10 @@ class MetaRepository:
         log.info(f"Meta {meta_id} excluída")
         return meta
 
-    async def complete_goal(self, meta_id: int) -> Optional[SubcategoryORM]:
+    async def complete_goal(self, meta_id: int, user_id: int = 1) -> Optional[SubcategoryORM]:
         """Marca uma meta como concluída com a data atual."""
-        log = log_database_operation(operation="complete", collection="metas", meta_id=meta_id)
-        meta = await self.db.get(self.model, meta_id)
+        log = log_database_operation(operation="complete", collection="metas", meta_id=meta_id, user_id=user_id)
+        meta = await self._get_user_meta(meta_id, user_id)
         if not meta or meta.target_amount is None:
             log.warning(f"Meta {meta_id} não encontrada")
             return None
@@ -150,10 +156,10 @@ class MetaRepository:
         log.info(f"Meta {meta_id} concluída em {meta.completed_at}")
         return meta
 
-    async def reactivate_goal(self, meta_id: int) -> Optional[SubcategoryORM]:
+    async def reactivate_goal(self, meta_id: int, user_id: int = 1) -> Optional[SubcategoryORM]:
         """Reativa uma meta concluída."""
-        log = log_database_operation(operation="reactivate", collection="metas", meta_id=meta_id)
-        meta = await self.db.get(self.model, meta_id)
+        log = log_database_operation(operation="reactivate", collection="metas", meta_id=meta_id, user_id=user_id)
+        meta = await self._get_user_meta(meta_id, user_id)
         if not meta or meta.target_amount is None:
             log.warning(f"Meta {meta_id} não encontrada")
             return None
@@ -164,7 +170,16 @@ class MetaRepository:
         log.info(f"Meta {meta_id} reativada")
         return meta
 
-    async def calcular_progresso_todas(self, ano: int, mes: int, completed: Optional[bool] = None, entity_type: Optional[str] = None) -> List[dict]:
+    async def _get_user_meta(self, meta_id: int, user_id: int) -> Optional[SubcategoryORM]:
+        """Busca uma meta (subcategoria) garantindo que pertença a uma categoria do usuário."""
+        result = await self.db.execute(
+            select(self.model)
+            .join(CategoryORM, self.model.category)
+            .where(self.model.id == meta_id, CategoryORM.user_id == user_id)
+        )
+        return result.scalars().first()
+
+    async def calcular_progresso_todas(self, ano: int, mes: int, completed: Optional[bool] = None, entity_type: Optional[str] = None, user_id: int = 1) -> List[dict]:
         """Calcula o progresso de todas as metas no mês informado usando GROUP BY (1 query).
         
         Args:
@@ -172,9 +187,10 @@ class MetaRepository:
             mes: Mês para calcular progresso
             completed: Se True, apenas concluídas. Se False, apenas ativas. Se None, todas.
             entity_type: Filtrar por tipo de entidade (individual, business). Se None, todas.
+            user_id: Id do usuário autenticado
         """
         # Busca metas (1 query)
-        metas = await self.list_metas(completed=completed, entity_type=entity_type)
+        metas = await self.list_metas(completed=completed, entity_type=entity_type, user_id=user_id)
         if not metas:
             return []
 

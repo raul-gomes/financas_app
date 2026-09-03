@@ -42,7 +42,7 @@ def seed():
     db = SessionLocal()
     try:
         # ── Usuário ──────────────────────────────────────────────
-        user = UserORM(name="Raul Gomes", email="rsgomes86@gmail.com")
+        user = UserORM(name="Raul Gomes", email="rsgomes86@gmail.com", role="admin")
         db.add(user)
         db.flush()
 
@@ -96,7 +96,7 @@ def seed():
         cat_map = {}
         for cat_name, cat_data in {**pf_categories, **pj_categories}.items():
             entity = "individual" if cat_name in pf_categories else "business"
-            c = CategoryORM(name=cat_name, entity_type=entity, limit=cat_data["limit"], type=cat_data["type"])
+            c = CategoryORM(name=cat_name, entity_type=entity, limit=cat_data["limit"], type=cat_data["type"], user_id=user.id)
             db.add(c)
             db.flush()
             cat_map[cat_name] = {"id": c.id, "subs": {}}
@@ -115,7 +115,7 @@ def seed():
             ("Limite Cartao Credito", "business", 30000),
         ]
         for cat_name, entity, limit_value in special_categories:
-            c = CategoryORM(name=cat_name, entity_type=entity, limit=limit_value, type=None)
+            c = CategoryORM(name=cat_name, entity_type=entity, limit=limit_value, type=None, user_id=user.id)
             db.add(c)
             db.flush()
 
@@ -166,6 +166,7 @@ def seed():
         recurring_accounts = []
         for desc, amt, day, cat, sub, method, bank in recurring_pf:
             r = RecurringAccountORM(
+                user_id=user.id,
                 description=desc, amount=amt, due_day=day,
                 category_id=cat_map[cat]["id"], subcategory_id=cat_map[cat]["subs"][sub],
                 entity_type="individual", payment_method=method, bank_code=bank,
@@ -177,6 +178,7 @@ def seed():
 
         for desc, amt, day, cat, sub, method, bank in recurring_pj:
             r = RecurringAccountORM(
+                user_id=user.id,
                 description=desc, amount=amt, due_day=day,
                 category_id=cat_map[cat]["id"], subcategory_id=cat_map[cat]["subs"][sub],
                 entity_type="business", payment_method=method, bank_code=bank,
@@ -200,6 +202,7 @@ def seed():
                 payment_method=method, bank_code=bank,
                 category_id=cat_map[cat]["id"], subcategory_id=cat_map[cat]["subs"][sub],
                 recurring_account_id=recurring_id,
+                user_id=user.id,
             )
             db.add(t)
             transactions.append(t)
@@ -394,6 +397,7 @@ def seed():
 
         for name, etyp in shopping_items:
             si = ShoppingItemORM(
+                user_id=user.id,
                 name=name,
                 reference_month=date(2026, random.randint(1, 8), 1),
                 entity_type=etyp,

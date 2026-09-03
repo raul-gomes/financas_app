@@ -8,6 +8,7 @@ class ProfileResponse(BaseModel):
     name: str
     email: str
     pluggy_api_key: Optional[str] = None
+    role: str = "user"
     created_at: datetime
     updated_at: datetime
 
