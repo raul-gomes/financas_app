@@ -5,6 +5,7 @@ import { DollarSign, BarChart3, TrendingUp, SlidersHorizontal, Settings } from '
 import { Button } from '@/components/ui/button';
 import { SidebarProvider } from '@/contexts/SidebarContext';
 import { useRole } from '@/contexts/RoleContext';
+import { LogoutButton } from './LogoutButton';
 
 function LayoutContent() {
   const { isAdmin } = useRole();
@@ -18,7 +19,7 @@ function LayoutContent() {
       <header className="bg-card shadow-elegant border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <NavLink to="/" className="text-2xl font-bold text-foreground">
-            FinanceTracker
+            Placo
           </NavLink>
           <nav className="flex items-center gap-1 sm:gap-2">
             <NavLink to="/" className={linkClass}>
@@ -48,6 +49,7 @@ function LayoutContent() {
                 <Settings className="h-4 w-4" /><span className="hidden sm:inline">Configurações</span>
               </Button>
             </NavLink>
+            <LogoutButton />
           </nav>
         </div>
       </header>

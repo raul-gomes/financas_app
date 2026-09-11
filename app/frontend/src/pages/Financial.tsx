@@ -60,8 +60,10 @@ const Financial = () => {
     try {
       const naturezaFilter = selectedEntityType;
 
-      await ContaRecorrenteService.generate(selectedDateRange.from, selectedDateRange.to)
-        .catch((err) => console.error('Erro ao gerar faturas recorrentes:', err));
+      if (isAdmin) {
+        await ContaRecorrenteService.generate(selectedDateRange.from, selectedDateRange.to)
+          .catch((err) => console.error('Erro ao gerar faturas recorrentes:', err));
+      }
 
       const [summary, yearly, categories, incomes, yearTx] = await Promise.all([
         FinancialService.getFinancialSummary(
@@ -108,7 +110,7 @@ const Financial = () => {
         console.error('Erro ao carregar dados:', error);
       }
     }
-  }, [selectedDateRange, selectedEntityType]);
+  }, [selectedDateRange, selectedEntityType, isAdmin]);
 
   useEffect(() => {
     loadData();
@@ -258,8 +260,6 @@ const Financial = () => {
 
   const currentPeriodExpenses = monthlyBalance.expenses;
   const sidebar = useSidebar();
-
-  console.log('entrada', incomeBreakdown)
 
   return (
     <div className="min-h-screen bg-gradient-subtle">

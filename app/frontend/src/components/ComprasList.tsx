@@ -39,7 +39,7 @@ export function ComprasList({ sidebarOpen, entityType }: ComprasListProps) {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [entityType, toast]);
 
   useEffect(() => {
     fetchItems();

@@ -1,6 +1,7 @@
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt import PyJWKClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Config
@@ -9,6 +10,38 @@ from app.db.models.user import UserORM
 from app.db.repositories.users import get_or_create_user_from_supabase
 
 bearer_scheme = HTTPBearer(auto_error=False)
+
+_jwks_client_singleton: PyJWKClient | None = None
+
+
+def _jwks_client() -> PyJWKClient:
+    global _jwks_client_singleton
+    if _jwks_client_singleton is None:
+        _jwks_client_singleton = PyJWKClient(
+            f"{Config.SUPABASE_AUTH_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
+        )
+    return _jwks_client_singleton
+
+
+def _decode_token(token: str) -> dict:
+    header = jwt.get_unverified_header(token)
+    alg = header.get("alg", "HS256")
+
+    if alg.startswith("HS") or not Config.SUPABASE_AUTH_URL:
+        return jwt.decode(
+            token,
+            Config.SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
+
+    signing_key = _jwks_client().get_signing_key_from_jwt(token)
+    return jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=[alg],
+        options={"verify_aud": False},
+    )
 
 
 async def get_current_user(
@@ -23,12 +56,7 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token empty")
 
     try:
-        payload = jwt.decode(
-            token,
-            Config.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
-        )
+        payload = _decode_token(token)
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
