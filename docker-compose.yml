@@ -28,6 +28,10 @@ services:
       - "8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-financas}
+      SUPABASE_AUTH_URL: ${SUPABASE_AUTH_URL:-http://host.docker.internal:64321}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./app/backend/app:/app/app
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"

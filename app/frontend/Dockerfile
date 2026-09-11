@@ -13,9 +13,13 @@ RUN npm ci
 COPY . .
 
 # Build the application
-# We can pass VITE_API_URL during build if needed
+# We can pass VITE_API_URL and Supabase credentials during build if needed
 ARG VITE_API_URL=http://localhost:8005
-ENV VITE_API_URL=$VITE_API_URL
+ARG VITE_SUPABASE_URL=
+ARG VITE_SUPABASE_ANON_KEY=
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
+    VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 
 RUN npm run build
 

@@ -7,3 +7,8 @@
 - tirar investimento
 - Estudar para fazer deploy de uma api para consumo de app
 - estudar desenvolvimento de app
+
+
+O que fazer:
+- Validar a questão de permissão
+- 

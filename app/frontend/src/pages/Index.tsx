@@ -8,7 +8,7 @@ export default function Index() {
   const { isAdmin } = useRole();
   return (
     <div className="min-h-screen bg-gradient-subtle flex flex-col items-center justify-center p-6">
-      <h1 className="text-4xl font-bold mb-8">Bem-vindo ao FinanceTracker</h1>
+      <h1 className="text-4xl font-bold mb-8">Bem-vindo ao Placo</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
         {/* Cartão genérico sem navegação */}
         <Card className="shadow-card border-none p-6 flex flex-col items-center">
