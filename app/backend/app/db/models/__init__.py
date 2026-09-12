@@ -5,3 +5,4 @@ from .transaction import TransactionORM
 from .user import UserORM
 from .user_bank import UserBankORM
 from .shopping_item import ShoppingItemORM
+from .limit_alert import LimitAlertORM

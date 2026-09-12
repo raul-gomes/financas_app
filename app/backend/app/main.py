@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
 # from .core.database import connect_to_mongo, close_mongo_connection
 from .logger import logger, log_with_context
@@ -15,11 +16,27 @@ from .routes.goals_routes import router as goals_router
 from .routes.shopping_routes import router as shopping_router
 from .routes.pluggy_routes import router as pluggy_router
 from .routes.export_routes import router as export_router
+from .routes.notifications_routes import router as notifications_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Job periódico de avaliação de limites (avisa por e-mail se habilitado).
+    from .services.limit_alert_job import start_limit_alert_job, stop_limit_alert_job
+    job_task = None
+    try:
+        job_task = await start_limit_alert_job()
+    except Exception as e:
+        logger.warning(f"Job de limites não iniciado: {e}")
+    yield
+    await stop_limit_alert_job(job_task)
+
 
 app = FastAPI(
     title="API Financeira",
     description='API para gerenciamento de transações financeiras',
     version='1.0.0',
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -41,6 +58,7 @@ app.include_router(goals_router)
 app.include_router(shopping_router)
 app.include_router(pluggy_router)
 app.include_router(export_router)
+app.include_router(notifications_router)
 
 @app.get('/', tags=['Root'])
 async def root():

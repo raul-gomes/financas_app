@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
 from typing import List
 
+from app.core.database import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.repositories.transaction import TransacaoRepository
+from app.services.limit_alert_service import trigger_limit_evaluation
 from app.db.models.user import UserORM
 from app.core.security import get_current_user, require_admin
 from app.schemas.extract import (
@@ -76,6 +79,7 @@ async def confirm_extracto(
     payload: ConfirmPayload,
     current_user: UserORM = Depends(get_current_user),
     repo: TransacaoRepository = Depends(),
+    db: AsyncSession = Depends(get_session),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), count=len(payload.transactions))
 
@@ -99,6 +103,14 @@ async def confirm_extracto(
         })
 
     criadas, erros = await repo.create_batch_from_extract(transactions_data, current_user.id)
+
+    try:
+        from datetime import datetime as _dt
+        if payload.transactions:
+            primeira = min(t.date for t in payload.transactions)
+            await trigger_limit_evaluation(db, current_user.id, year=primeira.year, month=primeira.month)
+    except Exception as e:
+        log.warning(f"Falha ao avaliar limites pós-extrato: {e}")
 
     log.info(f"{criadas} transacoes criadas do extrato")
 

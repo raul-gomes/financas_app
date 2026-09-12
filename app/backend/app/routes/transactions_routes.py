@@ -4,7 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from typing import List, Optional
 from datetime import datetime
 
+from app.core.database import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.repositories.transaction import TransacaoRepository
+from app.services.limit_alert_service import trigger_limit_evaluation
 from app.db.models.user import UserORM
 from app.core.security import get_current_user
 from app.schemas.transaction import (
@@ -143,14 +146,22 @@ async def create_transacao(
     payload: TransacaoCreate,
     current_user: UserORM = Depends(get_current_user),
     status_code=status.HTTP_201_CREATED,
-    repo: TransacaoRepository = Depends()
+    repo: TransacaoRepository = Depends(),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Cria uma transação. Se categoria/subcategoria não existirem, são criadas.
     """
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
     try:
-        return await repo.create(payload, current_user.id)
+        transacao = await repo.create(payload, current_user.id)
+        try:
+            await trigger_limit_evaluation(db, current_user.id,
+                                           year=transacao.transaction_date.year,
+                                           month=transacao.transaction_date.month)
+        except Exception as e:
+            log.warning(f"Falha ao avaliar limites pós-create: {e}")
+        return transacao
     except HTTPException:
         raise
     except Exception as e:
@@ -242,13 +253,20 @@ async def update_transacao(
     transacao_id: int,
     payload: TransacaoUpdate,
     current_user: UserORM = Depends(get_current_user),
-    repo: TransacaoRepository = Depends(TransacaoRepository)
+    repo: TransacaoRepository = Depends(TransacaoRepository),
+    db: AsyncSession = Depends(get_session),
 ):
     log = log_api_request(method="PUT", endpoint=str(request.url), transacao_id=transacao_id, payload=payload.dict(exclude_unset=True))
     trans = await repo.update(transacao_id, payload, current_user.id)
     if not trans:
         log.warning(f"Transação {transacao_id} não encontrada")
         raise HTTPException(status_code=404, detail="Transação não encontrada")
+    try:
+        await trigger_limit_evaluation(db, current_user.id,
+                                       year=trans.transaction_date.year,
+                                       month=trans.transaction_date.month)
+    except Exception as e:
+        log.warning(f"Falha ao avaliar limites pós-update: {e}")
     log.info(f"Transação {transacao_id} atualizada")
     return trans
 
@@ -264,7 +282,8 @@ async def delete_transacao(
     request: Request,
     transacao_id: int,
     current_user: UserORM = Depends(get_current_user),
-    repo: TransacaoRepository = Depends(TransacaoRepository)
+    repo: TransacaoRepository = Depends(TransacaoRepository),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Exclui uma transação existente.
@@ -278,6 +297,12 @@ async def delete_transacao(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Transação não encontrada"
             )
+        try:
+            await trigger_limit_evaluation(db, current_user.id,
+                                           year=deleted.transaction_date.year,
+                                           month=deleted.transaction_date.month)
+        except Exception as e:
+            log.warning(f"Falha ao avaliar limites pós-delete: {e}")
         log.info(f"Transação {transacao_id} excluída")
         return deleted
     except HTTPException:

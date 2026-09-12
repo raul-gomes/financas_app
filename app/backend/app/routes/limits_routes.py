@@ -9,6 +9,7 @@ from app.db.models.user import UserORM
 from app.core.security import get_current_user
 from app.db.repositories.limits import LimitsRepository
 from app.schemas.limits import LimitsUpdatePayload, LimitsUpdateResponse, LimitsWithSpendingResponse
+from app.schemas.notifications import CategoryRiskResponse
 
 router = APIRouter(prefix="/limits", tags=["Limits"])
 
@@ -101,3 +102,43 @@ async def get_limits_with_spending(
     """
     limits_repo = LimitsRepository(db)
     return await limits_repo.get_limits_with_spending(year, month, current_user.id, entity_type)
+
+
+@router.get(
+    "/risk-check",
+    response_model=CategoryRiskResponse,
+    summary="Verificar risco de estouro de uma categoria",
+    description="Retorna o estado de risco da categoria para o mês atual, usado no aviso não-bloqueante ao adicionar uma transação em categoria com limite estourado.",
+)
+async def get_category_risk(
+    category_id: int = Query(..., description="ID da categoria a verificar"),
+    current_user: UserORM = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+):
+    """
+    Endpoint composto: uma chamada retorna se a categoria está estourada e tudo
+    que o frontend precisa para exibir o aviso ("está estourado o limite, segure a mão").
+    """
+    from datetime import datetime
+
+    now = datetime.now()
+    limits_repo = LimitsRepository(db)
+    data = await limits_repo.get_limits_with_spending(now.year, now.month, current_user.id, None)
+    for cat in data["categories"]:
+        if cat["id"] == category_id:
+            return CategoryRiskResponse(
+                category_id=cat["id"],
+                category_name=cat["category_name"],
+                limit=cat["limit"],
+                spent=cat["spent"],
+                percent_used=cat["percent_used"],
+                is_over_limit=cat["limit"] > 0 and cat["percent_used"] >= 100,
+            )
+    return CategoryRiskResponse(
+        category_id=category_id,
+        category_name="Categoria",
+        limit=0.0,
+        spent=0.0,
+        percent_used=0.0,
+        is_over_limit=False,
+    )

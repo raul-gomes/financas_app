@@ -2,8 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import List, Optional
 from datetime import date, datetime
 
+from app.core.database import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.repositories.settings import SettingsRepository
 from app.db.repositories.transaction import TransacaoRepository
+from app.services.limit_alert_service import trigger_limit_evaluation
 from app.db.models.user import UserORM
 from app.core.security import get_current_user, require_admin
 from app.services.pluggy_service import PluggyService
@@ -63,6 +66,7 @@ async def sync_pluggy(
     current_user: UserORM = Depends(get_current_user),
     settings_repo: SettingsRepository = Depends(),
     transacao_repo: TransacaoRepository = Depends(),
+    db: AsyncSession = Depends(get_session),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url))
     user = current_user
@@ -164,6 +168,11 @@ async def sync_pluggy(
             "accounts": len(accounts),
             "duplicates": duplicates_list,
         }
+        try:
+            now = datetime.now()
+            await trigger_limit_evaluation(db, current_user.id, year=now.year, month=now.month)
+        except Exception as e:
+            log.warning(f"Falha ao avaliar limites pós-sync do pluggy: {e}")
         return result
     finally:
         await pluggy.close()
