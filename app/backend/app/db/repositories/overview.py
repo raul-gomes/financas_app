@@ -25,6 +25,9 @@ from app.schemas.overview import (
 
 SPECIAL_CATEGORIAS = {"mensal pf", "mensal pj", "limite cartao credito", "metas"}
 
+# Só exibe no dashboard categorias estouradas ou quase chegando no limite (>=70%)
+THRESHOLD_EXIBICAO_CATEGORIA = 70.0
+
 
 class DashboardOverviewRepository:
     """Repositório do dashboard geral (1 endpoint = 1 tela).
@@ -217,7 +220,10 @@ class DashboardOverviewRepository:
             if cat["category_name"].lower() in SPECIAL_CATEGORIAS:
                 continue
             percent = cat["percent_used"]
-            status = "over" if percent >= 100 else ("warning" if percent >= 80 else "ok")
+            # Dashboard só mostra categorias estouradas ou quase (>=70% do limite)
+            if percent < THRESHOLD_EXIBICAO_CATEGORIA:
+                continue
+            status = "over" if percent >= 100 else "warning"
             result.append(
                 CategoriaStatusOverview(
                     id=cat["id"],

@@ -71,21 +71,34 @@ async def test_overview_filtra_por_entity_type(client):
 
 
 @pytest.mark.asyncio
-async def test_overview_categorias_status_ok_warning_over(client):
-    ok_cat, ok_sub = await _create_cat(client, "Transporte", "individual", 1000.0)
+async def test_overview_categorias_status_somente_proximas_ou_estouradas(client):
+    """Dashboard só lista categorias estouradas ou quase (>=70% do limite)."""
+    safe_cat, safe_sub = await _create_cat(client, "Transporte", "individual", 1000.0)
     warn_cat, warn_sub = await _create_cat(client, "Lazer", "individual", 1000.0)
     over_cat, over_sub = await _create_cat(client, "Compras", "individual", 1000.0)
 
-    await _add_tx(client, 400.0, "expense", "individual", ok_sub, ok_cat)    # 40%
-    await _add_tx(client, 900.0, "expense", "individual", warn_sub, warn_cat)  # 90%
-    await _add_tx(client, 1200.0, "expense", "individual", over_sub, over_cat) # 120%
+    await _add_tx(client, 400.0, "expense", "individual", safe_sub, safe_cat)    # 40% -> fora
+    await _add_tx(client, 900.0, "expense", "individual", warn_sub, warn_cat)    # 90% -> warning
+    await _add_tx(client, 1200.0, "expense", "individual", over_sub, over_cat)   # 120% -> over
 
     resp = await client.get("/dashboard/overview?year=2026&month=9&entity_type=individual")
     status = {s["category_name"]: s["status"] for s in resp.json()["categories_status"]}
 
-    assert status["Transporte"] == "ok"
+    assert "Transporte" not in status
     assert status["Lazer"] == "warning"
     assert status["Compras"] == "over"
+
+
+@pytest.mark.asyncio
+async def test_overview_categorias_status_limiar_70(client):
+    """Categoria com exatos 70% deve aparecer (limiar inclusivo)."""
+    cat_id, sub_id = await _create_cat(client, "Alim", "individual", 1000.0)
+    await _add_tx(client, 700.0, "expense", "individual", sub_id, cat_id)  # 70%
+
+    resp = await client.get("/dashboard/overview?year=2026&month=9&entity_type=individual")
+    status = {s["category_name"]: s["status"] for s in resp.json()["categories_status"]}
+
+    assert status["Alim"] == "warning"
 
 
 @pytest.mark.asyncio

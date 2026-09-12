@@ -80,6 +80,31 @@ async def test_opcoes_categorias_all_natureza(client):
 
 
 @pytest.mark.asyncio
+async def test_opcoes_categorias_escondem_categorias_de_configuracao(client):
+    # Categorias de configuração (orçamento mensal / limite do cartão) NÃO
+    # podem aparecer como opções de categoria no dropdown de transação.
+    for nome in ["Mensal PF", "Mensal PJ", "Limite Cartao Credito"]:
+        resp = await client.post("/categories/", json={
+            "category_name": nome,
+            "entity_type": "individual",
+            "limit": 5000.0,
+        })
+        assert resp.status_code == 201
+
+    await _create_cat(client, "Moradia")
+
+    response = await client.get("/dashboard/category-options?entity_type=individual")
+    assert response.status_code == 200
+    data = response.json()
+    nomes = [c["name"] for c in data["options"]]
+
+    assert "Moradia" in nomes
+    assert "Mensal PF" not in nomes
+    assert "Mensal PJ" not in nomes
+    assert "Limite Cartao Credito" not in nomes
+
+
+@pytest.mark.asyncio
 async def test_entradas_por_categoria(client):
     await _setup_dashboard_data(client)
     response = await client.get("/dashboard/income-by-category?start_date=01/01/2026&end_date=31/01/2026&entity_type=individual")

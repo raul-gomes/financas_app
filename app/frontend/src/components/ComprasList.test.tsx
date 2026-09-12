@@ -12,7 +12,6 @@ vi.mock('@/services/shoppingService', () => ({
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
-    migrar: vi.fn(),
   },
 }));
 

@@ -34,14 +34,28 @@ async def test_list_shopping_by_month(client):
 
 
 @pytest.mark.asyncio
-async def test_list_shopping_other_month(client):
-    """Itens de outro mês não devem aparecer."""
-    await client.post("/shopping/", json={"name": "Item Junho", "reference_month": MES_REF})
+async def test_list_shopping_rollover_mes_seguinte(client):
+    """Item não-marcado de um mês aparece no mês seguinte (rollover)."""
+    await client.post("/shopping/", json={"name": "Airfryer", "reference_month": MES_REF})
 
-    response = await client.get(f"/shopping/?month=2026-07-01")
+    response = await client.get(f"/shopping/?month={MES_SEGUINTE}")
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 0
+    assert len(data) == 1
+    assert data[0]["name"] == "Airfryer"
+    assert data[0]["checked"] is False
+
+
+@pytest.mark.asyncio
+async def test_list_shopping_marcado_nao_rola_para_mes_seguinte(client):
+    """Item adquirido (marcado) não rola para o mês seguinte (ex.: cama de casal)."""
+    resp = await client.post("/shopping/", json={"name": "Cama de Casal", "reference_month": MES_REF})
+    item_id = resp.json()["id"]
+    await client.put(f"/shopping/{item_id}", json={"checked": True})
+
+    response = await client.get(f"/shopping/?month={MES_SEGUINTE}")
+    assert response.status_code == 200
+    assert len(response.json()) == 0
 
 
 @pytest.mark.asyncio
@@ -85,44 +99,6 @@ async def test_delete_shopping_item(client):
     list_resp = await client.get(f"/shopping/?month={MES_REF}")
     ids = [i["id"] for i in list_resp.json()]
     assert item_id not in ids
-
-
-@pytest.mark.asyncio
-async def test_migrate_unchecked_items(client):
-    """Migra itens não-marcados para o próximo mês."""
-    # Cria itens no mês atual
-    resp1 = await client.post("/shopping/", json={"name": "Nao marcado", "reference_month": MES_REF})
-    resp2 = await client.post("/shopping/", json={"name": "Marcado", "reference_month": MES_REF})
-    item_nao_marcado = resp1.json()
-    item_marcado = resp2.json()
-
-    # Marca um deles
-    await client.put(f"/shopping/{item_marcado['id']}", json={"checked": True})
-
-    # Migra
-    response = await client.post(f"/shopping/migrate?source_month={MES_REF}&target_month={MES_SEGUINTE}")
-    assert response.status_code == 200
-    result = response.json()
-    assert result["count"] == 1  # Só o não-marcado
-
-    # Verifica que o item apareceu no mês seguinte
-    list_resp = await client.get(f"/shopping/?month={MES_SEGUINTE}")
-    items = list_resp.json()
-    assert len(items) == 1
-    assert items[0]["name"] == "Nao marcado"
-    assert items[0]["checked"] is False
-
-
-@pytest.mark.asyncio
-async def test_migrate_no_items(client):
-    """Migração sem itens não-marcados retorna 0."""
-    resp = await client.post("/shopping/", json={"name": "Unico item", "reference_month": MES_REF})
-    item_id = resp.json()["id"]
-    await client.put(f"/shopping/{item_id}", json={"checked": True})
-
-    response = await client.post(f"/shopping/migrate?source_month={MES_REF}&target_month={MES_SEGUINTE}")
-    assert response.status_code == 200
-    assert response.json()["count"] == 0
 
 
 @pytest.mark.asyncio

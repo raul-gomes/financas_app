@@ -1,10 +1,10 @@
 # app/db/repositories/shopping.py
 
 from typing import List, Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, case
-from datetime import date, timedelta
+from sqlalchemy import select, case, or_, and_
+from datetime import date
 from uuid import uuid4
 from dateutil.relativedelta import relativedelta
 
@@ -25,14 +25,24 @@ class ShoppingRepository:
 
     async def list_by_month(self, reference_month: date, entity_type: Optional[str] = None,
                             user_id: Optional[int] = None) -> List[ShoppingItemORM]:
-        """Lista itens de um mês específico, ordenados: não-marcados primeiro (mais recentes primeiro),
-        depois marcados (mais recentes primeiro)."""
+        """Lista itens de um mês específico com ROLLOVER: inclui itens não-marcados
+        de meses anteriores (que não foram comprados). Ordenados: não-marcados
+        primeiro (mais recentes primeiro), depois marcados (mais recentes primeiro)."""
         log = log_database_operation(operation="read_all", collection="shopping_items", mes_ref=str(reference_month))
         # Ordena: não-marcados (checked=false) primeiro, depois por created_at descendente
         order_expr = case((self.model.checked == False, 0), else_=1)
+        # Rollover: itens do próprio mês + não-marcados (não comprados) de meses anteriores
         query = (
             select(self.model)
-            .where(self.model.reference_month == reference_month)
+            .where(
+                or_(
+                    self.model.reference_month == reference_month,
+                    and_(
+                        self.model.reference_month < reference_month,
+                        self.model.checked == False,
+                    ),
+                )
+            )
         )
         if user_id is not None:
             query = query.where(self.model.user_id == user_id)
@@ -107,51 +117,6 @@ class ShoppingRepository:
             stmt = stmt.where(self.model.user_id == user_id)
         result = await self.db.execute(stmt)
         return result.scalars().first()
-
-    async def migrate_unchecked(self, source_month: date, target_month: date,
-                                user_id: Optional[int] = None) -> int:
-        """
-        Copia itens não-marcados do mês de origem para o mês de destino.
-        Retorna a quantidade de itens migrados.
-        """
-        if target_month <= source_month:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Mês destino deve ser posterior ao mês de origem.",
-            )
-        log = log_database_operation(
-            operation="migrate",
-            collection="shopping_items",
-            source_month=str(source_month),
-            target_month=str(target_month),
-        )
-        # Busca itens não-marcados do mês de origem
-        stmt = select(self.model).where(
-            self.model.reference_month == source_month,
-            self.model.checked == False,
-        )
-        if user_id is not None:
-            stmt = stmt.where(self.model.user_id == user_id)
-        result = await self.db.execute(stmt)
-        items = result.scalars().all()
-        if not items:
-            log.info("Nenhum item para migrar")
-            return 0
-
-        # Cria cópias no mês destino
-        novos = []
-        for item in items:
-            novo = self.model(
-                user_id=user_id,
-                name=item.name,
-                reference_month=target_month,
-                entity_type=item.entity_type,
-            )
-            novos.append(novo)
-        self.db.add_all(novos)
-        await self.db.commit()
-        log.info(f"{len(novos)} itens migrados de {source_month} para {target_month}")
-        return len(novos)
 
     async def generate_recurring_items(self, req: GenerateRecurringShoppingRequest,
                                        user_id: Optional[int] = None) -> int:
