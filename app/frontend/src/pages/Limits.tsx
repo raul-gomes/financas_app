@@ -51,14 +51,14 @@ const Limits = () => {
                     </div>
                 </div>
                 <Tabs defaultValue="limits" className="w-full">
-                    <TabsList className={cn("grid w-full mb-8", isAdmin ? "grid-cols-4" : "grid-cols-1")}>
+                    <TabsList className={cn("grid w-full mb-8", isAdmin ? "grid-cols-4" : "grid-cols-2")}>
                         <TabsTrigger value="limits">Limites</TabsTrigger>
-                        {isAdmin && <TabsTrigger value="recorrentes">Recorrentes</TabsTrigger>}
+                        <TabsTrigger value="recorrentes">Recorrentes</TabsTrigger>
                         {isAdmin && <TabsTrigger value="metas">Metas</TabsTrigger>}
                         {isAdmin && <TabsTrigger value="compras">Compras</TabsTrigger>}
                     </TabsList>
                     <TabsContent value="limits"><LimitsTab entityTypeFilter={entityType} /></TabsContent>
-                    {isAdmin && <TabsContent value="recorrentes"><RecorrentesTab entityTypeFilter={entityType} /></TabsContent>}
+                    <TabsContent value="recorrentes"><RecorrentesTab entityTypeFilter={entityType} /></TabsContent>
                     {isAdmin && <TabsContent value="metas"><MetasTab entityTypeFilter={entityType} /></TabsContent>}
                     {isAdmin && <TabsContent value="compras"><ComprasTab entityTypeFilter={entityType} /></TabsContent>}
                 </Tabs>

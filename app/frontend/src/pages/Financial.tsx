@@ -52,6 +52,7 @@ const Financial = () => {
   const [yearTransactions, setYearTransactions] = useState<Transaction[]>([]);
   const fetchGeneration = useRef(0);
   const requestedMonthRef = useRef<SelectedMonth | null>(null);
+  const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
 
 
   // Fetch financial data
@@ -99,6 +100,7 @@ const Financial = () => {
       setIncomeBreakdown(incomes);
       setTransactions(summary.transactions);
       setYearTransactions(yearTx);
+      setSidebarRefreshKey(k => k + 1);
 
       // If a month was requested, activate the flip now that fresh data is loaded
       if (requestedMonthRef.current) {
@@ -265,7 +267,7 @@ const Financial = () => {
     <div className="min-h-screen bg-gradient-subtle">
       <div className="flex">
         {isAdmin && (
-          <SidebarPanel open={sidebar.open} onClose={() => sidebar.toggle()} entityType={selectedEntityType} />
+          <SidebarPanel open={sidebar.open} onClose={() => sidebar.toggle()} entityType={selectedEntityType} refreshKey={sidebarRefreshKey} />
         )}
         <div className="flex-1 min-w-0">
           <main className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">

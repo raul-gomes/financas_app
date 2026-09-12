@@ -73,7 +73,7 @@ export default function SignUp() {
         <CardHeader>
           <CardTitle className="text-2xl text-center">Criar conta</CardTitle>
           <CardDescription className="text-center">
-            Primeiro acesso é cadastrado como administrador.
+            Crie sua conta para acessar o Placo.
           </CardDescription>
         </CardHeader>
         <CardContent>

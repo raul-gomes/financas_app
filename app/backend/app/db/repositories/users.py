@@ -1,4 +1,4 @@
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.user import UserORM
@@ -12,11 +12,8 @@ async def get_or_create_user_from_supabase(
     )
     user = result.scalars().first()
     if not user:
-        # Primeiro usuário registrado vira admin (bootstrap); os demais nascem 'user'.
-        result = await db.execute(select(func.count(UserORM.id)))
-        total_users = result.scalar() or 0
-        role = "admin" if total_users == 0 else "user"
-        user = UserORM(name="", email=email, password_hash="", role=role)
+        # Todo novo cadastro nasce como 'user'; admin somente via promoção manual no banco.
+        user = UserORM(name="", email=email, password_hash="", role="user")
         db.add(user)
         await db.commit()
         await db.refresh(user)

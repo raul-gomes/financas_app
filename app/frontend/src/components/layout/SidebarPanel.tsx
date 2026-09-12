@@ -8,9 +8,10 @@ interface SidebarPanelProps {
   open: boolean;
   onClose: () => void;
   entityType?: string;
+  refreshKey?: number;
 }
 
-export function SidebarPanel({ open, onClose, entityType }: SidebarPanelProps) {
+export function SidebarPanel({ open, onClose, entityType, refreshKey }: SidebarPanelProps) {
   return (
     <div
       className={`h-full border-r border-border bg-card transition-all duration-300 overflow-hidden ${
@@ -34,10 +35,10 @@ export function SidebarPanel({ open, onClose, entityType }: SidebarPanelProps) {
               <TabsTrigger value="compras" className="flex-1 text-xs">Compras</TabsTrigger>
             </TabsList>
             <TabsContent value="metas" className="mt-0">
-              <MetasList sidebarOpen={open} entityType={entityType} />
+              <MetasList sidebarOpen={open} entityType={entityType} refreshKey={refreshKey} />
             </TabsContent>
             <TabsContent value="compras" className="mt-0">
-              <ComprasList sidebarOpen={open} entityType={entityType} />
+              <ComprasList sidebarOpen={open} entityType={entityType} refreshKey={refreshKey} />
             </TabsContent>
           </Tabs>
         </div>
