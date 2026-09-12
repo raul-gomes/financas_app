@@ -9,13 +9,39 @@ from app.db.models.user import UserORM
 from app.core.security import get_current_user
 
 from app.db.repositories.dashboard import DashboardRepository
+from app.db.repositories.overview import DashboardOverviewRepository
 from app.schemas.dashboard import EntradasPorCategoriaResponse, ExtratoResponse, GastosPorCategoriaResponse, OpcoesCategoriaResponse, RendimentoPeriodoResponse, TipoTrans
+from app.schemas.overview import OverviewResponse
 
 from app.logger import log_api_request
 
 
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+
+
+@router.get(
+    "/overview",
+    response_model=OverviewResponse,
+    summary="Dashboard geral (página principal)",
+    description="Indicadores do mês, status de categorias com limite, parcelas do mês, contas recorrentes a pagar, cartão de crédito, metas e compras. Metas/compras somente para admin.",
+    status_code=status.HTTP_200_OK,
+)
+async def overview_geral(
+    current_user: UserORM = Depends(get_current_user),
+    year: int = Query(..., description="Ano (YYYY)"),
+    month: int = Query(..., ge=1, le=12, description="Mês (1-12)"),
+    entity_type: str = Query(default='all', description="Entity type: individual, business ou all"),
+    db: AsyncSession = Depends(get_session),
+):
+    api_logger = log_api_request("GET", "/dashboard/overview", year=year, month=month, entity_type=entity_type)
+    is_admin = getattr(current_user, "role", "") == "admin"
+
+    repo = DashboardOverviewRepository(db)
+    overview = await repo.overview_geral(year, month, entity_type, current_user.id, is_admin)
+
+    api_logger.success("Overview gerado", reference_month=overview.reference_month)
+    return overview
 
 
 def parse_date(date_str: str, field_name: str) -> datetime:
