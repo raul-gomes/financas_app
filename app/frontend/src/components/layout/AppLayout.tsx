@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { SidebarProvider } from '@/contexts/SidebarContext';
 import { useRole } from '@/contexts/RoleContext';
 import { LogoutButton } from './LogoutButton';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 function LayoutContent() {
   const { isAdmin } = useRole();
@@ -49,6 +50,7 @@ function LayoutContent() {
                 <Settings className="h-4 w-4" /><span className="hidden sm:inline">Configurações</span>
               </Button>
             </NavLink>
+            <NotificationBell />
             <LogoutButton />
           </nav>
         </div>

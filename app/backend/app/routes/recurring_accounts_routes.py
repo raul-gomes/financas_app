@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from typing import List, Any, Optional
 
+from app.core.database import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.repositories.recurring_account import ContaRecorrenteRepository
 from app.db.repositories.category import CategoriaRepository
 from app.db.repositories.subcategory import SubcategoriaRepository
+from app.services.limit_alert_service import trigger_limit_evaluation
 from app.db.models.user import UserORM
 from app.core.security import get_current_user, require_admin
 from app.schemas.recurring_account import (
@@ -199,10 +202,17 @@ async def generate_recurrent_transactions(
     payload: GenerateRequest,
     current_user: UserORM = Depends(get_current_user),
     repo: ContaRecorrenteRepository = Depends(),
+    db: AsyncSession = Depends(get_session),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
     try:
         geradas, detalhes = await repo.generate_pending_transactions(payload, current_user.id)
+        try:
+            await trigger_limit_evaluation(db, current_user.id,
+                                           year=payload.start_date.year,
+                                           month=payload.start_date.month)
+        except Exception as e:
+            log.warning(f"Falha ao avaliar limites pós-recorrentes: {e}")
         log.info(f"{geradas} transacoes recorrentes geradas")
         return GenerateResponse(generated=geradas, details=detalhes)
     except HTTPException:

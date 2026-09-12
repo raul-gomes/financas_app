@@ -17,7 +17,9 @@ import { CategorySubcategories, Transaction, DuplicateInfo } from '@/types/finan
 import { useToast } from '@/hooks/use-toast';
 import { FinancialService } from '@/services/financialService';
 import { SettingsService, UserBank } from '@/services/settingsService';
-import { Plus } from 'lucide-react';
+import { NotificationService } from '@/services/notificationService';
+import { CategoryRiskResponse } from '@/types/notifications';
+import { Plus, AlertTriangle } from 'lucide-react';
 import { DuplicateDialog, DialogAction } from '@/components/dialogs/DuplicateDialog';
 import { BankLogo } from '@/components/ui/bank-logo';
 
@@ -56,6 +58,7 @@ export function AddTransactionDialog({
   const [addingNewBank, setAddingNewBank] = useState(false);
   const [newBankCode, setNewBankCode] = useState('');
   const [newBankName, setNewBankName] = useState('');
+  const [categoryRisk, setCategoryRisk] = useState<CategoryRiskResponse | null>(null);
   const { toast } = useToast();
 
   // Duplicate checking state
@@ -87,6 +90,30 @@ export function AddTransactionDialog({
     }
   }, [isOpen]);
 
+  // Aviso não-bloqueante: categoria com limite estourado (somente despesa)
+  useEffect(() => {
+    if (formData.type !== 'expense') {
+      setCategoryRisk(null);
+      return;
+    }
+    const catObj = categoryOptions?.options.find(
+      c => c.name === formData.category_name
+    );
+    if (!catObj) {
+      setCategoryRisk(null);
+      return;
+    }
+    let cancelled = false;
+    NotificationService.checkCategoryRisk(catObj.id)
+      .then(risk => {
+        if (!cancelled) setCategoryRisk(risk);
+      })
+      .catch(() => {
+        // falha silenciosa — o aviso é bônus, não deve quebrar o fluxo
+      });
+    return () => { cancelled = true; };
+  }, [formData.category_name, formData.entity_type, formData.type, categoryOptions]);
+
   // Calculate installment amount
   const calculateInstallmentAmount = () => {
     if (!isInstallment || !formData.total_installments || !formData.amount) return null;
@@ -116,6 +143,7 @@ export function AddTransactionDialog({
     setShowNewCategoryInput(false);
     setShowNewSubcategoryInput(false);
     setShowNewPaymentMethodInput(false);
+    setCategoryRisk(null);
     onClose();
   };
 
@@ -446,6 +474,24 @@ export function AddTransactionDialog({
               </div>
             )}
           </div>
+
+          {/* Aviso não-bloqueante: categoria estourada */}
+          {categoryRisk?.is_over_limit && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-destructive"
+            >
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium">
+                  O limite de "{categoryRisk.category_name}" está estourado
+                </p>
+                <p className="text-xs mt-0.5">
+                  Gasto atual: {categoryRisk.percent_used.toFixed(0)}% do limite. Segure a mão!
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Bank + Payment Method */}
           <div className="grid gap-4 sm:grid-cols-2">
