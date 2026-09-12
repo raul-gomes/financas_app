@@ -12,6 +12,10 @@ from app.db.models.category import CategoryORM
 from app.schemas.dashboard import CategoriaOpcao, EntradasPorCategoriaResponse, ExtratoResponse, OpcoesCategoriaResponse, RendimentoPeriodoResponse, SubcategoriaOpcao, TipoTrans, TransacaoExtrato
 from app.schemas.transaction import NaturezaTransacao, TransacaoResponse
 
+# Categorias de configuração (orçamento mensal / limite do cartão) que não podem ser
+# selecionadas como categoria de uma transação — só existem para alimentar o dashboard.
+CATEGORIAS_CONFIGURACAO = {"mensal pf", "mensal pj", "limite cartao credito"}
+
 # Simple in-memory cache for opcoes_categorias (key: (entity_type, tipo), value: (timestamp, data))
 _opcoes_categorias_cache: Dict[tuple, tuple] = {}
 _CACHE_TTL_SECONDS = 300  # 5 minutes
@@ -279,6 +283,8 @@ class DashboardRepository:
 
         opcoes: List[CategoriaOpcao] = []
         for categoria in categorias:
+            if categoria.name.strip().lower() in CATEGORIAS_CONFIGURACAO:
+                continue
             subs = [
                 SubcategoriaOpcao(
                     id=sub.id,

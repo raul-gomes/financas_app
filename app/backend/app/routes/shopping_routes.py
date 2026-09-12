@@ -131,36 +131,6 @@ async def delete_shopping_item(
 
 
 @router.post(
-    "/migrate",
-    summary="Migrar itens não-marcados",
-    description="Copia itens não-marcados do mês de origem para o mês de destino."
-)
-async def migrar_itens(
-    request: Request,
-    current_user: UserORM = Depends(get_current_user),
-    source_month: date = Query(..., description="Mês de origem (YYYY-MM-DD)"),
-    target_month: date = Query(..., description="Mês de destino (YYYY-MM-DD)"),
-    repo: ShoppingRepository = Depends(ShoppingRepository),
-):
-    log = log_api_request(
-        method="POST",
-        endpoint=str(request.url),
-        source_month=str(source_month),
-        target_month=str(target_month),
-    )
-    try:
-        qtd = await repo.migrate_unchecked(source_month, target_month, current_user.id)
-        log.info(f"{qtd} itens migrados")
-        return {"message": f"{qtd} itens migrados com sucesso", "count": qtd}
-    except Exception as e:
-        log.error(f"Erro ao migrar itens: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao migrar itens"
-        )
-
-
-@router.post(
     "/generate-recurring",
     summary="Gerar itens recorrentes de compras",
     description="Cria cópias de itens marcados como recorrentes para os meses subsequentes."

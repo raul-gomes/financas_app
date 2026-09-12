@@ -39,7 +39,7 @@ class CategoriaStatusOverview(BaseModel):
     spent: float
     remaining: float
     percent_used: float
-    status: str = Field(..., description="ok | warning (>=80%) | over (>=100%)")
+    status: str = Field(..., description="warning (>=70%) | over (>=100%) — só categorias estouradas/quase")
 
 
 class ParcelaMesOverview(BaseModel):

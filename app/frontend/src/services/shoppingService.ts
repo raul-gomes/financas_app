@@ -33,13 +33,4 @@ export const ShoppingService = {
     if (!res.ok) throw new Error(`Erro ${res.status} ao excluir item`);
     return res.json();
   },
-
-  async migrar(sourceMonth: string, targetMonth: string): Promise<{ message: string; quantity: number }> {
-    const res = await apiFetch(
-      `/shopping/migrate?source_month=${encodeURIComponent(sourceMonth)}&target_month=${encodeURIComponent(targetMonth)}`,
-      { method: 'POST' }
-    );
-    if (!res.ok) throw new Error(`Erro ${res.status} ao migrar itens`);
-    return res.json();
-  },
 };
