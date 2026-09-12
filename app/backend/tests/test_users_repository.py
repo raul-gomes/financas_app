@@ -43,27 +43,33 @@ async def test_upsert_does_not_duplicate_users(async_session):
 
 
 @pytest.mark.asyncio
-async def test_first_user_becomes_admin(async_session):
+async def test_new_user_always_gets_user_role(async_session):
+    """Novo cadastro nasce como 'user'; admin só por promoção manual no banco."""
     user = await get_or_create_user_from_supabase(
-        async_session, sub="first-admin", email="first@example.com"
+        async_session, sub="new-user-role", email="newrole@example.com"
     )
+    assert user.role == "user"
 
-    assert user.role == "admin"
+
+@pytest.mark.asyncio
+async def test_first_user_gets_user_role(async_session):
+    """Primeiro usuário também nasce como 'user' (sem bootstrap admin)."""
+    user = await get_or_create_user_from_supabase(
+        async_session, sub="first-user-role", email="firstrole@example.com"
+    )
+    assert user.role == "user"
 
 
 @pytest.mark.asyncio
 async def test_subsequent_users_become_regular(async_session):
-    # Primeiro upsert vira admin
     admin = await get_or_create_user_from_supabase(
-        async_session, sub="first-admin-2", email="first2@example.com"
+        async_session, sub="existing-admin", email="existingadmin@example.com"
     )
-    assert admin.role == "admin"
-
-    # Upsert subsequente (outro email) vira user comum
     regular = await get_or_create_user_from_supabase(
         async_session, sub="second-user", email="second@example.com"
     )
     assert regular.role == "user"
+    assert admin.role == "user"
 
 
 @pytest.mark.asyncio

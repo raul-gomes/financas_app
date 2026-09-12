@@ -10,9 +10,10 @@ import { useToast } from '@/hooks/use-toast';
 interface MetasListProps {
   sidebarOpen?: boolean;
   entityType?: string;
+  refreshKey?: number;
 }
 
-export function MetasList({ sidebarOpen, entityType }: MetasListProps) {
+export function MetasList({ sidebarOpen, entityType, refreshKey }: MetasListProps) {
   const { toast } = useToast();
   const [metas, setMetas] = useState<MetaProgresso[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,11 @@ export function MetasList({ sidebarOpen, entityType }: MetasListProps) {
   useEffect(() => {
     fetchMetas();
   }, [fetchMetas]);
+
+  // Refetch when data changes elsewhere (transaction added/edited/deleted)
+  useEffect(() => {
+    if (refreshKey !== undefined) fetchMetas();
+  }, [refreshKey, fetchMetas]);
 
   // Refetch when sidebar transitions from closed to open
   useEffect(() => {

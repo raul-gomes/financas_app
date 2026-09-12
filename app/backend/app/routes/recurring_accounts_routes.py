@@ -17,8 +17,7 @@ from app.schemas.categories import CategoriaCreate
 from app.schemas.subcategory import SubcategoriaCreate
 from app.logger import log_api_request
 
-router = APIRouter(prefix="/recurring-accounts", tags=["Recurring Accounts"],
-                   dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/recurring-accounts", tags=["Recurring Accounts"])
 
 
 async def _resolve_categoria_subcategoria(
@@ -193,7 +192,8 @@ async def renew_conta_recorrente(
     return conta
 
 
-@router.post("/generate", response_model=GenerateResponse)
+@router.post("/generate", response_model=GenerateResponse,
+             dependencies=[Depends(require_admin)])
 async def generate_recurrent_transactions(
     request: Request,
     payload: GenerateRequest,

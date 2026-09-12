@@ -12,9 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 interface ComprasListProps {
   sidebarOpen?: boolean;
   entityType?: string;
+  refreshKey?: number;
 }
 
-export function ComprasList({ sidebarOpen, entityType }: ComprasListProps) {
+export function ComprasList({ sidebarOpen, entityType, refreshKey }: ComprasListProps) {
   const { toast } = useToast();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
@@ -44,6 +45,11 @@ export function ComprasList({ sidebarOpen, entityType }: ComprasListProps) {
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
+
+  // Refetch when data changes elsewhere (transaction added/edited/deleted)
+  useEffect(() => {
+    if (refreshKey !== undefined) fetchItems();
+  }, [refreshKey, fetchItems]);
 
   // Refetch when sidebar transitions from closed to open
   useEffect(() => {
