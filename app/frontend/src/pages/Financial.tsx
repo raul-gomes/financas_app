@@ -338,9 +338,9 @@ const Financial = () => {
               ]}
             />
 
-            <div data-testid="financial-dashboard-grid" className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8 lg:h-[calc(150vh-200px)]">
+            <div data-testid="financial-dashboard-grid" className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8">
               {/* Dashboard */}
-              <div className="lg:col-span-3 animate-fade-in">
+              <div data-testid="financial-dashboard-cell" className="lg:col-span-3 animate-fade-in flex flex-col lg:min-h-[calc(100vh-200px)] lg:max-h-[calc(130vh-200px)] lg:overflow-hidden">
                 <FinancialDashboard
                   yearlyData={yearlyData}
                   totalInvested={monthlyBalance?.balance || 0}
@@ -362,8 +362,8 @@ const Financial = () => {
                 />
               </div>
               {/* Transactions List */}
-              <div className="lg:col-span-2 animate-slide-up">
-                <div className="bg-card rounded-lg shadow-card border border-border h-full">
+              <div className="lg:col-span-2 animate-slide-up flex flex-col lg:min-h-[calc(100vh-200px)] lg:max-h-[calc(130vh-200px)]">
+                <div className="bg-card rounded-lg shadow-card border border-border h-full flex flex-col min-h-0">
                   <TransactionList
                     transactions={sortedTransactions}
                     monthlyBalance={monthlyBalance}
