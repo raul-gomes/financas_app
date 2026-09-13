@@ -149,9 +149,9 @@ export function FinancialDashboard({
   );
 
   return (
-    <div className="flex flex-col h-full gap-4 overflow-y-auto">
+    <div className="flex flex-col h-full gap-4 overflow-y-auto lg:overflow-hidden">
       {/* Métricas Principais - 4 cards uniformes */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-shrink-0">
+      <div id="dashboard-ancora-metricas" className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-shrink-0">
         {/* Pix Card */}
         <div
           className="animate-slide-up h-full flex flex-col cursor-pointer"
@@ -323,7 +323,7 @@ export function FinancialDashboard({
       </div>
 
       {/* Grafico de Barras - Rendimento Anual / Diario */}
-      <div className="animate-slide-up shadow-card border-none rounded-lg bg-card flex-shrink-0" style={{ animationDelay: '400ms' }}>
+      <div id="dashboard-ancora-rendimento" className="animate-slide-up shadow-card border-none rounded-lg bg-card flex-shrink-0" style={{ animationDelay: '400ms' }}>
         <div className="px-4 py-2 h-[400px] w-full">
           <FlippableChart
             yearlyData={yearlyData}
@@ -340,7 +340,7 @@ export function FinancialDashboard({
       </div>
 
       {/* Gastos Fixos vs Variáveis — logo abaixo do gráfico */}
-      <div className="animate-slide-up" style={{ animationDelay: '600ms' }}>
+      <div id="dashboard-ancora-fixos-variaveis" className="animate-slide-up" style={{ animationDelay: '600ms' }}>
         <Card className="shadow-card border-none flex-shrink-0">
         <div className="p-4">
           <h3 className="text-sm font-semibold text-foreground mb-3">Gastos Fixos vs Variáveis</h3>
@@ -375,8 +375,8 @@ export function FinancialDashboard({
       </div>
 
       {/* Income + Category charts in a 2-column grid */}
-      <div className="animate-slide-up grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0" style={{ animationDelay: '800ms' }}>
-        <Card className="shadow-card border-none">
+      <div id="dashboard-ancora-categorias" className="animate-slide-up grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0 lg:flex-1 lg:min-h-0 lg:grid-rows-1" style={{ animationDelay: '800ms' }}>
+        <Card data-testid="income-box" className="shadow-card border-none lg:min-h-0 lg:overflow-y-auto">
           <IncomeChart
             breakdown={incomeBreakdown}
             dateRange={dateRange}
