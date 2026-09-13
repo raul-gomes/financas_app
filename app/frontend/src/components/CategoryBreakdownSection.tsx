@@ -53,7 +53,7 @@ export function CategoryBreakdownSection({
   }, [categoryBreakdown]);
 
   return (
-    <Card className="shadow-card border-none h-full">
+    <Card data-testid="category-box" className="shadow-card border-none h-full lg:min-h-0 lg:overflow-y-auto">
       <div className="p-4">
         <h3 className="text-lg font-semibold mb-4">Gastos por Categoria</h3>
         {dynamicCategoryExpenses.length === 0 ? (

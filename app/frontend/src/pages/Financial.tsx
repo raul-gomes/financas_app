@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { TransactionList } from '@/components/TransactionList';
 import { FinancialDashboard } from '@/components/dashboards/FinancialDashboard';
+import { ChartAnchors } from '@/components/dashboards/ChartAnchors';
 import { SidebarPanel } from '@/components/layout/SidebarPanel';
 import {
   Transaction,
@@ -327,7 +328,17 @@ const Financial = () => {
               </Popover>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8 lg:h-[calc(100vh-200px)]">
+            {/* Âncoras de navegação para cada gráfico do dashboard */}
+            <ChartAnchors
+              items={[
+                { id: 'dashboard-ancora-metricas', label: 'Métricas' },
+                { id: 'dashboard-ancora-rendimento', label: 'Rendimento' },
+                { id: 'dashboard-ancora-fixos-variaveis', label: 'Fixos vs Variáveis' },
+                { id: 'dashboard-ancora-categorias', label: 'Categorias' },
+              ]}
+            />
+
+            <div data-testid="financial-dashboard-grid" className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8 lg:h-[calc(150vh-200px)]">
               {/* Dashboard */}
               <div className="lg:col-span-3 animate-fade-in">
                 <FinancialDashboard
