@@ -50,11 +50,12 @@ vi.mock('@/components/layout/SidebarPanel', () => ({
   SidebarPanel: () => <div>sidebar-panel</div>,
 }));
 
-describe('Financial page - tela travada', () => {
-  it('trava a área do dashboard em ~150vh no desktop', () => {
+describe('Financial page - altura da tela', () => {
+  it('inicia em ~100vh e limita o crescimento em ~130vh no desktop', () => {
     render(<Financial />);
 
-    const grid = screen.getByTestId('financial-dashboard-grid');
-    expect(grid.className).toContain('lg:h-[calc(150vh-200px)]');
+    const cell = screen.getByTestId('financial-dashboard-cell');
+    expect(cell.className).toContain('lg:min-h-[calc(100vh-200px)]');
+    expect(cell.className).toContain('lg:max-h-[calc(130vh-200px)]');
   });
 });
