@@ -153,9 +153,16 @@ export function OverviewDashboard({ isAdmin = false }: OverviewDashboardProps) {
         <StatCard
           icon={CreditCard}
           label="Cartão"
-          value={`${Math.round(credit_card.percent_used)}%`}
+          value={
+            <span className="flex items-center gap-2">
+              {Math.round(credit_card.percent_used)}%
+              {credit_card.percent_used >= 100 && (
+                <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-destructive">Estourando</span>
+              )}
+            </span>
+          }
           hint={`${formatCurrency(credit_card.used)} de ${formatCurrency(credit_card.limit)}`}
-          tone={credit_card.percent_used >= 100 ? 'destructive' : credit_card.percent_used >= 70 ? 'warning' : 'success'}
+          tone={credit_card.percent_used >= 100 ? 'destructive' : credit_card.percent_used >= 80 ? 'warning' : 'success'}
         />
       </div>
 

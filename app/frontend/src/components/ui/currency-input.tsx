@@ -17,6 +17,14 @@ const formatDisplay = (canonical: string): string => {
   return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+/** Formata o rascunho enquanto o usuário digita: só separador de milhar, sem arredondar decimais. */
+const formatDraft = (canonical: string): string => {
+  if (!canonical) return ""
+  const [intPart, decPart] = canonical.split(".")
+  const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+  return decPart !== undefined ? `${intFormatted},${decPart}` : intFormatted
+}
+
 /** Converte o rascunho digitado (aceita "1234,56", "1.234,56", "1234.56") para canônico. */
 const parseDraft = (raw: string): string => {
   const cleaned = raw.replace(/[^\d.,]/g, "")
@@ -74,7 +82,7 @@ export function CurrencyInput({ value, onChange, className, ...props }: Currency
           "disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
           className,
         )}
-        value={focused ? draft : formatDisplay(value)}
+        value={focused ? formatDraft(draft) : formatDisplay(value)}
         onChange={handleChange}
         onFocus={(e) => {
           setFocused(true)

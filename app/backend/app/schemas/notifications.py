@@ -20,18 +20,14 @@ class NotificationItem(BaseModel):
     exceeded: bool
     created_at: Optional[str] = None
     read: bool
-    severity: str = Field(..., description="warning (<90) | critical (90-100) | destructive (>100)")
+    severity: str = Field(..., description="warning (80%) | critical (90%) | destructive (100%)")
     message: str = Field(..., description="Mensagem pronta para o frontend exibir")
 
     @classmethod
     def from_orm(cls, alerta) -> "NotificationItem":
         percent = alerta.percent_used
-        if percent > 100:
-            severity = "destructive"
-        elif percent >= 90:
-            severity = "critical"
-        else:
-            severity = "warning"
+        # Cor por threshold (cores separadas): 80%=âmbar, 90%=laranja, 100%=vermelho
+        severity = {80: "warning", 90: "critical", 100: "destructive"}.get(alerta.threshold, "warning")
 
         alvo = "Cartão de crédito" if alerta.scope == "credit_card" else f'"{alerta.category_name}"'
         if alerta.exceeded:
@@ -74,11 +70,18 @@ class MarkReadResponse(BaseModel):
 class CategoryRiskResponse(BaseModel):
     """Estado de risco de uma categoria ao criar/editar transação.
 
-    Frontend usa: is_over_limit → aviso não-bloqueante "está estourado o limite".
+    Frontend usa: is_over_limit → aviso não-bloqueante "está estourado o limite";
+    projected_percent_used/severity/thresholds_hit → % projetada (gasto atual +
+    valor digitado) com cores separadas por threshold (80/90/100).
     """
     category_id: int
     category_name: str
     limit: float
     spent: float
+    amount: float = Field(0, description="Valor da transação digitado (projeção)")
+    projected_spent: float = Field(0, description="gasto atual + amount")
     percent_used: float
-    is_over_limit: bool
+    projected_percent_used: float = Field(0, description="% do limite após somar o valor digitado")
+    is_over_limit: bool = Field(False, description="projeção >= 100%")
+    severity: Optional[str] = Field(None, description="warning (80) | critical (90) | destructive (100); None se <80%")
+    thresholds_hit: List[int] = Field(default_factory=list, description="thresholds 80/90/100 atingidos pela projeção")

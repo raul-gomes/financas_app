@@ -1,0 +1,89 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { LimitsTab } from './LimitsTab';
+
+const mockGetLimits = vi.fn();
+const mockGetLimitsWithSpending = vi.fn();
+const mockSaveLimits = vi.fn();
+const mockToast = vi.fn();
+
+vi.mock('@/services/financialService', () => ({
+  FinancialService: {
+    getLimits: (...args: unknown[]) => mockGetLimits(...args),
+    getLimitsWithSpending: (...args: unknown[]) => mockGetLimitsWithSpending(...args),
+    saveLimits: (...args: unknown[]) => mockSaveLimits(...args),
+  },
+}));
+
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({ toast: mockToast }),
+}));
+
+const limits = [
+  { id: 1, name: 'Alimentacao', entity_type: 'individual', limit: 500, subcategories: [{ id: 1, name: 'Mercado' }] },
+  { id: 2, name: 'Lazer', entity_type: 'individual', limit: 1000, subcategories: [] },
+  { id: 3, name: 'Compras', entity_type: 'individual', limit: 1000, subcategories: [] },
+];
+
+const spending = {
+  month: '2026-09',
+  categories: [
+    { id: 1, category_name: 'Alimentacao', entity_type: 'individual', limit: 500, spent: 400, remaining: 100, percent_used: 80, subcategories: [] },
+    { id: 2, category_name: 'Lazer', entity_type: 'individual', limit: 1000, spent: 900, remaining: 100, percent_used: 90, subcategories: [] },
+    { id: 3, category_name: 'Compras', entity_type: 'individual', limit: 1000, spent: 1200, remaining: -200, percent_used: 120, subcategories: [] },
+  ],
+  total_limit: 2500,
+  total_spent: 2500,
+  total_remaining: 0,
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockGetLimits.mockResolvedValue(limits);
+  mockGetLimitsWithSpending.mockResolvedValue(spending);
+  mockSaveLimits.mockResolvedValue({ success: true, message: 'Limites atualizados com sucesso!' });
+});
+
+describe('LimitsTab', () => {
+  it('mostra o % de uso pré-save por categoria e some ao aumentar o limite', async () => {
+    render(<LimitsTab />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('limit-alert-alimentacao')).toBeTruthy();
+    });
+    const banner = screen.getByText(/Alimentacao/);
+    expect(banner.textContent).toMatch(/80%/);
+
+    const limitInput = screen.getByDisplayValue('500');
+    fireEvent.change(limitInput, { target: { value: '1000' } });
+
+    expect(screen.queryByTestId('limit-alert-alimentacao')).toBeNull();
+  });
+
+  it('aplica cor por threshold: 80=alerta, 90=crítico, 120=estourado', async () => {
+    render(<LimitsTab />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('limit-alert-alimentacao')).toBeTruthy();
+    });
+    expect(screen.getByTestId('limit-alert-alimentacao').dataset.severity).toBe('warning');
+    expect(screen.getByTestId('limit-alert-lazer').dataset.severity).toBe('critical');
+    expect(screen.getByTestId('limit-alert-compras').dataset.severity).toBe('destructive');
+  });
+
+  it('avisa antes de persistir com toast listando categorias perto/estouradas', async () => {
+    render(<LimitsTab />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('limit-alert-compras')).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Alterações/ }));
+
+    await waitFor(() => {
+      expect(mockSaveLimits).toHaveBeenCalled();
+    });
+    const toastPayloads = mockToast.mock.calls.map(call => JSON.stringify(call[0]));
+    expect(toastPayloads.some(t => t.includes('Alimentacao') && t.includes('80'))).toBe(true);
+    expect(toastPayloads.some(t => t.includes('Compras') && t.includes('120'))).toBe(true);
+  });
+});

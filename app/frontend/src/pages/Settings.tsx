@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,9 +11,7 @@ import {
   Lock,
   Mail,
   Banknote,
-  Search,
   Trash2,
-  Plus,
   Check,
   X,
   Building2,
@@ -22,10 +20,10 @@ import {
   SettingsService,
   Profile,
   UserBank,
-  BrasilApiBank,
   PluggyAccount,
 } from '@/services/settingsService';
-import { BankLogo } from '@/components/ui/bank-logo';
+import { BankLogo, BankLogoFallback } from '@/components/ui/bank-logo';
+import { BankSearchInput } from '@/components/ui/bank-search';
 import { PageHeader } from '@/components/ui/page-header';
 import { useRole } from '@/contexts/RoleContext';
 
@@ -42,15 +40,7 @@ const Settings = () => {
 
   // ── Banks state ──
   const [banks, setBanks] = useState<UserBank[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<BrasilApiBank[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const [addingBank, setAddingBank] = useState(false);
   const [loadingBanks, setLoadingBanks] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // ── Pluggy state ──
   const [pluggyApiKey, setPluggyApiKey] = useState('');
@@ -120,62 +110,6 @@ const Settings = () => {
 
   const hasProfileChanges =
     name !== profile?.name || email !== profile?.email || password.length > 0;
-
-  // ── Bank search ──
-  useEffect(() => {
-    if (searchQuery.length < 2) {
-      setSearchResults([]);
-      setShowDropdown(false);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      const results = await SettingsService.searchBrasilApi(searchQuery);
-      setSearchResults(results);
-      setShowDropdown(results.length > 0);
-      setHighlightedIndex(results.length > 0 ? 0 : -1);
-      setSearching(false);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  // Scroll highlighted item into view when navigating with keyboard
-  useEffect(() => {
-    if (highlightedIndex < 0 || !dropdownRef.current) return;
-    const items = dropdownRef.current.querySelectorAll('button');
-    if (items[highlightedIndex]) {
-      items[highlightedIndex].scrollIntoView({ block: 'nearest' });
-    }
-  }, [highlightedIndex]);
-
-  const handleSelectBank = async (bank: BrasilApiBank) => {
-    setShowDropdown(false);
-    setSearchQuery('');
-    setAddingBank(true);
-    try {
-      const newBank = await SettingsService.addBank({
-        bank_code: bank.code?.toString() || bank.ispb,
-        bank_name: bank.fullName || bank.name,
-      });
-      setBanks((prev) => [...prev, newBank]);
-      toast({ title: 'Banco adicionado', description: bank.fullName || bank.name });
-    } catch {
-      toast({ title: 'Erro', description: 'Falha ao adicionar banco.', variant: 'destructive' });
-    } finally {
-      setAddingBank(false);
-    }
-  };
 
   const handleRemoveBank = async (bank: UserBank) => {
     try {
@@ -263,18 +197,6 @@ const Settings = () => {
   };
 
   // ── Helpers ──
-  const bankInitials = (name: string) => {
-    const words = name.replace(/S\.A\.?$/i, '').trim().split(/\s+/);
-    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
-    return words[0].slice(0, 2).toUpperCase();
-  };
-
-  const bankColors = [
-    'bg-blue-500', 'bg-orange-500', 'bg-emerald-500', 'bg-purple-500',
-    'bg-pink-500', 'bg-teal-500', 'bg-red-500', 'bg-indigo-500',
-    'bg-cyan-500', 'bg-amber-500', 'bg-lime-500', 'bg-rose-500',
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-subtle px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       <div className="max-w-4xl mx-auto">
@@ -373,90 +295,15 @@ const Settings = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Search input */}
-            <div className="relative" ref={searchRef}>
+            {/* Search input (busca na Brasil API + cria via API) */}
+            <div>
               <Label className="text-sm font-medium mb-2 block">
                 Adicionar banco
               </Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (!showDropdown || searchResults.length === 0) return;
-
-                    switch (e.key) {
-                      case 'ArrowDown':
-                        e.preventDefault();
-                        setHighlightedIndex((prev) =>
-                          prev < searchResults.length - 1 ? prev + 1 : prev
-                        );
-                        break;
-                      case 'ArrowUp':
-                        e.preventDefault();
-                        setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0));
-                        break;
-                      case 'Enter': {
-                        e.preventDefault();
-                        const idx =
-                          highlightedIndex >= 0 && highlightedIndex < searchResults.length
-                            ? highlightedIndex
-                            : 0;
-                        handleSelectBank(searchResults[idx]);
-                        break;
-                      }
-                      case 'Escape':
-                        e.preventDefault();
-                        setShowDropdown(false);
-                        setSearchQuery('');
-                        break;
-                    }
-                  }}
-                  placeholder="Digite o nome do banco... (Enter para adicionar)"
-                  className="w-full pl-10 pr-4"
-                />
-                {searching && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                    Buscando...
-                  </span>
-                )}
-              </div>
-
-              {/* Autocomplete dropdown */}
-              {showDropdown && (
-                <div
-                  ref={dropdownRef}
-                  className="absolute z-20 mt-1 w-full bg-card border border-border rounded-lg shadow-lg overflow-hidden"
-                >
-                  {searchResults.map((bank, idx) => (
-                    <button
-                      key={bank.ispb}
-                      onClick={() => handleSelectBank(bank)}
-                      onMouseEnter={() => setHighlightedIndex(idx)}
-                      disabled={addingBank}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b border-border last:border-b-0 disabled:opacity-50 ${
-                        idx === highlightedIndex
-                          ? 'bg-primary/10 text-primary'
-                          : 'hover:bg-muted text-foreground'
-                      }`}
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
-                        {bank.code || '--'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {bank.fullName || bank.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Código: {bank.code || 'N/A'} · ISPB: {bank.ispb}
-                        </div>
-                      </div>
-                      <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              )}
+              <BankSearchInput
+                className="relative"
+                onBankAdded={(bank) => setBanks((prev) => [...prev, bank])}
+              />
             </div>
 
             {/* Banks list */}
@@ -489,13 +336,7 @@ const Settings = () => {
                           size="lg"
                           className="rounded-xl border border-border/40 p-1 shadow-sm"
                           alt={bank.bank_name}
-                          fallback={
-                            <div
-                              className={`w-10 h-10 rounded-xl ${bankColors[idx % bankColors.length]} text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-sm`}
-                            >
-                              {bankInitials(bank.bank_name)}
-                            </div>
-                          }
+                          fallback={<BankLogoFallback name={bank.bank_name} index={idx} size="lg" className="rounded-xl shadow-sm" />}
                         />
                         <div>
                           <div className="font-medium text-sm text-foreground">

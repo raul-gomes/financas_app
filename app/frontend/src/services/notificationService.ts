@@ -24,8 +24,10 @@ export class NotificationService {
     return res.json();
   }
 
-  static async checkCategoryRisk(categoryId: number): Promise<CategoryRiskResponse> {
-    const res = await apiFetch(`/limits/risk-check?category_id=${categoryId}`);
+  static async checkCategoryRisk(categoryId: number, amount: number = 0): Promise<CategoryRiskResponse> {
+    const params = new URLSearchParams({ category_id: categoryId.toString() });
+    if (amount > 0) params.set('amount', amount.toString());
+    const res = await apiFetch(`/limits/risk-check?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao verificar risco da categoria`);
     return res.json();
   }

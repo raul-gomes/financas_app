@@ -120,9 +120,9 @@ export function DuplicateDialog({
           <div className="rounded-lg border border-border p-3">
             <p className="text-xs font-medium text-muted-foreground mb-2">Transação existente:</p>
             <p className="font-medium">{current.existing.description}</p>
-            <p className="text-sm text-muted-foreground">
-              {formatCurrency(current.existing.amount)} — {new Date(current.existing.transaction_date).toLocaleDateString('en-US')}
-            </p>
+<p className="text-sm text-muted-foreground">
+                {formatCurrency(current.existing.amount)} — {new Date(current.existing.transaction_date).toLocaleDateString('pt-BR')}
+              </p>
             {current.existing.category_name && (
               <p className="text-xs text-muted-foreground mt-1">
                 {current.existing.category_name}{current.existing.subcategory_name ? ` / ${current.existing.subcategory_name}` : ''}
@@ -135,7 +135,7 @@ export function DuplicateDialog({
             <p className="text-xs font-medium text-primary mb-2">Nova transação:</p>
             <p className="font-medium">{current.newData.description}</p>
             <p className="text-sm text-muted-foreground">
-              {formatCurrency(current.newData.amount)} — {new Date(current.newData.transaction_date + 'T12:00:00').toLocaleDateString('en-US')}
+              {formatCurrency(current.newData.amount)} — {new Date(current.newData.transaction_date + 'T12:00:00').toLocaleDateString('pt-BR')}
             </p>
           </div>
         </div>

@@ -30,6 +30,11 @@ export interface CategoryRiskResponse {
   category_name: string;
   limit: number;
   spent: number;
+  amount: number;
+  projected_spent: number;
   percent_used: number;
+  projected_percent_used: number;
   is_over_limit: boolean;
+  severity: 'warning' | 'critical' | 'destructive' | null;
+  thresholds_hit: number[];
 }

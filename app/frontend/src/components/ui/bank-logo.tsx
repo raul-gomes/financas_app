@@ -8,6 +8,46 @@ export const BANK_LOGO_CDN =
 /** URL do logo a partir do código FEBRABAN (ex.: '260' → .../260.png). */
 export const bankLogoUrl = (code: string) => `${BANK_LOGO_CDN}/${code.padStart(3, "0")}.png`
 
+/** Iniciais do banco (mesma regra usada no fallback do logo). */
+export const bankInitials = (name: string) => {
+  const words = name.replace(/S\.A\.?$/i, "").trim().split(/\s+/)
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()
+  return words[0].slice(0, 2).toUpperCase()
+}
+
+/** Paleta do fallback com iniciais por posição do banco na lista. */
+export const BANK_COLORS = [
+  "bg-blue-500", "bg-orange-500", "bg-emerald-500", "bg-purple-500",
+  "bg-pink-500", "bg-teal-500", "bg-red-500", "bg-indigo-500",
+  "bg-cyan-500", "bg-amber-500", "bg-lime-500", "bg-rose-500",
+]
+
+/** Fallback padrão com iniciais coloridas (usado por Settings e pelo modal de transação). */
+export function BankLogoFallback({
+  name,
+  index = 0,
+  size = "sm",
+  className,
+}: {
+  name: string
+  index?: number
+  size?: "xs" | "sm" | "md" | "lg"
+  className?: string
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center rounded font-bold leading-none text-white",
+        sizeClasses[size],
+        BANK_COLORS[index % BANK_COLORS.length],
+        className,
+      )}
+    >
+      {bankInitials(name)}
+    </span>
+  )
+}
+
 interface BankLogoProps {
   /** Código FEBRABAN do banco. Se ausente, exibe o fallback. */
   code?: string | null

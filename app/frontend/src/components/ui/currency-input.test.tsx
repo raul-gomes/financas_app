@@ -49,6 +49,18 @@ describe('CurrencyInput', () => {
     expect(onChange).toHaveBeenCalledWith('123');
   });
 
+  it('mascara enquanto digita (separador de milhar ao vivo)', () => {
+    render(<CurrencyInput value="" onChange={() => {}} />);
+
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '1234567' } });
+    expect(input).toHaveValue('1.234.567');
+
+    fireEvent.change(input, { target: { value: '1234,56' } });
+    expect(input).toHaveValue('1.234,56');
+  });
+
   it('limpar o campo emite string vazia e exibe vazio', () => {
     const onChange = vi.fn();
     const { rerender } = render(<CurrencyInput value="99.9" onChange={onChange} />);
