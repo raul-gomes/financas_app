@@ -14,7 +14,7 @@ from app.db.repositories.limit_alert import LimitAlertRepository
 from app.services.email_service import send_limit_alert_email
 from app.logger import logger
 
-THRESHOLDS = [70, 80, 90, 100]
+THRESHOLDS = [80, 90, 100]
 
 # Categorias que não geram alerta de limite normal:
 #  - "Limite Cartao Credito" → tratado como escopo credit_card (cartão)

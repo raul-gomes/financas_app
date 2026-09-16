@@ -3,7 +3,7 @@ import {
   FinancialSummary, YearlyPerformance, CategoryBreakdown,
   IncomeBySubcategoria, Transaction, LimitsPayload,
   CategorySubcategories, Category, LimitsUpdateResponse,
-  DuplicateCheckResponse,
+  DuplicateCheckResponse, LimitsWithSpending,
 } from '@/types/financial';
 
 export class FinancialService {
@@ -136,6 +136,13 @@ export class FinancialService {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status}`);
+    return res.json();
+  }
+
+  static async getLimitsWithSpending(year: number, month: number): Promise<LimitsWithSpending> {
+    const params = new URLSearchParams({ year: year.toString(), month: month.toString() });
+    const res = await apiFetch(`/limits/with-spending?${params}`);
+    if (!res.ok) throw new Error(`Erro ${res.status} ao buscar limites com gastos`);
     return res.json();
   }
 }

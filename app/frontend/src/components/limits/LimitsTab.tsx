@@ -39,6 +39,7 @@ interface LimitsTabProps {
 export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
     const [rawData, setRawData] = useState<Category[]>([])
     const [loading, setLoading] = useState(false)
+    const [spending, setSpending] = useState<Record<string, number>>({})
     const { toast } = useToast()
 
     // Map backend entity_type to local: 'individual'->'pf', 'business'->'pj'
@@ -97,6 +98,32 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
             })
             .finally(() => setLoading(false))
     }, [toast])
+
+    // Gasto real do mês por categoria (key: nome|pf/pj) para o aviso de % pré-save
+    useEffect(() => {
+        const now = new Date()
+        FinancialService.getLimitsWithSpending(now.getFullYear(), now.getMonth() + 1)
+            .then(res => {
+                const map: Record<string, number> = {}
+                for (const cat of res.categories) {
+                    const entity = cat.entity_type === 'individual' ? 'pf' : cat.entity_type === 'business' ? 'pj' : cat.entity_type
+                    map[`${cat.category_name.trim().toLowerCase()}|${entity}`] = cat.spent
+                }
+                setSpending(map)
+            })
+            .catch(() => { /* sem gastos disponíveis o aviso simplesmente não aparece */ })
+    }, [])
+
+    // % de uso pré-save: gato real do mês ÷ limite digitado (antes de persistir)
+    const limitAlert = (cat: Category): { severity: 'warning' | 'critical' | 'destructive'; percent: number; spent: number } | null => {
+        const spent = spending[`${cat.name.trim().toLowerCase()}|${cat.entity_type}`] ?? 0
+        const limit = cat.limit || 0
+        if (limit <= 0 || cat.name.trim() === '') return null
+        const percent = Math.round((spent / limit) * 100)
+        if (percent < 80) return null
+        const severity = percent >= 100 ? 'destructive' : percent >= 90 ? 'critical' : 'warning'
+        return { severity, percent, spent }
+    }
 
     const updateCategoryField = (catId: number | string, key: keyof Category, value: any) => {
         setRawData(prev => prev.map(cat => cat.id === catId ? { ...{ ...cat, [key]: value }, isModified: !cat.isNew && cat.isModified !== false ? true : cat.isModified } : cat))
@@ -188,6 +215,16 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
     }
 
     const handleSave = async () => {
+        const affected = data
+            .map(cat => ({ cat, alert: limitAlert(cat) }))
+            .filter((x): x is { cat: Category; alert: { severity: 'warning' | 'critical' | 'destructive'; percent: number; spent: number } } => x.alert !== null)
+        if (affected.length > 0) {
+            toast({
+                title: 'Atenção: limites próximos do estouro',
+                description: affected.map(({ cat, alert }) => `"${cat.name}" (${alert.percent}%)`).join(', '),
+            })
+        }
+
         setLoading(true)
         try {
             const res = await FinancialService.saveLimits(preparePayloadForSave())
@@ -246,6 +283,26 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
                                 </div>
                                 <Button variant="ghost" size="sm" onClick={() => deleteCategory(cat.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                             </div>
+                            {(() => {
+                                const alert = limitAlert(cat)
+                                if (!alert) return null
+                                const styles = {
+                                    warning: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
+                                    critical: 'bg-orange-500/15 text-orange-600 border-orange-500/30',
+                                    destructive: 'bg-destructive/15 text-destructive border-destructive/30',
+                                }[alert.severity]
+                                const suffix = alert.severity === 'destructive' ? ' (estoura agora!)' : alert.severity === 'critical' ? ' (crítico)' : ''
+                                return (
+                                    <div
+                                        data-testid={`limit-alert-${cat.name.trim().toLowerCase()}`}
+                                        data-severity={alert.severity}
+                                        className={`rounded-md border px-3 py-2 text-sm font-medium ${styles}`}
+                                    >
+                                        Este limite deixará "{cat.name}" com {alert.percent}% de uso neste mês
+                                        (R$ {alert.spent.toLocaleString('pt-BR')} gastos){suffix}.
+                                    </div>
+                                )
+                            })()}
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <span className="font-medium text-sm">Subcategorias</span>

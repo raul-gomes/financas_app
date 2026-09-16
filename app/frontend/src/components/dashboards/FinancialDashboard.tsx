@@ -218,7 +218,12 @@ export function FinancialDashboard({
               {creditCardLimit > 0 && (
                 <div className="mt-2">
                   <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                    <span>{(creditTotal / creditCardLimit * 100).toFixed(0)}% usado</span>
+                    <span className="flex items-center gap-2">
+                      {(creditTotal / creditCardLimit * 100).toFixed(0)}% usado
+                      {creditTotal > creditCardLimit && (
+                        <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-destructive">Estourando</span>
+                      )}
+                    </span>
                     <span>Limite: R$ {creditCardLimit.toLocaleString('en-US')}</span>
                   </div>
                   <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
@@ -226,7 +231,7 @@ export function FinancialDashboard({
                       className={`h-full rounded-full transition-all duration-700 ease-out ${
                         creditTotal > creditCardLimit
                           ? 'bg-destructive'
-                          : creditTotal > creditCardLimit * 0.7
+                          : creditTotal > creditCardLimit * 0.8
                           ? 'bg-warning'
                           : 'bg-success'
                       }`}

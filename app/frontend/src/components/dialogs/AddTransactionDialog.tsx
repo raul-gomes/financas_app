@@ -19,15 +19,43 @@ import { FinancialService } from '@/services/financialService';
 import { SettingsService, UserBank } from '@/services/settingsService';
 import { NotificationService } from '@/services/notificationService';
 import { CategoryRiskResponse } from '@/types/notifications';
+import { formatCurrency } from '@/lib/format';
 import { Plus, AlertTriangle } from 'lucide-react';
 import { DuplicateDialog, DialogAction } from '@/components/dialogs/DuplicateDialog';
-import { BankLogo } from '@/components/ui/bank-logo';
+import { BankLogo, BankLogoFallback } from '@/components/ui/bank-logo';
+import { BankSearchInput } from '@/components/ui/bank-search';
 
 interface AddTransactionDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onAddTransaction: (transaction: Transaction) => void;
 }
+
+const maskDateBR = (raw: string): string => {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
+
+const brToIso = (br: string): string => {
+  const m = br.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return '';
+  const iso = `${m[3]}-${m[2]}-${m[1]}`;
+  const date = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? '' : iso;
+};
+
+const isoToBr = (iso: string): string => {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+};
+
+// Nomes exibidos para as categorias automáticas (internamente seguem o padrão do backend)
+const CATEGORY_LABELS: Record<string, string> = {
+  Income: 'Receita',
+  Investments: 'Investimentos',
+};
 
 
 export function AddTransactionDialog({
@@ -56,8 +84,7 @@ export function AddTransactionDialog({
   const [showNewPaymentMethodInput, setShowNewPaymentMethodInput] = useState(false);
   const [newPaymentMethodName, setNewPaymentMethodName] = useState('');
   const [addingNewBank, setAddingNewBank] = useState(false);
-  const [newBankCode, setNewBankCode] = useState('');
-  const [newBankName, setNewBankName] = useState('');
+  const [dateInput, setDateInput] = useState(() => isoToBr(new Date().toISOString().split('T')[0]));
   const [categoryRisk, setCategoryRisk] = useState<CategoryRiskResponse | null>(null);
   const { toast } = useToast();
 
@@ -90,7 +117,7 @@ export function AddTransactionDialog({
     }
   }, [isOpen]);
 
-  // Aviso não-bloqueante: categoria com limite estourado (somente despesa)
+  // Aviso não-bloqueante: projeção de limite (gasto atual + valor digitado)
   useEffect(() => {
     if (formData.type !== 'expense') {
       setCategoryRisk(null);
@@ -104,7 +131,8 @@ export function AddTransactionDialog({
       return;
     }
     let cancelled = false;
-    NotificationService.checkCategoryRisk(catObj.id)
+    const amount = parseFloat(formData.amount) || 0;
+    NotificationService.checkCategoryRisk(catObj.id, amount)
       .then(risk => {
         if (!cancelled) setCategoryRisk(risk);
       })
@@ -112,7 +140,7 @@ export function AddTransactionDialog({
         // falha silenciosa — o aviso é bônus, não deve quebrar o fluxo
       });
     return () => { cancelled = true; };
-  }, [formData.category_name, formData.entity_type, formData.type, categoryOptions]);
+  }, [formData.category_name, formData.entity_type, formData.type, formData.amount, categoryOptions]);
 
   // Calculate installment amount
   const calculateInstallmentAmount = () => {
@@ -144,6 +172,7 @@ export function AddTransactionDialog({
     setShowNewSubcategoryInput(false);
     setShowNewPaymentMethodInput(false);
     setCategoryRisk(null);
+    setDateInput(isoToBr(new Date().toISOString().split('T')[0]));
     onClose();
   };
 
@@ -186,11 +215,11 @@ export function AddTransactionDialog({
   const executeAdd = async (payload: any) => {
     try {
       await FinancialService.addTransaction(payload);
-      toast({ title: 'Transaction added', description: 'Success!' });
+      toast({ title: 'Transação adicionada', description: 'Sucesso!' });
       handleClose();
       onAddTransaction(payload as unknown as Transaction);
     } catch {
-      toast({ title: 'Error', description: 'Failed to create transaction.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Falha ao criar transação.', variant: 'destructive' });
     }
   };
 
@@ -199,8 +228,17 @@ export function AddTransactionDialog({
 
     if (!formData.amount || !formData.description || !formData.category_name || !formData.subcategory_name) {
       toast({
-        title: 'Error',
-        description: 'Please fill in all required fields.',
+        title: 'Erro',
+        description: 'Preencha todos os campos obrigatórios.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!formData.transaction_date) {
+      toast({
+        title: 'Erro',
+        description: 'Informe uma data válida.',
         variant: 'destructive'
       });
       return;
@@ -245,7 +283,7 @@ export function AddTransactionDialog({
         await FinancialService.deleteTransaction(duplicateConflict.existing.id);
         await executeAdd(duplicateConflict.payload);
       } catch {
-        toast({ title: 'Error', description: 'Failed to replace transaction.', variant: 'destructive' });
+        toast({ title: 'Erro', description: 'Falha ao substituir transação.', variant: 'destructive' });
       }
       setDuplicateConflict(null);
     } else if (action === 'edit') {
@@ -261,11 +299,11 @@ export function AddTransactionDialog({
       <ResponsiveModal
         open={isOpen}
         onOpenChange={(open) => !open && handleClose()}
-        title="New Transaction"
+        title="Nova Transação"
         footer={
           <>
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-              Cancel
+              Cancelar
             </Button>
             <Button
               type="submit"
@@ -273,7 +311,7 @@ export function AddTransactionDialog({
               className="flex-1 bg-gradient-primary"
               disabled={isCheckingDuplicate}
             >
-              {isCheckingDuplicate ? 'Checking...' : 'Add'}
+              {isCheckingDuplicate ? 'Verificando...' : 'Adicionar'}
             </Button>
           </>
         }
@@ -281,7 +319,7 @@ export function AddTransactionDialog({
         <form id="add-transaction-form" onSubmit={handleSubmit} className="space-y-4">
           {/* Type + Entity Type (inline) */}
           <div className="space-y-2">
-            <Label>Type</Label>
+            <Label>Tipo</Label>
             <div className="flex items-center justify-between">
               <RadioGroup
                 value={formData.type}
@@ -298,25 +336,25 @@ export function AddTransactionDialog({
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="expense" id="expense" />
-                  <Label htmlFor="expense" className="text-destructive font-medium">Expense</Label>
+                  <Label htmlFor="expense" className="text-destructive font-medium">Despesa</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="income" id="income" />
-                  <Label htmlFor="income" className="text-success font-medium">Income</Label>
+                  <Label htmlFor="income" className="text-success font-medium">Receita</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="investment" id="investment" />
-                  <Label htmlFor="investment" className="text-warning font-medium">Investment</Label>
+                  <Label htmlFor="investment" className="text-warning font-medium">Investimento</Label>
                 </div>
               </RadioGroup>
               {/* Individual/Business Switch */}
               <div className="flex items-center gap-2 shrink-0">
-                <span className={`text-xs font-medium ${formData.entity_type === 'individual' ? 'text-foreground' : 'text-muted-foreground'}`}>Individual</span>
+                <span className={`text-xs font-medium ${formData.entity_type === 'individual' ? 'text-foreground' : 'text-muted-foreground'}`}>PF</span>
                 <Switch
                   checked={formData.entity_type === 'business'}
                   onCheckedChange={(checked) => setFormData({ ...formData, entity_type: checked ? 'business' : 'individual' })}
                 />
-                <span className={`text-xs font-medium ${formData.entity_type === 'business' ? 'text-foreground' : 'text-muted-foreground'}`}>Business</span>
+                <span className={`text-xs font-medium ${formData.entity_type === 'business' ? 'text-foreground' : 'text-muted-foreground'}`}>PJ</span>
               </div>
             </div>
           </div>
@@ -324,7 +362,7 @@ export function AddTransactionDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Amount */}
             <div className="space-y-2">
-              <Label htmlFor="amount">Amount *</Label>
+              <Label htmlFor="amount">Valor *</Label>
               <CurrencyInput
                 id="amount"
                 placeholder="0,00"
@@ -336,22 +374,28 @@ export function AddTransactionDialog({
 
             {/* Date */}
             <div className="space-y-2">
-              <Label htmlFor="transaction_date">Date</Label>
+              <Label htmlFor="transaction_date">Data</Label>
               <Input
                 id="transaction_date"
-                type="date"
-                value={formData.transaction_date}
-                onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+                type="text"
+                inputMode="numeric"
+                placeholder="dd/mm/aaaa"
+                value={dateInput}
+                onChange={(e) => {
+                  const masked = maskDateBR(e.target.value);
+                  setDateInput(masked);
+                  setFormData({ ...formData, transaction_date: brToIso(masked) });
+                }}
               />
             </div>
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
+            <Label htmlFor="description">Descrição *</Label>
             <Input
               id="description"
-              placeholder="Ex: Supermarket, Salary, etc."
+              placeholder="Ex: Mercado, Salário, etc."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               required
@@ -361,13 +405,13 @@ export function AddTransactionDialog({
           {/* Category + Subcategory */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="category_name">Category *</Label>
+              <Label htmlFor="category_name">Categoria *</Label>
 
             {/* When income/investment: disabled input with fixed value (category might not exist in DB yet) */}
             {formData.type === 'income' || formData.type === 'investment' ? (
               <Input
                 id="category_name"
-                value={formData.category_name}
+                value={CATEGORY_LABELS[formData.category_name] ?? formData.category_name}
                 disabled
                 className="bg-muted cursor-not-allowed"
               />
@@ -387,7 +431,7 @@ export function AddTransactionDialog({
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
+                    <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
                     {categoryOptions?.options.map(cat => (
@@ -395,16 +439,16 @@ export function AddTransactionDialog({
                         {cat.name}
                       </SelectItem>
                     ))}
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="other">Outra</SelectItem>
                   </SelectContent>
                 </Select>
 
                 {showNewCategoryInput && (
                   <div className="space-y-2 mt-2">
-                    <Label htmlFor="newCategory">New Category</Label>
+                    <Label htmlFor="newCategory">Nova categoria</Label>
                     <Input
                       id="newCategory"
-                      placeholder="Enter new category"
+                      placeholder="Digite a nova categoria"
                       value={newCategoryName}
                       onChange={(e) => {
                         const value = e.target.value;
@@ -424,7 +468,7 @@ export function AddTransactionDialog({
 
             {formData.category_name && (
               <div className="space-y-2">
-              <Label htmlFor="subcategory_name">Subcategory *</Label>
+              <Label htmlFor="subcategory_name">Subcategoria *</Label>
               <Select
                 value={showNewSubcategoryInput ? 'other' : formData.subcategory_name}
                 onValueChange={(value) => {
@@ -439,7 +483,7 @@ export function AddTransactionDialog({
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a subcategory" />
+                  <SelectValue placeholder="Selecione uma subcategoria" />
                 </SelectTrigger>
                 <SelectContent>
                   {categoryOptions?.options
@@ -449,16 +493,16 @@ export function AddTransactionDialog({
                         {sub.name}
                       </SelectItem>
                     ))}
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="other">Outra</SelectItem>
                 </SelectContent>
               </Select>
 
               {showNewSubcategoryInput && (
                 <div className="space-y-2 mt-2">
-                  <Label htmlFor="newSubcategory">New Subcategory</Label>
+                  <Label htmlFor="newSubcategory">Nova subcategoria</Label>
                   <Input
                     id="newSubcategory"
-                    placeholder="Enter new subcategory"
+                    placeholder="Digite a nova subcategoria"
                     value={newSubcategoryName}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -475,35 +519,48 @@ export function AddTransactionDialog({
             )}
           </div>
 
-          {/* Aviso não-bloqueante: categoria estourada */}
-          {categoryRisk?.is_over_limit && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-destructive"
-            >
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              <div className="text-sm">
-                <p className="font-medium">
-                  O limite de "{categoryRisk.category_name}" está estourado
-                </p>
-                <p className="text-xs mt-0.5">
-                  Gasto atual: {categoryRisk.percent_used.toFixed(0)}% do limite. Segure a mão!
-                </p>
-              </div>
-            </div>
+          {/* Aviso não-bloqueante: projeção de limite com cores por threshold */}
+          {categoryRisk && categoryRisk.limit > 0 && (
+            (() => {
+              const severity = categoryRisk.severity ?? (categoryRisk.is_over_limit ? 'destructive' : null);
+              if (!severity) return null;
+              const bannerStyles = {
+                warning: 'border-amber-500/30 bg-amber-500/15 text-amber-600',
+                critical: 'border-orange-500/30 bg-orange-500/15 text-orange-600',
+                destructive: 'border-destructive/40 bg-destructive/10 text-destructive',
+              }[severity];
+              return (
+                <div
+                  role="alert"
+                  data-testid="category-risk-banner"
+                  data-severity={severity}
+                  className={`flex items-start gap-2 rounded-lg border p-3 ${bannerStyles}`}
+                >
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div className="text-sm space-y-1">
+                    <p className="font-medium">
+                      {categoryRisk.is_over_limit
+                        ? `Adicionar estourará o limite de "${categoryRisk.category_name}"`
+                        : `Atenção no limite de "${categoryRisk.category_name}"`}
+                    </p>
+                    <p className="text-xs opacity-90">
+                      Gasto atual {formatCurrency(categoryRisk.spent)} + {formatCurrency(categoryRisk.amount)} = {formatCurrency(categoryRisk.projected_spent)} → {categoryRisk.projected_percent_used.toFixed(0)}% do limite{categoryRisk.is_over_limit ? '. Segure a mão!' : ''}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()
           )}
 
           {/* Bank + Payment Method */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="bank">Bank</Label>
+              <Label htmlFor="bank">Banco</Label>
             <Select
               value={addingNewBank ? '+add' : bankCode}
               onValueChange={(value) => {
                 if (value === '+add') {
                   setAddingNewBank(true);
-                  setNewBankCode('');
-                  setNewBankName('');
                 } else {
                   setAddingNewBank(false);
                   setBankCode(value);
@@ -511,14 +568,19 @@ export function AddTransactionDialog({
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a bank" />
+                <SelectValue placeholder="Selecione um banco" />
               </SelectTrigger>
               <SelectContent>
-                {banks.map((bank) => {
+                {banks.map((bank, idx) => {
                   return (
                     <SelectItem key={bank.id} value={bank.bank_code}>
                       <div className="flex items-center gap-2">
-                        <BankLogo code={bank.bank_code} size="sm" />
+                        <BankLogo
+                          code={bank.bank_code}
+                          size="sm"
+                          alt={bank.bank_name}
+                          fallback={<BankLogoFallback name={bank.bank_name} index={idx} size="sm" />}
+                        />
                         <span>{bank.bank_name}</span>
                         <span className="text-muted-foreground text-xs">({bank.bank_code})</span>
                       </div>
@@ -528,61 +590,16 @@ export function AddTransactionDialog({
                 <SelectItem value="+add">
                   <div className="flex items-center gap-2 text-primary font-medium">
                     <Plus className="w-4 h-4" />
-                    <span>Add new bank</span>
+                    <span>Adicionar novo banco</span>
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
-            {addingNewBank && (
-              <div className="mt-2 flex flex-wrap items-end gap-2">
-                <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Code</Label>
-                  <Input
-                    placeholder="Ex: 260"
-                    value={newBankCode}
-                    onChange={e => setNewBankCode(e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Name</Label>
-                  <Input
-                    placeholder="Ex: Nubank"
-                    value={newBankName}
-                    onChange={e => setNewBankName(e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <Button size="sm" variant="outline" onClick={() => setAddingNewBank(false)}>
-                  Cancel
-                </Button>
-                <Button size="sm" onClick={async () => {
-                  if (!newBankCode.trim() || !newBankName.trim()) {
-                    toast({ title: 'Error', description: 'Please fill in bank code and name.', variant: 'destructive' });
-                    return;
-                  }
-                  try {
-                    const created = await SettingsService.addBank({
-                      bank_code: newBankCode.trim(),
-                      bank_name: newBankName.trim(),
-                    });
-                    setBanks(prev => [...prev, created]);
-                    setBankCode(created.bank_code);
-                    setAddingNewBank(false);
-                    toast({ title: 'Bank added', description: `${created.bank_name} (${created.bank_code})` });
-                  } catch {
-                    toast({ title: 'Error', description: 'Failed to add bank.', variant: 'destructive' });
-                  }
-                }}>
-                  <Plus className="w-4 h-4 mr-1" /> Add
-                </Button>
-              </div>
-            )}
             </div>
 
             {/* Payment Method + Installment Switch */}
             <div className="space-y-2">
-            <Label htmlFor="payment_method">Payment Method</Label>
+            <Label htmlFor="payment_method">Forma de pagamento</Label>
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 <Select
@@ -600,20 +617,20 @@ export function AddTransactionDialog({
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="cash">Dinheiro</SelectItem>
                     <SelectItem value="pix">PIX</SelectItem>
-                    <SelectItem value="debit card">Debit Card</SelectItem>
-                    <SelectItem value="credit card">Credit Card</SelectItem>
-                    <SelectItem value="transfer">Transfer</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="debit card">Cartão de Débito</SelectItem>
+                    <SelectItem value="credit card">Cartão de Crédito</SelectItem>
+                    <SelectItem value="transfer">Transferência</SelectItem>
+                    <SelectItem value="other">Outro</SelectItem>
                   </SelectContent>
                 </Select>
                 {showNewPaymentMethodInput && (
                   <div className="mt-2">
-                    <Label htmlFor="newPaymentMethod">New Payment Method</Label>
+                    <Label htmlFor="newPaymentMethod">Nova forma de pagamento</Label>
                     <Input
                       id="newPaymentMethod"
-                      placeholder="Enter new payment method"
+                      placeholder="Digite a nova forma de pagamento"
                       value={newPaymentMethodName}
                       onChange={(e) => {
                         const value = e.target.value;
@@ -630,18 +647,32 @@ export function AddTransactionDialog({
                   checked={isInstallment}
                   onCheckedChange={setIsInstallment}
                 />
-                <Label htmlFor="isInstallment" className="text-sm font-medium cursor-pointer">Installment</Label>
+                <Label htmlFor="isInstallment" className="text-sm font-medium cursor-pointer">Parcelado</Label>
               </div>
             </div>
             </div>
           </div>
+
+          {/* Add new bank (full row) */}
+          {addingNewBank && (
+            <div data-testid="new-bank-box" className="rounded-lg border border-border bg-card p-4 space-y-3 sm:col-span-2">
+              <Label className="text-sm font-semibold">Adicionar novo banco</Label>
+              <BankSearchInput
+                onBankAdded={(bank) => {
+                  setBanks((prev) => [...prev, bank]);
+                  setBankCode(bank.bank_code);
+                  setAddingNewBank(false);
+                }}
+              />
+            </div>
+          )}
 
           {/* Installments (conditional) */}
           {isInstallment && (
             <div className="border border-dashed border-primary/40 rounded-lg p-4 bg-primary/5 space-y-3">
               <div className="flex items-end gap-4">
                 <div className="flex-1 space-y-2">
-                  <Label htmlFor="total_installments">Total Installments</Label>
+                  <Label htmlFor="total_installments">Número de parcelas</Label>
                   <Input
                     id="total_installments"
                     type="number"
@@ -655,7 +686,7 @@ export function AddTransactionDialog({
                 </div>
                 {installmentAmount && (
                   <div className="pb-1">
-                    <p className="text-xs text-muted-foreground mb-0.5">Each installment value</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">Valor de cada parcela</p>
                     <p className="text-lg font-bold text-primary">R$ {installmentAmount}</p>
                   </div>
                 )}

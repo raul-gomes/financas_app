@@ -132,4 +132,32 @@ describe('OverviewDashboard', () => {
       expect(mockGetOverview.mock.calls.length).toBeGreaterThan(callsBefore);
     });
   });
+
+  it('mostra badge "Estourando" no cartão quando passa do limite', async () => {
+    mockGetOverview.mockResolvedValue({
+      ...baseOverview,
+      credit_card: { limit: 10000, used: 11500, remaining: -1500, percent_used: 115 },
+    });
+
+    render(<OverviewDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Estourando')).toBeTruthy();
+    });
+    expect(screen.getByText('115%')).toBeTruthy();
+  });
+
+  it('cartão em 85% é destacado como warning (próximo do limite)', async () => {
+    mockGetOverview.mockResolvedValue({
+      ...baseOverview,
+      credit_card: { limit: 10000, used: 8500, remaining: 1500, percent_used: 85 },
+    });
+
+    render(<OverviewDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('85%')).toBeTruthy();
+    });
+    expect(screen.queryByText('Estourando')).toBeNull();
+  });
 });

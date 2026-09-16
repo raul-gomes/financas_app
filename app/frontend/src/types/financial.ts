@@ -183,6 +183,25 @@ export interface LimitsUpdateResponse {
   errors: string[]
 }
 
+export interface LimitsCategorySpending {
+  id: number
+  category_name: string
+  entity_type: 'individual' | 'business' | 'all'
+  limit: number
+  spent: number
+  remaining: number
+  percent_used: number
+  subcategories: { id: number; subcategory_name: string }[]
+}
+
+export interface LimitsWithSpending {
+  month: string
+  categories: LimitsCategorySpending[]
+  total_limit: number
+  total_spent: number
+  total_remaining: number
+}
+
 // ===== Duplicate Checking Types =====
 
 export interface DuplicateInfo {

@@ -54,27 +54,28 @@ async def test_68_porcento_nao_gera_alerta(async_session):
 
 
 @pytest.mark.asyncio
-async def test_72_porcento_gera_alerta_threshold_70(async_session):
+async def test_72_porcento_nao_gera_alerta(async_session):
+    """Abaixo de 80% nenhum alerta deve ser criado (threshold inicial é 80)."""
     await _seed_categoria_e_gasto(async_session, limit=1000, spent=720)
     criados = await LimitAlertService(async_session).evaluate_limits(1, 2026, 9)
-    thresholds = sorted(a.threshold for a in criados)
-    assert thresholds == [70]
+    assert criados == []
+    assert await _count_alerts(async_session) == []
 
 
 @pytest.mark.asyncio
-async def test_85_porcento_gera_alertas_70_e_80(async_session):
+async def test_85_porcento_gera_alerta_threshold_80(async_session):
     await _seed_categoria_e_gasto(async_session, limit=1000, spent=850)
     criados = await LimitAlertService(async_session).evaluate_limits(1, 2026, 9)
     thresholds = sorted(a.threshold for a in criados)
-    assert thresholds == [70, 80]
+    assert thresholds == [80]
 
 
 @pytest.mark.asyncio
-async def test_95_porcento_gera_70_80_90(async_session):
+async def test_95_porcento_gera_80_e_90(async_session):
     await _seed_categoria_e_gasto(async_session, limit=1000, spent=950)
     criados = await LimitAlertService(async_session).evaluate_limits(1, 2026, 9)
     thresholds = sorted(a.threshold for a in criados)
-    assert thresholds == [70, 80, 90]
+    assert thresholds == [80, 90]
 
 
 @pytest.mark.asyncio
@@ -82,7 +83,7 @@ async def test_105_porcento_gera_todos_com_exceeded_true(async_session):
     await _seed_categoria_e_gasto(async_session, limit=1000, spent=1050)
     criados = await LimitAlertService(async_session).evaluate_limits(1, 2026, 9)
     thresholds = sorted(a.threshold for a in criados)
-    assert thresholds == [70, 80, 90, 100]
+    assert thresholds == [80, 90, 100]
     assert all(a.exceeded for a in criados)
     assert all(a.percent_used == 105.0 for a in criados)
 
@@ -93,7 +94,7 @@ async def test_reavaliacao_mesmo_mes_nao_duplica(async_session):
     srv = LimitAlertService(async_session)
     await srv.evaluate_limits(1, 2026, 9)
     await srv.evaluate_limits(1, 2026, 9)
-    assert len(await _count_alerts(async_session)) == 2  # 70 e 80
+    assert len(await _count_alerts(async_session)) == 1  # só o threshold 80
 
 
 @pytest.mark.asyncio
@@ -130,7 +131,7 @@ async def test_cartaol_quase_no_limite_gera_alerta_scope_credit_card(async_sessi
     criados = await LimitAlertService(async_session).evaluate_limits(1, 2026, 9)
     assert criados, "deveria gerar alertas para o cartão a 85% do limite"
     assert all(a.scope == "credit_card" for a in criados)
-    assert sorted(a.threshold for a in criados) == [70, 80]
+    assert sorted(a.threshold for a in criados) == [80]
     # Reavaliar não duplica o alerta de cartão
     await LimitAlertService(async_session).evaluate_limits(1, 2026, 9)
-    assert len(await _count_alerts(async_session)) == 2
+    assert len(await _count_alerts(async_session)) == 1

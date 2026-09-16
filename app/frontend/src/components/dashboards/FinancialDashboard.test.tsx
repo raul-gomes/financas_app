@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { FinancialDashboard } from './FinancialDashboard';
+import { Transaction } from '@/types/financial';
 
 vi.mock('@/services/settingsService', () => ({
   SettingsService: { listBanks: vi.fn().mockResolvedValue([]) },
@@ -50,5 +51,29 @@ describe('FinancialDashboard - rolagem dos boxes', () => {
     expect(row).not.toBeNull();
     expect(row!.className).toContain('lg:flex-1');
     expect(row!.className).toContain('lg:min-h-0');
+  });
+
+  it('mostra badge "Estourando" no cartão ao passar do limite', async () => {
+    const tx = (amount: number): Transaction => ({
+      id: amount,
+      amount,
+      description: 'Compra',
+      transaction_date: '2026-09-10T00:00:00',
+      type: 'expense',
+      entity_type: 'individual',
+      payment_method: 'credit',
+      category_id: 1,
+      category_name: 'Alimentacao',
+      subcategory_id: 1,
+      subcategory_name: 'Mercado',
+      installment_number: null,
+      total_installments: null,
+      is_installment: false,
+      bank_code: null,
+    });
+
+    render(<FinancialDashboard {...baseProps} transactions={[tx(1200)]} creditCardLimit={1000} />);
+
+    expect((await screen.findByText('Estourando')).textContent).toContain('Estourando');
   });
 });

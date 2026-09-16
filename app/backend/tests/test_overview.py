@@ -72,7 +72,7 @@ async def test_overview_filtra_por_entity_type(client):
 
 @pytest.mark.asyncio
 async def test_overview_categorias_status_somente_proximas_ou_estouradas(client):
-    """Dashboard só lista categorias estouradas ou quase (>=70% do limite)."""
+    """Dashboard só lista categorias estouradas ou quase (>=80% do limite)."""
     safe_cat, safe_sub = await _create_cat(client, "Transporte", "individual", 1000.0)
     warn_cat, warn_sub = await _create_cat(client, "Lazer", "individual", 1000.0)
     over_cat, over_sub = await _create_cat(client, "Compras", "individual", 1000.0)
@@ -90,10 +90,10 @@ async def test_overview_categorias_status_somente_proximas_ou_estouradas(client)
 
 
 @pytest.mark.asyncio
-async def test_overview_categorias_status_limiar_70(client):
-    """Categoria com exatos 70% deve aparecer (limiar inclusivo)."""
+async def test_overview_categorias_status_limiar_80(client):
+    """Categoria com exatos 80% deve aparecer (limiar inclusivo)."""
     cat_id, sub_id = await _create_cat(client, "Alim", "individual", 1000.0)
-    await _add_tx(client, 700.0, "expense", "individual", sub_id, cat_id)  # 70%
+    await _add_tx(client, 800.0, "expense", "individual", sub_id, cat_id)  # 80%
 
     resp = await client.get("/dashboard/overview?year=2026&month=9&entity_type=individual")
     status = {s["category_name"]: s["status"] for s in resp.json()["categories_status"]}
