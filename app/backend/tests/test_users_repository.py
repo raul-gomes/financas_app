@@ -100,7 +100,7 @@ async def test_user_is_found_by_sub_after_email_change(async_session):
 
 @pytest.mark.asyncio
 async def test_legacy_user_without_sub_is_linked_by_email(async_session):
-    legacy = UserORM(name="Legado", email="legacy@example.com", password_hash="", role="admin")
+    legacy = UserORM(name="Legado", email="legacy@example.com", role="admin")
     async_session.add(legacy)
     await async_session.commit()
 

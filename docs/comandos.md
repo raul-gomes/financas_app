@@ -37,9 +37,11 @@ Observação: as migrations (`alembic upgrade head`) rodam no start do backend e
 | `uv run pytest -q` | Testes (SQLite em memória, não precisa de banco). `uv run pytest tests/<arquivo>.py` roda só os relacionados. |
 | `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` | Backend local fora do Docker. |
 | `DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas uv run alembic upgrade head` | Aplicar migrations no Postgres do Docker (porta 5436 no host). |
+| `DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas uv run alembic check` | Falha se os models divergem das migrations (rode após `upgrade head`; roda no CI contra um Postgres descartável). |
 | `uv run alembic revision -m "<descrição>"` | Nova migration (nunca editar uma já aplicada). |
 | `SEED_USER_EMAIL=<seu-email-de-dev> DATABASE_URL=postgresql://<usuário>:<senha>@localhost:5436/financas uv run python -m app.scripts.seed` | Popular o banco de dev com dados de exemplo (usuário admin com o e-mail informado). |
 | `uv run ruff check .` / `uv run ruff format .` | Lint e formatação do backend (config em `pyproject.toml`; `--fix` aplica correções seguras). |
+| `uvx bandit==1.9.4 -r app -ll` | SAST do backend (roda no CI; bloqueia em severidade média ou maior; `# nosec` só com motivo escrito). |
 | `uvx pip-audit --disable-pip --no-deps -r <(uv export --frozen --no-hashes --no-emit-project)` | Auditoria de dependências do backend (roda no CI e bloqueia o build). |
 
 ## Chave de cifra da chave Pluggy (`PLUGGY_KEY_ENCRYPTION_KEYS`)

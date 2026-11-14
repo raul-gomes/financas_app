@@ -1,6 +1,7 @@
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -98,9 +99,9 @@ async def create_conta_recorrente(
         return result
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro interno ao criar conta recorrente: {e}")
-        raise HTTPException(status_code=500, detail="Erro interno")
+        raise HTTPException(status_code=500, detail="Erro interno") from e
 
 
 @router.get("/", response_model=list[ContaRecorrenteResponse])
@@ -123,9 +124,11 @@ async def list_contas_recorrentes(
         )
         log.info(f"{len(contas)} contas recorrentes listadas")
         return contas
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao listar contas recorrentes: {e}")
-        raise HTTPException(status_code=500, detail="Erro interno ao listar contas recorrentes")
+        raise HTTPException(
+            status_code=500, detail="Erro interno ao listar contas recorrentes"
+        ) from e
 
 
 @router.get("/{conta_id}", response_model=ContaRecorrenteResponse)
@@ -195,9 +198,11 @@ async def delete_conta_recorrente(
         return deleted
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao excluir conta recorrente {conta_id}: {e}")
-        raise HTTPException(status_code=500, detail="Erro interno ao excluir conta recorrente")
+        raise HTTPException(
+            status_code=500, detail="Erro interno ao excluir conta recorrente"
+        ) from e
 
 
 @router.post("/{conta_id}/renew", response_model=ContaRecorrenteResponse)
@@ -231,14 +236,14 @@ async def generate_recurrent_transactions(
             await trigger_limit_evaluation(
                 db, current_user.id, year=payload.start_date.year, month=payload.start_date.month
             )
-        except Exception as e:
+        except SQLAlchemyError as e:
             log.warning(f"Falha ao avaliar limites pós-recorrentes: {e}")
         log.info(f"{geradas} transacoes recorrentes geradas")
         return GenerateResponse(generated=geradas, details=detalhes)
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao gerar transacoes recorrentes: {type(e).__name__}: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Erro interno ao gerar transacoes recorrentes: {e!s}"
-        )
+            status_code=500, detail="Erro interno ao gerar transacoes recorrentes"
+        ) from e

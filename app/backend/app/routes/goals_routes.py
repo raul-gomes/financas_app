@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -49,11 +50,11 @@ async def list_metas(
         )
         log.info(f"{len(metas)} metas listadas")
         return metas
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao listar metas: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao listar metas"
-        )
+        ) from e
 
 
 @router.post(
@@ -76,11 +77,11 @@ async def create_meta(
         return meta
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao criar meta: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao criar meta"
-        )
+        ) from e
 
 
 @router.put(
@@ -105,12 +106,12 @@ async def update_meta(
         return meta
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao atualizar meta {meta_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao atualizar meta",
-        )
+        ) from e
 
 
 @router.delete(
@@ -134,11 +135,11 @@ async def delete_meta(
         return meta
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao excluir meta {meta_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao excluir meta"
-        )
+        ) from e
 
 
 @router.put(
@@ -162,12 +163,12 @@ async def complete_goal(
         return meta
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao concluir meta {goal_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao concluir meta",
-        )
+        ) from e
 
 
 @router.put(
@@ -191,12 +192,12 @@ async def reactivate_goal(
         return meta
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao reativar meta {goal_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao reativar meta",
-        )
+        ) from e
 
 
 @router.get(
@@ -231,9 +232,9 @@ async def calcular_progresso(
         )
         log.info(f"Progresso calculado para {len(resultados)} metas")
         return resultados
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao calcular progresso: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao calcular progresso",
-        )
+        ) from e

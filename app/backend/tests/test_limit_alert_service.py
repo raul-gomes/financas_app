@@ -9,7 +9,7 @@ from app.services.limit_alert_service import LimitAlertService
 
 
 async def _seed_categoria_e_gasto(async_session, limit, spent, monthly=True, payment_method="pix"):
-    user = UserORM(id=1, name="Teste", email="alert@teste.com", password_hash="", role="admin")
+    user = UserORM(id=1, name="Teste", email="alert@teste.com", role="admin")
     async_session.add(user)
     await async_session.flush()
 
@@ -107,7 +107,7 @@ async def test_categoria_sem_limite_nao_gera_alerta(async_session):
 
 @pytest.mark.asyncio
 async def test_cartaol_quase_no_limite_gera_alerta_scope_credit_card(async_session):
-    user = UserORM(id=1, name="Teste", email="alert@teste.com", password_hash="", role="admin")
+    user = UserORM(id=1, name="Teste", email="alert@teste.com", role="admin")
     async_session.add(user)
     await async_session.flush()
     card_cat = CategoryORM(

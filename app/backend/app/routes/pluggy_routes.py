@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.crypto import SecretDecryptionError, decrypt_secret
@@ -29,12 +30,12 @@ def pluggy_client_for(user: UserORM) -> PluggyService:
     """
     try:
         return PluggyService(decrypt_secret(user.pluggy_api_key))
-    except SecretDecryptionError:
+    except SecretDecryptionError as exc:
         logger.error("Stored Pluggy API key could not be decrypted (check encryption keys)")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Não foi possível ler a API Key do Meu Pluggy salva. Contate o administrador.",
-        )
+        ) from exc
 
 
 router = APIRouter(
@@ -218,7 +219,7 @@ async def sync_pluggy(
         try:
             now = datetime.now(UTC)
             await trigger_limit_evaluation(db, current_user.id, year=now.year, month=now.month)
-        except Exception as e:
+        except SQLAlchemyError as e:
             log.warning(f"Falha ao avaliar limites pós-sync do pluggy: {e}")
         return result
     finally:

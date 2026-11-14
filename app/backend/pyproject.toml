@@ -45,7 +45,6 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "S", "ASYNC"]
 # Deferred: each needs a behavior change, so it is tracked instead of fixed here.
 extend-ignore = [
     "E501",  # long string literals/comments the formatter cannot wrap; shortening texts is out of scope
-    "B904",  # TODO(pendencias Q4/B904): chain exceptions (`raise ... from exc`) in routes/services
     "UP042",  # TODO(pendencias Q4/UP042): str+Enum -> StrEnum changes str() output; review first
 ]
 
@@ -60,8 +59,6 @@ extend-immutable-calls = [
 "tests/**" = ["S101", "S105", "S106", "S311"]
 # The test encryption key must be in os.environ before the app modules are imported
 "tests/conftest.py" = ["E402"]
-# TODO(pendencias Q4/B017): replace blind `pytest.raises(Exception)` with the specific error
-"tests/test_schemas.py" = ["B017"]
 # Re-exports so Alembic/metadata see every model
 "app/db/models/__init__.py" = ["F401"]
 # Fake data / load-test generators: non-cryptographic randomness is intended

@@ -81,7 +81,6 @@ def user_with_stored_key(stored: str | None) -> UserORM:
         id=1,
         name="Teste",
         email="teste@teste.com",
-        password_hash="",
         role="admin",
         pluggy_api_key=stored,
         created_at=now,

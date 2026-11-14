@@ -7,10 +7,11 @@ financas_app/
 ├── app/
 │   ├── backend/
 │   │   ├── app/
-│   │   │   ├── main.py                         # FastAPI entry point: registra CORS, 12 routers, endpoints / e /health; lifespan inicia/para job de notificações (limit_alert_job)
+│   │   │   ├── main.py                         # FastAPI entry point: registra CORS, 12 routers, handler global de erro 500 genérico, endpoints / e /health; lifespan inicia/para job de notificações (limit_alert_job)
 │   │   │   ├── logger.py                       # Loguru (console, arquivo, JSON, rotação); redact()/log_api_request() mascaram credenciais
 │   │   │   │
 │   │   │   ├── core/
+│   │   │   │   ├── advisory_lock.py            # try_advisory_lock(engine, key): lock consultivo do Postgres em conexão dedicada (no-op em outros dialetos); LIMIT_ALERT_JOB_LOCK_KEY
 │   │   │   │   ├── config.py                   # Classe Config + require_database_url (falha na partida sem DATABASE_URL): carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL do .env
 │   │   │   │   ├── crypto.py                   # Cifra em repouso da chave Pluggy (Fernet/MultiFernet): encrypt_secret/decrypt_secret, validate_encryption_keys (falha na partida), SecretDecryptionError, helpers idempotentes p/ migration
 │   │   │   │   ├── database.py                 # Engine async SQLAlchemy, AsyncSessionLocal, get_session() dependency
@@ -94,6 +95,9 @@ financas_app/
 │   │   │   ├── test_category_isolation.py      # Etapa 5: isolamento por usuário de categorias/subcategorias (via client_user2 + clients_ctrl)
 │   │   │   ├── test_transaction_isolation.py   # Etapa 6: isolamento de transações por usuário (list, get, update, delete, duplicatas, extrato, export)
 │   │   │   ├── test_user_scoped_repositories.py # S5/P1: export e dashboard só retornam dados do usuário (filtro no SQL)
+│   │   │   ├── test_advisory_lock.py           # P5: lock consultivo (no-op fora do Postgres, SQL no Postgres, job pula se travado) e contagem de queries sem selectin
+│   │   │   ├── test_error_leak.py              # S9: erros internos nunca chegam ao cliente (mensagem genérica; texto real só no log)
+│   │   │   ├── test_user_model_columns.py      # S8: guarda — `users` não tem coluna de senha
 │   │   │   ├── test_users_repository.py        # Testes de upsert de usuário (criação, retorno existente, não duplica)
 │   │   │   ├── test_root.py                    # Testa endpoints / e /health
 │   │   │   ├── test_transactions.py            # CRUD transações + filtro por data + 404

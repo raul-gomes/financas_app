@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SubcategoriaBase(BaseModel):
@@ -11,8 +11,7 @@ class Subcategoria(SubcategoriaBase):
     id: int = Field(..., description="ID da subcategoria")
     target_amount: float | None = Field(None, description="Valor alvo (se for meta)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode="before")
     @classmethod
@@ -31,5 +30,4 @@ class SubcategoriaCreate(SubcategoriaBase):
 class SubcategoriaUpdate(SubcategoriaBase):
     id: int | None = Field(None, description="ID da subcategoria existente")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

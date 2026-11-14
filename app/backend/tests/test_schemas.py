@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import pytest
+from pydantic import ValidationError
 
 from app.schemas.categories import CategoriaCreate
 from app.schemas.extract import (
@@ -46,7 +47,7 @@ class TestTransacaoCreate:
         assert t.amount == 100.0
 
     def test_valor_must_be_positive(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TransacaoCreate(
                 amount=-50.0,
                 description="Test",
@@ -59,7 +60,7 @@ class TestTransacaoCreate:
             )
 
     def test_valor_zero_invalid(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TransacaoCreate(
                 amount=0,
                 description="Test",
@@ -72,7 +73,7 @@ class TestTransacaoCreate:
             )
 
     def test_categoria_required(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TransacaoCreate(
                 amount=100.0,
                 description="Test",
@@ -83,7 +84,7 @@ class TestTransacaoCreate:
             )
 
     def test_subcategoria_required(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TransacaoCreate(
                 amount=100.0,
                 description="Test",
@@ -105,7 +106,7 @@ class TestTransacaoUpdate:
         assert u.amount == 200.0
 
     def test_valor_must_be_positive(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TransacaoUpdate(amount=-10.0)
 
 
@@ -145,7 +146,7 @@ class TestContaRecorrenteCreate:
         assert c.active is True
 
     def test_valor_must_be_positive(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             ContaRecorrenteCreate(
                 description="Rent",
                 amount=-100.0,
@@ -158,7 +159,7 @@ class TestContaRecorrenteCreate:
             )
 
     def test_dia_vencimento_range(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             ContaRecorrenteCreate(
                 description="Rent",
                 amount=100.0,
@@ -171,7 +172,7 @@ class TestContaRecorrenteCreate:
             )
 
     def test_dia_vencimento_zero_invalid(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             ContaRecorrenteCreate(
                 description="Rent",
                 amount=100.0,

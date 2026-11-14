@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.subcategory import Subcategoria, SubcategoriaCreate, SubcategoriaUpdate
 
@@ -24,8 +24,8 @@ class CategoriaCreate(CategoriaBase):
         default_factory=list, description="Lista de subcategorias"
     )
 
-    class Config:
-        json_schema_extra = {  # noqa: RUF012  # pydantic config dict, never mutated
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "category_name": "Marketing",
                 "entity_type": "business",
@@ -38,14 +38,14 @@ class CategoriaCreate(CategoriaBase):
                 ],
             }
         }
+    )
 
 
 class Categoria(CategoriaBase):
     id: int = Field(..., description="ID da categoria")
     subcategories: list[Subcategoria] = Field(..., description="Lista de subcategorias")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode="before")
     @classmethod
@@ -66,5 +66,4 @@ class CategoriaUpdate(BaseModel):
     type: Literal["income", "expense", "investment"] | None = None
     subcategories: list[SubcategoriaUpdate] | None = Field(default=None)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
