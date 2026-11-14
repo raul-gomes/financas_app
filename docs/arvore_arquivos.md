@@ -347,6 +347,7 @@ financas_app/
 │       │   │       ├── months.ts                   # YearMonth, addMonths, toYearMonth, SHORT_MONTHS (+ teste)
 │       │   │       ├── recentMonths.ts             # Janela dos últimos 6 meses a partir dos payloads anuais (+ teste)
 │       │   │       ├── transactionLabels.ts        # Rótulos pt-BR de forma de pagamento, categoria automática e tipo (+ teste)
+│       │   │       ├── reportLoadError.ts          # reportLoadError(toast, "os bancos", erro): log + toast pt-BR para carga em segundo plano que falhou (+ teste)
 │       │       ├── format.test.ts              # Testes unitários da formatação (BRL/USD, datas, %)
 │       │       ├── format.escape.test.ts       # escapeHtml() para tooltips D3
 │       │       ├── supabase.ts                 # Cliente @supabase/supabase-js (VITE_SUPABASE_URL/ANON_KEY)

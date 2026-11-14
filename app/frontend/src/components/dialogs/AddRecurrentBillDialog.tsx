@@ -13,6 +13,8 @@ import {
 import { ContaRecorrenteCreate } from '@/types/recurringAccount';
 import { CategorySubcategories } from '@/types/financial';
 import { FinancialService } from '@/services/financialService';
+import { useToast } from '@/hooks/use-toast';
+import { reportLoadError } from '@/lib/reportLoadError';
 
 interface AddRecurrentBillDialogProps {
   isOpen: boolean;
@@ -27,6 +29,7 @@ export function AddRecurrentBillDialog({
   onSubmit,
   categoryOptions: _categoryOptions,
 }: AddRecurrentBillDialogProps) {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -48,7 +51,9 @@ export function AddRecurrentBillDialog({
   useEffect(() => {
     FinancialService.getCategorySubcategories(formData.entity_type, 'expense')
       .then(options => setCategoryOptions(options))
-      .catch(() => {});
+      .catch((error: unknown) => reportLoadError(toast, 'as categorias', error));
+    // toast is a stable global dispatcher; only the scope should reload the options
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.entity_type]);
 
   const handleClose = () => {

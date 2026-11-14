@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Upload, FileText, CheckCircle, AlertCircle, X, Plus, Banknote, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { reportLoadError } from '@/lib/reportLoadError'
 import { ExtractoService } from '@/services/extractService'
 import { FinancialService } from '@/services/financialService'
 import { SettingsService } from '@/services/settingsService'
@@ -67,9 +68,13 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
 
     useEffect(() => {
         if (open) {
-            FinancialService.getCategorySubcategories('all').then(setCategoryOptions).catch(() => {})
-            SettingsService.listBanks().then(setBanks).catch(() => {})
+            FinancialService.getCategorySubcategories('all').then(setCategoryOptions)
+                .catch((error: unknown) => reportLoadError(toast, 'as categorias', error))
+            SettingsService.listBanks().then(setBanks)
+                .catch((error: unknown) => reportLoadError(toast, 'os bancos', error))
         }
+        // toast is a stable global dispatcher; the lists reload only when the dialog opens
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open])
 
     // ---- Upload ----

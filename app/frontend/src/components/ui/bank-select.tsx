@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { reportLoadError } from "@/lib/reportLoadError"
 import { BankLogo } from "@/components/ui/bank-logo"
 import { SettingsService, type UserBank } from "@/services/settingsService"
 
@@ -36,10 +37,14 @@ export function BankSelect({ value, onValueChange, disabled, className }: BankSe
     let active = true
     SettingsService.listBanks().then((list) => {
       if (active) setBanks(list)
-    }).catch(() => {})
+    }).catch((error: unknown) => {
+      if (active) reportLoadError(toast, "os bancos", error)
+    })
     return () => {
       active = false
     }
+    // toast is a stable global dispatcher; the banks load once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleAddBank = async () => {

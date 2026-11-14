@@ -11,6 +11,7 @@ import {
   Loader2, ArrowLeft, Save, Trash2
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { reportLoadError } from '@/lib/reportLoadError'
 import { ExtractoService } from '@/services/extractService'
 import { FinancialService } from '@/services/financialService'
 import { SettingsService } from '@/services/settingsService'
@@ -75,8 +76,12 @@ const BankExtract = () => {
   const [transactionErrors, setTransactionErrors] = useState<Record<string, TransactionErrors>>({})
 
   useEffect(() => {
-    FinancialService.getCategorySubcategories('all').then(setCategoryOptions).catch(() => {})
-    SettingsService.listBanks().then(setBanks).catch(() => {})
+    FinancialService.getCategorySubcategories('all').then(setCategoryOptions)
+      .catch((error: unknown) => reportLoadError(toast, 'as categorias', error))
+    SettingsService.listBanks().then(setBanks)
+      .catch((error: unknown) => reportLoadError(toast, 'os bancos', error))
+    // toast is a stable global dispatcher; the lists load once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const rowKey = (sIdx: number, rIdx: number) => `${sIdx}-${rIdx}`
@@ -548,7 +553,7 @@ setTransactionErrors(allErrors)
             <Button variant="ghost" size="sm" onClick={() => navigate('/financial')}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
             </Button>
-            <div>
+            <div className="max-md:hidden">
               <h1 className="text-2xl font-bold text-foreground">Extrato Bancário</h1>
               <p className="text-muted-foreground mt-1">Importe seu extrato bancário em CSV ou OFX</p>
             </div>
