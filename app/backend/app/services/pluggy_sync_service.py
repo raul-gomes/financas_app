@@ -20,10 +20,8 @@ from app.schemas.transaction import NaturezaTransacao, TipoTransacao
 from app.services.limit_alert_service import trigger_limit_evaluation
 from app.services.pluggy_service import PluggyService
 
-# Description used when Pluggy sends none; the legacy (misspelled) text still matches rows
-# imported before the fix.
+# Description used when Pluggy sends none.
 FALLBACK_DESCRIPTION = "Sincronizado"
-LEGACY_FALLBACK_DESCRIPTION = "Sin cronizar"
 IMPORT_CATEGORY_NAME = "Importado"
 IMPORT_SUBCATEGORY_NAME = "Pluggy"
 DEFAULT_PAYMENT_METHOD = "pix"
@@ -32,11 +30,6 @@ BANK_CODE_LENGTH = 3
 STATEMENT_DATE_FORMAT = "%d/%m/%Y"
 PLUGGY_DEBIT = "DEBIT"
 BANK_ACCOUNT_TYPE = "BANK"
-IMPORTED_DESCRIPTION_PATTERNS = [
-    f"%{FALLBACK_DESCRIPTION}%",
-    f"%{LEGACY_FALLBACK_DESCRIPTION}%",
-    f"%{IMPORT_SUBCATEGORY_NAME}%",
-]
 
 KEY_NOT_CONFIGURED_WITH_HINT = (
     "API Key do Meu Pluggy não configurada. Vá em Configurações para adicionar."
@@ -139,8 +132,11 @@ class PluggySyncService:
         finally:
             await pluggy.close()
 
-        created, _errors = await self.transactions.create_batch_from_extract(rows, self.user.id)
-        duplicates = await self._find_duplicates(created) if created > 0 else []
+        created_rows, _errors = await self.transactions.create_batch_returning_rows(
+            rows, self.user.id
+        )
+        created = len(created_rows)
+        duplicates = await self._find_duplicates(created_rows)
         self._evaluate_limits_after_commit()
         return {
             "message": f"{created} transações importadas de {len(accounts)} contas.",
@@ -180,11 +176,12 @@ class PluggySyncService:
             "is_installment": False,
         }
 
-    async def _find_duplicates(self, created: int) -> list[dict[str, Any]]:
-        """Flags imported rows that share date and amount with a pre-existing transaction."""
-        recent = await self.transactions.list_latest_by_description_patterns(
-            self.user.id, IMPORTED_DESCRIPTION_PATTERNS, created
-        )
+    async def _find_duplicates(self, recent: list[TransactionORM]) -> list[dict[str, Any]]:
+        """Flags rows created by this import that share date and amount with an older one.
+
+        Pluggy's transaction id is not stored, so the key is the user's date + amount; the
+        rows of the batch are identified by their ids, not by description.
+        """
         groups: dict[tuple, list[TransactionORM]] = {}
         for tx in recent:
             groups.setdefault((tx.transaction_date.date(), tx.amount), []).append(tx)

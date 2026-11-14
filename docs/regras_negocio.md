@@ -62,7 +62,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 - `bank_code` = 3 primeiros dígitos conta tipo BANK
 - Força `entity_type=PF`, categoria "Importado"/sub "Pluggy" (auto-criadas)
 - Descrição truncada a 255 chars
-- **Detecta duplicatas após importar** e apenas reporta (não resolve auto)
+- **Detecta duplicatas após importar** e apenas reporta (não resolve auto): para cada linha criada pelo próprio lote (identificada pelo id, não pela descrição), procura outra transação do mesmo usuário com a mesma data e valor. O id da transação do Pluggy não é guardado, então a descrição não entra na chave
 
 ---
 

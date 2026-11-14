@@ -164,6 +164,39 @@ async def test_sync_flags_duplicates_of_the_users_own_transactions_only(
 
 
 @pytest.mark.asyncio
+async def test_sync_flags_duplicates_for_imports_that_carry_a_description(
+    async_session, make_uow, evaluations
+):
+    """Regression (Q12 d): rows are found by the ids of the batch, not by description."""
+    service, _ = await _service_with_key(make_uow)
+    category = CategoryORM(name="Any", entity_type="individual", limit=0, user_id=1)
+    category.subcategories = [SubcategoryORM(name="Any")]
+    async_session.add(category)
+    await async_session.flush()
+    manual = TransactionORM(
+        amount=50.0,
+        description="Lunch at the market",
+        transaction_date=datetime(2026, 1, 10, 12, 0),
+        type="expense",
+        entity_type="individual",
+        payment_method="pix",
+        category_id=category.id,
+        subcategory_id=category.subcategories[0].id,
+        user_id=1,
+    )
+    async_session.add(manual)
+    await async_session.commit()
+
+    result = await service.sync()
+
+    assert len(result["duplicates"]) == 1
+    duplicate = result["duplicates"][0]
+    assert duplicate["existing_id"] == manual.id
+    assert duplicate["description"] == "Market"
+    assert duplicate["new_id"] != manual.id
+
+
+@pytest.mark.asyncio
 async def test_sync_without_a_key_is_a_validation_error(make_uow):
     service, _ = await _service_with_key(make_uow, key=None)
 

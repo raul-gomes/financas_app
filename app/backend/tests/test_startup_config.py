@@ -72,11 +72,11 @@ async def test_pluggy_sync_uses_correctly_spelled_fallback_description(client, m
     monkeypatch.setattr("app.services.pluggy_sync_service.PluggyService", _FakePluggy)
     captured: list[dict] = []
 
-    async def _fake_batch(self, transactions: list[dict], user_id: int) -> tuple[int, list]:
+    async def _fake_batch(self, transactions: list[dict], user_id: int) -> tuple[list, list]:
         captured.extend(transactions)
-        return 0, []
+        return [], []
 
-    monkeypatch.setattr(TransacaoRepository, "create_batch_from_extract", _fake_batch)
+    monkeypatch.setattr(TransacaoRepository, "create_batch_returning_rows", _fake_batch)
 
     sync = await client.post("/pluggy/sync")
 

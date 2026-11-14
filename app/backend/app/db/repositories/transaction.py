@@ -512,20 +512,6 @@ class TransacaoRepository:
         result = await self.db.execute(stmt)
         return list(result.unique().scalars().all())
 
-    async def list_latest_by_description_patterns(
-        self, user_id: int, patterns: list[str], limit: int
-    ) -> list[TransactionORM]:
-        """The user's most recently created transactions whose description matches any LIKE pattern."""
-        stmt = (
-            select(TransactionORM)
-            .where(or_(*(TransactionORM.description.like(pattern) for pattern in patterns)))
-            .where(TransactionORM.user_id == user_id)
-            .order_by(TransactionORM.created_at.desc())
-            .limit(limit)
-        )
-        result = await self.db.execute(stmt)
-        return list(result.unique().scalars().all())
-
     async def assign_random_banks(self, bank_codes: list[str], user_id: int) -> int:
         """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto.
 
@@ -565,6 +551,18 @@ class TransacaoRepository:
         """
         Creates multiple transactions from extract in a single batch (flush only: the unit of
         work commits). Returns (created_count, errors_list).
+        """
+        created, errors = await self.create_batch_returning_rows(transactions, user_id)
+        return len(created), errors
+
+    async def create_batch_returning_rows(
+        self,
+        transactions: list[dict],
+        user_id: int,
+    ) -> tuple[list[TransactionORM], list[str]]:
+        """Like ``create_batch_from_extract`` but returns the created rows (with ids).
+
+        Returns (created_rows, errors_list); ``created_rows`` is empty when the insert fails.
         """
         log = log_database_operation(
             operation="batch_create",
@@ -708,6 +706,6 @@ class TransacaoRepository:
             except SQLAlchemyError as e:
                 log.error(f"Batch insert failed: {e}")
                 errors.append("Erro no commit em lote")
-                return 0, errors
+                return [], errors
 
-        return len(all_instances), errors
+        return all_instances, errors
