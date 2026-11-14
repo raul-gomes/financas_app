@@ -60,7 +60,7 @@ financas_app/
 │   │   │   │   ├── recurring_accounts_routes.py # /recurring-accounts — CRUD + renovação + geração
 │   │   │   │   ├── extract_routes.py           # /extracts — upload de extrato CSV/OFX (leitura em blocos, limite 10 MB) + confirmação
 │   │   │   │   ├── settings_routes.py          # /settings — perfil + bancos + atribuição aleatória
-│   │   │   │   ├── goals_routes.py             # /goals — CRUD metas + progresso
+│   │   │   │   ├── goals_routes.py             # /goals — CRUD metas + progresso (admin); só HTTP, regras no GoalService
 │   │   │   │   ├── shopping_routes.py          # /shopping — CRUD lista de compras + migração
 │   │   │   │   ├── pluggy_routes.py            # /pluggy — integração Open Finance (contas, sincronização)
 │   │   │   │   ├── notifications_routes.py     # /notifications — listar alertas, marcar lido (1 ou todos)
@@ -84,6 +84,7 @@ financas_app/
 │   │   │       ├── transaction_service.py      # TransactionService: casos de uso de transações (create/get/update/delete, list_page, duplicatas); autorização pelo usuário autenticado; avalia limites após o commit
 │   │   │       ├── category_service.py         # CategoryService: casos de uso de categorias/subcategorias (list/get/create/update/delete), só flush; invalida o cache de opções após o commit
 │   │   │       ├── limits_service.py           # LimitsService: limites por categoria, gastos do mês, risk-check e atualização em lote (cada item num savepoint: erro de um item vira `errors`, os demais seguem); só flush
+│   │   │       ├── goal_service.py             # GoalService: metas do usuário (list_goals/create/update/delete/complete/reactivate/progress); NotFoundError/ConflictError; só flush
 │   │   │       ├── dashboard_service.py        # DashboardService: overview e dashboard financeiro (leitura); metas/compras só para admin decididas pelo role do token
 │   │   │       ├── pluggy_service.py           # Cliente HTTP para API Meu Pluggy (Open Finance)
 │   │   │       ├── extract_parsers.py          # Parsers de extrato bancário (CSV e OFX via defusedxml; UnsafeOfxError)
@@ -127,6 +128,7 @@ financas_app/
 │   │   │   ├── test_unit_of_work.py            # UnitOfWork: commit/rollback únicos, callbacks pós-commit (falha não desfaz o commit), dependência com scope="function"
 │   │   │   ├── test_category_service.py        # CategoryService: nada comitado antes do UoW, rollback desfaz, cache invalidado após commit, isolamento entre usuários, 409 em nome duplicado
 │   │   │   ├── test_limits_service.py          # LimitsService: bulk com item falhando isolado por savepoint (sem vazar texto), rollback, isolamento entre usuários, projeção do risk-check
+│   │   │   ├── test_goal_service.py            # GoalService: nada comitado antes do UoW, rollback desfaz a categoria "Metas", 409 em nome duplicado, isolamento entre usuários, concluir/reativar
 │   │   │   ├── test_transaction_service.py     # TransactionService: nada comitado antes do UoW, rollback desfaz categoria auto-criada, limites avaliados após commit, isolamento entre usuários
 │   │   │   ├── test_transactions_pagination.py # GET /transacoes/paginated: ordem estável (data desc, id desc), cursor, total, filtros, teto de página, isolamento
 │   │   │   ├── test_dashboard_sql_parity.py    # Agregações SQL do dashboard/overview x referência em Python (PF/PJ, 2 usuários) + teto de queries

@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
+"""Goals routes (admin only): HTTP concerns only. Rules and authorization live in GoalService."""
 
-from app.core.database import get_session
-from app.core.security import get_current_user, require_admin
-from app.db.models.user import UserORM
-from app.db.repositories.goal import MetaRepository
+from fastapi import APIRouter, Depends, Query, Request, status
+
+from app.core.security import require_admin
 from app.logger import log_api_request
+from app.routes.dependencies import get_goal_reader, get_goal_service
 from app.schemas.goals import MetaCreate, MetaProgresso, MetaResponse, MetaUpdate
+from app.services.goal_service import GoalService
 
 router = APIRouter(prefix="/goals", tags=["Goals"], dependencies=[Depends(require_admin)])
 
@@ -21,7 +20,6 @@ router = APIRouter(prefix="/goals", tags=["Goals"], dependencies=[Depends(requir
 )
 async def list_metas(
     request: Request,
-    current_user: UserORM = Depends(get_current_user),
     completed: bool | None = Query(
         None, description="Filtrar por concluída (true=concluídas, false=ativas)"
     ),
@@ -30,7 +28,7 @@ async def list_metas(
     ),
     limit: int = Query(100, ge=1, le=500, description="Limite de itens por página"),
     offset: int = Query(0, ge=0, description="Offset para paginação"),
-    repo: MetaRepository = Depends(MetaRepository),
+    service: GoalService = Depends(get_goal_reader),
 ):
     log = log_api_request(
         method="GET",
@@ -40,21 +38,9 @@ async def list_metas(
         limit=limit,
         offset=offset,
     )
-    try:
-        metas = await repo.list_metas(
-            completed=completed,
-            entity_type=entity_type,
-            limit=limit,
-            offset=offset,
-            user_id=current_user.id,
-        )
-        log.info(f"{len(metas)} metas listadas")
-        return metas
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao listar metas: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao listar metas"
-        ) from e
+    metas = await service.list_goals(completed, entity_type, limit, offset)
+    log.info(f"{len(metas)} metas listadas")
+    return metas
 
 
 @router.post(
@@ -67,21 +53,12 @@ async def list_metas(
 async def create_meta(
     request: Request,
     payload: MetaCreate,
-    current_user: UserORM = Depends(get_current_user),
-    repo: MetaRepository = Depends(MetaRepository),
+    service: GoalService = Depends(get_goal_service),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
-    try:
-        meta = await repo.create_meta(payload, current_user.id)
-        log.info(f"Meta {meta.id} criada")
-        return meta
-    except HTTPException:
-        raise
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao criar meta: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao criar meta"
-        ) from e
+    meta = await service.create(payload)
+    log.info(f"Meta {meta.id} criada")
+    return meta
 
 
 @router.put(
@@ -94,24 +71,12 @@ async def update_meta(
     request: Request,
     meta_id: int,
     payload: MetaUpdate,
-    current_user: UserORM = Depends(get_current_user),
-    repo: MetaRepository = Depends(MetaRepository),
+    service: GoalService = Depends(get_goal_service),
 ):
     log = log_api_request(method="PUT", endpoint=str(request.url), meta_id=meta_id)
-    try:
-        meta = await repo.update_meta(meta_id, payload, current_user.id)
-        if not meta:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meta não encontrada")
-        log.info(f"Meta {meta_id} atualizada")
-        return meta
-    except HTTPException:
-        raise
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao atualizar meta {meta_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao atualizar meta",
-        ) from e
+    meta = await service.update(meta_id, payload)
+    log.info(f"Meta {meta_id} atualizada")
+    return meta
 
 
 @router.delete(
@@ -123,23 +88,12 @@ async def update_meta(
 async def delete_meta(
     request: Request,
     meta_id: int,
-    current_user: UserORM = Depends(get_current_user),
-    repo: MetaRepository = Depends(MetaRepository),
+    service: GoalService = Depends(get_goal_service),
 ):
     log = log_api_request(method="DELETE", endpoint=str(request.url), meta_id=meta_id)
-    try:
-        meta = await repo.delete_meta(meta_id, current_user.id)
-        if not meta:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meta não encontrada")
-        log.info(f"Meta {meta_id} excluída")
-        return meta
-    except HTTPException:
-        raise
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao excluir meta {meta_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao excluir meta"
-        ) from e
+    meta = await service.delete(meta_id)
+    log.info(f"Meta {meta_id} excluída")
+    return meta
 
 
 @router.put(
@@ -151,24 +105,12 @@ async def delete_meta(
 async def complete_goal(
     request: Request,
     goal_id: int,
-    current_user: UserORM = Depends(get_current_user),
-    repo: MetaRepository = Depends(MetaRepository),
+    service: GoalService = Depends(get_goal_service),
 ):
     log = log_api_request(method="PUT", endpoint=str(request.url), goal_id=goal_id)
-    try:
-        meta = await repo.complete_goal(goal_id, current_user.id)
-        if not meta:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meta não encontrada")
-        log.info(f"Meta {goal_id} concluída")
-        return meta
-    except HTTPException:
-        raise
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao concluir meta {goal_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao concluir meta",
-        ) from e
+    meta = await service.complete(goal_id)
+    log.info(f"Meta {goal_id} concluída")
+    return meta
 
 
 @router.put(
@@ -180,24 +122,12 @@ async def complete_goal(
 async def reactivate_goal(
     request: Request,
     goal_id: int,
-    current_user: UserORM = Depends(get_current_user),
-    repo: MetaRepository = Depends(MetaRepository),
+    service: GoalService = Depends(get_goal_service),
 ):
     log = log_api_request(method="PUT", endpoint=str(request.url), goal_id=goal_id)
-    try:
-        meta = await repo.reactivate_goal(goal_id, current_user.id)
-        if not meta:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meta não encontrada")
-        log.info(f"Meta {goal_id} reativada")
-        return meta
-    except HTTPException:
-        raise
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao reativar meta {goal_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao reativar meta",
-        ) from e
+    meta = await service.reactivate(goal_id)
+    log.info(f"Meta {goal_id} reativada")
+    return meta
 
 
 @router.get(
@@ -208,14 +138,13 @@ async def reactivate_goal(
 )
 async def calcular_progresso(
     request: Request,
-    current_user: UserORM = Depends(get_current_user),
     year: int = Query(..., alias="year", description="Ano para calcular progresso"),
     month: int = Query(..., alias="month", ge=1, le=12, description="Mês para calcular progresso"),
     completed: bool | None = Query(None, description="Filtrar por status de conclusão"),
     entity_type: str | None = Query(
         None, description="Filtrar por tipo de entidade: individual, business"
     ),
-    db: AsyncSession = Depends(get_session),
+    service: GoalService = Depends(get_goal_reader),
 ):
     log = log_api_request(
         method="GET",
@@ -225,16 +154,6 @@ async def calcular_progresso(
         completed=completed,
         entity_type=entity_type,
     )
-    repo = MetaRepository(db)
-    try:
-        resultados = await repo.calcular_progresso_todas(
-            year, month, completed=completed, entity_type=entity_type, user_id=current_user.id
-        )
-        log.info(f"Progresso calculado para {len(resultados)} metas")
-        return resultados
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao calcular progresso: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao calcular progresso",
-        ) from e
+    resultados = await service.progress(year, month, completed, entity_type)
+    log.info(f"Progresso calculado para {len(resultados)} metas")
+    return resultados
