@@ -24,9 +24,7 @@ class ContaRecorrenteRepository:
 
     # ── CRUD ──────────────────────────────────────────────
 
-    async def create(
-        self, obj_in: ContaRecorrenteCreate, user_id: int | None = None
-    ) -> RecurringAccountORM:
+    async def create(self, obj_in: ContaRecorrenteCreate, user_id: int) -> RecurringAccountORM:
         log = log_database_operation(
             operation="create",
             collection="contas_recorrentes",
@@ -75,7 +73,8 @@ class ContaRecorrenteRepository:
         entity_type: str | None = None,
         limit: int = 100,
         offset: int = 0,
-        user_id: int | None = None,
+        *,
+        user_id: int,
     ) -> list[RecurringAccountORM]:
         stmt = (
             select(RecurringAccountORM)
@@ -83,8 +82,7 @@ class ContaRecorrenteRepository:
             .limit(limit)
             .offset(offset)
         )
-        if user_id is not None:
-            stmt = stmt.where(RecurringAccountORM.user_id == user_id)
+        stmt = stmt.where(RecurringAccountORM.user_id == user_id)
         if entity_type:
             stmt = stmt.where(RecurringAccountORM.entity_type == entity_type)
         result = await self.db.execute(stmt)
@@ -92,10 +90,9 @@ class ContaRecorrenteRepository:
         await self._set_all_remaining_installments(contas)
         return contas
 
-    async def get_by_id(self, id: int, user_id: int | None = None) -> RecurringAccountORM | None:
+    async def get_by_id(self, id: int, user_id: int) -> RecurringAccountORM | None:
         stmt = select(RecurringAccountORM).where(RecurringAccountORM.id == id)
-        if user_id is not None:
-            stmt = stmt.where(RecurringAccountORM.user_id == user_id)
+        stmt = stmt.where(RecurringAccountORM.user_id == user_id)
         result = await self.db.execute(stmt)
         conta = result.scalars().first()
         if conta:
@@ -103,7 +100,7 @@ class ContaRecorrenteRepository:
         return conta
 
     async def update(
-        self, id: int, obj_in: ContaRecorrenteUpdate, user_id: int | None = None
+        self, id: int, obj_in: ContaRecorrenteUpdate, user_id: int
     ) -> RecurringAccountORM | None:
         conta = await self.get_by_id(id, user_id)
         if not conta:
@@ -146,7 +143,7 @@ class ContaRecorrenteRepository:
             await self.db.rollback()
             raise HTTPException(status_code=400, detail="Erro ao atualizar conta recorrente")
 
-    async def delete(self, id: int, user_id: int | None = None) -> RecurringAccountORM | None:
+    async def delete(self, id: int, user_id: int) -> RecurringAccountORM | None:
         conta = await self.get_by_id(id, user_id)
         if not conta:
             return None
@@ -164,9 +161,7 @@ class ContaRecorrenteRepository:
 
     # ── 12-installment generation ─────────────────────────
 
-    async def _generate_installments(
-        self, conta: RecurringAccountORM, user_id: int | None = None
-    ) -> int:
+    async def _generate_installments(self, conta: RecurringAccountORM, user_id: int) -> int:
         """Generate N monthly transaction installments for a recurring account using bulk insert."""
         from dateutil.relativedelta import relativedelta
 
@@ -297,7 +292,7 @@ class ContaRecorrenteRepository:
             await self.db.commit()
         return geradas
 
-    async def renew(self, conta_id: int, user_id: int | None = None) -> RecurringAccountORM | None:
+    async def renew(self, conta_id: int, user_id: int) -> RecurringAccountORM | None:
         """Re-activate and generate 12 more installments from current month."""
         conta = await self.get_by_id(conta_id, user_id)
         if not conta:
@@ -385,7 +380,7 @@ class ContaRecorrenteRepository:
     # ── Legacy generate (kept for Compatibility) ──────────
 
     async def generate_pending_transactions(
-        self, req: GenerateRequest, user_id: int | None = None
+        self, req: GenerateRequest, user_id: int
     ) -> tuple[int, list[str]]:
         log = log_database_operation(
             operation="generate",
@@ -397,8 +392,7 @@ class ContaRecorrenteRepository:
             RecurringAccountORM.active == True,  # noqa: E712  # SQLAlchemy column comparison
             RecurringAccountORM.start_date <= req.end_date,
         )
-        if user_id is not None:
-            stmt = stmt.where(RecurringAccountORM.user_id == user_id)
+        stmt = stmt.where(RecurringAccountORM.user_id == user_id)
         result = await self.db.execute(stmt)
         contas = list(result.unique().scalars().all())
 

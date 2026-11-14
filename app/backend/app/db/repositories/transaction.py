@@ -58,7 +58,8 @@ class TransacaoRepository:
         transaction_date: datetime,
         category_id=int,
         sub_id=int,
-        user_id: int | None = None,
+        *,
+        user_id: int,
     ) -> TransactionORM:
         return TransactionORM(
             group_id=group_id,
@@ -93,7 +94,7 @@ class TransacaoRepository:
         group_id: str,
         category_id: int,
         sub_id: int,
-        user_id: int | None = None,
+        user_id: int,
     ):
         total_installments = obj_in.total_installments
         amount = self._calculate_installment_amount(obj_in.amount, total_installments)
@@ -221,11 +222,11 @@ class TransacaoRepository:
         end_date: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
-        user_id: int | None = None,
+        *,
+        user_id: int,
     ) -> list[TransactionORM]:
         stmt = select(TransactionORM).options(selectinload(TransactionORM.recurring_account))
-        if user_id is not None:
-            stmt = stmt.where(TransactionORM.user_id == user_id)
+        stmt = stmt.where(TransactionORM.user_id == user_id)
         if start_date:
             stmt = stmt.where(TransactionORM.transaction_date >= start_date)
         if end_date:
@@ -237,14 +238,13 @@ class TransacaoRepository:
         result = await self.db.execute(stmt)
         return result.unique().scalars().all()
 
-    async def get_by_id(self, id: int, user_id: int | None = None) -> TransactionORM | None:
+    async def get_by_id(self, id: int, user_id: int) -> TransactionORM | None:
         stmt = (
             select(TransactionORM)
             .options(selectinload(TransactionORM.recurring_account))
             .where(TransactionORM.id == id)
         )
-        if user_id is not None:
-            stmt = stmt.where(TransactionORM.user_id == user_id)
+        stmt = stmt.where(TransactionORM.user_id == user_id)
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
@@ -326,7 +326,7 @@ class TransacaoRepository:
             await self.db.rollback()
             raise HTTPException(status_code=400, detail="Erro ao atualizar transação")
 
-    async def delete(self, id: int, user_id: int | None = None) -> TransactionORM | None:
+    async def delete(self, id: int, user_id: int) -> TransactionORM | None:
         trans = await self.get_by_id(id, user_id)
         if not trans:
             return None
@@ -335,7 +335,7 @@ class TransacaoRepository:
         return trans
 
     async def check_duplicates(
-        self, transaction_date: date, amount: float, user_id: int | None = None
+        self, transaction_date: date, amount: float, user_id: int
     ) -> list[TransactionORM]:
         """Retorna transações existentes com a mesma data (ignorando hora) e valor."""
 
@@ -346,12 +346,11 @@ class TransacaoRepository:
             TransactionORM.transaction_date <= end,
             TransactionORM.amount == amount,
         )
-        if user_id is not None:
-            stmt = stmt.where(TransactionORM.user_id == user_id)
+        stmt = stmt.where(TransactionORM.user_id == user_id)
         result = await self.db.execute(stmt)
         return list(result.unique().scalars().all())
 
-    async def assign_random_banks(self, bank_codes: list[str], user_id: int | None = None) -> int:
+    async def assign_random_banks(self, bank_codes: list[str], user_id: int) -> int:
         """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto."""
         from sqlalchemy import text
 
@@ -359,7 +358,7 @@ class TransacaoRepository:
             return 0
 
         # Single SQL statement using CTE + row_number() for random assignment
-        user_filter = "AND user_id = :user_id" if user_id is not None else ""
+        user_filter = "AND user_id = :user_id"
         stmt = text(f"""
             WITH banks AS (
                 SELECT bank_code, row_number() OVER (ORDER BY random()) AS rn
@@ -376,9 +375,7 @@ class TransacaoRepository:
             WHERE t.id = txs.id
         """)  # noqa: S608  # only a constant filter fragment is interpolated; values are bound
 
-        params = {"bank_codes": bank_codes}
-        if user_id is not None:
-            params["user_id"] = user_id
+        params = {"bank_codes": bank_codes, "user_id": user_id}
         result = await self.db.execute(stmt, params)
         await self.db.commit()
         return result.rowcount

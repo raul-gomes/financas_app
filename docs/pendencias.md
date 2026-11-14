@@ -17,7 +17,7 @@ consolidados no fim.
 - [ ] **S2** (alta) ~~Não devolver `pluggy_api_key`~~ FEITO (API devolve `has_pluggy_key`; string vazia remove a chave). **Falta:** cifrar em repouso (precisa de uma chave nova no EnvVault — decisão do dono).
 - [x] **S3** (média) FEITO: algoritmo pela config (HS256 só com segredo; ES256/RS256 só via JWKS; `none` recusado), `aud=authenticated`, `iss` do projeto, claims obrigatórias. Era: JWT: algoritmo fixo, `audience` e `issuer` (`core/security.py:26-45`).
 - [x] **S4** (média) FEITO: coluna `users.supabase_id` (migration `a7b8c9d0e1f2`), busca pelo `sub`, e-mail local segue o Supabase, e-mail de outra conta → 409. Perfil não aceita mais e-mail/senha (422): a tela troca pelo Supabase (antes a senha de login não mudava). Era: Identidade pelo `sub` do Supabase (`supabase_id`); não deixar o perfil trocar e-mail.
-- [ ] **S5** (média) `user_id` obrigatório em todos os repositórios.
+- [x] **S5** (média) FEITO: `user_id: int` obrigatório (sem `None` = sem filtro) em transaction, recurring_account, shopping, dashboard e export; todas as consultas filtram por ele; testes em `test_user_scoped_repositories.py`. Era: `user_id` obrigatório em todos os repositórios.
 - [ ] **S6** (média) Extrato: `defusedxml` e limite de tamanho antes de ler o arquivo.
 - [ ] **S7** (média) CORS por variável de ambiente, rate limit, headers de segurança no nginx, containers sem root.
 - [ ] **S8** (baixa) passlib removido e `password_hash` não é mais escrito; falta a migration que apaga a coluna. Era: Remover `password_hash`/passlib se o login é só Supabase.
@@ -43,7 +43,7 @@ consolidados no fim.
 - [ ] **Q10** (baixa) Commits em inglês daqui em diante.
 
 ## Performance
-- [ ] **P1** (média) Export filtrar `user_id` no SQL (`repositories/export.py:48`).
+- [x] **P1** (média) FEITO: export filtra `user_id` no SQL (teste captura o SQL). Era: Export filtrar `user_id` no SQL (`repositories/export.py:48`).
 - [ ] **P2** (média) Overview agregando no SQL.
 - [ ] **P3** (média) Paginação de transações no backend; cache no frontend.
 - [ ] **P4** (baixa) Lazy nas páginas de auth; importar só os módulos do D3 usados.

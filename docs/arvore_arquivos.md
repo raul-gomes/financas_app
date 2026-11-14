@@ -90,6 +90,7 @@ financas_app/
 │   │   │   ├── test_auth_required.py           # Etapa 4: cada rota sem token → 401 (client_no_auth)
 │   │   │   ├── test_category_isolation.py      # Etapa 5: isolamento por usuário de categorias/subcategorias (via client_user2 + clients_ctrl)
 │   │   │   ├── test_transaction_isolation.py   # Etapa 6: isolamento de transações por usuário (list, get, update, delete, duplicatas, extrato, export)
+│   │   │   ├── test_user_scoped_repositories.py # S5/P1: export e dashboard só retornam dados do usuário (filtro no SQL)
 │   │   │   ├── test_users_repository.py        # Testes de upsert de usuário (criação, retorno existente, não duplica)
 │   │   │   ├── test_root.py                    # Testa endpoints / e /health
 │   │   │   ├── test_transactions.py            # CRUD transações + filtro por data + 404
