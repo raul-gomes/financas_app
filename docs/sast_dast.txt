@@ -1,0 +1,84 @@
+Você faz SAST e DAST usando ferramentas específicas (não exatamente “frameworks” de código, mas scanners de segurança) e, hoje em dia, o mais comum é integrar ambos no pipeline de CI/CD.
+
+Como executar SAST (Análise Estática)
+Escolher uma ferramenta SAST
+Exemplos de SAST bem usados:
+
+Open source / grátis: Semgrep, SonarQube Community, Bandit (Python), Brakeman (Rails), gosec (Go), CodeQL (GitHub).
+
+Comerciais/SAAS: Checkmarx, Veracode, Snyk Code, Fortify, GitLab SAST, Mend.io.
+
+Integrar no fluxo de desenvolvimento
+Você pode rodar SAST de várias formas:
+
+Plugin no IDE (VS Code, IntelliJ, etc.) para o dev ver problemas de segurança enquanto escreve o código.
+
+Pre-commit hook (git) que roda um scan rápido nos arquivos alterados antes de permitir o commit.
+
+Job de CI (por exemplo em GitLab CI, GitHub Actions, Jenkins):
+
+Adicionar um estágio sast que roda o scanner no repositório após o checkout do código e antes do build.
+
+Configurar o pipeline para falhar se forem encontrados problemas críticos (e só avisar nos de severidade menor).
+
+Fluxo típico:
+
+text
+[Commit/Pull Request] -> [SAST] -> [Build] -> [Deploy]
+
+Consumir os resultados
+
+Ler o relatório (JSON/HTML/SARIF) gerado pelo SAST.
+
+Criar tickets (Jira etc.) para vulnerabilidades relevantes e corrigir no código.
+
+Como executar DAST (Análise Dinâmica)
+Escolher uma ferramenta DAST
+Exemplos:
+
+Open source: OWASP ZAP (o mais clássico).
+
+Comerciais: Burp Suite Enterprise, Acunetix, Invicti (Netsparker), Rapid7 InsightAppSec, StackHawk.
+
+Ter um ambiente rodando
+DAST precisa de aplicação em execução (staging, teste ou até produção controlada).
+
+Seu pipeline faz o deploy para um ambiente de testes.
+
+O scanner DAST aponta para a URL desse ambiente (ex.: https://staging.suaaplicacao.com).
+
+Integrar no CI/CD
+Fluxo típico:
+
+text
+[Build] -> [Deploy em Staging] -> [DAST] -> (se OK) -> [Deploy em Produção]
+Com OWASP ZAP, por exemplo, você adiciona um job de CI que:
+
+Usa a imagem owasp/zap2docker-stable.
+
+Roda zap-baseline.py apontando para a URL da aplicação.
+
+Gera relatórios (zap-report.html, zap-report.json) como artefatos do pipeline.
+
+Pode configurar o job para falhar se forem encontradas vulnerabilidades críticas, impedindo o deploy automático.
+
+Autenticação & escopo
+
+Para testar partes autenticadas, você fornece credenciais ao scanner (armazenadas como secrets no CI).
+
+Para não ficar muito lento, dá para rodar scans “baseline” em todos os deploys, e scans mais profundos em builds noturnos ou antes de ir para produção.
+
+Visão prática: usando os dois juntos
+Um desenho bem comum em DevSecOps é:
+
+text
+Commit/Pull Request:
+  -> SAST (Semgrep, SonarQube etc.)
+
+Deploy em Staging:
+  -> DAST (OWASP ZAP, Burp Enterprise etc.)
+SAST encontra falhas no código antes de rodar.
+
+DAST encontra falhas que só aparecem com o sistema funcionando (configuração, autenticação, XSS refletido, etc.).
+
+Se você quiser algo “de uma vez só”, há plataformas que entregam SAST + DAST integrados, como Veracode, Checkmarx ou algumas soluções de GitLab/GitHub avançados, mas mesmo com elas a lógica continua sendo essa: SAST no código, DAST na aplicação rodando.

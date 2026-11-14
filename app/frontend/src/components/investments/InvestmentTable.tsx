@@ -60,12 +60,12 @@ export const InvestmentTable = ({
         </div>
         <div className="flex items-center gap-1 mt-1">
           {investment.profit >= 0 ? (
-            <TrendingUp className="h-3 w-3 text-green-500" />
+            <TrendingUp className="h-3 w-3 text-success" />
           ) : (
-            <TrendingDown className="h-3 w-3 text-red-500" />
+            <TrendingDown className="h-3 w-3 text-destructive" />
           )}
           <span className={`text-xs font-medium ${
-            investment.profit >= 0 ? 'text-green-500' : 'text-red-500'
+            investment.profit >= 0 ? 'text-success' : 'text-destructive'
           }`}>
             {formatCurrency(investment.profit)} ({formatPercentage(investment.profitPercentage)})
           </span>

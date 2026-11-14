@@ -1,13 +1,11 @@
-import random
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.core.security import get_current_user
+from app.db.models.user import UserORM
 from app.db.repositories.settings import SettingsRepository
 from app.db.repositories.transaction import TransacaoRepository
-from app.db.models.user import UserORM
-from app.core.security import get_current_user
-from app.schemas.settings import ProfileResponse, ProfileUpdate, BankResponse, BankCreate
 from app.logger import log_api_request
+from app.schemas.settings import BankCreate, BankResponse, ProfileResponse, ProfileUpdate
 
 router = APIRouter(prefix="/settings", tags=["Configurações"])
 
@@ -31,14 +29,16 @@ async def update_profile(
     current_user: UserORM = Depends(get_current_user),
     repo: SettingsRepository = Depends(),
 ):
-    """Atualiza nome, email e/ou senha do perfil."""
-    log = log_api_request(method="PUT", endpoint=str(request.url), payload=payload.model_dump())
+    """Atualiza o nome e/ou a chave Pluggy do perfil (e-mail e senha ficam no Supabase)."""
+    log = log_api_request(
+        method="PUT", endpoint=str(request.url), fields=sorted(payload.model_fields_set)
+    )
     user = await repo.update_profile(current_user.id, payload)
     log.success("Perfil atualizado", user_id=user.id)
     return user
 
 
-@router.get("/banks", response_model=List[BankResponse])
+@router.get("/banks", response_model=list[BankResponse])
 async def list_banks(
     request: Request,
     current_user: UserORM = Depends(get_current_user),
@@ -93,9 +93,13 @@ async def assign_random_banks(
     banks = await settings_repo.list_banks(current_user.id)
 
     if not banks:
-        raise HTTPException(status_code=400, detail="Nenhum banco cadastrado. Adicione bancos primeiro.")
+        raise HTTPException(
+            status_code=400, detail="Nenhum banco cadastrado. Adicione bancos primeiro."
+        )
 
-    updated = await transacao_repo.assign_random_banks([b.bank_code for b in banks], current_user.id)
+    updated = await transacao_repo.assign_random_banks(
+        [b.bank_code for b in banks], current_user.id
+    )
 
     log.success(f"{updated} transações atualizadas com banco aleatório")
     return {"updated": updated}

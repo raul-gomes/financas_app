@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List, Optional
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
@@ -18,11 +17,12 @@ class ExportRepository:
         self.db = db
 
     async def get_transactions_for_export(
-        self, start_date: str, end_date: str, user_id: Optional[int] = None
-    ) -> List[TransactionORM]:
+        self, start_date: str, end_date: str, user_id: int
+    ) -> list[TransactionORM]:
         """Retorna transações no período com categoria/subcategoria carregadas (selectinload)."""
         log = log_database_operation(
-            operation="export", collection="transacoes",
+            operation="export",
+            collection="transacoes",
             payload={"start_date": start_date, "end_date": end_date, "user_id": user_id},
         )
         try:
@@ -40,13 +40,11 @@ class ExportRepository:
                 selectinload(TransactionORM.category),
                 selectinload(TransactionORM.subcategory),
             )
+            .where(TransactionORM.user_id == user_id)
             .where(TransactionORM.transaction_date >= dt_i)
             .where(TransactionORM.transaction_date <= dt_f)
             .order_by(TransactionORM.transaction_date.desc())
         )
         transacoes = list(result.unique().scalars().all())
-        if user_id is not None:
-            # Filtra em memória para manter compatibilidade (o model já expõe user_id).
-            transacoes = [t for t in transacoes if t.user_id == user_id]
         log.info(f"{len(transacoes)} transações recuperadas para exportação")
         return transacoes

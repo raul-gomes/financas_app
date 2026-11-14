@@ -1,18 +1,18 @@
 # app/db/repositories/overview.py
 
 import calendar
-from typing import Any, Dict, List, Optional
 from datetime import date, datetime
+from typing import Any
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
-from app.db.models.transaction import TransactionORM
 from app.db.models.category import CategoryORM
-from app.db.repositories.limits import LimitsRepository
+from app.db.models.transaction import TransactionORM
 from app.db.repositories.goal import MetaRepository
-from app.db.repositories.shopping import ShoppingRepository
+from app.db.repositories.limits import LimitsRepository
 from app.db.repositories.recurring_account import ContaRecorrenteRepository
+from app.db.repositories.shopping import ShoppingRepository
 from app.schemas.overview import (
     CategoriaStatusOverview,
     CreditCardOverview,
@@ -48,24 +48,24 @@ class DashboardOverviewRepository:
         is_admin: bool = True,
     ) -> OverviewResponse:
         mes_start = datetime(year, month, 1)
-        if month == 12:
-            mes_end = datetime(year + 1, 1, 1)
-        else:
-            mes_end = datetime(year, month + 1, 1)
+        mes_end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
 
         totals = await self._totals(mes_start, mes_end, entity_type, user_id)
         month_progress = await self._month_progress(year, month, entity_type, user_id)
         credit_card = await self._credit_card(mes_start, mes_end, entity_type, user_id)
         categories_status = await self._categories_status(year, month, entity_type, user_id)
         installments = await self._installments(mes_start, mes_end, entity_type, user_id)
-        recurring_accounts = await self._recurring_accounts(mes_start, mes_end, entity_type, user_id)
+        recurring_accounts = await self._recurring_accounts(
+            mes_start, mes_end, entity_type, user_id
+        )
 
-        goals: List[Dict[str, Any]] = []
-        shopping: List[Dict[str, Any]] = []
+        goals: list[dict[str, Any]] = []
+        shopping: list[dict[str, Any]] = []
         if is_admin:
             meta_repo = MetaRepository(self.db)
             goals = await meta_repo.calcular_progresso_todas(
-                year, month,
+                year,
+                month,
                 entity_type=(None if entity_type == "all" else entity_type),
                 user_id=user_id,
             )
@@ -100,7 +100,9 @@ class DashboardOverviewRepository:
             shopping=shopping,
         )
 
-    async def _totals(self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int) -> TotaisOverview:
+    async def _totals(
+        self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int
+    ) -> TotaisOverview:
         stmt_income = select(func.coalesce(func.sum(TransactionORM.amount), 0)).where(
             TransactionORM.user_id == user_id,
             TransactionORM.transaction_date >= mes_start,
@@ -135,15 +137,14 @@ class DashboardOverviewRepository:
             balance=round(total_income - total_expenses, 2),
         )
 
-    async def _month_progress(self, year: int, month: int, entity_type: str, user_id: int) -> MonthProgressOverview:
+    async def _month_progress(
+        self, year: int, month: int, entity_type: str, user_id: int
+    ) -> MonthProgressOverview:
         days_in_month = calendar.monthrange(year, month)[1]
         today = date.today()
 
         # "Até o dia atual no mês" (se o mês consultado é o corrente) senão mês inteiro
-        if today.year == year and today.month == month:
-            day = today.day
-        else:
-            day = days_in_month
+        day = today.day if today.year == year and today.month == month else days_in_month
 
         cutoff = datetime(year, month, day, 23, 59, 59)
         mes_start = datetime(year, month, 1)
@@ -176,7 +177,9 @@ class DashboardOverviewRepository:
             balance=round(income - expenses, 2),
         )
 
-    async def _credit_card(self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int) -> CreditCardOverview:
+    async def _credit_card(
+        self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int
+    ) -> CreditCardOverview:
         # Limite total das categorias "Limite Cartao Credito" no escopo
         lim_stmt = select(func.coalesce(func.sum(CategoryORM.limit), 0)).where(
             CategoryORM.user_id == user_id,
@@ -207,13 +210,15 @@ class DashboardOverviewRepository:
             percent_used=percent_used,
         )
 
-    async def _categories_status(self, year: int, month: int, entity_type: str, user_id: int) -> List[CategoriaStatusOverview]:
+    async def _categories_status(
+        self, year: int, month: int, entity_type: str, user_id: int
+    ) -> list[CategoriaStatusOverview]:
         limits_repo = LimitsRepository(self.db)
         data = await limits_repo.get_limits_with_spending(
             year, month, user_id, entity_type=(None if entity_type == "all" else entity_type)
         )
 
-        result: List[CategoriaStatusOverview] = []
+        result: list[CategoriaStatusOverview] = []
         for cat in data["categories"]:
             if cat["limit"] <= 0:
                 continue
@@ -238,7 +243,9 @@ class DashboardOverviewRepository:
             )
         return result
 
-    async def _installments(self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int) -> List[ParcelaMesOverview]:
+    async def _installments(
+        self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int
+    ) -> list[ParcelaMesOverview]:
         stmt = (
             select(TransactionORM)
             .where(
@@ -271,7 +278,9 @@ class DashboardOverviewRepository:
             for t in txs
         ]
 
-    async def _recurring_accounts(self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int) -> List[RecorrentePagarOverview]:
+    async def _recurring_accounts(
+        self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int
+    ) -> list[RecorrentePagarOverview]:
         repo = ContaRecorrenteRepository(self.db)
         contas = await repo.get_all(
             entity_type=(None if entity_type == "all" else entity_type),
@@ -294,7 +303,7 @@ class DashboardOverviewRepository:
             )
             pagam_no_mes = {row[0] for row in (await self.db.execute(tx_stmt)).all()}
 
-        result: List[RecorrentePagarOverview] = []
+        result: list[RecorrentePagarOverview] = []
         for c in ativas:
             if c.id not in pagam_no_mes:
                 continue

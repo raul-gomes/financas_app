@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useRef, useState } from 'react';
-import { formatCurrency } from '@/lib/format';
-import * as d3 from 'd3';
+import { formatCurrency, escapeHtml } from '@/lib/format';
+import * as d3 from '@/lib/d3';
 import { YearlyData } from '@/types/financial';
 
 interface D3BarChartProps {
@@ -161,7 +161,7 @@ function D3BarChartBase({
         .attr('x2', innerWidth)
         .attr('y1', yScale(monthlyGoal))
         .attr('y2', yScale(monthlyGoal))
-        .attr('stroke', '#ef4444')
+        .attr('stroke', 'hsl(var(--destructive))')
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '5,5');
 
@@ -230,15 +230,15 @@ function D3BarChartBase({
       .style('border-radius', '8px')
       .style('padding', '10px')
       .style('font-size', '13px')
-      .style('box-shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1)')
+      .style('box-shadow', 'var(--shadow-elegant)')
       .style('z-index', '1000')
       .style('pointer-events', 'none')
       .style('max-width', '90vw');
 
     // Add hover and click effects
-    g.selectAll('.income-bar, .expense-bar, .investment-bar')
+    g.selectAll<SVGRectElement, YearlyData>('.income-bar, .expense-bar, .investment-bar')
       .style('cursor', 'pointer')
-        .on('mouseover', function(event, d: any) {
+        .on('mouseover', function(event, d) {
           const isIncome = d3.select(this).classed('income-bar');
           const isExpense = d3.select(this).classed('expense-bar');
           const isInvestment = d3.select(this).classed('investment-bar');
@@ -252,8 +252,8 @@ function D3BarChartBase({
             .style('visibility', 'visible')
             .html(`
               <div>
-                <strong>Mês: ${d.month}</strong><br/>
-                ${type}: ${formatCurrency(value)}<br/>
+                <strong>Mês: ${escapeHtml(d.month)}</strong><br/>
+                ${escapeHtml(type)}: ${formatCurrency(value)}<br/>
                 <span class="text-[10px] text-muted-foreground">Clique para detalhes</span>
               </div>
             `);
@@ -266,7 +266,7 @@ function D3BarChartBase({
         .on('mouseout', function() {
           tooltip.style('visibility', 'hidden');
         })
-        .on('click', function(event, d: any) {
+        .on('click', function(event, d) {
           if (onBarClick) {
             onBarClick(d.month);
           }

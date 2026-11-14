@@ -1,5 +1,13 @@
 import { apiFetch } from '@/lib/api';
+import { parseResponse } from '@/lib/parse';
 import {
+  financialSummarySchema, yearlyPerformanceSchema, categoryBreakdownSchema,
+  incomeBySubcategorySchema, categorySubcategoriesSchema, transactionListSchema,
+  duplicateCheckResponseSchema, limitsPayloadSchema, limitsUpdateResponseSchema,
+  limitsWithSpendingSchema,
+} from '@/schemas/financial';
+import {
+  TransactionCreatePayload,
   FinancialSummary, YearlyPerformance, CategoryBreakdown,
   IncomeBySubcategoria, Transaction, LimitsPayload,
   CategorySubcategories, Category, LimitsUpdateResponse,
@@ -23,7 +31,7 @@ export class FinancialService {
     });
     const res = await apiFetch(`/dashboard/statement?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar extrato financeiro`);
-    return res.json();
+    return parseResponse(res, financialSummarySchema, 'buscar extrato financeiro');
   }
 
   static async getYearlyPerformance(year: number, entityType?: string): Promise<YearlyPerformance> {
@@ -34,7 +42,7 @@ export class FinancialService {
     });
     const res = await apiFetch(`/dashboard/period-income?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar rendimento anual`);
-    return res.json();
+    return parseResponse(res, yearlyPerformanceSchema, 'buscar rendimento anual');
   }
 
   static async getCategoryBreakdown(dateRange: { from: Date; to: Date }, entityType?: string, type: string = 'expense'): Promise<CategoryBreakdown> {
@@ -47,7 +55,7 @@ export class FinancialService {
     });
     const res = await apiFetch(`/dashboard/expenses-by-category?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar gastos por categoria`);
-    return res.json();
+    return parseResponse(res, categoryBreakdownSchema, 'buscar gastos por categoria');
   }
 
   static async getCategoryIncome(dateRange: { from: Date; to: Date }, entityType?: string): Promise<IncomeBySubcategoria> {
@@ -59,7 +67,7 @@ export class FinancialService {
     });
     const res = await apiFetch(`/dashboard/income-by-category?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar entradas por subcategoria`);
-    return res.json();
+    return parseResponse(res, incomeBySubcategorySchema, 'buscar entradas por subcategoria');
   }
 
   static async getCategorySubcategories(entityType?: string, type?: string): Promise<CategorySubcategories> {
@@ -70,7 +78,7 @@ export class FinancialService {
     const query = params.toString() ? `?${params.toString()}` : '';
     const res = await apiFetch(`/dashboard/category-options${query}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar categorias`);
-    return res.json();
+    return parseResponse(res, categorySubcategoriesSchema, 'buscar categorias');
   }
 
   static async getYearTransactions(year: number, entityType?: string): Promise<Transaction[]> {
@@ -84,7 +92,7 @@ export class FinancialService {
     });
     const res = await apiFetch(`/transacoes/?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar transacoes do ano`);
-    return res.json();
+    return parseResponse(res, transactionListSchema, 'buscar transações do ano');
   }
 
   static async checkDuplicates(params: { transaction_date?: string; amount?: number; transactions?: Array<{ index: number; transaction_date: string; amount: number }> }): Promise<DuplicateCheckResponse> {
@@ -94,10 +102,10 @@ export class FinancialService {
       body: JSON.stringify(params),
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao verificar duplicatas`);
-    return res.json();
+    return parseResponse(res, duplicateCheckResponseSchema, 'verificar duplicatas');
   }
 
-  static async addTransaction(transaction: Omit<Transaction, 'id'>): Promise<void> {
+  static async addTransaction(transaction: TransactionCreatePayload): Promise<void> {
     const res = await apiFetch(`/transacoes/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -126,23 +134,23 @@ export class FinancialService {
   static async getLimits(): Promise<LimitsPayload> {
     const res = await apiFetch(`/categories/`);
     if (!res.ok) throw new Error(`Erro ${res.status}`);
-    return res.json();
+    return parseResponse(res, limitsPayloadSchema, 'buscar limites');
   }
 
-  static async saveLimits(payload: { new: Category[], modified: Category[], deleted?: number[] }): Promise<LimitsUpdateResponse> {
+  static async saveLimits(payload: { new: Record<string, unknown>[], modified: Record<string, unknown>[], deleted?: number[] }): Promise<LimitsUpdateResponse> {
     const res = await apiFetch(`/limits/`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status}`);
-    return res.json();
+    return parseResponse(res, limitsUpdateResponseSchema, 'salvar limites');
   }
 
   static async getLimitsWithSpending(year: number, month: number): Promise<LimitsWithSpending> {
     const params = new URLSearchParams({ year: year.toString(), month: month.toString() });
     const res = await apiFetch(`/limits/with-spending?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar limites com gastos`);
-    return res.json();
+    return parseResponse(res, limitsWithSpendingSchema, 'buscar limites com gastos');
   }
 }

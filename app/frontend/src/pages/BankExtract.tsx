@@ -638,24 +638,24 @@ setTransactionErrors(allErrors)
           </div>
           <div className="bg-card rounded-lg p-4 border border-border">
             <p className="text-sm text-muted-foreground">Entradas</p>
-            <p className="text-2xl font-bold text-green-600">{totals.income}</p>
+            <p className="text-2xl font-bold text-success">{totals.income}</p>
           </div>
           <div className="bg-card rounded-lg p-4 border border-border">
             <p className="text-sm text-muted-foreground">SaÃ­das</p>
-            <p className="text-2xl font-bold text-red-600">{totals.expense}</p>
+            <p className="text-2xl font-bold text-destructive">{totals.expense}</p>
           </div>
           <div className="bg-card rounded-lg p-4 border border-border">
-            <p className="text-sm text-green-600">Total Entradas</p>
-            <p className="text-lg font-bold text-green-600">{formatCurrency(totals.totalIncome)}</p>
-            <p className="text-sm text-red-600">Total SaÃ­das</p>
-            <p className="text-lg font-bold text-red-600">{formatCurrency(totals.totalExpense)}</p>
+            <p className="text-sm text-success">Total Entradas</p>
+            <p className="text-lg font-bold text-success">{formatCurrency(totals.totalIncome)}</p>
+            <p className="text-sm text-destructive">Total SaÃ­das</p>
+            <p className="text-lg font-bold text-destructive">{formatCurrency(totals.totalExpense)}</p>
           </div>
         </div>
 
         {/* Duplicates Section */}
         <div className="space-y-4 mb-6">
           <div className="flex items-center gap-2">
-            <AlertCircle className={`w-5 h-5 ${duplicateItems.length > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
+            <AlertCircle className={`w-5 h-5 ${duplicateItems.length > 0 ? 'text-warning' : 'text-muted-foreground'}`} />
             <h2 className="text-lg font-semibold">
               {duplicateItems.length > 0 ? 'TransaÃ§Ãµes Duplicadas Detectadas' : 'VerificaÃ§Ã£o de Duplicatas'}
             </h2>
@@ -668,14 +668,14 @@ setTransactionErrors(allErrors)
 
           {duplicateItems.length === 0 ? (
             <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-success" />
               <p className="text-sm">Nenhuma duplicata encontrada. Todas as transaÃ§Ãµes sÃ£o inÃ©ditas.</p>
             </div>
           ) : (
-            <div className="rounded-lg border-2 border-amber-300 overflow-hidden">
+            <div className="rounded-lg border-2 border-warning/40 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-amber-50 border-b border-amber-200">
+                  <thead className="bg-warning/10 border-b border-warning/30">
                     <tr>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Data</th>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">DescriÃ§Ã£o</th>
@@ -689,17 +689,17 @@ setTransactionErrors(allErrors)
                     {duplicateItems.map((item) => {
                       const isResolved = !!item.resolved
                       return (
-                        <tr key={item.key} className={`${isResolved ? 'bg-green-50/50 opacity-70' : 'hover:bg-amber-50/30'}`}>
+                        <tr key={item.key} className={`${isResolved ? 'bg-success/5 opacity-70' : 'hover:bg-warning/5'}`}>
                           <td className="px-3 py-2 text-xs whitespace-nowrap">{item.transaction.date}</td>
                           <td className="px-3 py-2 text-xs max-w-[200px] truncate">{item.transaction.description}</td>
                           <td className={`px-3 py-2 text-xs font-medium whitespace-nowrap ${
-                            item.transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                            item.transaction.type === 'income' ? 'text-success' : 'text-destructive'
                           }`}>
                             {item.transaction.type === 'expense' ? '-' : ''}{formatCurrency(item.transaction.amount)}
                           </td>
                           <td className="px-3 py-2">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                              item.transaction.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                              item.transaction.type === 'income' ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'
                             }`}>
                               {item.transaction.type === 'income' ? 'Entrada' : 'SaÃ­da'}
                             </span>
@@ -715,7 +715,7 @@ setTransactionErrors(allErrors)
                           </td>
                           <td className="px-3 py-2">
                             {isResolved ? (
-                              <span className="text-xs text-green-600 font-medium">
+                              <span className="text-xs text-success font-medium">
                                 {item.resolved === 'skip' ? 'âœ“ Ignorado' : 'âœ“ SubstituÃ­do'}
                               </span>
                             ) : (
@@ -761,19 +761,19 @@ setTransactionErrors(allErrors)
                 key={sIdx}
                 className={`rounded-lg border-2 overflow-hidden transition-colors ${
                   session.isConfirmed
-                    ? 'border-green-500 opacity-80'
-                    : 'border-amber-500'
+                    ? 'border-success opacity-80'
+                    : 'border-warning'
                 }`}
               >
                 {/* Session Header */}
                 <div className={`px-4 py-3 flex items-center gap-3 flex-wrap ${
-                  session.isConfirmed ? 'bg-green-50' : 'bg-amber-50'
+                  session.isConfirmed ? 'bg-success/10' : 'bg-warning/10'
                 }`}>
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <FileText className="w-5 h-5 shrink-0 text-muted-foreground" />
                     <span className="font-semibold text-sm truncate">{session.filename}</span>
                     {session.isConfirmed && (
-                      <span className="bg-green-600 text-white text-xs px-2 py-0.5 rounded-full shrink-0">
+                      <span className="bg-success text-success-foreground text-xs px-2 py-0.5 rounded-full shrink-0">
                         Confirmado âœ“
                       </span>
                     )}
@@ -789,7 +789,7 @@ setTransactionErrors(allErrors)
                       onValueChange={(v) => handleBankSelect(sIdx, v)}
                       disabled={session.isConfirmed}
                     >
-                      <SelectTrigger className={`h-8 text-xs min-w-[180px] ${!hasBank && isPending ? 'border-amber-400 border-2' : ''}`}>
+                      <SelectTrigger className={`h-8 text-xs min-w-[180px] ${!hasBank && isPending ? 'border-warning border-2' : ''}`}>
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -815,7 +815,7 @@ setTransactionErrors(allErrors)
                         size="sm"
                         disabled={!hasBank || isConfirming}
                         onClick={() => confirmSession(sIdx)}
-                        className={hasBank ? 'bg-amber-500 hover:bg-amber-600' : ''}
+                        className={hasBank ? 'bg-warning hover:bg-warning/90' : ''}
                       >
                         {isConfirming ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -899,15 +899,15 @@ setTransactionErrors(allErrors)
                                 />
                               </td>
                               <td className={`px-3 py-2 text-xs font-medium whitespace-nowrap ${
-                                trans.type === 'income' ? 'text-green-600' : 'text-red-600'
+                                trans.type === 'income' ? 'text-success' : 'text-destructive'
                               }`}>
                                 {trans.type === 'expense' ? '-' : ''}{formatCurrency(trans.amount)}
                               </td>
                               <td className="px-3 py-2">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                                   trans.type === 'income'
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-red-100 text-red-700'
+                                    ? 'bg-success/15 text-success'
+                                    : 'bg-destructive/15 text-destructive'
                                 }`}>
                                   {trans.type === 'income' ? 'Entrada' : 'SaÃ­da'}
                                 </span>
@@ -1062,7 +1062,7 @@ setTransactionErrors(allErrors)
 
                 {/* Session validation warnings */}
                 {isPending && session.transactions.some(t => !t.category_id) && (
-                  <div className="px-4 py-2 flex items-center gap-2 text-amber-600 bg-amber-50/50 border-t border-border">
+                  <div className="px-4 py-2 flex items-center gap-2 text-warning bg-warning/5 border-t border-border">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span className="text-xs">
                       {session.transactions.filter(t => !t.category_id).length} transaÃ§Ã£o(Ãµes) sem categoria

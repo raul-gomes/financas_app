@@ -1,14 +1,18 @@
-from sqlalchemy import Column, Integer, Float, String, DateTime, Boolean, ForeignKey, func
-from sqlalchemy.orm import relationship
-from app.db.base import Base
 from uuid import uuid4
+
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+
+from app.db.base import Base
 
 
 class RecurringAccountORM(Base):
     __tablename__ = "recurring_accounts"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     description = Column(String, nullable=False)
     amount = Column(Float, nullable=False)
     due_day = Column(Integer, nullable=False)

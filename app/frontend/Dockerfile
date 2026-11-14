@@ -23,8 +23,8 @@ ENV VITE_API_URL=$VITE_API_URL \
 
 RUN npm run build
 
-# Production Stage
-FROM nginx:alpine
+# Production Stage - unprivileged nginx (non-root, listens on 8080)
+FROM nginxinc/nginx-unprivileged:1.27-alpine
 
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
@@ -33,6 +33,9 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Vite's default output is the 'dist' folder
 COPY --from=build /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

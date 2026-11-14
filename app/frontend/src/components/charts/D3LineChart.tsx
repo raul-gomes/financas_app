@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useRef } from 'react';
-import { formatCurrency, formatDate } from '@/lib/format';
-import * as d3 from 'd3';
+import { formatCurrency } from '@/lib/format';
+import * as d3 from '@/lib/d3';
 import { PortfolioEvolution } from '@/types/financial';
 
 interface D3LineChartProps {
@@ -140,17 +140,17 @@ function D3LineChartBase({ data, width = 800, height = 250 }: D3LineChartProps) 
       .style('border-radius', '8px')
       .style('padding', '8px')
       .style('font-size', '12px')
-      .style('box-shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1)')
+      .style('box-shadow', 'var(--shadow-elegant)')
       .style('z-index', '1000');
 
     // Add hover effects
-    g.selectAll('.dot')
-      .on('mouseover', function(event, d: any) {
+    g.selectAll<SVGCircleElement, PortfolioEvolution & { parsedDate: Date }>('.dot')
+      .on('mouseover', function(event, d) {
         tooltip
           .style('visibility', 'visible')
           .html(`
             <div>
-              <strong>${formatDate(d.parsedDate)}</strong><br/>
+              <strong>${d.parsedDate.toLocaleDateString('en-US')}</strong><br/>
               Valor da Carteira: ${formatCurrency(d.value)}
             </div>
           `);

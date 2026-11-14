@@ -1,7 +1,6 @@
 # app/services/email_service.py
 
 import os
-from typing import Optional
 
 import httpx
 
@@ -41,7 +40,7 @@ def build_alert_html(
     spent: float = 0.0,
     limit: float = 0.0,
     scope: str = "category",
-    month: Optional[str] = None,
+    month: str | None = None,
 ) -> str:
     alvo = "Cartão de crédito" if scope == "credit_card" else f'Categoria "{category_name}"'
     if exceeded:
@@ -79,14 +78,16 @@ async def send_limit_alert_email(
     spent: float = 0.0,
     limit: float = 0.0,
     scope: str = "category",
-    month: Optional[str] = None,
+    month: str | None = None,
 ) -> bool:
     """Best-effort: nunca levanta. Retorna True se enviado com sucesso."""
     if not is_email_enabled():
         logger.debug("[email] Notificações de e-mail desabilitadas (EMAIL_ALERTS_ENABLED=false)")
         return False
     if not _resend_api_key():
-        logger.warning("[email] EMAIL_ALERTS_ENABLED=true mas RESEND_API_KEY não configurada — pulando envio")
+        logger.warning(
+            "[email] EMAIL_ALERTS_ENABLED=true mas RESEND_API_KEY não configurada — pulando envio"
+        )
         return False
 
     html = build_alert_html(
@@ -117,6 +118,6 @@ async def send_limit_alert_email(
             return True
         logger.warning("[email] Resend respondeu %s: %s", resp.status_code, resp.text[:200])
         return False
-    except Exception as e:  # noqa: BLE001 — email é best-effort
+    except Exception as e:
         logger.error("[email] Falha ao enviar para %s: %s", to_email, e)
         return False

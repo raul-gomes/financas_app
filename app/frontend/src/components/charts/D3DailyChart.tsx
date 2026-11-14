@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { formatCurrency } from '@/lib/format';
-import * as d3 from 'd3';
+import { formatCurrency, escapeHtml } from '@/lib/format';
+import * as d3 from '@/lib/d3';
 import { DailyData } from '@/types/financial';
 
 interface D3DailyChartProps {
@@ -171,7 +171,7 @@ function D3DailyChartBase({
         .attr('x2', innerWidth)
         .attr('y1', goalY)
         .attr('y2', goalY)
-        .attr('stroke', '#ef4444')
+        .attr('stroke', 'hsl(var(--destructive))')
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '5,5');
 
@@ -195,15 +195,15 @@ function D3DailyChartBase({
       .style('border-radius', '8px')
       .style('padding', '10px')
       .style('font-size', '13px')
-      .style('box-shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1)')
+      .style('box-shadow', 'var(--shadow-elegant)')
       .style('z-index', '1000')
       .style('pointer-events', 'none')
       .style('max-width', '90vw');
 
     // Hover effects
-    g.selectAll('.income-bar, .expense-bar, .investment-bar')
+    g.selectAll<SVGRectElement, DailyData>('.income-bar, .expense-bar, .investment-bar')
       .style('cursor', 'default')
-      .on('mouseover', function (event, d: any) {
+      .on('mouseover', function (event, d) {
         const isIncome = d3.select(this).classed('income-bar');
         const isExpense = d3.select(this).classed('expense-bar');
         const isInvestment = d3.select(this).classed('investment-bar');
@@ -217,8 +217,8 @@ function D3DailyChartBase({
           .style('visibility', 'visible')
           .html(`
             <div>
-              <strong>Dia ${d.day}/${selectedMonth?.split(' ')[0] || ''}</strong><br/>
-              ${type}: ${formatCurrency(value)}
+              <strong>Dia ${escapeHtml(d.day)}/${escapeHtml(selectedMonth?.split(' ')[0])}</strong><br/>
+              ${escapeHtml(type)}: ${formatCurrency(value)}
             </div>
           `);
       })

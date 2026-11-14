@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
-import { CategorySubcategories, Transaction, DuplicateInfo } from '@/types/financial';
+import { CategorySubcategories, Transaction, DuplicateInfo, TransactionCreatePayload } from '@/types/financial';
 import { useToast } from '@/hooks/use-toast';
 import { FinancialService } from '@/services/financialService';
 import { SettingsService, UserBank } from '@/services/settingsService';
@@ -91,7 +91,7 @@ export function AddTransactionDialog({
   // Duplicate checking state
   const [duplicateConflict, setDuplicateConflict] = useState<{
     existing: DuplicateInfo
-    payload: any
+    payload: TransactionCreatePayload
   } | null>(null);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
@@ -184,7 +184,7 @@ export function AddTransactionDialog({
       s => s.name === formData.subcategory_name
     );
 
-    const payload: any = {
+    const payload: TransactionCreatePayload = {
       type: formData.type,
       amount: parseFloat(formData.amount),
       description: formData.description,
@@ -212,7 +212,7 @@ export function AddTransactionDialog({
     return payload;
   }, [formData, bankCode, isInstallment, categoryOptions]);
 
-  const executeAdd = async (payload: any) => {
+  const executeAdd = async (payload: TransactionCreatePayload) => {
     try {
       await FinancialService.addTransaction(payload);
       toast({ title: 'Transação adicionada', description: 'Sucesso!' });
@@ -525,8 +525,8 @@ export function AddTransactionDialog({
               const severity = categoryRisk.severity ?? (categoryRisk.is_over_limit ? 'destructive' : null);
               if (!severity) return null;
               const bannerStyles = {
-                warning: 'border-amber-500/30 bg-amber-500/15 text-amber-600',
-                critical: 'border-orange-500/30 bg-orange-500/15 text-orange-600',
+                warning: 'border-warning/30 bg-warning/15 text-warning',
+                critical: 'border-critical/30 bg-critical/15 text-critical',
                 destructive: 'border-destructive/40 bg-destructive/10 text-destructive',
               }[severity];
               return (

@@ -26,6 +26,9 @@ import { BankLogo, BankLogoFallback } from '@/components/ui/bank-logo';
 import { BankSearchInput } from '@/components/ui/bank-search';
 import { PageHeader } from '@/components/ui/page-header';
 import { useRole } from '@/contexts/RoleContext';
+import { supabase } from '@/lib/supabase';
+
+const MIN_PASSWORD_LENGTH = 6;
 
 const Settings = () => {
   const { toast } = useToast();
@@ -71,7 +74,7 @@ const Settings = () => {
       setProfile(profileData);
       setName(profileData.name);
       setEmail(profileData.email);
-      setPluggyApiKey(profileData.pluggy_api_key || '');
+      setPluggyApiKey('');
       setBanks(banksData);
     } catch (err) {
       console.error('Erro ao carregar configurações:', err);
@@ -87,20 +90,39 @@ const Settings = () => {
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     try {
-      const payload: Record<string, string> = {};
-      if (name !== profile?.name) payload.name = name;
-      if (email !== profile?.email) payload.email = email;
-      if (password) payload.password = password;
-
-      if (Object.keys(payload).length === 0) {
+      const nameChanged = name !== profile?.name;
+      const emailChanged = email !== profile?.email;
+      if (!nameChanged && !emailChanged && !password) {
         toast({ title: 'Nada a salvar', description: 'Nenhuma alteração detectada.' });
         return;
       }
+      if (password && password.length < MIN_PASSWORD_LENGTH) {
+        toast({
+          title: 'Senha curta',
+          description: `A senha precisa de pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
-      const updated = await SettingsService.updateProfile(payload);
-      setProfile(updated);
+      // E-mail e senha são do Supabase Auth (é com eles que se faz login).
+      if (emailChanged || password) {
+        const { error } = await supabase.auth.updateUser({
+          ...(emailChanged ? { email } : {}),
+          ...(password ? { password } : {}),
+        });
+        if (error) throw error;
+      }
+      if (nameChanged) {
+        setProfile(await SettingsService.updateProfile({ name }));
+      }
       setPassword('');
-      toast({ title: 'Sucesso', description: 'Perfil atualizado!' });
+      toast({
+        title: 'Sucesso',
+        description: emailChanged
+          ? 'Perfil atualizado. Confirme o novo e-mail pelo link enviado.'
+          : 'Perfil atualizado!',
+      });
     } catch {
       toast({ title: 'Erro', description: 'Falha ao salvar perfil.', variant: 'destructive' });
     } finally {
@@ -129,7 +151,8 @@ const Settings = () => {
     try {
       // Save key first, then validate
       await SettingsService.updateProfile({ pluggy_api_key: pluggyApiKey });
-      setProfile((prev) => prev ? { ...prev, pluggy_api_key: pluggyApiKey } : prev);
+      setProfile((prev) => prev ? { ...prev, has_pluggy_key: true } : prev);
+      setPluggyApiKey('');
 
       const result = await SettingsService.validatePluggyKey();
       setPluggyStatus({ ok: result.valid, message: result.message });
@@ -149,7 +172,8 @@ const Settings = () => {
   const handleSavePluggyKey = async () => {
     try {
       await SettingsService.updateProfile({ pluggy_api_key: pluggyApiKey });
-      setProfile((prev) => prev ? { ...prev, pluggy_api_key: pluggyApiKey } : prev);
+      setProfile((prev) => prev ? { ...prev, has_pluggy_key: true } : prev);
+      setPluggyApiKey('');
       toast({ title: 'Sucesso', description: 'API Key salva!' });
     } catch {
       toast({ title: 'Erro', description: 'Falha ao salvar API Key.', variant: 'destructive' });
@@ -263,7 +287,7 @@ const Settings = () => {
                 className="w-full"
               />
               <p className="text-xs text-muted-foreground">
-                Mínimo 6 caracteres. A senha é armazenada com hash (bcrypt).
+                Mínimo {MIN_PASSWORD_LENGTH} caracteres. A senha é guardada pelo Supabase (login).
               </p>
             </div>
 
@@ -392,7 +416,7 @@ const Settings = () => {
                 <Input
                   value={pluggyApiKey}
                   onChange={(e) => setPluggyApiKey(e.target.value)}
-                  placeholder="Cole sua API Key aqui..."
+                  placeholder={profile?.has_pluggy_key ? 'Chave configurada — cole outra para trocar' : 'Cole sua API Key aqui...'}
                   className="flex-1 font-mono text-sm"
                   type="password"
                 />
@@ -405,7 +429,7 @@ const Settings = () => {
                 </Button>
               </div>
               {pluggyStatus && (
-                <p className={`text-xs ${pluggyStatus.ok ? 'text-green-500' : 'text-red-500'}`}>
+                <p className={`text-xs ${pluggyStatus.ok ? 'text-success' : 'text-destructive'}`}>
                   {pluggyStatus.message}
                 </p>
               )}
@@ -413,13 +437,13 @@ const Settings = () => {
 
             {/* Save API Key */}
             <div className="flex gap-2">
-              <Button onClick={handleSavePluggyKey} disabled={!pluggyApiKey || pluggyApiKey === profile?.pluggy_api_key}>
+              <Button onClick={handleSavePluggyKey} disabled={!pluggyApiKey}>
                 Salvar Chave
               </Button>
               <Button
                 variant="secondary"
                 onClick={handleSyncPluggy}
-                disabled={!profile?.pluggy_api_key || syncing}
+                disabled={!profile?.has_pluggy_key || syncing}
               >
                 {syncing ? 'Sincronizando...' : 'Sincronizar Transações'}
               </Button>
@@ -427,7 +451,7 @@ const Settings = () => {
 
             {syncResult && (
               <div className={`p-3 rounded-lg text-sm ${
-                syncResult.imported > 0 ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-muted text-muted-foreground'
+                syncResult.imported > 0 ? 'bg-success/10 text-success border border-success/30' : 'bg-muted text-muted-foreground'
               }`}>
                 {syncResult.message}
               </div>

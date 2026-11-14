@@ -1,27 +1,37 @@
 # app/routes/transacoes.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
-from typing import List, Optional
 from datetime import datetime
 
-from app.core.database import get_session
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.repositories.transaction import TransacaoRepository
-from app.services.limit_alert_service import trigger_limit_evaluation
-from app.db.models.user import UserORM
+
+from app.core.database import get_session
 from app.core.security import get_current_user
-from app.schemas.transaction import (
-    TransacaoCreate, TransacaoResponse, TransacaoUpdate,
-    DuplicateCheckRequest, DuplicateCheckResponse, SingleDuplicateCheckResult, DuplicateInfo,
-    DuplicateResolution, ResolveDuplicatesRequest, ResolveDuplicatesResponse,
-)
+from app.db.models.user import UserORM
+from app.db.repositories.transaction import TransacaoRepository
 from app.logger import log_api_request
+from app.schemas.transaction import (
+    DuplicateCheckRequest,
+    DuplicateCheckResponse,
+    DuplicateInfo,
+    ResolveDuplicatesRequest,
+    ResolveDuplicatesResponse,
+    SingleDuplicateCheckResult,
+    TransacaoCreate,
+    TransacaoResponse,
+    TransacaoUpdate,
+)
+from app.services.limit_alert_service import trigger_limit_evaluation
+
 
 def parse_date(date_str: str, field_name: str) -> datetime:
     try:
         return datetime.strptime(date_str, "%d/%m/%Y")
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Formato inválido para {field_name}. Use DD/MM/YYYY.")
+        raise HTTPException(
+            status_code=400, detail=f"Formato inválido para {field_name}. Use DD/MM/YYYY."
+        )
+
 
 router = APIRouter(prefix="/transacoes", tags=["Transações"])
 
@@ -44,7 +54,9 @@ async def check_duplicates(
     if payload.transactions is not None:
         # Bulk check (including empty list)
         for item in payload.transactions:
-            duplicates = await repo.check_duplicates(item.transaction_date, item.amount, current_user.id)
+            duplicates = await repo.check_duplicates(
+                item.transaction_date, item.amount, current_user.id
+            )
             dup_info = [
                 DuplicateInfo(
                     id=t.id,
@@ -60,14 +72,18 @@ async def check_duplicates(
                 )
                 for t in duplicates
             ]
-            results.append(SingleDuplicateCheckResult(
-                index=item.index,
-                has_duplicate=len(dup_info) > 0,
-                duplicates=dup_info,
-            ))
+            results.append(
+                SingleDuplicateCheckResult(
+                    index=item.index,
+                    has_duplicate=len(dup_info) > 0,
+                    duplicates=dup_info,
+                )
+            )
     elif payload.transaction_date is not None and payload.amount is not None:
         # Single check
-        duplicates = await repo.check_duplicates(payload.transaction_date, payload.amount, current_user.id)
+        duplicates = await repo.check_duplicates(
+            payload.transaction_date, payload.amount, current_user.id
+        )
         dup_info = [
             DuplicateInfo(
                 id=t.id,
@@ -83,15 +99,17 @@ async def check_duplicates(
             )
             for t in duplicates
         ]
-        results.append(SingleDuplicateCheckResult(
-            index=0,
-            has_duplicate=len(dup_info) > 0,
-            duplicates=dup_info,
-        ))
+        results.append(
+            SingleDuplicateCheckResult(
+                index=0,
+                has_duplicate=len(dup_info) > 0,
+                duplicates=dup_info,
+            )
+        )
     else:
         raise HTTPException(
             status_code=400,
-            detail="Envie transaction_date+amount para single check, ou transactions[] para bulk."
+            detail="Envie transaction_date+amount para single check, ou transactions[] para bulk.",
         )
 
     log.info(f"{len(results)} check(s) realizados")
@@ -113,7 +131,9 @@ async def resolve_duplicates(
     current_user: UserORM = Depends(get_current_user),
     repo: TransacaoRepository = Depends(),
 ):
-    log = log_api_request(method="POST", endpoint=str(request.url), resolutions=len(payload.resolutions))
+    log = log_api_request(
+        method="POST", endpoint=str(request.url), resolutions=len(payload.resolutions)
+    )
     resolved = 0
     deleted = 0
     kept = 0
@@ -156,9 +176,12 @@ async def create_transacao(
     try:
         transacao = await repo.create(payload, current_user.id)
         try:
-            await trigger_limit_evaluation(db, current_user.id,
-                                           year=transacao.transaction_date.year,
-                                           month=transacao.transaction_date.month)
+            await trigger_limit_evaluation(
+                db,
+                current_user.id,
+                year=transacao.transaction_date.year,
+                month=transacao.transaction_date.month,
+            )
         except Exception as e:
             log.warning(f"Falha ao avaliar limites pós-create: {e}")
         return transacao
@@ -166,25 +189,24 @@ async def create_transacao(
         raise
     except Exception as e:
         log.error(f"Erro interno ao criar transação: {type(e).__name__}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
-
+        raise HTTPException(status_code=500, detail=f"Erro interno: {e!s}")
 
 
 @router.get(
     "/",
-    response_model=List[TransacaoResponse],
+    response_model=list[TransacaoResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar transações",
-    description="Lista todas as transações, com filtros opcionais por data e paginação."
+    description="Lista todas as transações, com filtros opcionais por data e paginação.",
 )
 async def list_transacoes(
     request: Request,
     current_user: UserORM = Depends(get_current_user),
-    start_date: Optional[str] = Query(None, description="Data inicial DD/MM/YYYY"),
-    end_date: Optional[str] = Query(None, description="Data final DD/MM/YYYY"),
+    start_date: str | None = Query(None, description="Data inicial DD/MM/YYYY"),
+    end_date: str | None = Query(None, description="Data final DD/MM/YYYY"),
     limit: int = Query(100, ge=1, le=500, description="Limite de itens por página"),
     offset: int = Query(0, ge=0, description="Offset para paginação"),
-    repo: TransacaoRepository = Depends(TransacaoRepository)
+    repo: TransacaoRepository = Depends(TransacaoRepository),
 ):
     """
     Obtém transações entre start_date e end_date, se fornecidas, com paginação.
@@ -201,17 +223,19 @@ async def list_transacoes(
         start_date=dt_i,
         end_date=dt_f,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
     try:
-        transacoes = await repo.get_all(dt_i, dt_f, limit=limit, offset=offset, user_id=current_user.id)
+        transacoes = await repo.get_all(
+            dt_i, dt_f, limit=limit, offset=offset, user_id=current_user.id
+        )
         log.info(f"{len(transacoes)} transações listadas")
         return transacoes
     except Exception as e:
         log.error(f"Erro ao listar transações: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao listar transações"
+            detail="Erro interno ao listar transações",
         )
 
 
@@ -220,13 +244,13 @@ async def list_transacoes(
     response_model=TransacaoResponse,
     status_code=status.HTTP_200_OK,
     summary="Obter transação por ID",
-    description="Retorna detalhes de uma transação específica."
+    description="Retorna detalhes de uma transação específica.",
 )
 async def get_transacao_by_id(
     request: Request,
     transacao_id: int,
     current_user: UserORM = Depends(get_current_user),
-    repo: TransacaoRepository = Depends(TransacaoRepository)
+    repo: TransacaoRepository = Depends(TransacaoRepository),
 ):
     """
     Busca transação pelo seu identificador.
@@ -236,8 +260,7 @@ async def get_transacao_by_id(
     if not trans:
         log.warning(f"Transação {transacao_id} não encontrada")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Transação não encontrada"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Transação não encontrada"
         )
     log.info(f"Transação {transacao_id} retornada")
     return trans
@@ -256,27 +279,34 @@ async def update_transacao(
     repo: TransacaoRepository = Depends(TransacaoRepository),
     db: AsyncSession = Depends(get_session),
 ):
-    log = log_api_request(method="PUT", endpoint=str(request.url), transacao_id=transacao_id, payload=payload.dict(exclude_unset=True))
+    log = log_api_request(
+        method="PUT",
+        endpoint=str(request.url),
+        transacao_id=transacao_id,
+        payload=payload.model_dump(exclude_unset=True),
+    )
     trans = await repo.update(transacao_id, payload, current_user.id)
     if not trans:
         log.warning(f"Transação {transacao_id} não encontrada")
         raise HTTPException(status_code=404, detail="Transação não encontrada")
     try:
-        await trigger_limit_evaluation(db, current_user.id,
-                                       year=trans.transaction_date.year,
-                                       month=trans.transaction_date.month)
+        await trigger_limit_evaluation(
+            db,
+            current_user.id,
+            year=trans.transaction_date.year,
+            month=trans.transaction_date.month,
+        )
     except Exception as e:
         log.warning(f"Falha ao avaliar limites pós-update: {e}")
     log.info(f"Transação {transacao_id} atualizada")
     return trans
 
 
-
 @router.delete(
     "/{transacao_id}",
     response_model=TransacaoResponse,
     summary="Excluir transação",
-    description="Remove uma transação pelo seu ID."
+    description="Remove uma transação pelo seu ID.",
 )
 async def delete_transacao(
     request: Request,
@@ -294,13 +324,15 @@ async def delete_transacao(
         if not deleted:
             log.warning(f"Tentativa de excluir transação {transacao_id} não encontrada")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Transação não encontrada"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Transação não encontrada"
             )
         try:
-            await trigger_limit_evaluation(db, current_user.id,
-                                           year=deleted.transaction_date.year,
-                                           month=deleted.transaction_date.month)
+            await trigger_limit_evaluation(
+                db,
+                current_user.id,
+                year=deleted.transaction_date.year,
+                month=deleted.transaction_date.month,
+            )
         except Exception as e:
             log.warning(f"Falha ao avaliar limites pós-delete: {e}")
         log.info(f"Transação {transacao_id} excluída")
@@ -311,5 +343,5 @@ async def delete_transacao(
         log.error(f"Erro ao excluir transação {transacao_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao excluir transação"
+            detail="Erro interno ao excluir transação",
         )

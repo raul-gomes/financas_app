@@ -1,14 +1,11 @@
 from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from passlib.context import CryptContext
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.db.models.user import UserORM
 from app.db.models.user_bank import UserBankORM
-from app.schemas.settings import ProfileUpdate, BankCreate
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.schemas.settings import BankCreate, ProfileUpdate
 
 
 class SettingsRepository:
@@ -24,12 +21,8 @@ class SettingsRepository:
             raise ValueError("Usuário não encontrado")
         if payload.name is not None:
             user.name = payload.name
-        if payload.email is not None:
-            user.email = payload.email
-        if payload.password:
-            user.password_hash = pwd_context.hash(payload.password)
         if payload.pluggy_api_key is not None:
-            user.pluggy_api_key = payload.pluggy_api_key
+            user.pluggy_api_key = payload.pluggy_api_key or None
         await self.db.commit()
         await self.db.refresh(user)
         return user
@@ -37,9 +30,7 @@ class SettingsRepository:
     # ── Banks ─────────────────────────────────────────────────
 
     async def list_banks(self, user_id: int) -> list[UserBankORM]:
-        result = await self.db.execute(
-            select(UserBankORM).where(UserBankORM.user_id == user_id)
-        )
+        result = await self.db.execute(select(UserBankORM).where(UserBankORM.user_id == user_id))
         return list(result.unique().scalars().all())
 
     async def add_bank(self, user_id: int, payload: BankCreate) -> UserBankORM:

@@ -1,9 +1,16 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend:
@@ -13,10 +20,10 @@ jobs:
       run:
         working-directory: app/frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "20"
           cache: npm
@@ -25,6 +32,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # lint: enable after pendencias Q9
       - name: Typecheck
         run: npm run typecheck
 
@@ -36,3 +44,38 @@ jobs:
 
       - name: Bundle budget gate (per-chunk gzip <= 500kB)
         run: npm run check:bundle
+
+  backend:
+    name: Backend (ruff, pytest, pip-audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/backend
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: app/backend/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Tests
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+        run: uv run pytest -q
+
+      # Blocking: any known vulnerability in the locked dependencies fails the build.
+      - name: Dependency audit
+        run: |
+          uv export --frozen --no-hashes --no-emit-project > "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit --disable-pip --no-deps -r "$RUNNER_TEMP/requirements.txt"

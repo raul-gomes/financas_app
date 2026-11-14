@@ -1,67 +1,38 @@
+import type { Infer } from '@/lib/parse';
 import { apiFetch } from '@/lib/api';
+import { parseApi, parseResponse } from '@/lib/parse';
+import {
+  profileSchema, userBankSchema, userBankListSchema, brasilApiBankListSchema,
+  brasilApiBankSchema, pluggyValidateSchema, pluggyAccountsSchema, syncResultSchema,
+} from '@/schemas/settings';
 
-export interface Profile {
-  id: number;
-  name: string;
-  email: string;
-  pluggy_api_key?: string;
-  role?: string;
-  created_at: string;
-  updated_at: string;
-}
+/** The pluggy key itself never leaves the backend (only `has_pluggy_key`). */
+export type Profile = Infer<typeof profileSchema>;
 
+/** E-mail and password are changed through Supabase Auth, not this API. */
 export interface ProfileUpdate {
   name?: string;
-  email?: string;
-  password?: string;
+  /** Empty string removes the stored key. */
   pluggy_api_key?: string;
 }
 
-export interface PluggyAccount {
-  id: string;
-  name: string;
-  type: string;
-  balance: number;
-  currencyCode: string;
-}
-
-export interface PluggyItem {
-  id: string;
-  status: string;
-  institution_name: string;
-  institution_number?: string;
-}
-
-export interface SyncResult {
-  message: string;
-  imported: number;
-  accounts: number;
-}
-
-export interface UserBank {
-  id: number;
-  bank_code: string;
-  bank_name: string;
-  created_at: string;
-}
+export type PluggyAccountsResponse = Infer<typeof pluggyAccountsSchema>;
+export type PluggyAccount = PluggyAccountsResponse['accounts'][number];
+export type PluggyItem = PluggyAccountsResponse['items'][number];
+export type SyncResult = Infer<typeof syncResultSchema>;
+export type UserBank = Infer<typeof userBankSchema>;
+export type BrasilApiBank = Infer<typeof brasilApiBankSchema>;
 
 export interface BankCreate {
   bank_code: string;
   bank_name: string;
 }
 
-export interface BrasilApiBank {
-  code: string | null;
-  name: string;
-  fullName: string;
-  ispb: string;
-}
-
 export class SettingsService {
   static async getProfile(): Promise<Profile> {
     const res = await apiFetch(`/settings/profile`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao obter perfil`);
-    return res.json();
+    return parseResponse(res, profileSchema, 'obter perfil');
   }
 
   static async updateProfile(payload: ProfileUpdate): Promise<Profile> {
@@ -71,13 +42,13 @@ export class SettingsService {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao atualizar perfil`);
-    return res.json();
+    return parseResponse(res, profileSchema, 'atualizar perfil');
   }
 
   static async listBanks(): Promise<UserBank[]> {
     const res = await apiFetch(`/settings/banks`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao listar bancos`);
-    return res.json();
+    return parseResponse(res, userBankListSchema, 'listar bancos');
   }
 
   static async addBank(payload: BankCreate): Promise<UserBank> {
@@ -87,7 +58,7 @@ export class SettingsService {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao adicionar banco`);
-    return res.json();
+    return parseResponse(res, userBankSchema, 'adicionar banco');
   }
 
   static async removeBank(bankId: number): Promise<void> {
@@ -104,7 +75,7 @@ export class SettingsService {
     if (!this.#banksCache) {
       const res = await fetch(`https://brasilapi.com.br/api/banks/v1`);
       if (!res.ok) return [];
-      this.#banksCache = await res.json();
+      this.#banksCache = await parseResponse(res, brasilApiBankListSchema, 'buscar bancos');
     }
     const allBanks = this.#banksCache;
     const q = query.toLowerCase();
@@ -144,19 +115,19 @@ export class SettingsService {
   static async validatePluggyKey(): Promise<{ valid: boolean; message: string }> {
     const res = await apiFetch(`/pluggy/validate-key`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao validar chave`);
-    return res.json();
+    return parseResponse(res, pluggyValidateSchema, 'validar chave');
   }
 
   static async listPluggyAccounts(): Promise<{ accounts: PluggyAccount[]; items: PluggyItem[] }> {
     const res = await apiFetch(`/pluggy/accounts`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao listar contas`);
-    return res.json();
+    return parseResponse(res, pluggyAccountsSchema, 'listar contas');
   }
 
   static async syncPluggy(): Promise<SyncResult> {
     const res = await apiFetch(`/pluggy/sync`, { method: 'POST' });
     if (!res.ok) throw new Error(`Erro ${res.status} ao sincronizar`);
-    return res.json();
+    return parseResponse(res, syncResultSchema, 'sincronizar');
   }
 
   // ── Export ──────────────────────────────────────────────

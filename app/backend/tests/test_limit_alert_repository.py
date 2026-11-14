@@ -49,7 +49,9 @@ async def test_criar_alerta_basico(async_session, seed_user, seed_category):
 
 
 @pytest.mark.asyncio
-async def test_unique_constraint_user_categoria_mes_threshold(async_session, seed_user, seed_category):
+async def test_unique_constraint_user_categoria_mes_threshold(
+    async_session, seed_user, seed_category
+):
     repo = LimitAlertRepository(async_session)
     await repo.create(
         user_id=1,
@@ -77,7 +79,10 @@ async def test_unique_constraint_user_categoria_mes_threshold(async_session, see
 @pytest.mark.asyncio
 async def test_exists_detecta_ja_criado(async_session, seed_user, seed_category):
     repo = LimitAlertRepository(async_session)
-    assert await repo.exists(user_id=1, category_id=seed_category.id, month="2026-09", threshold=70) is False
+    assert (
+        await repo.exists(user_id=1, category_id=seed_category.id, month="2026-09", threshold=70)
+        is False
+    )
     await repo.create(
         user_id=1,
         category_id=seed_category.id,
@@ -88,19 +93,32 @@ async def test_exists_detecta_ja_criado(async_session, seed_user, seed_category)
         percent_used=72.0,
     )
     await async_session.commit()
-    assert await repo.exists(user_id=1, category_id=seed_category.id, month="2026-09", threshold=70) is True
+    assert (
+        await repo.exists(user_id=1, category_id=seed_category.id, month="2026-09", threshold=70)
+        is True
+    )
 
 
 @pytest.mark.asyncio
 async def test_lista_por_usuario_ordena_mais_recente(async_session, seed_user, seed_category):
     repo = LimitAlertRepository(async_session)
-    a1 = await repo.create(
-        user_id=1, category_id=seed_category.id, scope="category", month="2026-09",
-        threshold=70, exceeded=False, percent_used=72.0,
+    await repo.create(
+        user_id=1,
+        category_id=seed_category.id,
+        scope="category",
+        month="2026-09",
+        threshold=70,
+        exceeded=False,
+        percent_used=72.0,
     )
     a2 = await repo.create(
-        user_id=1, category_id=seed_category.id, scope="category", month="2026-09",
-        threshold=90, exceeded=False, percent_used=92.0,
+        user_id=1,
+        category_id=seed_category.id,
+        scope="category",
+        month="2026-09",
+        threshold=90,
+        exceeded=False,
+        percent_used=92.0,
     )
     await async_session.commit()
     alertas = await repo.list_by_user(user_id=1)
@@ -112,12 +130,22 @@ async def test_lista_por_usuario_ordena_mais_recente(async_session, seed_user, s
 async def test_unread_count(async_session, seed_user, seed_category):
     repo = LimitAlertRepository(async_session)
     await repo.create(
-        user_id=1, category_id=seed_category.id, scope="category", month="2026-09",
-        threshold=70, exceeded=False, percent_used=72.0,
+        user_id=1,
+        category_id=seed_category.id,
+        scope="category",
+        month="2026-09",
+        threshold=70,
+        exceeded=False,
+        percent_used=72.0,
     )
     lido = await repo.create(
-        user_id=1, category_id=seed_category.id, scope="category", month="2026-09",
-        threshold=80, exceeded=False, percent_used=85.0,
+        user_id=1,
+        category_id=seed_category.id,
+        scope="category",
+        month="2026-09",
+        threshold=80,
+        exceeded=False,
+        percent_used=85.0,
     )
     await async_session.commit()
     await repo.mark_read(lido.id, user_id=1)
@@ -129,12 +157,22 @@ async def test_unread_count(async_session, seed_user, seed_category):
 async def test_mark_read_mark_all_read(async_session, seed_user, seed_category):
     repo = LimitAlertRepository(async_session)
     await repo.create(
-        user_id=1, category_id=seed_category.id, scope="category", month="2026-09",
-        threshold=70, exceeded=False, percent_used=72.0,
+        user_id=1,
+        category_id=seed_category.id,
+        scope="category",
+        month="2026-09",
+        threshold=70,
+        exceeded=False,
+        percent_used=72.0,
     )
     await repo.create(
-        user_id=1, category_id=seed_category.id, scope="category", month="2026-09",
-        threshold=80, exceeded=False, percent_used=85.0,
+        user_id=1,
+        category_id=seed_category.id,
+        scope="category",
+        month="2026-09",
+        threshold=80,
+        exceeded=False,
+        percent_used=85.0,
     )
     await async_session.commit()
     marcados = await repo.mark_all_read(user_id=1)

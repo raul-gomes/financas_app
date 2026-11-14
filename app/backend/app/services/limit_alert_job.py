@@ -2,12 +2,11 @@
 
 import asyncio
 from contextlib import suppress
-from typing import Optional
 
 from app.core.config import Config
 from app.core.database import AsyncSessionLocal
-from app.services.limit_alert_service import evaluate_all_users_current_month
 from app.logger import logger
+from app.services.limit_alert_service import evaluate_all_users_current_month
 
 
 async def run_evaluation_once() -> int:
@@ -18,7 +17,7 @@ async def run_evaluation_once() -> int:
     async with AsyncSessionLocal() as session:
         try:
             return await evaluate_all_users_current_month(session)
-        except Exception as e:  # noqa: BLE001 — job é best-effort
+        except Exception as e:
             logger.error(f"[job-limites] Erro na rodada: {e}")
             return 0
         finally:
@@ -40,7 +39,7 @@ async def start_limit_alert_job() -> asyncio.Task:
     )
 
 
-async def stop_limit_alert_job(task: Optional[asyncio.Task]) -> None:
+async def stop_limit_alert_job(task: asyncio.Task | None) -> None:
     if task is None:
         return
     task.cancel()

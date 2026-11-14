@@ -1,23 +1,21 @@
-import time
 import base64
-import json
+import time
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import jwt
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
-import jwt
-
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import serialization
-
-from app.core.security import get_current_user, require_role, require_admin
 from app.core.config import Config
-
+from app.core.security import get_current_user, require_admin, require_role
 
 # ── Fixtures ────────────────────────────────────────────────────────
 
 TEST_SECRET = "test-supabase-jwt-secret-for-testing-only"
+TEST_AUTH_URL = "http://localhost:9999"
+TEST_ISSUER = f"{TEST_AUTH_URL}/auth/v1"
 
 
 def _b64u(n: int) -> str:
@@ -41,9 +39,17 @@ def _make_es256_jwk() -> dict:
     }
 
 
-def _make_es256_token(sub: str = "es256-user", email: str = "es256@example.com", signing_jwk: dict | None = None):
+def _make_es256_token(
+    sub: str = "es256-user", email: str = "es256@example.com", signing_jwk: dict | None = None
+):
     jwk = signing_jwk or _make_es256_jwk()
-    payload = {"sub": sub, "email": email, "exp": int(time.time()) + 3600, "aud": "authenticated"}
+    payload = {
+        "sub": sub,
+        "email": email,
+        "exp": int(time.time()) + 3600,
+        "aud": "authenticated",
+        "iss": TEST_ISSUER,
+    }
     return jwt.encode(payload, jwt.PyJWK(jwk).key, algorithm="ES256", headers={"kid": jwk["kid"]})
 
 
@@ -60,8 +66,10 @@ class _FakeJwksClient:
         return _FakeSigningKey(jwt.PyJWK(self._jwk).key)
 
 
-def _make_token(sub: str = "user-uuid-123", email: str = "test@example.com", exp: int | None = None):
-    payload = {"sub": sub, "email": email}
+def _make_token(
+    sub: str = "user-uuid-123", email: str = "test@example.com", exp: int | None = None
+):
+    payload = {"sub": sub, "email": email, "aud": "authenticated", "iss": TEST_ISSUER}
     if exp is not None:
         payload["exp"] = exp
     else:
@@ -71,16 +79,18 @@ def _make_token(sub: str = "user-uuid-123", email: str = "test@example.com", exp
 
 @pytest.fixture(autouse=True)
 def patch_secret():
-    with patch.object(Config, "SUPABASE_JWT_SECRET", TEST_SECRET), patch.object(
-        Config, "SUPABASE_AUTH_URL", "http://localhost:9999"
+    with (
+        patch.object(Config, "SUPABASE_JWT_SECRET", TEST_SECRET),
+        patch.object(Config, "SUPABASE_AUTH_URL", TEST_AUTH_URL),
     ):
         yield
 
 
 @pytest.fixture(autouse=True)
 def mock_db_session():
-    mock_session = MagicMock()
-    with patch("app.core.security.get_or_create_user_from_supabase", new_callable=AsyncMock) as mock_upsert:
+    with patch(
+        "app.core.security.get_or_create_user_from_supabase", new_callable=AsyncMock
+    ) as mock_upsert:
         mock_user = MagicMock()
         mock_user.id = 1
         mock_user.email = "test@example.com"
@@ -90,6 +100,7 @@ def mock_db_session():
 
 
 # ── Testes: require_role / require_admin ─────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_require_admin_allows_admin():
@@ -127,6 +138,7 @@ async def test_require_role_multiple_roles():
 
 # ── Testes: token válido ─────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_valid_token_returns_user(mock_db_session):
     token = _make_token(sub="auth-user-001", email="alice@example.com")
@@ -152,6 +164,7 @@ async def test_valid_token_calls_upsert_with_correct_args(mock_db_session):
 
 
 # ── Testes: token inválido ──────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_invalid_token_raises_401(mock_db_session):
@@ -204,6 +217,7 @@ async def test_none_credentials_raises_401(mock_db_session):
 
 # ── Testes: token sem campos obrigatórios ────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_token_without_sub_raises_401(mock_db_session):
     payload = {"email": "no-sub@example.com", "exp": int(time.time()) + 3600}
@@ -227,6 +241,7 @@ async def test_token_without_email_raises_401(mock_db_session):
 
 
 # ── Testes: token ES256 validado via JWKS (Supabase local/novos projetos) ────
+
 
 @pytest.mark.asyncio
 async def test_es256_token_validado_via_jwks(mock_db_session):
@@ -252,9 +267,11 @@ async def test_es256_token_chave_diferente_raises_401(mock_db_session):
     token = _make_es256_token(signing_jwk=signing_jwk)
     credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
-    with pytest.raises(HTTPException) as exc_info:
-        with patch("app.core.security._jwks_client", return_value=_FakeJwksClient(other_jwk)):
-            await get_current_user(credentials=credentials, session=MagicMock())
+    with (
+        pytest.raises(HTTPException) as exc_info,
+        patch("app.core.security._jwks_client", return_value=_FakeJwksClient(other_jwk)),
+    ):
+        await get_current_user(credentials=credentials, session=MagicMock())
     assert exc_info.value.status_code == 401
 
 
@@ -266,7 +283,67 @@ async def test_es256_token_sem_jwks_raises_401(mock_db_session):
     def _no_client():
         raise jwt.InvalidTokenError("JWKS indisponível")
 
-    with pytest.raises(HTTPException) as exc_info:
-        with patch("app.core.security._jwks_client", side_effect=_no_client):
-            await get_current_user(credentials=credentials, session=MagicMock())
+    with (
+        pytest.raises(HTTPException) as exc_info,
+        patch("app.core.security._jwks_client", side_effect=_no_client),
+    ):
+        await get_current_user(credentials=credentials, session=MagicMock())
     assert exc_info.value.status_code == 401
+
+
+# ── Testes: claims e algoritmo (pendencias S3) ───────────────────────
+
+
+async def _assert_401(token: str) -> None:
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+    with pytest.raises(HTTPException) as exc_info:
+        await get_current_user(credentials=credentials, session=MagicMock())
+    assert exc_info.value.status_code == 401
+
+
+def _hs256(**claims: object) -> str:
+    payload = {
+        "sub": "claims-user",
+        "email": "claims@example.com",
+        "exp": int(time.time()) + 3600,
+        "aud": "authenticated",
+        "iss": TEST_ISSUER,
+    }
+    payload.update(claims)
+    return jwt.encode({k: v for k, v in payload.items() if v is not None}, TEST_SECRET, "HS256")
+
+
+@pytest.mark.asyncio
+async def test_token_without_audience_raises_401(mock_db_session):
+    await _assert_401(_hs256(aud=None))
+
+
+@pytest.mark.asyncio
+async def test_token_with_wrong_audience_raises_401(mock_db_session):
+    await _assert_401(_hs256(aud="anon"))
+
+
+@pytest.mark.asyncio
+async def test_token_from_another_issuer_raises_401(mock_db_session):
+    await _assert_401(_hs256(iss="https://evil.example.com/auth/v1"))
+
+
+@pytest.mark.asyncio
+async def test_token_without_issuer_raises_401(mock_db_session):
+    await _assert_401(_hs256(iss=None))
+
+
+@pytest.mark.asyncio
+async def test_unsigned_token_raises_401(mock_db_session):
+    token = jwt.encode(
+        {"sub": "x", "email": "x@x.com", "aud": "authenticated", "iss": TEST_ISSUER},
+        key=None,
+        algorithm="none",
+    )
+    await _assert_401(token)
+
+
+@pytest.mark.asyncio
+async def test_hs256_token_without_configured_secret_raises_401(mock_db_session):
+    with patch.object(Config, "SUPABASE_JWT_SECRET", ""):
+        await _assert_401(_hs256())

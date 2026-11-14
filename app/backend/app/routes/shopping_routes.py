@@ -1,32 +1,40 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
-from typing import List, Optional
-from datetime import date, datetime
+from datetime import date
 
-from app.db.repositories.shopping import ShoppingRepository
-from app.db.models.user import UserORM
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+
 from app.core.security import get_current_user, require_admin
-from app.schemas.shopping import ShoppingItemCreate, ShoppingItemUpdate, ShoppingItemResponse, GenerateRecurringShoppingRequest
+from app.db.models.user import UserORM
+from app.db.repositories.shopping import ShoppingRepository
 from app.logger import log_api_request
+from app.schemas.shopping import (
+    GenerateRecurringShoppingRequest,
+    ShoppingItemCreate,
+    ShoppingItemResponse,
+    ShoppingItemUpdate,
+)
 
-router = APIRouter(prefix="/shopping", tags=["Shopping"],
-                   dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/shopping", tags=["Shopping"], dependencies=[Depends(require_admin)])
 
 
 @router.get(
     "/",
-    response_model=List[ShoppingItemResponse],
+    response_model=list[ShoppingItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar itens do mês",
-    description="Retorna os itens da lista de compras para um determinado mês."
+    description="Retorna os itens da lista de compras para um determinado mês.",
 )
 async def list_shopping(
     request: Request,
     current_user: UserORM = Depends(get_current_user),
     month: date = Query(..., description="Mês de referência (YYYY-MM-DD, primeiro dia do mês)"),
-    entity_type: Optional[str] = Query(None, description="Filtrar por tipo de entidade: individual, business"),
+    entity_type: str | None = Query(
+        None, description="Filtrar por tipo de entidade: individual, business"
+    ),
     repo: ShoppingRepository = Depends(ShoppingRepository),
 ):
-    log = log_api_request(method="GET", endpoint=str(request.url), month=str(month), entity_type=entity_type)
+    log = log_api_request(
+        method="GET", endpoint=str(request.url), month=str(month), entity_type=entity_type
+    )
     try:
         items = await repo.list_by_month(month, entity_type=entity_type, user_id=current_user.id)
         log.info(f"{len(items)} itens encontrados")
@@ -34,8 +42,7 @@ async def list_shopping(
     except Exception as e:
         log.error(f"Erro ao listar itens: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao listar itens"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao listar itens"
         )
 
 
@@ -44,7 +51,7 @@ async def list_shopping(
     response_model=ShoppingItemResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Criar novo item",
-    description="Adiciona um item à lista de compras."
+    description="Adiciona um item à lista de compras.",
 )
 async def create_shopping_item(
     request: Request,
@@ -60,8 +67,7 @@ async def create_shopping_item(
     except Exception as e:
         log.error(f"Erro ao criar item: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao criar item"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao criar item"
         )
 
 
@@ -69,7 +75,7 @@ async def create_shopping_item(
     "/{item_id}",
     response_model=ShoppingItemResponse,
     summary="Atualizar item",
-    description="Atualiza nome e/ou status marcado de um item."
+    description="Atualiza nome e/ou status marcado de um item.",
 )
 async def update_shopping_item(
     request: Request,
@@ -82,10 +88,7 @@ async def update_shopping_item(
     try:
         item = await repo.update(item_id, payload, current_user.id)
         if not item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Item não encontrado"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item não encontrado")
         log.info(f"Item {item_id} atualizado")
         return item
     except HTTPException:
@@ -94,7 +97,7 @@ async def update_shopping_item(
         log.error(f"Erro ao atualizar item {item_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao atualizar item"
+            detail="Erro interno ao atualizar item",
         )
 
 
@@ -102,7 +105,7 @@ async def update_shopping_item(
     "/{item_id}",
     response_model=ShoppingItemResponse,
     summary="Excluir item",
-    description="Remove um item da lista de compras."
+    description="Remove um item da lista de compras.",
 )
 async def delete_shopping_item(
     request: Request,
@@ -114,10 +117,7 @@ async def delete_shopping_item(
     try:
         item = await repo.delete(item_id, current_user.id)
         if not item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Item não encontrado"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item não encontrado")
         log.info(f"Item {item_id} excluído")
         return item
     except HTTPException:
@@ -125,15 +125,14 @@ async def delete_shopping_item(
     except Exception as e:
         log.error(f"Erro ao excluir item {item_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao excluir item"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao excluir item"
         )
 
 
 @router.post(
     "/generate-recurring",
     summary="Gerar itens recorrentes de compras",
-    description="Cria cópias de itens marcados como recorrentes para os meses subsequentes."
+    description="Cria cópias de itens marcados como recorrentes para os meses subsequentes.",
 )
 async def generate_recurring_shopping(
     request: Request,
@@ -148,4 +147,4 @@ async def generate_recurring_shopping(
         return {"generated": gerados, "message": f"{gerados} itens recorrentes gerados"}
     except Exception as e:
         log.error(f"Erro ao gerar itens recorrentes: {type(e).__name__}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {e!s}")

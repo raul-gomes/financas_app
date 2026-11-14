@@ -68,6 +68,7 @@ describe('FinancialDashboard - rolagem dos boxes', () => {
       subcategory_name: 'Mercado',
       installment_number: null,
       total_installments: null,
+      recurring_account_id: null,
       is_installment: false,
       bank_code: null,
     });

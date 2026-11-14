@@ -1,6 +1,6 @@
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from app.services.email_service import (
     build_alert_html,
@@ -48,7 +48,9 @@ def test_build_html_inclui_categoria_e_percentual():
 @pytest.mark.asyncio
 async def test_send_email_quando_desabilitado_nao_chama_api(monkeypatch):
     monkeypatch.setenv("EMAIL_ALERTS_ENABLED", "false")
-    enviado = await send_limit_alert_email("a@b.com", category_name="X", percent_used=80.0, threshold=80)
+    enviado = await send_limit_alert_email(
+        "a@b.com", category_name="X", percent_used=80.0, threshold=80
+    )
     assert enviado is False
 
 

@@ -53,11 +53,11 @@ export function PluggyInfoDialog() {
               </p>
               <div className="grid gap-2 pt-1">
                 <div className="flex items-start gap-2">
-                  <Upload className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                  <Upload className="h-4 w-4 text-success mt-0.5 shrink-0" />
                   <span><strong>Automação:</strong> Transações importadas automaticamente, sem digitar nada.</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <CreditCard className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                  <CreditCard className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <span><strong>Precisão:</strong> Cada transação já vem com data, valor e descrição reais.</span>
                 </div>
                 <div className="flex items-start gap-2">

@@ -17,9 +17,9 @@ export const bankInitials = (name: string) => {
 
 /** Paleta do fallback com iniciais por posição do banco na lista. */
 export const BANK_COLORS = [
-  "bg-blue-500", "bg-orange-500", "bg-emerald-500", "bg-purple-500",
-  "bg-pink-500", "bg-teal-500", "bg-red-500", "bg-indigo-500",
-  "bg-cyan-500", "bg-amber-500", "bg-lime-500", "bg-rose-500",
+  "bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4",
+  "bg-chart-5", "bg-chart-6", "bg-chart-7", "bg-chart-8",
+  "bg-chart-9", "bg-chart-10", "bg-chart-11", "bg-chart-12",
 ]
 
 /** Fallback padrão com iniciais coloridas (usado por Settings e pelo modal de transação). */
@@ -37,7 +37,7 @@ export function BankLogoFallback({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded font-bold leading-none text-white",
+        "inline-flex shrink-0 items-center justify-center rounded font-bold leading-none text-primary-foreground",
         sizeClasses[size],
         BANK_COLORS[index % BANK_COLORS.length],
         className,

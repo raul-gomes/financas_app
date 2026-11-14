@@ -1,7 +1,10 @@
-from sqlalchemy import Column, Integer, Float, String, Boolean, DateTime, ForeignKey, func
-from sqlalchemy.orm import relationship
-from app.db.base import Base
 from uuid import uuid4
+
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy.orm import relationship
+
+from app.db.base import Base
+
 
 class TransactionORM(Base):
     __tablename__ = "transacoes"
@@ -12,7 +15,7 @@ class TransactionORM(Base):
     description = Column(String, nullable=False)
     installment_number = Column(Integer)
     total_installments = Column(Integer)
-    is_installment = Column(Boolean, default=False, server_default='false')
+    is_installment = Column(Boolean, default=False, server_default="false")
     transaction_date = Column(DateTime, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -22,8 +25,12 @@ class TransactionORM(Base):
     bank_code = Column(String, nullable=True)
     category_id = Column(Integer, ForeignKey("categorias.id"), nullable=False)
     subcategory_id = Column(Integer, ForeignKey("subcategorias.id"), nullable=False)
-    recurring_account_id = Column(Integer, ForeignKey("recurring_accounts.id"), nullable=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    recurring_account_id = Column(
+        Integer, ForeignKey("recurring_accounts.id"), nullable=True, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     category = relationship("CategoryORM", lazy="joined")
     subcategory = relationship("SubcategoryORM", lazy="joined")

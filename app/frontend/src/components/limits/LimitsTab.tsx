@@ -31,6 +31,49 @@ interface Category {
     isModified?: boolean
 }
 
+/** Subcategory as returned by the backend (name may come as subcategory_name). */
+interface RawSubcategory {
+    id: number | string
+    name?: string
+    subcategory_name?: string
+}
+
+/** Category as returned by the backend (name may come as category_name). */
+interface RawCategory {
+    id: number | string
+    name?: string
+    category_name?: string
+    entity_type: string
+    limit: number
+    type?: string | null
+    subcategories?: RawSubcategory[]
+}
+
+/** Body sent to save the limits; items follow the backend contract. */
+interface LimitsSaveBody {
+    new: Record<string, unknown>[]
+    modified: Record<string, unknown>[]
+    deleted: number[]
+}
+
+// Map backend entity_type to local: 'individual'->'pf', 'business'->'pj'
+const mapEntityType = (et: string): 'pf' | 'pj' | 'mensal' => {
+    if (et === 'individual') return 'pf'
+    if (et === 'business') return 'pj'
+    return 'mensal'
+}
+
+// Transform backend response to local Category type
+const transformCategory = (c: RawCategory): Category => ({
+    ...c,
+    name: c.name ?? c.category_name ?? '',
+    entity_type: mapEntityType(c.entity_type),
+    subcategories: (c.subcategories || []).map((s: RawSubcategory) => ({
+        ...s,
+        name: s.name ?? s.subcategory_name ?? '',
+    })),
+})
+
 // ===== Limits Tab =====
 interface LimitsTabProps {
     entityTypeFilter?: 'pf' | 'pj' | 'all'
@@ -41,24 +84,6 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
     const [loading, setLoading] = useState(false)
     const [spending, setSpending] = useState<Record<string, number>>({})
     const { toast } = useToast()
-
-    // Map backend entity_type to local: 'individual'->'pf', 'business'->'pj'
-    const mapEntityType = (et: string): 'pf' | 'pj' | 'mensal' => {
-        if (et === 'individual') return 'pf'
-        if (et === 'business') return 'pj'
-        return 'mensal'
-    }
-
-    // Transform backend response to local Category type
-    const transformCategory = (c: any): Category => ({
-        ...c,
-        name: c.name ?? c.category_name ?? '',
-        entity_type: mapEntityType(c.entity_type),
-        subcategories: (c.subcategories || []).map((s: any) => ({
-            ...s,
-            name: s.name ?? s.subcategory_name ?? '',
-        })),
-    })
 
     const data = rawData.filter(cat => {
         if (entityTypeFilter === 'all') return true
@@ -125,7 +150,7 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
         return { severity, percent, spent }
     }
 
-    const updateCategoryField = (catId: number | string, key: keyof Category, value: any) => {
+    const updateCategoryField = (catId: number | string, key: keyof Category, value: Category[keyof Category]) => {
         setRawData(prev => prev.map(cat => cat.id === catId ? { ...{ ...cat, [key]: value }, isModified: !cat.isNew && cat.isModified !== false ? true : cat.isModified } : cat))
     }
 
@@ -184,7 +209,7 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
         const existingKeys = new Set(
             data.filter(c => !c.isNew).map(c => `${c.name.trim().toLowerCase()}|${c.entity_type}`)
         )
-        const payload: any = { new: [], modified: [], deleted: deletedCategoryIds }
+        const payload: LimitsSaveBody = { new: [], modified: [], deleted: deletedCategoryIds }
         data.forEach(cat => {
             if (cat.isNew) {
                 const key = `${cat.name.trim().toLowerCase()}|${cat.entity_type}`
@@ -270,8 +295,8 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
                 ) : (
                     categories.map(cat => (
                         <div key={cat.id} className="border rounded-lg bg-card p-4 space-y-4 relative">
-                            {cat.isNew && (<div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">NOVO</div>)}
-                            {cat.isModified && !cat.isNew && (<div className="absolute -top-2 -right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">MODIFICADO</div>)}
+                            {cat.isNew && (<div className="absolute -top-2 -right-2 bg-success text-success-foreground text-xs px-2 py-1 rounded-full">NOVO</div>)}
+                            {cat.isModified && !cat.isNew && (<div className="absolute -top-2 -right-2 bg-warning text-warning-foreground text-xs px-2 py-1 rounded-full">MODIFICADO</div>)}
                             <div className="flex items-end gap-4">
                                 <div className="flex-1">
                                     <Label>Categoria</Label>
@@ -287,8 +312,8 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
                                 const alert = limitAlert(cat)
                                 if (!alert) return null
                                 const styles = {
-                                    warning: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
-                                    critical: 'bg-orange-500/15 text-orange-600 border-orange-500/30',
+                                    warning: 'bg-warning/15 text-warning border-warning/30',
+                                    critical: 'bg-critical/15 text-critical border-critical/30',
                                     destructive: 'bg-destructive/15 text-destructive border-destructive/30',
                                 }[alert.severity]
                                 const suffix = alert.severity === 'destructive' ? ' (estoura agora!)' : alert.severity === 'critical' ? ' (crítico)' : ''
@@ -314,8 +339,8 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
                                     <div className="space-y-2">
                                         {cat.subcategories.map(sub => (
                                             <div key={sub.id} className="flex items-center gap-2 relative">
-                                                {sub.isNew && (<div className="absolute -top-2 -right-2 bg-green-400 text-white text-xs px-1 py-0.5 rounded text-[10px] z-10">NOVO</div>)}
-                                                {sub.isModified && !sub.isNew && (<div className="absolute -top-2 -right-2 bg-yellow-400 text-white text-xs px-1 py-0.5 rounded text-[10px] z-10">MOD</div>)}
+                                                {sub.isNew && (<div className="absolute -top-2 -right-2 bg-success/80 text-success-foreground text-xs px-1 py-0.5 rounded text-[10px] z-10">NOVO</div>)}
+                                                {sub.isModified && !sub.isNew && (<div className="absolute -top-2 -right-2 bg-warning/80 text-warning-foreground text-xs px-1 py-0.5 rounded text-[10px] z-10">MOD</div>)}
                                                 <Input value={sub.name} placeholder="Nome da subcategoria" onChange={e => updateSubcategoryField(cat.id, sub.id, e.target.value)} className="flex-1" />
                                                 <Button variant="ghost" size="sm" onClick={() => deleteSubcategory(cat.id, sub.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                                             </div>

@@ -12,6 +12,11 @@
 >
 > **IMPORTANT**: Whenever there is ANY database change — new/changed ORM model (`app/db/models/`), new Alembic migration (`app/db/migrations/versions/`), or a repository/route/service that starts reading/writing different tables — update `docs/lineage_data.md` in the same change (tables catalog, route→table matrix, flow graph, migration history, and its "Última atualização" date).
 
+## Operational Docs
+
+> - `docs/comandos.md`: every useful command to run the project (update it whenever you use, create or change a command, in the same commit).
+> - `docs/pendencias.md`: open pending items and technical debt (add newly found items, mark the ones you finish).
+
 ## Design System & Componentes
 
 > For the component catalog and design tokens, see: `docs/components.md`
@@ -27,14 +32,14 @@
 - **Monorepo**: `app/backend/` (FastAPI, Python 3.12) + `app/frontend/` (Vite, React 18, TypeScript)
 - **Database**: PostgreSQL (relational: categorias, transacoes)
 - **Infra**: `infra/nginx.conf` (reverse proxy — only public-facing service)
-- **Docker**: root `docker-compose.yml` runs all services.
+- **Docker**: root `docker-compose.yml` runs all services (dev); `docker-compose-prod.yml` is the production stack (TLS via `infra/nginx.prod.conf.template`, frontend image `nginx-unprivileged` on 8080).
 
 ## Services & Ports
 
 | Service | Port | Access | Notes |
 |---------|------|--------|-------|
 | Nginx | 8087 | **External** | Only public entry point |
-| PostgreSQL | 5432 | Internal | user: `postgres`, db: `financas` |
+| PostgreSQL | 5436 (host) → 5432 | Loopback only (`127.0.0.1`) | credentials from `.env` (no defaults), db: `financas` |
 | Backend API | 8000 | Internal | FastAPI, proxied via nginx `/api/` |
 | Frontend | 8080 | Internal | Vite dev server, proxied via nginx `/` |
 
@@ -64,21 +69,21 @@ npm run typecheck              # tsc -b --noEmit — SEMPRE usar este formato (t
 ### Migrations (PostgreSQL via Alembic)
 ```sh
 cd app/backend
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5436/financas alembic upgrade head
+DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas alembic upgrade head
 ```
 
 ## Key Backend Structure
 
-- Entry: `app/backend/app/main.py` — FastAPI app with 11 route modules
-- Routes: `transactions`, `categories`, `dashboard`, `limits`, `recurring_accounts`, `extract`, `settings`, `goals`, `shopping`, `pluggy`, `export`
+- Entry: `app/backend/app/main.py` — FastAPI app with 12 route modules
+- Routes: `transactions`, `categories`, `dashboard`, `limits`, `recurring_accounts`, `extract`, `settings`, `goals`, `shopping`, `pluggy`, `export`, `notifications`
 - DB layer: `app/db/` — SQLAlchemy async (PostgreSQL)
 - Models: `app/db/models/` — 7 ORM models
-- Repositories: `app/db/repositories/` — 9 data access classes
+- Repositories: `app/db/repositories/` — 13 data access classes
 - Schemas: `app/schemas/` — Pydantic DTOs
 - Services: `app/services/` — Pluggy API client, extract parsers
 - Config: `app/core/config.py` — loads env via `python-dotenv`
-- Migrations: `app/db/migrations/versions/` — 14 Alembic migrations
-- Tests: `tests/` — 12 test files (pytest + pytest-asyncio)
+- Migrations: `app/db/migrations/versions/` — 24 Alembic migrations
+- Tests: `tests/` — 28 test files (pytest + pytest-asyncio)
 
 ## Key Frontend Structure
 
@@ -98,6 +103,8 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5436/financas alem
 - Contexts: `src/contexts/` — SidebarContext
 
 ## Development Rules
+
+- **Commit messages are written in English** (Conventional Commits, e.g. `fix(frontend): ...`).
 
 ### TDD (Test-Driven Development) — MANDATORY
 

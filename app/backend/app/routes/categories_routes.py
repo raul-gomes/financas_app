@@ -1,26 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from app.db.repositories.category import CategoriaRepository
-from app.db.models.user import UserORM
 from app.core.security import get_current_user
-from app.schemas.categories import Categoria, CategoriaCreate, CategoriaUpdate
+from app.db.models.user import UserORM
+from app.db.repositories.category import CategoriaRepository
 from app.logger import log_api_request
+from app.schemas.categories import Categoria, CategoriaCreate, CategoriaUpdate
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
 
 @router.get(
     "/",
-    response_model=List[Categoria],
+    response_model=list[Categoria],
     status_code=status.HTTP_200_OK,
     summary="Listar todas as categorias",
-    description="Retorna todas as categorias com suas subcategorias."
+    description="Retorna todas as categorias com suas subcategorias.",
 )
 async def list_categories(
     request: Request,
     current_user: UserORM = Depends(get_current_user),
-    repo: CategoriaRepository = Depends(CategoriaRepository)
+    repo: CategoriaRepository = Depends(CategoriaRepository),
 ):
     """
     Obtém a lista completa de categorias.
@@ -34,7 +33,7 @@ async def list_categories(
         log.error(f"Erro ao listar categorias: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao listar categorias"
+            detail="Erro interno ao listar categorias",
         )
 
 
@@ -43,13 +42,13 @@ async def list_categories(
     response_model=Categoria,
     status_code=status.HTTP_200_OK,
     summary="Obter categoria por ID",
-    description="Retorna a categoria com o ID informado."
+    description="Retorna a categoria com o ID informado.",
 )
 async def get_categoria_by_id(
     request: Request,
     categoria_id: int,
     current_user: UserORM = Depends(get_current_user),
-    repo: CategoriaRepository = Depends(CategoriaRepository)
+    repo: CategoriaRepository = Depends(CategoriaRepository),
 ):
     """
     Busca uma categoria pelo seu identificador.
@@ -59,8 +58,7 @@ async def get_categoria_by_id(
     if not categoria:
         log.warning(f"Categoria {categoria_id} não encontrada")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Categoria não encontrada"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Categoria não encontrada"
         )
     log.info(f"Categoria {categoria_id} retornada com sucesso")
     return categoria
@@ -71,18 +69,18 @@ async def get_categoria_by_id(
     response_model=Categoria,
     status_code=status.HTTP_201_CREATED,
     summary="Criar nova categoria",
-    description="Cria uma nova categoria com eventuais subcategorias."
+    description="Cria uma nova categoria com eventuais subcategorias.",
 )
 async def create_categoria(
     request: Request,
     payload: CategoriaCreate,
     current_user: UserORM = Depends(get_current_user),
-    repo: CategoriaRepository = Depends(CategoriaRepository)
+    repo: CategoriaRepository = Depends(CategoriaRepository),
 ):
     """
     Cria uma categoria a partir dos dados fornecidos.
     """
-    log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.dict())
+    log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
     try:
         categoria = await repo.create(current_user.id, payload)
         log.info(f"Categoria criada com ID {categoria.id}")
@@ -94,7 +92,7 @@ async def create_categoria(
         log.error(f"Erro ao criar categoria: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao criar categoria"
+            detail="Erro interno ao criar categoria",
         )
 
 
@@ -102,29 +100,30 @@ async def create_categoria(
     "/{categoria_id}",
     response_model=Categoria,
     summary="Atualizar categoria",
-    description="Atualiza dados de categoria e suas subcategorias."
+    description="Atualiza dados de categoria e suas subcategorias.",
 )
 async def update_categoria(
     request: Request,
     categoria_id: int,
     payload: CategoriaUpdate,
     current_user: UserORM = Depends(get_current_user),
-    repo: CategoriaRepository = Depends(CategoriaRepository)
+    repo: CategoriaRepository = Depends(CategoriaRepository),
 ):
     """
     Atualiza uma categoria existente e sincroniza subcategorias.
     """
     log = log_api_request(
-        method="PUT", endpoint=str(request.url),
-        categoria_id=categoria_id, payload=payload.dict(exclude_unset=True)
+        method="PUT",
+        endpoint=str(request.url),
+        categoria_id=categoria_id,
+        payload=payload.model_dump(exclude_unset=True),
     )
     try:
         categoria = await repo.update(categoria_id, current_user.id, payload)
         if not categoria:
             log.warning(f"Tentativa de atualizar categoria {categoria_id} não encontrada")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Categoria não encontrada"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Categoria não encontrada"
             )
         log.info(f"Categoria {categoria_id} atualizada com sucesso")
         return categoria
@@ -134,7 +133,7 @@ async def update_categoria(
         log.error(f"Erro ao atualizar categoria {categoria_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao atualizar categoria"
+            detail="Erro interno ao atualizar categoria",
         )
 
 
@@ -142,13 +141,13 @@ async def update_categoria(
     "/{categoria_id}",
     response_model=Categoria,
     summary="Excluir categoria",
-    description="Remove uma categoria pelo seu ID."
+    description="Remove uma categoria pelo seu ID.",
 )
 async def delete_categoria(
     request: Request,
     categoria_id: int,
     current_user: UserORM = Depends(get_current_user),
-    repo: CategoriaRepository = Depends(CategoriaRepository)
+    repo: CategoriaRepository = Depends(CategoriaRepository),
 ):
     """
     Deleta uma categoria existente.
@@ -159,8 +158,7 @@ async def delete_categoria(
         if not categoria:
             log.warning(f"Tentativa de excluir categoria {categoria_id} não encontrada")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Categoria não encontrada"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Categoria não encontrada"
             )
         log.info(f"Categoria {categoria_id} excluída com sucesso")
         return categoria
@@ -170,5 +168,5 @@ async def delete_categoria(
         log.error(f"Erro ao excluir categoria {categoria_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao excluir categoria"
+            detail="Erro interno ao excluir categoria",
         )

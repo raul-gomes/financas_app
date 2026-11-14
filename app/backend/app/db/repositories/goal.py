@@ -1,17 +1,16 @@
 # app/db/repositories/meta.py
 
-from typing import List, Optional
-from fastapi import Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
 from datetime import date
+
+from fastapi import Depends, HTTPException, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
-from app.schemas.goals import MetaCreate, MetaUpdate
 from app.logger import log_database_operation
-
+from app.schemas.goals import MetaCreate, MetaUpdate
 
 METAS_CATEGORIA_NOME = "Metas"
 
@@ -26,11 +25,12 @@ class MetaRepository:
         self.db = db
         self.model = SubcategoryORM
 
-    async def _get_or_create_metas_categoria(self, entity_type: str = "individual", user_id: int = 1) -> CategoryORM:
+    async def _get_or_create_metas_categoria(
+        self, entity_type: str = "individual", user_id: int = 1
+    ) -> CategoryORM:
         """Retorna a categoria 'Metas' para o entity_type informado, criando se não existir."""
         result = await self.db.execute(
-            select(CategoryORM)
-            .where(
+            select(CategoryORM).where(
                 CategoryORM.name == METAS_CATEGORIA_NOME,
                 CategoryORM.entity_type == entity_type,
                 CategoryORM.user_id == user_id,
@@ -50,16 +50,25 @@ class MetaRepository:
             await self.db.refresh(categoria)
         return categoria
 
-    async def list_metas(self, completed: Optional[bool] = None, entity_type: Optional[str] = None, limit: int = 100, offset: int = 0, user_id: int = 1) -> List[SubcategoryORM]:
+    async def list_metas(
+        self,
+        completed: bool | None = None,
+        entity_type: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+        user_id: int = 1,
+    ) -> list[SubcategoryORM]:
         """Lista todas as subcategorias que são metas (possuem target_amount).
-        
+
         Args:
             completed: Se True, retorna apenas concluídas. Se False, apenas ativas. Se None, todas.
             entity_type: Filtrar por tipo de entidade (individual, business). Se None, todas.
             limit: Limite de itens por página
             offset: Offset para paginação
         """
-        log = log_database_operation(operation="read_all", collection="metas", limit=limit, offset=offset, user_id=user_id)
+        log = log_database_operation(
+            operation="read_all", collection="metas", limit=limit, offset=offset, user_id=user_id
+        )
         query = (
             select(self.model)
             .join(CategoryORM, self.model.category)
@@ -81,20 +90,23 @@ class MetaRepository:
 
     async def create_meta(self, obj_in: MetaCreate, user_id: int = 1) -> SubcategoryORM:
         """Cria uma nova meta (subcategoria com target_amount na categoria Metas)."""
-        log = log_database_operation(operation="create", collection="metas", payload=obj_in.model_dump(), user_id=user_id)
-        categoria = await self._get_or_create_metas_categoria(entity_type=obj_in.entity_type, user_id=user_id)
+        log = log_database_operation(
+            operation="create", collection="metas", payload=obj_in.model_dump(), user_id=user_id
+        )
+        categoria = await self._get_or_create_metas_categoria(
+            entity_type=obj_in.entity_type, user_id=user_id
+        )
 
         # Verifica se já existe subcategoria com mesmo nome
         existente = await self.db.execute(
             select(self.model).where(
-                self.model.name == obj_in.subcategory_name,
-                self.model.category_id == categoria.id
+                self.model.name == obj_in.subcategory_name, self.model.category_id == categoria.id
             )
         )
         if existente.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Meta com nome '{obj_in.subcategory_name}' já existe"
+                detail=f"Meta com nome '{obj_in.subcategory_name}' já existe",
             )
 
         meta = self.model(
@@ -108,9 +120,13 @@ class MetaRepository:
         log.info(f"Meta {meta.id} criada: {meta.name}")
         return meta
 
-    async def update_meta(self, meta_id: int, obj_in: MetaUpdate, user_id: int = 1) -> Optional[SubcategoryORM]:
+    async def update_meta(
+        self, meta_id: int, obj_in: MetaUpdate, user_id: int = 1
+    ) -> SubcategoryORM | None:
         """Atualiza uma meta existente."""
-        log = log_database_operation(operation="update", collection="metas", meta_id=meta_id, user_id=user_id)
+        log = log_database_operation(
+            operation="update", collection="metas", meta_id=meta_id, user_id=user_id
+        )
         meta = await self._get_user_meta(meta_id, user_id)
         if not meta or meta.target_amount is None:
             log.warning(f"Meta {meta_id} não encontrada")
@@ -118,8 +134,8 @@ class MetaRepository:
 
         update_data = obj_in.model_dump(exclude_unset=True)
         field_map = {
-            'subcategory_name': 'name',
-            'target_amount': 'target_amount',
+            "subcategory_name": "name",
+            "target_amount": "target_amount",
         }
         for field, value in update_data.items():
             orm_field = field_map.get(field, field)
@@ -129,9 +145,11 @@ class MetaRepository:
         log.info(f"Meta {meta_id} atualizada")
         return meta
 
-    async def delete_meta(self, meta_id: int, user_id: int = 1) -> Optional[SubcategoryORM]:
+    async def delete_meta(self, meta_id: int, user_id: int = 1) -> SubcategoryORM | None:
         """Remove uma meta (deleta a subcategoria)."""
-        log = log_database_operation(operation="delete", collection="metas", meta_id=meta_id, user_id=user_id)
+        log = log_database_operation(
+            operation="delete", collection="metas", meta_id=meta_id, user_id=user_id
+        )
         meta = await self._get_user_meta(meta_id, user_id)
         if not meta or meta.target_amount is None:
             log.warning(f"Meta {meta_id} não encontrada")
@@ -142,9 +160,11 @@ class MetaRepository:
         log.info(f"Meta {meta_id} excluída")
         return meta
 
-    async def complete_goal(self, meta_id: int, user_id: int = 1) -> Optional[SubcategoryORM]:
+    async def complete_goal(self, meta_id: int, user_id: int = 1) -> SubcategoryORM | None:
         """Marca uma meta como concluída com a data atual."""
-        log = log_database_operation(operation="complete", collection="metas", meta_id=meta_id, user_id=user_id)
+        log = log_database_operation(
+            operation="complete", collection="metas", meta_id=meta_id, user_id=user_id
+        )
         meta = await self._get_user_meta(meta_id, user_id)
         if not meta or meta.target_amount is None:
             log.warning(f"Meta {meta_id} não encontrada")
@@ -156,9 +176,11 @@ class MetaRepository:
         log.info(f"Meta {meta_id} concluída em {meta.completed_at}")
         return meta
 
-    async def reactivate_goal(self, meta_id: int, user_id: int = 1) -> Optional[SubcategoryORM]:
+    async def reactivate_goal(self, meta_id: int, user_id: int = 1) -> SubcategoryORM | None:
         """Reativa uma meta concluída."""
-        log = log_database_operation(operation="reactivate", collection="metas", meta_id=meta_id, user_id=user_id)
+        log = log_database_operation(
+            operation="reactivate", collection="metas", meta_id=meta_id, user_id=user_id
+        )
         meta = await self._get_user_meta(meta_id, user_id)
         if not meta or meta.target_amount is None:
             log.warning(f"Meta {meta_id} não encontrada")
@@ -170,7 +192,7 @@ class MetaRepository:
         log.info(f"Meta {meta_id} reativada")
         return meta
 
-    async def _get_user_meta(self, meta_id: int, user_id: int) -> Optional[SubcategoryORM]:
+    async def _get_user_meta(self, meta_id: int, user_id: int) -> SubcategoryORM | None:
         """Busca uma meta (subcategoria) garantindo que pertença a uma categoria do usuário."""
         result = await self.db.execute(
             select(self.model)
@@ -179,9 +201,16 @@ class MetaRepository:
         )
         return result.scalars().first()
 
-    async def calcular_progresso_todas(self, ano: int, mes: int, completed: Optional[bool] = None, entity_type: Optional[str] = None, user_id: int = 1) -> List[dict]:
+    async def calcular_progresso_todas(
+        self,
+        ano: int,
+        mes: int,
+        completed: bool | None = None,
+        entity_type: str | None = None,
+        user_id: int = 1,
+    ) -> list[dict]:
         """Calcula o progresso de todas as metas no mês informado usando GROUP BY (1 query).
-        
+
         Args:
             ano: Ano para calcular progresso
             mes: Mês para calcular progresso
@@ -199,11 +228,9 @@ class MetaRepository:
 
         # Range conditions para usar índice em transaction_date
         from datetime import datetime
+
         mes_inicio = datetime(ano, mes, 1)
-        if mes == 12:
-            mes_fim = datetime(ano + 1, 1, 1)
-        else:
-            mes_fim = datetime(ano, mes + 1, 1)
+        mes_fim = datetime(ano + 1, 1, 1) if mes == 12 else datetime(ano, mes + 1, 1)
 
         # Soma agrupada por subcategoria (1 query, não N+1)
         result = await self.db.execute(
@@ -223,15 +250,19 @@ class MetaRepository:
         resultados = []
         for meta_id, meta in meta_map.items():
             current_amount = totals.get(meta_id, 0.0)
-            progresso = (current_amount / meta.target_amount * 100) if meta.target_amount > 0 else 0.0
-            resultados.append({
-                "subcategory_id": meta.id,
-                "subcategory_name": meta.name,
-                "target_amount": meta.target_amount,
-                "current_amount": round(current_amount, 2),
-                "progress": round(progresso, 1),
-                "completed": meta.completed,
-                "completed_at": meta.completed_at,
-                "entity_type": meta.category.entity_type if meta.category else 'individual',
-            })
+            progresso = (
+                (current_amount / meta.target_amount * 100) if meta.target_amount > 0 else 0.0
+            )
+            resultados.append(
+                {
+                    "subcategory_id": meta.id,
+                    "subcategory_name": meta.name,
+                    "target_amount": meta.target_amount,
+                    "current_amount": round(current_amount, 2),
+                    "progress": round(progresso, 1),
+                    "completed": meta.completed,
+                    "completed_at": meta.completed_at,
+                    "entity_type": meta.category.entity_type if meta.category else "individual",
+                }
+            )
         return resultados

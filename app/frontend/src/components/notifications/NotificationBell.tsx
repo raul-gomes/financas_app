@@ -12,8 +12,8 @@ import { NotificationItem } from '@/types/notifications';
 import { cn } from '@/lib/utils';
 
 const severityClasses: Record<string, string> = {
-  warning: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
-  critical: 'bg-orange-500/15 text-orange-600 dark:text-orange-400',
+  warning: 'bg-warning/15 text-warning',
+  critical: 'bg-critical/15 text-critical',
   destructive: 'bg-destructive/15 text-destructive',
 };
 

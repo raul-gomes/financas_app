@@ -1,19 +1,22 @@
-from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, ForeignKey, func
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, func
+
 from app.db.base import Base
 
 
 class ShoppingItemORM(Base):
-    __tablename__ = 'shopping_items'
+    __tablename__ = "shopping_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     name = Column(String, nullable=False)
     reference_month = Column(Date, nullable=False)
     checked = Column(Boolean, default=False, nullable=False)
     completed_at = Column(Date, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
-    entity_type = Column(String, nullable=False, server_default='individual')
+    entity_type = Column(String, nullable=False, server_default="individual")
     # Recurring fields
-    is_recurring = Column(Boolean, default=False, nullable=False, server_default='false')
+    is_recurring = Column(Boolean, default=False, nullable=False, server_default="false")
     recurrence_group_id = Column(String, nullable=True, index=True)  # groups recurring instances
     recurrence_end_date = Column(Date, nullable=True)  # when to stop recurring

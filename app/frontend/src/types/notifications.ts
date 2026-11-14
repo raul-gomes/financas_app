@@ -1,40 +1,14 @@
-export type NotificationSeverity = 'warning' | 'critical' | 'destructive';
+import type { Infer } from '@/lib/parse';
+import type {
+  notificationSeveritySchema,
+  notificationItemSchema,
+  notificationsResponseSchema,
+  markReadResponseSchema,
+  categoryRiskResponseSchema,
+} from '@/schemas/notifications';
 
-export interface NotificationItem {
-  id: number;
-  category_id: number;
-  category_name: string;
-  scope: 'category' | 'credit_card';
-  month: string;
-  threshold: number;
-  percent_used: number;
-  exceeded: boolean;
-  created_at: string | null;
-  read: boolean;
-  severity: NotificationSeverity;
-  message: string;
-}
-
-export interface NotificationsResponse {
-  unread_count: number;
-  items: NotificationItem[];
-}
-
-export interface MarkReadResponse {
-  success: boolean;
-  updated: number;
-}
-
-export interface CategoryRiskResponse {
-  category_id: number;
-  category_name: string;
-  limit: number;
-  spent: number;
-  amount: number;
-  projected_spent: number;
-  percent_used: number;
-  projected_percent_used: number;
-  is_over_limit: boolean;
-  severity: 'warning' | 'critical' | 'destructive' | null;
-  thresholds_hit: number[];
-}
+export type NotificationSeverity = Infer<typeof notificationSeveritySchema>;
+export type NotificationItem = Infer<typeof notificationItemSchema>;
+export type NotificationsResponse = Infer<typeof notificationsResponseSchema>;
+export type MarkReadResponse = Infer<typeof markReadResponseSchema>;
+export type CategoryRiskResponse = Infer<typeof categoryRiskResponseSchema>;

@@ -2,32 +2,47 @@
 
 import calendar
 import time
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
-from app.db.models.transaction import TransactionORM
+
 from app.db.models.category import CategoryORM
-from app.schemas.dashboard import CategoriaOpcao, EntradasPorCategoriaResponse, ExtratoResponse, OpcoesCategoriaResponse, RendimentoPeriodoResponse, SubcategoriaOpcao, TipoTrans, TransacaoExtrato
-from app.schemas.transaction import NaturezaTransacao, TransacaoResponse
+from app.db.models.transaction import TransactionORM
+from app.schemas.dashboard import (
+    CategoriaOpcao,
+    EntradasPorCategoriaResponse,
+    ExtratoResponse,
+    OpcoesCategoriaResponse,
+    RendimentoPeriodoResponse,
+    SubcategoriaOpcao,
+    TipoTrans,
+    TransacaoExtrato,
+)
+from app.schemas.transaction import NaturezaTransacao
 
 # Categorias de configuração (orçamento mensal / limite do cartão) que não podem ser
 # selecionadas como categoria de uma transação — só existem para alimentar o dashboard.
 CATEGORIAS_CONFIGURACAO = {"mensal pf", "mensal pj", "limite cartao credito"}
 
 # Simple in-memory cache for opcoes_categorias (key: (entity_type, tipo), value: (timestamp, data))
-_opcoes_categorias_cache: Dict[tuple, tuple] = {}
+_opcoes_categorias_cache: dict[tuple, tuple] = {}
 _CACHE_TTL_SECONDS = 300  # 5 minutes
+
 
 def _invalidate_opcoes_categorias_cache():
     """Invalidates the opcoes_categorias cache."""
     global _opcoes_categorias_cache
     _opcoes_categorias_cache.clear()
 
-def _get_cached_opcoes_categorias(entity_type: str, tipo: Optional[str], user_id: Optional[int]) -> Optional[OpcoesCategoriaResponse]:
+
+def _get_cached_opcoes_categorias(
+    entity_type: str, tipo: str | None, user_id: int
+) -> OpcoesCategoriaResponse | None:
     """Gets cached opcoes_categorias if not expired."""
-    key = (entity_type, tipo or '', user_id or 0)
+    key = (entity_type, tipo or "", user_id)
     if key in _opcoes_categorias_cache:
         timestamp, data = _opcoes_categorias_cache[key]
         if time.time() - timestamp < _CACHE_TTL_SECONDS:
@@ -36,9 +51,12 @@ def _get_cached_opcoes_categorias(entity_type: str, tipo: Optional[str], user_id
             del _opcoes_categorias_cache[key]
     return None
 
-def _set_cached_opcoes_categorias(entity_type: str, tipo: Optional[str], user_id: Optional[int], data: OpcoesCategoriaResponse):
+
+def _set_cached_opcoes_categorias(
+    entity_type: str, tipo: str | None, user_id: int, data: OpcoesCategoriaResponse
+):
     """Sets opcoes_categorias in cache with current timestamp."""
-    key = (entity_type, tipo or '', user_id or 0)
+    key = (entity_type, tipo or "", user_id)
     _opcoes_categorias_cache[key] = (time.time(), data)
 
 
@@ -52,23 +70,22 @@ class DashboardRepository:
         end_date: datetime,
         entity_type: str,
         type: TipoTrans,
-        user_id: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        user_id: int,
+    ) -> list[dict[str, Any]]:
         stmt = (
             select(TransactionORM)
             .where(TransactionORM.transaction_date >= start_date)
             .where(TransactionORM.transaction_date <= end_date)
         )
-        if entity_type != 'all':
+        if entity_type != "all":
             stmt = stmt.where(TransactionORM.entity_type == NaturezaTransacao(entity_type))
         stmt = stmt.where(TransactionORM.type == type.value)
-        if user_id is not None:
-            stmt = stmt.where(TransactionORM.user_id == user_id)
+        stmt = stmt.where(TransactionORM.user_id == user_id)
 
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
 
-        gastos: Dict[int, Dict[str, Any]] = {}
+        gastos: dict[int, dict[str, Any]] = {}
         for t in transacoes:
             if not t.category or not t.subcategory:
                 continue
@@ -94,7 +111,7 @@ class DashboardRepository:
                         "total": round(data["total"], 2),
                         "limit": data["limit"],
                         "subcategories": [
-                            {"name": sn, "amount": f"{round(v,2):.2f}"}
+                            {"name": sn, "amount": f"{round(v, 2):.2f}"}
                             for sn, v in data["subcategories"].items()
                         ],
                     }
@@ -103,33 +120,29 @@ class DashboardRepository:
         return resultado
 
     async def rendimento_por_periodo(
-        self, 
-        ano: int,
-        entity_type: str,
-        user_id: int) -> Dict[str, Dict[str, float]]:
+        self, ano: int, entity_type: str, user_id: int
+    ) -> dict[str, dict[str, float]]:
 
         # Single query with GROUP BY month instead of 12 queries
-        from sqlalchemy import func as sa_func, extract
+        from sqlalchemy import extract
+        from sqlalchemy import func as sa_func
 
-        stmt = (
-            select(
-                extract('month', TransactionORM.transaction_date).label('mes'),
-                TransactionORM.type,
-                sa_func.sum(TransactionORM.amount).label('total'),
-            )
-            .where(
-                extract('year', TransactionORM.transaction_date) == ano,
-                TransactionORM.user_id == user_id,
-            )
+        stmt = select(
+            extract("month", TransactionORM.transaction_date).label("mes"),
+            TransactionORM.type,
+            sa_func.sum(TransactionORM.amount).label("total"),
+        ).where(
+            extract("year", TransactionORM.transaction_date) == ano,
+            TransactionORM.user_id == user_id,
         )
-        if entity_type != 'all':
+        if entity_type != "all":
             stmt = stmt.where(TransactionORM.entity_type == entity_type)
-        stmt = stmt.group_by('mes', TransactionORM.type)
+        stmt = stmt.group_by("mes", TransactionORM.type)
 
         result = await self.db.execute(stmt)
         rows = result.all()
 
-        meses_data: Dict[str, Dict[str, float]] = {}
+        meses_data: dict[str, dict[str, float]] = {}
         for m in range(1, 13):
             meses_data[calendar.month_name[m].lower()] = {"income": 0.0, "expense": 0.0}
 
@@ -140,34 +153,34 @@ class DashboardRepository:
 
         mensal_cat = await self.db.execute(
             select(CategoryORM)
-            .where(func.lower(CategoryORM.name) == 'mensal pf')
-            .where(CategoryORM.entity_type == 'individual')
+            .where(func.lower(CategoryORM.name) == "mensal pf")
+            .where(CategoryORM.entity_type == "individual")
             .where(CategoryORM.user_id == user_id)
         )
         mensal_pf_obj = mensal_cat.scalars().first()
 
         mensal_pj_cat = await self.db.execute(
             select(CategoryORM)
-            .where(func.lower(CategoryORM.name) == 'mensal pj')
-            .where(CategoryORM.entity_type == 'business')
+            .where(func.lower(CategoryORM.name) == "mensal pj")
+            .where(CategoryORM.entity_type == "business")
             .where(CategoryORM.user_id == user_id)
         )
         mensal_pj_obj = mensal_pj_cat.scalars().first()
 
-        if entity_type == 'individual':
+        if entity_type == "individual":
             limite_mensal = mensal_pf_obj.limit if mensal_pf_obj else 1000.0
-        elif entity_type == 'business':
+        elif entity_type == "business":
             limite_mensal = mensal_pj_obj.limit if mensal_pj_obj else 1000.0
         else:
             limite_mensal = max(
                 (mensal_pf_obj.limit if mensal_pf_obj else 0),
-                (mensal_pj_obj.limit if mensal_pj_obj else 0)
+                (mensal_pj_obj.limit if mensal_pj_obj else 0),
             )
             if limite_mensal == 0:
                 limite_mensal = 1000.0
 
         return RendimentoPeriodoResponse(limit=limite_mensal, months=meses_data)
-    
+
     async def extrato_financeiro(
         self,
         start_date: datetime,
@@ -182,7 +195,7 @@ class DashboardRepository:
             .where(TransactionORM.transaction_date >= start_date)
             .where(TransactionORM.transaction_date <= end_date)
         )
-        if entity_type != 'all':
+        if entity_type != "all":
             stmt = stmt.where(TransactionORM.entity_type == entity_type)
         stmt = stmt.where(TransactionORM.user_id == user_id)
         stmt = stmt.options(
@@ -190,10 +203,10 @@ class DashboardRepository:
         ).order_by(TransactionORM.transaction_date.desc())
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
-    
+
         total_income = sum(t.amount for t in transacoes if t.type == "income")
         total_expenses = sum(t.amount for t in transacoes if t.type == "expense")
-    
+
         txs = [
             TransacaoExtrato(
                 id=t.id,
@@ -217,38 +230,47 @@ class DashboardRepository:
         ]
 
         # Gastos fixos (com recurring_account_id) vs variáveis
-        fixed_expenses = sum(t.amount for t in transacoes if t.type == "expense" and t.recurring_account_id is not None)
-        variable_expenses = sum(t.amount for t in transacoes if t.type == "expense" and t.recurring_account_id is None)
+        fixed_expenses = sum(
+            t.amount
+            for t in transacoes
+            if t.type == "expense" and t.recurring_account_id is not None
+        )
+        variable_expenses = sum(
+            t.amount for t in transacoes if t.type == "expense" and t.recurring_account_id is None
+        )
 
         # Single query to fetch all needed category limits (avoids N+1)
         # Busca: Mensal PF, Mensal PJ, Limite Cartao Credito
-        needed_names = ['Mensal PF', 'Mensal PJ', 'Limite Cartao Credito']
+        needed_names = ["Mensal PF", "Mensal PJ", "Limite Cartao Credito"]
         limits_result = await self.db.execute(
             select(CategoryORM.name, CategoryORM.limit, CategoryORM.entity_type).where(
                 func.lower(CategoryORM.name).in_([n.lower() for n in needed_names]),
                 CategoryORM.user_id == user_id,
             )
         )
-        limits_map = {(row.name.lower(), row.entity_type or ''): row.limit for row in limits_result}
+        limits_map = {(row.name.lower(), row.entity_type or ""): row.limit for row in limits_result}
 
         # Helper to get limit from map
-        def _get_limit(name: str, entity: str = '', default: float = 1000.0) -> float:
-            return limits_map.get((name.lower(), entity), limits_map.get((name.lower(), ''), default))
+        def _get_limit(name: str, entity: str = "", default: float = 1000.0) -> float:
+            return limits_map.get(
+                (name.lower(), entity), limits_map.get((name.lower(), ""), default)
+            )
 
         # Meta mensal por entity_type
-        if entity_type == 'individual':
-            monthly_goal = _get_limit('Mensal PF', 'individual')
-        elif entity_type == 'business':
-            monthly_goal = _get_limit('Mensal PJ', 'business')
+        if entity_type == "individual":
+            monthly_goal = _get_limit("Mensal PF", "individual")
+        elif entity_type == "business":
+            monthly_goal = _get_limit("Mensal PJ", "business")
         else:
             monthly_goal = max(
-                _get_limit('Mensal PF', 'individual', 0),
-                _get_limit('Mensal PJ', 'business', 0)
+                _get_limit("Mensal PF", "individual", 0), _get_limit("Mensal PJ", "business", 0)
             )
             if monthly_goal == 0:
                 monthly_goal = 1000.0
 
-        credit_card_limit = _get_limit('Limite Cartao Credito', entity_type if entity_type != 'all' else '', 0)
+        credit_card_limit = _get_limit(
+            "Limite Cartao Credito", entity_type if entity_type != "all" else "", 0
+        )
 
         total_invested = sum(t.amount for t in transacoes if t.type == "investment")
 
@@ -265,39 +287,30 @@ class DashboardRepository:
             variable_expenses=variable_expenses,
         )
 
-    async def opcoes_categorias(self, entity_type: str = 'all', tipo: Optional[str] = None, user_id: Optional[int] = None) -> OpcoesCategoriaResponse:
+    async def opcoes_categorias(
+        self, entity_type: str = "all", tipo: str | None = None, *, user_id: int
+    ) -> OpcoesCategoriaResponse:
         # Check cache first
         cached = _get_cached_opcoes_categorias(entity_type, tipo, user_id)
         if cached is not None:
             return cached
 
         stmt = select(CategoryORM).where(CategoryORM.user_id == user_id)
-        if entity_type != 'all':
+        if entity_type != "all":
             stmt = stmt.where(CategoryORM.entity_type == NaturezaTransacao(entity_type))
         if tipo:
-            stmt = stmt.where(
-                or_(CategoryORM.type == tipo, CategoryORM.type.is_(None))
-            )
+            stmt = stmt.where(or_(CategoryORM.type == tipo, CategoryORM.type.is_(None)))
         result = await self.db.execute(stmt)
         categorias = result.unique().scalars().all()
 
-        opcoes: List[CategoriaOpcao] = []
+        opcoes: list[CategoriaOpcao] = []
         for categoria in categorias:
             if categoria.name.strip().lower() in CATEGORIAS_CONFIGURACAO:
                 continue
-            subs = [
-                SubcategoriaOpcao(
-                    id=sub.id,
-                    name=sub.name
-                )
-                for sub in categoria.subcategories
-            ]
+            subs = [SubcategoriaOpcao(id=sub.id, name=sub.name) for sub in categoria.subcategories]
             opcoes.append(
                 CategoriaOpcao(
-                    id=categoria.id,
-                    name=categoria.name,
-                    type=categoria.type,
-                    subcategories=subs
+                    id=categoria.id, name=categoria.name, type=categoria.type, subcategories=subs
                 )
             )
 
@@ -306,15 +319,15 @@ class DashboardRepository:
         return response
 
     async def entradas_por_categoria(
-        self, 
-        start_date: datetime, 
-        end_date: datetime, 
+        self,
+        start_date: datetime,
+        end_date: datetime,
         entity_type: str,
         start_date_str: str,
         end_date_str: str,
-        user_id: Optional[int] = None,
+        user_id: int,
     ) -> EntradasPorCategoriaResponse:
-        
+
         # Buscar transações de entrada com subcategoria carregada
         stmt = (
             select(TransactionORM)
@@ -322,28 +335,24 @@ class DashboardRepository:
             .where(TransactionORM.transaction_date <= end_date)
             .where(TransactionORM.type == "income")
         )
-        if entity_type != 'all':
+        if entity_type != "all":
             stmt = stmt.where(TransactionORM.entity_type == entity_type)
-        if user_id is not None:
-            stmt = stmt.where(TransactionORM.user_id == user_id)
-        
+        stmt = stmt.where(TransactionORM.user_id == user_id)
+
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
-        
+
         # Agrupar por subcategoria
-        subs: Dict[str, float] = {}
+        subs: dict[str, float] = {}
         for transacao in transacoes:
-            sub_nome = transacao.subcategory.name if transacao.subcategory else 'Sem subcategoria'
+            sub_nome = transacao.subcategory.name if transacao.subcategory else "Sem subcategoria"
             subs[sub_nome] = subs.get(sub_nome, 0.0) + transacao.amount
-        
+
         output = [
-            {'name': nome, 'total': round(valor, 2)}
+            {"name": nome, "total": round(valor, 2)}
             for nome, valor in sorted(subs.items(), key=lambda x: x[1], reverse=True)
         ]
-        
-        return EntradasPorCategoriaResponse(
-            start_date=start_date_str,
-            end_date=end_date_str,
-            subcategories=output
-        )
 
+        return EntradasPorCategoriaResponse(
+            start_date=start_date_str, end_date=end_date_str, subcategories=output
+        )

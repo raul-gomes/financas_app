@@ -1,6 +1,4 @@
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
@@ -8,12 +6,15 @@ async def test_category_isolation_across_users(clients_ctrl):
     """Categoria criada pelo usuário 2 não aparece na listagem do usuário 1."""
     # Usuário 2 cria uma categoria
     clients_ctrl.switch(2)
-    resp2 = await clients_ctrl.post("/categories/", json={
-        "category_name": "CategoriaSecreta",
-        "entity_type": "individual",
-        "limit": 500.0,
-        "subcategories": [{"subcategory_name": "SubSecreta"}],
-    })
+    resp2 = await clients_ctrl.post(
+        "/categories/",
+        json={
+            "category_name": "CategoriaSecreta",
+            "entity_type": "individual",
+            "limit": 500.0,
+            "subcategories": [{"subcategory_name": "SubSecreta"}],
+        },
+    )
     assert resp2.status_code == 201
     cat2_id = resp2.json()["id"]
 
@@ -33,12 +34,15 @@ async def test_category_isolation_across_users(clients_ctrl):
 async def test_category_isolation_reverse(clients_ctrl):
     """Categoria criada pelo usuário 1 não aparece na listagem do usuário 2."""
     clients_ctrl.switch(1)
-    resp1 = await clients_ctrl.post("/categories/", json={
-        "category_name": "CategoriaDoUsuario1",
-        "entity_type": "individual",
-        "limit": 500.0,
-        "subcategories": [],
-    })
+    resp1 = await clients_ctrl.post(
+        "/categories/",
+        json={
+            "category_name": "CategoriaDoUsuario1",
+            "entity_type": "individual",
+            "limit": 500.0,
+            "subcategories": [],
+        },
+    )
     assert resp1.status_code == 201
     cat1_id = resp1.json()["id"]
 
@@ -73,12 +77,15 @@ async def test_same_category_name_allowed_across_users(clients_ctrl):
 @pytest.mark.asyncio
 async def test_user_cannot_update_or_delete_other_users_category(clients_ctrl):
     clients_ctrl.switch(2)
-    resp2 = await clients_ctrl.post("/categories/", json={
-        "category_name": "DeOutro",
-        "entity_type": "individual",
-        "limit": 300.0,
-        "subcategories": [{"subcategory_name": "SubOutro"}],
-    })
+    resp2 = await clients_ctrl.post(
+        "/categories/",
+        json={
+            "category_name": "DeOutro",
+            "entity_type": "individual",
+            "limit": 300.0,
+            "subcategories": [{"subcategory_name": "SubOutro"}],
+        },
+    )
     assert resp2.status_code == 201
     cat2_id = resp2.json()["id"]
 
@@ -102,25 +109,31 @@ async def test_user_cannot_update_or_delete_other_users_category(clients_ctrl):
 async def test_subcategory_cannot_be_reached_across_users(clients_ctrl):
     """Subcategorias de uma categoria de outro usuário não devem ser acessíveis."""
     clients_ctrl.switch(2)
-    resp2 = await clients_ctrl.post("/categories/", json={
-        "category_name": "CatComSub",
-        "entity_type": "individual",
-        "limit": 300.0,
-        "subcategories": [{"subcategory_name": "SubPrivada"}],
-    })
+    resp2 = await clients_ctrl.post(
+        "/categories/",
+        json={
+            "category_name": "CatComSub",
+            "entity_type": "individual",
+            "limit": 300.0,
+            "subcategories": [{"subcategory_name": "SubPrivada"}],
+        },
+    )
     assert resp2.status_code == 201
     cat2_id = resp2.json()["id"]
 
     # Usuário 1 tenta criar uma transação apontando para a categoria do usuário 2
     clients_ctrl.switch(1)
-    r_tx = await clients_ctrl.post("/transacoes/", json={
-        "amount": 50.0,
-        "description": "Intrusao",
-        "transaction_date": "2026-01-15T10:00:00",
-        "type": "expense",
-        "entity_type": "individual",
-        "payment_method": "pix",
-        "category_id": cat2_id,
-        "subcategory_name": "SubPrivada",
-    })
+    r_tx = await clients_ctrl.post(
+        "/transacoes/",
+        json={
+            "amount": 50.0,
+            "description": "Intrusao",
+            "transaction_date": "2026-01-15T10:00:00",
+            "type": "expense",
+            "entity_type": "individual",
+            "payment_method": "pix",
+            "category_id": cat2_id,
+            "subcategory_name": "SubPrivada",
+        },
+    )
     assert r_tx.status_code == 400  # categoria não encontrada para o usuário 1

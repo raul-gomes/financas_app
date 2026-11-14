@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from 'react';
-import { formatCurrency } from '@/lib/format';
-import * as d3 from 'd3';
+import { formatCurrency, escapeHtml } from '@/lib/format';
+import * as d3 from '@/lib/d3';
 
 interface D3HorizontalBarChartProps {
   data: Array<{category: string, value: number, color: string}>;
@@ -59,8 +59,8 @@ function D3HorizontalBarChartBase({
           .append('div')
           .attr('class', 'tooltip')
           .style('position', 'absolute')
-          .style('background', 'rgba(0,0,0,0.8)')
-          .style('color', 'white')
+          .style('background', 'hsl(var(--foreground) / 0.9)')
+          .style('color', 'hsl(var(--background))')
           .style('padding', '8px')
           .style('border-radius', '4px')
           .style('font-size', '12px')
@@ -68,7 +68,7 @@ function D3HorizontalBarChartBase({
           .style('z-index', '1000');
 
         tooltip.html(`
-          <div><strong>${d.category}</strong></div>
+          <div><strong>${escapeHtml(d.category)}</strong></div>
           <div>${formatCurrency(d.value)}</div>
         `)
         .style('left', (event.pageX + 10) + 'px')

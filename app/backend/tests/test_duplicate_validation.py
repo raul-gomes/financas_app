@@ -1,13 +1,3 @@
-import pytest
-from datetime import datetime, date
-
-from app.schemas.transaction import (
-    DuplicateCheckRequest, DuplicateCheckResponse,
-    SingleDuplicateCheckItem,
-    ResolveDuplicatesRequest, DuplicateResolution,
-)
-
-
 class TestCheckDuplicates:
     """Tests for POST /transacoes/check-duplicates"""
 

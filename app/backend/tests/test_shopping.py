@@ -1,6 +1,4 @@
 import pytest
-from datetime import date
-
 
 MES_REF = "2026-06-01"
 MES_SEGUINTE = "2026-07-01"
@@ -9,10 +7,13 @@ MES_SEGUINTE = "2026-07-01"
 @pytest.mark.asyncio
 async def test_create_shopping_item(client):
     """Cria um item na lista de compras."""
-    response = await client.post("/shopping/", json={
-        "name": "Notebook",
-        "reference_month": MES_REF,
-    })
+    response = await client.post(
+        "/shopping/",
+        json={
+            "name": "Notebook",
+            "reference_month": MES_REF,
+        },
+    )
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "Notebook"
@@ -49,7 +50,9 @@ async def test_list_shopping_rollover_mes_seguinte(client):
 @pytest.mark.asyncio
 async def test_list_shopping_marcado_nao_rola_para_mes_seguinte(client):
     """Item adquirido (marcado) não rola para o mês seguinte (ex.: cama de casal)."""
-    resp = await client.post("/shopping/", json={"name": "Cama de Casal", "reference_month": MES_REF})
+    resp = await client.post(
+        "/shopping/", json={"name": "Cama de Casal", "reference_month": MES_REF}
+    )
     item_id = resp.json()["id"]
     await client.put(f"/shopping/{item_id}", json={"checked": True})
 
@@ -89,7 +92,9 @@ async def test_update_shopping_item_name(client):
 @pytest.mark.asyncio
 async def test_delete_shopping_item(client):
     """Exclui um item."""
-    resp = await client.post("/shopping/", json={"name": "Item para deletar", "reference_month": MES_REF})
+    resp = await client.post(
+        "/shopping/", json={"name": "Item para deletar", "reference_month": MES_REF}
+    )
     item_id = resp.json()["id"]
 
     response = await client.delete(f"/shopping/{item_id}")

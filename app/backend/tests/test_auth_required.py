@@ -1,7 +1,5 @@
 import pytest
-
 from httpx import AsyncClient
-
 
 # Etapa 4: todas as rotas protegidas com Depends(get_current_user).
 # Sem token / token inválido → 401. Usamos client_no_auth (SEM override do auth).
@@ -45,7 +43,9 @@ async def test_categories_create_requires_auth(client_no_auth: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_dashboard_statement_requires_auth(client_no_auth: AsyncClient):
-    resp = await client_no_auth.get("/dashboard/statement?start_date=01/01/2026&end_date=31/01/2026")
+    resp = await client_no_auth.get(
+        "/dashboard/statement?start_date=01/01/2026&end_date=31/01/2026"
+    )
     assert resp.status_code == 401
 
 

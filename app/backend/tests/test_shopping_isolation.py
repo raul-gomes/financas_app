@@ -1,15 +1,15 @@
-import pytest
-
-
 MES = "2026-06-01"
 
 
 async def _criar_item(clients_ctrl, user_id: int, nome: str) -> int:
     clients_ctrl.switch(user_id)
-    resp = await clients_ctrl.post("/shopping/", json={
-        "name": nome,
-        "reference_month": MES,
-    })
+    resp = await clients_ctrl.post(
+        "/shopping/",
+        json={
+            "name": nome,
+            "reference_month": MES,
+        },
+    )
     assert resp.status_code == 201, resp.text
     return resp.json()["id"]
 
