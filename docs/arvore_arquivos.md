@@ -34,16 +34,16 @@ financas_app/
 │   │   │   │   │   └── limit_alert.py          # LimitAlertORM (limit_alerts) — alertas de limite 80/90/100 + exceeded, scope category/credit_card, read_at/email_sent
 │   │   │   │   │
 │   │   │   │   ├── repositories/               # Camada de acesso a dados (queries SQL)
-│   │   │   │   │   ├── category.py             # CategoriaRepository: CRUD categorias + sincronização de subcategorias
-│   │   │   │   │   ├── subcategory.py          # SubcategoriaRepository: CRUD subcategorias, criação em lote
-│   │   │   │   │   ├── transaction.py          # TransacaoRepository: CRUD (flush, sem commit) + parcelas + detecção de duplicatas + listagem paginada por cursor (list_page, TransactionCursor/Filters/Page) + importação de extrato
-│   │   │   │   │   ├── dashboard.py            # DashboardRepository: queries agregadas (gastos, rendimento, extrato)
+│   │   │   │   │   ├── category.py             # CategoriaRepository: CRUD categorias + sincronização de subcategorias (só flush; erros de domínio)
+│   │   │   │   │   ├── subcategory.py          # SubcategoriaRepository: CRUD subcategorias, criação em lote (só flush)
+│   │   │   │   │   ├── transaction.py          # TransacaoRepository: CRUD (flush, sem commit) + parcelas + detecção de duplicatas + listagem paginada por cursor (list_page com busca por texto, valor pt-BR e nome do banco do usuário; TransactionCursor/Filters/Page) + importação de extrato em lote (create_batch_from_extract, insert em savepoint) + assign_random_banks
+│   │   │   │   │   ├── dashboard.py            # DashboardRepository: queries agregadas (gastos, rendimento, extrato com agregados dos gráficos numa query GROUP BY)
 │   │   │   │   │   ├── overview.py             # DashboardOverviewRepository: dashboard geral (totais, progresso mês e cartão numa única agregação SQL — MonthAggregates; status limites, parcelas, recorrentes; metas/compras só admin)
-│   │   │   │   │   ├── limits.py               # LimitsRepository: atualização em lote de limites de categorias
-│   │   │   │   │   ├── recurring_account.py    # ContaRecorrenteRepository: CRUD + geração de parcelas + renovação
+│   │   │   │   │   ├── limits.py               # LimitsRepository: leitura de limites e gastos do mês (a atualização em lote é do LimitsService)
+│   │   │   │   │   ├── recurring_account.py    # ContaRecorrenteRepository: CRUD + geração de parcelas + renovação (só flush)
 │   │   │   │   │   ├── goal.py                 # MetaRepository: CRUD metas + cálculo de progresso baseado em transações
 │   │   │   │   │   ├── shopping.py             # ShoppingRepository: CRUD lista de compras + migração de itens não marcados
-│   │   │   │   │   ├── settings.py             # SettingsRepository: perfil do usuário + gerenciamento de bancos
+│   │   │   │   │   ├── settings.py             # SettingsRepository: perfil do usuário + gerenciamento de bancos (só flush)
 │   │   │   │   │   ├── limit_alert.py          # LimitAlertRepository: CRUD alertas de limite (create, list_for_user com notificações, mark read/read-all)
 │   │   │   │   │   └── users.py                # get_or_create_user_from_supabase(): identidade pelo sub (supabase_id), vincula legado pelo e-mail, IdentityConflictError; novo cadastro nasce role='user'
 │   │   │   │   │

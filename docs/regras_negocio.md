@@ -281,6 +281,13 @@ Descrevem lacunas; o código atual não decide por elas.
 
 ---
 
+### 3.8 Erros e transações (backend)
+- **Erros de domínio:** services e repositórios levantam exceções de `app/core/errors.py` (`NotFoundError` 404, `ConflictError` 409, `ValidationError` 400, `UnprocessableError` 422, `ForbiddenError` 403, `PayloadTooLargeError` 413, `UpstreamError` 502, `ServerConfigError` 500); um único handler (`register_exception_handlers`) converte para `{"detail": "<mensagem pt-BR fixa>"}`. Qualquer outra exceção vira 500 com "Erro interno do servidor" (o texto real só vai para o log). Mensagens nunca carregam texto de exceção, SQL ou dados de outro usuário.
+- **Uma transação por requisição:** a `UnitOfWork` faz um único commit quando a rota retorna e rollback se levantar. Itens de operações em lote (PUT `/limits` e o insert do lote de extrato) rodam em savepoint: o item com erro volta em `errors` e os demais seguem; o item que falha desfaz o próprio trabalho parcial (categoria criada + subcategoria que falhou saem juntas).
+- **Avaliação de limites** (alertas 80/90/100 e e-mail) roda sempre DEPOIS do commit (criar/editar/excluir transação, confirmar extrato, gerar recorrentes, sync Pluggy) e tem transação própria; falha só vai para o log.
+
+---
+
 ## 4. Fluxos de Dados Principais
 
 ```

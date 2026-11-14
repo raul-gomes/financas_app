@@ -34,7 +34,7 @@ Observação: as migrations (`alembic upgrade head`) rodam no start do backend e
 | Comando | Quando usar |
 | --- | --- |
 | `uv sync` | Instalar dependências. |
-| `uv run pytest -q` | Testes (SQLite em memória, não precisa de banco). `uv run pytest tests/<arquivo>.py` roda só os relacionados. |
+| `DATABASE_URL=sqlite+aiosqlite:///:memory: uv run pytest -q` | Testes (SQLite em memória, não precisa de banco; `DATABASE_URL` é obrigatório para importar o app, como no CI). `... uv run pytest tests/<arquivo>.py` roda só os relacionados. |
 | `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` | Backend local fora do Docker. |
 | `DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas uv run alembic upgrade head` | Aplicar migrations no Postgres do Docker (porta 5436 no host). |
 | `DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas uv run alembic check` | Falha se os models divergem das migrations (rode após `upgrade head`; roda no CI contra um Postgres descartável). |
