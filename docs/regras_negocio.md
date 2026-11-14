@@ -1,8 +1,8 @@
 # Relatório de Regras de Negócio — financas_app
 
-> **Gerado em:** 2026-08-24  
+> **Gerado em:** 2026-08-24; **revisado em 2026-11-14** contra o código (papéis, alertas de limite, perfil, segurança)  
 > **Baseado na análise do código:** models, repositories, routes, schemas, services  
-> **Versão do projeto:** Head Alembic `e3f4a5b6c7d8` (23 migrações)
+> **Versão do projeto:** histórico de migrações e head atual em [`lineage_data.md`](lineage_data.md) (seção 8)
 
 ---
 
@@ -21,7 +21,8 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 | **Subcategoria** | `subcategorias` | Dimensão filha; `target_amount ≠ null` ⇒ **Meta** |
 | **Conta Recorrente** | `recurring_accounts` | Configuração de despesas fixas mensais (gera parcelas) |
 | **Lista de Compras** | `shopping_items` | Isolada por mês; migração manual entre meses |
-| **Usuário** | `users` | Perfil (todo cadastro nasce `user`; admin por promoção manual), senha bcrypt, chave Pluggy |
+| **Usuário** | `users` | Perfil local ligado à identidade Supabase (`supabase_id`); papel `user`/`admin` (todo cadastro nasce `user`; admin só por promoção manual no banco); chave Pluggy. Não guarda senha (login é do Supabase) |
+| **Alerta de limite** | `limit_alerts` | Aviso de 80/90/100% do limite de uma categoria ou do cartão, por mês (ver 2.9) |
 | **Bancos do Usuário** | `user_banks` | Lista de bancos para atribuição aleatória (demo) |
 
 ---
@@ -175,9 +176,9 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 ### 2.7 Configurações (`/settings`)
 
 #### Perfil
-- Single-user: `GET/PUT /settings/profile` → cria usuário padrão se não existir
-- Senha: **bcrypt** via `passlib`
-- `pluggy_api_key` armazenada (não logada)
+- `GET/PUT /settings/profile` atuam sobre o usuário autenticado (nunca sobre um `user_id` enviado pelo cliente)
+- Só `name` e `pluggy_api_key` são editáveis; e-mail e senha ficam no Supabase. A API devolve `has_pluggy_key`, nunca a chave; `pluggy_api_key=""` remove a chave
+- A chave Pluggy não vai para logs (campos de credencial são redigidos)
 
 #### Bancos do Usuário
 - CRUD em `user_banks` (código FEBRABAN + nome)
@@ -198,6 +199,26 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 - Gera OFX 1.0 SGML manualmente
 - `TRNTYPE`: DEBIT (expense) / CREDIT (income/other)
 - `MEMO`: "Categoria/Subcategoria: Descrição" (max 255)
+
+---
+
+### 2.9 Alertas de limite (`/notifications`)
+
+#### Quando um alerta nasce
+- **Limites:** `THRESHOLDS = 80, 90, 100` (% do limite). Cada limiar atingido no mês gera **um** alerta por (usuário, categoria, mês, limiar); reavaliar não duplica
+- **Categoria:** só categorias com `limit > 0`; percentual = soma das despesas (`type=expense`) do mês nas subcategorias da categoria ÷ `limit` × 100. Ficam de fora as categorias especiais "Limite Cartao Credito" e "Metas" (comparação sem diferenciar maiúsculas)
+- **Cartão (`scope=credit_card`):** limite = soma dos limites das categorias "Limite Cartao Credito" do usuário; usado = despesas do mês com `payment_method=credit`; mesmos limiares
+- `exceeded=true` quando o percentual passa de 100 (o alerta de 100% sozinho, com percentual exatamente 100, não é "estourado")
+- Gravados via `limit_alerts` (escopo `category` ou `credit_card`, mês `YYYY-MM`)
+
+#### Quando é avaliado
+- Após criar/editar/excluir transação, confirmar extrato, gerar recorrentes e sincronizar Pluggy (falha na avaliação não derruba a operação; vai para o log)
+- Job periódico no backend (`ALERT_CHECK_INTERVAL`, padrão 1800 s) para todos os usuários; com várias réplicas só uma roda por vez (advisory lock do Postgres)
+
+#### Como aparece
+- `GET /notifications`: `unread_count` + itens com mensagem pronta e `severity`: 80 → `warning`, 90 → `critical`, 100 → `destructive`
+- `PUT /notifications/{id}/read` e "marcar todas como lidas"
+- E-mail (Resend) por alerta novo só se `EMAIL_ALERTS_ENABLED=true` e `RESEND_API_KEY` configurada; falha de envio é registrada e não interrompe
 
 ---
 
@@ -226,11 +247,32 @@ Aplicado em: criação/edição de transação, extrato, Pluggy, contas recorren
 - Última parcela ajustada para fechar valor total
 
 ### 3.5 Segurança
-- Senhas: bcrypt (nunca logadas)
-- `pluggy_api_key`: armazenada, validada no sync, não exposta em logs
+- Autenticação: JWT do Supabase (algoritmo/`aud`/`iss` verificados); o backend não guarda nem valida senha
+- Autorização: papel lido do banco (`users.role`), nunca do token nem do cliente; ver 3.6
+- `pluggy_api_key`: validada no sync, nunca devolvida pela API nem registrada em logs
+- Erros internos: o cliente recebe mensagem genérica; o detalhe só vai para o log do servidor
 - Upload: limite 10 MB, decode UTF-8 com replace, parsing defensivo
 - SQL: parameterizado via SQLAlchemy ORM (sem concatenação)
 - Nginx: único ponto de entrada externo (porta 8087)
+
+### 3.6 Papéis e permissões
+- Papéis em `users.role`: **`user`** (padrão, todo novo cadastro) e **`admin`** (só por promoção manual no banco). O banco não restringe os valores (ver perguntas em aberto)
+- **Qualquer usuário autenticado** (isolado por `user_id`): `/transacoes`, `/categories`, `/limits`, `/dashboard`, `/notifications`, `/settings` e o CRUD de `/recurring-accounts`
+- **Somente `admin`** (403 para `user`): `/goals`, `/shopping`, `/extracts`, `/pluggy`, `/export` e `POST /recurring-accounts/generate`
+- Decisão do dono (2026-11-14, `pendencias.md`): o **MVP é o produto do usuário comum** (transações, categorias, limites, dashboards, configurações); as rotas só de admin são implementações em andamento, fora do MVP
+
+---
+
+### 3.7 Perguntas em aberto para o dono do produto
+Descrevem lacunas; o código atual não decide por elas.
+1. Metas, compras, extrato, Pluggy e exportação continuam só para `admin` depois do MVP, ou viram do usuário comum? Se viram, quais?
+2. O limiar de 100% deve contar como "estourado" (`exceeded`) ou só acima de 100%? Hoje só acima.
+3. Alertas de limite: novos limiares ou canais (push, e-mail por padrão)? O e-mail hoje é opt-in por variável de ambiente, não por usuário.
+4. O alerta de cartão considera só `payment_method=credit`; outros meios (débito virtual, parcelas futuras) entram?
+5. As categorias "Mensal PF"/"Mensal PJ" (meta mensal) geram alerta de categoria como as demais quando têm limite; é o desejado? Hoje só "Metas" e "Limite Cartao Credito" ficam de fora.
+6. Papel: existem outros além de `user`/`admin`? Convém restringir os valores no banco?
+7. Excluir uma conta recorrente apaga todas as transações vinculadas (inclusive as passadas): é o desejado?
+8. Produto: uso pessoal apenas ou também empresarial (PF/PJ)? E o nome ("Olavo" ou "Placo")?
 
 ---
 
@@ -264,7 +306,7 @@ Aplicado em: criação/edição de transação, extrato, Pluggy, contas recorren
 | `ContaRecorrenteCreate` | `amount>0`, `due_day 1-31`, `total_installments 1-12`, categoria/subcategoria obrigatórios |
 | `MetaCreate` | `target_amount>0`, `subcategory_name` obrigatório |
 | `ShoppingItemCreate` | `name`, `reference_month` (Date) |
-| `ProfileUpdate` | `email` formato, `password` hasheada no repo |
+| `ProfileUpdate` | `name` e `pluggy_api_key` opcionais (sem e-mail nem senha) |
 
 ---
 
@@ -311,7 +353,8 @@ Aplicado em: criação/edição de transação, extrato, Pluggy, contas recorren
 | `b9c0d1e2f3a4` | Etapa 6 — `user_id` em transacoes |
 | `c1d2e3f4a5b6` | Etapa 7 — `user_id` em recurring_accounts |
 | `d2e3f4a5b6c7` | Etapa 8 — `user_id` em shopping_items |
-| `e3f4a5b6c7d8` | **HEAD** — Etapa 9 — `is_admin` → `role` em users |
+| `e3f4a5b6c7d8` | Etapa 9 — `is_admin` → `role` em users |
+| (demais) | Veja `lineage_data.md` (seção 8) para as migrações posteriores até o head atual |
 
 ---
 
@@ -323,7 +366,7 @@ Aplicado em: criação/edição de transação, extrato, Pluggy, contas recorren
 4. **Multi-user concluído (Etapa 4–9):** autenticação via Supabase JWT + isolamento por `user_id` + roles. Todo novo cadastro nasce `role='user'` (admin só por promoção manual). Rotas `pluggy/export/shopping/goals/extract` e `recurring-accounts/generate` são **admin-only**; `recurring-accounts` (CRUD) é liberado para `role='user'` por decisão de produto (403 p/ `role='user'` no resto)
 5. **Pluggy sync:** Detecta duplicatas mas não resolve; força `entity_type=PF` e categorias fixas
 6. **N+1 evitado:** Repositories usam `selectinload` e `GROUP BY` para agregações
-7. **No linter/backend:** Apenas frontend tem eslint; backend sem formatação automatizada
+7. **Qualidade backend:** ruff (lint + format), pytest, `alembic check`, bandit e pip-audit rodam no CI
 
 ---
 

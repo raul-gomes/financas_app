@@ -60,7 +60,7 @@ consolidados no fim.
 
 ## Documentação e higiene
 - [x] **D1** (alta) `senhas.txt`, `acessos.md` e `ssh_key` movidos para `.private/` (ignorada, `0700`); `docs/` versionado (e-mail pessoal e URL de banco redigidos). FEITO. Falta o dono passar esses segredos para o EnvVault.
-- [ ] **D2** (média) Atualizar `regras_negocio.md` (limites 80/90/100, papéis) e ~~o `AGENTS.md` (12 routers, 24 migrations, 29 arquivos de teste)~~ (AGENTS.md feito).
+- [x] **D2** (média) FEITO: `regras_negocio.md` descreve o que o código faz (alertas 80/90/100, papéis `user`/`admin` e rotas só de admin, MVP, perfil sem senha) e lista perguntas em aberto para o dono (seção 3.7); AGENTS.md já estava feito.
 - [ ] **D3** (baixa) Apagar branches paradas (`docs/agents-cerebro`, `origin/full-code`); ~~remover os 2 PNGs de `docs/`~~ (feito).
 
 ## Herdado de todo.md / backlog.md / ideias.md
