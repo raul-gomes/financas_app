@@ -53,7 +53,7 @@ financas_app/
 │   │   │   │   ├── dashboard_routes.py         # /dashboard — extrato, overview, rendimento, gastos por categoria
 │   │   │   │   ├── limits_routes.py            # /limits — listar e atualizar limites em lote; /limits/risk-check projeta o valor digitado (gasto atual + amount → thresholds 80/90/100)
 │   │   │   │   ├── recurring_accounts_routes.py # /recurring-accounts — CRUD + renovação + geração
-│   │   │   │   ├── extract_routes.py           # /extracts — upload de extrato CSV/OFX + confirmação
+│   │   │   │   ├── extract_routes.py           # /extracts — upload de extrato CSV/OFX (leitura em blocos, limite 10 MB) + confirmação
 │   │   │   │   ├── settings_routes.py          # /settings — perfil + bancos + atribuição aleatória
 │   │   │   │   ├── goals_routes.py             # /goals — CRUD metas + progresso
 │   │   │   │   ├── shopping_routes.py          # /shopping — CRUD lista de compras + migração
@@ -77,7 +77,7 @@ financas_app/
 │   │   │   │
 │   │   │   └── services/                       # Lógica de negócio e integrações externas
 │   │   │       ├── pluggy_service.py           # Cliente HTTP para API Meu Pluggy (Open Finance)
-│   │   │       ├── extract_parsers.py          # Parsers de extrato bancário (CSV e OFX)
+│   │   │       ├── extract_parsers.py          # Parsers de extrato bancário (CSV e OFX via defusedxml; UnsafeOfxError)
 │   │   │       ├── limit_alert_service.py      # LimitAlertService: avalia limites (evaluate_limits, _evaluate_credit_card), envia emails, trigger_limit_evaluation e evaluate_all_users_current_month (disparos pós-mutação)
 │   │   │       ├── email_service.py            # Envio de e-mails via Resend API (opt-in EMAIL_ALERTS_ENABLED; best-effort, nunca levanta)
 │   │   │       └── limit_alert_job.py          # Job periódico de avaliação de limites (run_evaluation_once, _job_loop, start/stop) — roda no lifespan
@@ -101,6 +101,8 @@ financas_app/
 │   │   │   ├── test_recurring_account_isolation.py # Etapa 7: isolamento de contas recorrentes por usuário (list, get, update, delete, renew) + geração de parcelas com user_id
 │   │   │   ├── test_extract.py                 # Upload e confirmação de extratos CSV
 │   │   │   ├── test_extract_parsers.py         # Unit tests do parser CSV (delimitadores, datas, valores)
+│   │   │   ├── test_extract_upload_safety.py   # S6: OFX com entidades recusado (400), upload > 10 MB (413) lido em blocos
+│   │   │   ├── test_extract_skipped_rows.py    # Q4: linhas CSV ignoradas viram aviso com número da linha
 │   │   │   ├── test_goals.py                   # CRUD metas + progresso + duplicatas
 │   │   │   ├── test_overview.py                # Dashboard geral (/dashboard/overview): totais, progresso mês, cartão, status limites, parcelas, recorrentes, metas/compras só admin
 │   │   │   ├── test_shopping.py                # CRUD lista de compras + rollover (não-comprados p/ mês seguinte) + ordenação

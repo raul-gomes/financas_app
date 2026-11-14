@@ -1,9 +1,18 @@
 import csv
 import io
 import re
-import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Any
+from xml.etree.ElementTree import Element
+
+from defusedxml import ElementTree as SafeET
+from defusedxml.common import DefusedXmlException
+
+from app.logger import logger
+
+
+class UnsafeOfxError(ValueError):
+    """Raised when an OFX document uses forbidden XML constructs (entities, DTD tricks)."""
 
 
 def parse_csv(content: str, delimiter: str | None = None) -> list[dict[str, Any]]:
@@ -20,7 +29,7 @@ def parse_csv(content: str, delimiter: str | None = None) -> list[dict[str, Any]
     col_map = _map_csv_columns(rows[0] if rows else {})
 
     transactions = []
-    for row in rows:
+    for line_number, row in enumerate(rows, start=2):  # line 1 is the header
         try:
             date_str = row.get(col_map["date"], "")
             amount_str = row.get(col_map["amount"], "")
@@ -41,29 +50,38 @@ def parse_csv(content: str, delimiter: str | None = None) -> list[dict[str, Any]
                     "type": trans_type,
                 }
             )
-        except Exception:
-            continue
+        except (KeyError, ValueError, TypeError) as exc:
+            logger.warning(f"CSV line {line_number} skipped: {type(exc).__name__}")
 
     return transactions
 
 
 def parse_ofx(content: str) -> list[dict[str, Any]]:
+    """Parse OFX content with defusedxml.
+
+    Raises:
+        UnsafeOfxError: the document declares entities or other forbidden XML constructs.
+    """
     transactions = []
 
     cleaned = _clean_ofx_tags(content)
 
     try:
-        root = ET.fromstring(cleaned)
-    except ET.ParseError:
+        root = SafeET.fromstring(cleaned)
+    except DefusedXmlException as exc:
+        raise UnsafeOfxError("OFX com construções XML não permitidas") from exc
+    except SafeET.ParseError:
         try:
             wrapped = f"<OFX>{cleaned}</OFX>"
-            root = ET.fromstring(wrapped)
-        except ET.ParseError:
+            root = SafeET.fromstring(wrapped)
+        except DefusedXmlException as exc:
+            raise UnsafeOfxError("OFX com construções XML não permitidas") from exc
+        except SafeET.ParseError:
             return []
 
     stmt_trns = root.findall(".//STMTTRN")
 
-    for stmt_trn in stmt_trns:
+    for position, stmt_trn in enumerate(stmt_trns, start=1):
         try:
             dtposted = _get_text(stmt_trn, "DTPOSTED")
             trnamt = _get_text(stmt_trn, "TRNAMT")
@@ -86,8 +104,8 @@ def parse_ofx(content: str) -> list[dict[str, Any]]:
                     "type": trans_type,
                 }
             )
-        except Exception:
-            continue
+        except (ValueError, TypeError) as exc:
+            logger.warning(f"OFX transaction #{position} skipped: {type(exc).__name__}")
 
     return transactions
 
@@ -186,7 +204,7 @@ def _clean_ofx_tags(content: str) -> str:
     return content
 
 
-def _get_text(element: ET.Element, tag: str, default: str = "") -> str:
+def _get_text(element: Element, tag: str, default: str = "") -> str:
     child = element.find(tag)
     if child is not None and child.text:
         return child.text.strip()

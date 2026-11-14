@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "pyjwt>=2.10.0",
     "cryptography>=42.0.0",
+    "defusedxml>=0.7.1",
 ]
 
 [dependency-groups]
@@ -47,8 +48,6 @@ extend-ignore = [
     "E501",  # long string literals/comments the formatter cannot wrap; shortening texts is out of scope
     "B904",  # TODO(pendencias Q4/B904): chain exceptions (`raise ... from exc`) in routes/services
     "UP042",  # TODO(pendencias Q4/UP042): str+Enum -> StrEnum changes str() output; review first
-    "S314",  # TODO(pendencias Q4/S314): parse bank extracts with defusedxml (new dependency)
-    "S112",  # TODO(pendencias Q4/S112): log skipped rows in extract_parsers instead of continue
 ]
 
 [tool.ruff.lint.flake8-bugbear]
