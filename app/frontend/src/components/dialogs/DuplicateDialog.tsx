@@ -105,11 +105,11 @@ export function DuplicateDialog({
     >
         {isBulk && (
           <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-            <Button variant="ghost" size="sm" disabled={currentIdx === 0} onClick={() => setCurrentIdx(i => i - 1)}>
+            <Button aria-label="Registro anterior" variant="ghost" size="sm" disabled={currentIdx === 0} onClick={() => setCurrentIdx(i => i - 1)}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span>{currentIdx + 1} de {total}</span>
-            <Button variant="ghost" size="sm" disabled={currentIdx >= total - 1} onClick={() => setCurrentIdx(i => i + 1)}>
+            <Button aria-label="Próximo registro" variant="ghost" size="sm" disabled={currentIdx >= total - 1} onClick={() => setCurrentIdx(i => i + 1)}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

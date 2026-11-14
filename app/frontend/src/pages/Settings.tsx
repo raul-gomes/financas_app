@@ -371,7 +371,7 @@ const Settings = () => {
                           </div>
                         </div>
                       </div>
-                      <Button
+                      <Button aria-label="Excluir banco"
                         variant="ghost"
                         size="sm"
                         onClick={() => handleRemoveBank(bank)}

@@ -306,7 +306,7 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
                                     <Label>Limite (R$)</Label>
                                     <Input type="number" min="0" step="0.01" value={cat.limit} onChange={e => updateCategoryField(cat.id, 'limit', parseFloat(e.target.value) || 0)} />
                                 </div>
-                                <Button variant="ghost" size="sm" onClick={() => deleteCategory(cat.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                <Button aria-label="Excluir categoria" variant="ghost" size="sm" onClick={() => deleteCategory(cat.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                             </div>
                             {(() => {
                                 const alert = limitAlert(cat)
@@ -342,7 +342,7 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
                                                 {sub.isNew && (<div className="absolute -top-2 -right-2 bg-success/80 text-success-foreground text-xs px-1 py-0.5 rounded text-[10px] z-10">NOVO</div>)}
                                                 {sub.isModified && !sub.isNew && (<div className="absolute -top-2 -right-2 bg-warning/80 text-warning-foreground text-xs px-1 py-0.5 rounded text-[10px] z-10">MOD</div>)}
                                                 <Input value={sub.name} placeholder="Nome da subcategoria" onChange={e => updateSubcategoryField(cat.id, sub.id, e.target.value)} className="flex-1" />
-                                                <Button variant="ghost" size="sm" onClick={() => deleteSubcategory(cat.id, sub.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                <Button aria-label="Excluir subcategoria" variant="ghost" size="sm" onClick={() => deleteSubcategory(cat.id, sub.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                                             </div>
                                         ))}
                                     </div>
