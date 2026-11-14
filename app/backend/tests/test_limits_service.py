@@ -13,7 +13,7 @@ from app.db.repositories.category import CategoriaRepository
 from app.schemas.limits import CategoriaLimiteUpdate, LimitsUpdatePayload
 from app.services.limits_service import GENERIC_ITEM_ERROR, LimitsService
 
-LEAK_MARKER = "leak-marker-db-host-10.0.0.9"
+LEAK_MARKER = "leak-marker-internal-detail"
 NOW = datetime(2026, 3, 15, 12, 0, 0)
 
 

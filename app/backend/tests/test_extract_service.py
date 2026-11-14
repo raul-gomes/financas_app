@@ -12,7 +12,7 @@ from app.schemas.extract import ConfirmPayload, ConfirmTransaction
 from app.services import extract_service as module
 from app.services.extract_service import ExtractService
 
-LEAK_MARKER = "leak-marker-db-host-10.0.0.9"
+LEAK_MARKER = "leak-marker-internal-detail"
 CSV_STATEMENT = b"date,description,amount\n01/03/2026,Salary,1000.00\n02/03/2026,Coffee,-5.50\n"
 OFX_STATEMENT = (
     b"<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>"
