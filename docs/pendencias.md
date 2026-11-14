@@ -30,7 +30,7 @@ consolidados no fim.
 - [ ] **B4** (baixa) `database.py:9` sem `DATABASE_URL`; `sync_engine` morto; `"Sin cronizar"` e `datetime.now()` sem fuso em `pluggy_routes.py`.
 
 ## Qualidade
-- [ ] **Q1** (alta) Job de backend no CI (ruff, pytest, `alembic check`), audit de dependências, SAST, actions por SHA, CI em todas as branches de PR.
+- [~] **Q1** (alta) PARCIAL: job de backend no CI (ruff, pytest, pip-audit informativo), actions por SHA, `permissions` mínimas, concurrency e CI em todos os PRs FEITOS. Falta: SAST, `alembic check`, e tornar o pip-audit bloqueante (hoje reporta 43 vulnerabilidades em anyio, certifi, idna, mako, pyjwt, python-dotenv, python-multipart, starlette; atualizar dependências).
 - [x] **Q2** (média) FEITO: ruff configurado no `pyproject.toml` (format + lint zerados). Regras adiadas em `extend-ignore` com TODO: B904, UP042, S314, S112, B017 (testes); E501 ignorado (formatter cuida).
 - [ ] **Q3** (média) Extrair serviços dos repositórios e das rotas; unit of work por request.
 - [ ] **Q4** (média) Trocar `except Exception` silenciosos por exceções específicas.
