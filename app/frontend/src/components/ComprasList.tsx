@@ -116,7 +116,7 @@ export function ComprasList({ sidebarOpen, entityType, refreshKey }: ComprasList
           onKeyDown={handleKeyDown}
           className="h-8 text-sm"
         />
-        <Button size="sm" className="h-8 px-2" onClick={handleAdd} disabled={!newItemName.trim()}>
+        <Button aria-label="Adicionar item" size="sm" className="h-8 px-2" onClick={handleAdd} disabled={!newItemName.trim()}>
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -162,7 +162,7 @@ export function ComprasList({ sidebarOpen, entityType, refreshKey }: ComprasList
                         className="h-4 w-4"
                       />
                       <span className="flex-1 text-sm">{item.name}</span>
-                      <button
+                      <button aria-label="Excluir item"
                         onClick={() => handleDelete(item.id)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                       >
@@ -212,7 +212,7 @@ export function ComprasList({ sidebarOpen, entityType, refreshKey }: ComprasList
                           </p>
                         )}
                       </div>
-                      <button
+                      <button aria-label="Excluir item"
                         onClick={() => handleDelete(item.id)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                       >

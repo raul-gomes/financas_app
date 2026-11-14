@@ -221,13 +221,13 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                                                 </p>
                                             </div>
                                             <div className="flex gap-1">
-                                                <Button variant="ghost" size="sm" onClick={() => handleConcluir(meta.id)} className="text-success hover:text-success/80">
+                                                <Button aria-label="Concluir meta" variant="ghost" size="sm" onClick={() => handleConcluir(meta.id)} className="text-success hover:text-success/80">
                                                     <CheckCircle2 className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => startEdit(meta)}>
+                                                <Button aria-label="Editar meta" variant="ghost" size="sm" onClick={() => startEdit(meta)}>
                                                     <Pencil className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleDelete(meta.id)}>
+                                                <Button aria-label="Excluir meta" variant="ghost" size="sm" onClick={() => handleDelete(meta.id)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                 </Button>
                                             </div>
@@ -278,10 +278,10 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                                                 )}
                                             </div>
                                             <div className="flex gap-1">
-                                                <Button variant="ghost" size="sm" onClick={() => handleReativar(meta.id)} className="text-warning hover:text-warning/80">
+                                                <Button aria-label="Reativar meta" variant="ghost" size="sm" onClick={() => handleReativar(meta.id)} className="text-warning hover:text-warning/80">
                                                     <RotateCcw className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleDelete(meta.id)}>
+                                                <Button aria-label="Excluir meta" variant="ghost" size="sm" onClick={() => handleDelete(meta.id)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                 </Button>
                                             </div>

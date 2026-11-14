@@ -1,4 +1,4 @@
-import type { Infer } from '@/lib/parse';
+import type { z } from 'zod';
 import type {
   transactionSchema, financialSummarySchema, yearlyPerformanceSchema,
   categoryBreakdownSchema, incomeBySubcategorySchema, categorySubcategoriesSchema,
@@ -191,19 +191,19 @@ export const INVESTMENT_CATEGORIES = {
 } as const;
 
 // ===== API response types, derived from the Zod schemas in src/schemas/financial.ts =====
-export type Transaction = Infer<typeof transactionSchema>;
-export type FinancialSummary = Infer<typeof financialSummarySchema>;
-export type YearlyPerformance = Infer<typeof yearlyPerformanceSchema>;
-export type CategoryBreakdown = Infer<typeof categoryBreakdownSchema>;
-export type IncomeBySubcategoria = Infer<typeof incomeBySubcategorySchema>;
-export type CategorySubcategories = Infer<typeof categorySubcategoriesSchema>;
+export type Transaction = z.infer<typeof transactionSchema>;
+export type FinancialSummary = z.infer<typeof financialSummarySchema>;
+export type YearlyPerformance = z.infer<typeof yearlyPerformanceSchema>;
+export type CategoryBreakdown = z.infer<typeof categoryBreakdownSchema>;
+export type IncomeBySubcategoria = z.infer<typeof incomeBySubcategorySchema>;
+export type CategorySubcategories = z.infer<typeof categorySubcategoriesSchema>;
 export type CategoriaOpcao = CategorySubcategories['options'][number];
 export type SubcategoriaOpcao = CategoriaOpcao['subcategories'][number];
-export type LimitsUpdateResponse = Infer<typeof limitsUpdateResponseSchema>;
-export type LimitsWithSpending = Infer<typeof limitsWithSpendingSchema>;
+export type LimitsUpdateResponse = z.infer<typeof limitsUpdateResponseSchema>;
+export type LimitsWithSpending = z.infer<typeof limitsWithSpendingSchema>;
 export type LimitsCategorySpending = LimitsWithSpending['categories'][number];
-export type DuplicateCheckResponse = Infer<typeof duplicateCheckResponseSchema>;
+export type DuplicateCheckResponse = z.infer<typeof duplicateCheckResponseSchema>;
 export type SingleDuplicateCheckResult = DuplicateCheckResponse['results'][number];
 export type DuplicateInfo = SingleDuplicateCheckResult['duplicates'][number];
 /** Raw `GET /categories/` payload (names come as `category_name` / `subcategory_name`). */
-export type LimitsPayload = Infer<typeof limitsPayloadSchema>;
+export type LimitsPayload = z.infer<typeof limitsPayloadSchema>;

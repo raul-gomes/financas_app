@@ -8,7 +8,7 @@ export function PluggyInfoDialog() {
 
   return (
     <>
-      <Button
+      <Button aria-label="Sobre a integração Pluggy"
         type="button"
         variant="ghost"
         size="icon"

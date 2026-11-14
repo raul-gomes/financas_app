@@ -1,4 +1,4 @@
-import type { Infer } from '@/lib/parse';
+import type { z } from 'zod';
 import type {
   notificationSeveritySchema,
   notificationItemSchema,
@@ -7,8 +7,8 @@ import type {
   categoryRiskResponseSchema,
 } from '@/schemas/notifications';
 
-export type NotificationSeverity = Infer<typeof notificationSeveritySchema>;
-export type NotificationItem = Infer<typeof notificationItemSchema>;
-export type NotificationsResponse = Infer<typeof notificationsResponseSchema>;
-export type MarkReadResponse = Infer<typeof markReadResponseSchema>;
-export type CategoryRiskResponse = Infer<typeof categoryRiskResponseSchema>;
+export type NotificationSeverity = z.infer<typeof notificationSeveritySchema>;
+export type NotificationItem = z.infer<typeof notificationItemSchema>;
+export type NotificationsResponse = z.infer<typeof notificationsResponseSchema>;
+export type MarkReadResponse = z.infer<typeof markReadResponseSchema>;
+export type CategoryRiskResponse = z.infer<typeof categoryRiskResponseSchema>;

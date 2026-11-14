@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fail the build if any emitted asset exceeds the per-chunk gzip budget.
-// Mirrors Vite's `build.chunkSizeWarningLimit` (500 KB) but enforces it
+// Complements Vite's `build.chunkSizeWarningLimit` but enforces it
 // instead of only warning. Used by the CI budget gate (Fase 4.3).
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -8,7 +8,7 @@ import { gzipSync } from "node:zlib";
 import { join, resolve } from "node:path";
 
 const ASSETS_DIR = resolve(process.cwd(), "dist/assets");
-const THRESHOLD_BYTES = 500 * 1024; // 500 KB gzip
+const THRESHOLD_BYTES = 64 * 1024; // 64 KB gzip (largest chunk ~58 KB + ~10% margin)
 
 const formatKb = (bytes) => `${(bytes / 1024).toFixed(2)} kB`;
 

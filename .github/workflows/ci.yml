@@ -42,7 +42,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Bundle budget gate (per-chunk gzip <= 500kB)
+      - name: Bundle budget gate (per-chunk gzip <= 64kB)
         run: npm run check:bundle
 
   backend:

@@ -117,7 +117,7 @@ function D3LineChartBase({ data, width = 800, height = 250 }: D3LineChartProps) 
     g.append('g')
       .attr('transform', `translate(0,${innerHeight})`)
       .call(d3.axisBottom(xScale)
-        .tickFormat(d3.timeFormat('%b')))
+        .tickFormat((d) => d3.timeFormat('%b')(d as Date)))
       .selectAll('text')
       .attr('fill', 'hsl(var(--muted-foreground))')
       .style('font-size', '12px');

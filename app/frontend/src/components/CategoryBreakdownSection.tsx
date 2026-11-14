@@ -109,10 +109,9 @@ export function CategoryBreakdownSection({
                         )
                         .map(([subcat, amt], idxSub) => {
                           const amount = amt as number;
+                          const limite = category.subcategories?.limite ?? 0;
                           const widthPercent =
-                            category.subcategories.limite > 0
-                              ? (amount / category.subcategories.limite) * 100
-                              : 0;
+                            limite > 0 ? (amount / limite) * 100 : 0;
                           const hue = (idxSub * 60 + idxCat * 15) % 360;
                           const bgColor = `hsl(${hue},60%,55%)`;
                           return (

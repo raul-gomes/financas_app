@@ -72,7 +72,7 @@ export const InvestmentTable = ({
         </div>
       </div>
       <div className="flex items-center gap-1">
-        <Button
+        <Button aria-label="Editar investimento"
           variant="ghost"
           size="icon"
           className="h-8 w-8"
@@ -80,7 +80,7 @@ export const InvestmentTable = ({
         >
           <Edit className="h-3 w-3" />
         </Button>
-        <Button
+        <Button aria-label="Excluir investimento"
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-destructive hover:text-destructive"

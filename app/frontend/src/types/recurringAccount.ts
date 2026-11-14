@@ -1,8 +1,8 @@
-import type { Infer } from '@/lib/parse';
+import type { z } from 'zod';
 import type { contaRecorrenteSchema, generateResponseSchema } from '@/schemas/recurringAccount';
 
-export type ContaRecorrente = Infer<typeof contaRecorrenteSchema>;
-export type GenerateResponse = Infer<typeof generateResponseSchema>;
+export type ContaRecorrente = z.infer<typeof contaRecorrenteSchema>;
+export type GenerateResponse = z.infer<typeof generateResponseSchema>;
 
 export interface ContaRecorrenteCreate {
   description: string;

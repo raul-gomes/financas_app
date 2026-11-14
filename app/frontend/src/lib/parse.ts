@@ -14,23 +14,6 @@ export class ApiSchemaError extends Error {
   }
 }
 
-/** Recursively marks every property as required (see `Infer`). */
-type DeepRequired<T> = T extends (infer U)[]
-  ? DeepRequired<U>[]
-  : T extends object
-    ? { [K in keyof T]-?: DeepRequired<T[K]> }
-    : T;
-
-/**
- * Domain type inferred from a schema.
- *
- * The project compiles with `strictNullChecks: false`, where `z.infer` marks
- * every object key optional. Keys the schema declares are always present once
- * parsed, so they are made required again here. `null` is representable in
- * both modes, so nullable fields keep their meaning.
- */
-export type Infer<S extends ZodTypeAny> = DeepRequired<z.infer<S>>;
-
 /** Maximum number of schema issues listed in the error message. */
 const MAX_REPORTED_ISSUES = 3;
 
@@ -43,9 +26,9 @@ const MAX_REPORTED_ISSUES = 3;
  * @param context - Human readable action ("buscar metas"), used in the error.
  * @throws ApiSchemaError when the value does not match the schema.
  */
-export function parseApi<S extends ZodTypeAny>(schema: S, data: unknown, context: string): Infer<S> {
+export function parseApi<S extends ZodTypeAny>(schema: S, data: unknown, context: string): z.infer<S> {
   const result = schema.safeParse(data);
-  if (result.success) return result.data as Infer<S>;
+  if (result.success) return result.data as z.infer<S>;
   const detail = result.error.issues
     .slice(0, MAX_REPORTED_ISSUES)
     .map((issue) => `${issue.path.join('.') || '(raiz)'}: ${issue.message}`)
@@ -62,7 +45,7 @@ export async function parseResponse<S extends ZodTypeAny>(
   res: Response,
   schema: S,
   context: string,
-): Promise<Infer<S>> {
+): Promise<z.infer<S>> {
   let body: unknown;
   try {
     body = await res.json();

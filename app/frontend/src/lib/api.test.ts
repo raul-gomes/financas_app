@@ -31,7 +31,7 @@ describe('apiFetch', () => {
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
     expect(url).toBe(`${API_BASE_URL}/dashboard/statement`);
-    expect(new Headers(init.headers).get('Authorization')).toBe('Bearer test-token-123');
+    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-token-123');
   });
 
   it('preserves existing headers when passed', async () => {
@@ -46,7 +46,7 @@ describe('apiFetch', () => {
     });
 
     const [, init] = vi.mocked(globalThis.fetch).mock.calls[0];
-    const headers = new Headers(init.headers);
+    const headers = new Headers(init?.headers);
     expect(headers.get('Content-Type')).toBe('application/json');
     expect(headers.get('Authorization')).toBe('Bearer test-token-123');
   });
@@ -106,7 +106,7 @@ describe('apiFetch', () => {
     await apiFetch('/categories/');
 
     const [, init] = vi.mocked(globalThis.fetch).mock.calls[0];
-    const headers = new Headers(init.headers);
+    const headers = new Headers(init?.headers);
     expect(headers.get('Authorization')).toBeNull();
   });
 });

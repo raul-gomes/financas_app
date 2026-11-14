@@ -1,4 +1,4 @@
-import type { Infer } from '@/lib/parse';
+import type { z } from 'zod';
 import { apiFetch } from '@/lib/api';
 import { parseApi, parseResponse } from '@/lib/parse';
 import {
@@ -7,7 +7,7 @@ import {
 } from '@/schemas/settings';
 
 /** The pluggy key itself never leaves the backend (only `has_pluggy_key`). */
-export type Profile = Infer<typeof profileSchema>;
+export type Profile = z.infer<typeof profileSchema>;
 
 /** E-mail and password are changed through Supabase Auth, not this API. */
 export interface ProfileUpdate {
@@ -16,12 +16,12 @@ export interface ProfileUpdate {
   pluggy_api_key?: string;
 }
 
-export type PluggyAccountsResponse = Infer<typeof pluggyAccountsSchema>;
+export type PluggyAccountsResponse = z.infer<typeof pluggyAccountsSchema>;
 export type PluggyAccount = PluggyAccountsResponse['accounts'][number];
 export type PluggyItem = PluggyAccountsResponse['items'][number];
-export type SyncResult = Infer<typeof syncResultSchema>;
-export type UserBank = Infer<typeof userBankSchema>;
-export type BrasilApiBank = Infer<typeof brasilApiBankSchema>;
+export type SyncResult = z.infer<typeof syncResultSchema>;
+export type UserBank = z.infer<typeof userBankSchema>;
+export type BrasilApiBank = z.infer<typeof brasilApiBankSchema>;
 
 export interface BankCreate {
   bank_code: string;

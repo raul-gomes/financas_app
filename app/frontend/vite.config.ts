@@ -26,9 +26,23 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    // Performance budget (Fase 4.3): falha o build se algum chunk > 500kb
-    chunkSizeWarningLimit: 500,
+    // Performance budget (Fase 4.3): aviso se algum chunk > 250 kB (o gate gzip fica no check-bundle-size)
+    chunkSizeWarningLimit: 250, // kB (raw); largest vendor chunk is ~223 kB
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        // Vendor chunks: long-lived cache and a smaller entry chunk.
+        manualChunks: (id: string) => {
+          if (!id.includes("node_modules")) return undefined;
+          if (/node_modules\/(react|react-dom|react-router|scheduler)\//.test(id)) return "react-vendor";
+          if (id.includes("node_modules/d3-") || id.includes("node_modules/internmap")) return "d3";
+          if (id.includes("node_modules/@supabase/")) return "supabase";
+          if (id.includes("node_modules/zod/")) return "zod";
+          if (id.includes("node_modules/@radix-ui/")) return "radix";
+          return undefined;
+        },
+      },
+    },
   },
   test: {
     environment: "jsdom",

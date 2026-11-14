@@ -61,14 +61,16 @@ export function EditTransactionDialog({
       .then(opts => {
         setCategoryOptions(opts);
         // Decide if "Other" for category
-        const existsCat = opts.options.some(c => c.name === transaction.category_name);
+        const categoryName = transaction.category_name ?? '';
+        const subcategoryName = transaction.subcategory_name ?? '';
+        const existsCat = opts.options.some(c => c.name === categoryName);
         setShowNewCategoryInput(!existsCat);
-        if (!existsCat) setNewCategoryName(transaction.category_name);
+        if (!existsCat) setNewCategoryName(categoryName);
 
-        const subs = opts.options.find(c => c.name === transaction.category_name)?.subcategories.map(s => s.name) || [];
-        const existsSub = subs.includes(transaction.subcategory_name);
+        const subs = opts.options.find(c => c.name === categoryName)?.subcategories.map(s => s.name) || [];
+        const existsSub = subs.includes(subcategoryName);
         setShowNewSubcategoryInput(!existsSub);
-        if (!existsSub) setNewSubcategoryName(transaction.subcategory_name);
+        if (!existsSub) setNewSubcategoryName(subcategoryName);
       })
       .catch(() => {
         toast({ title: 'Error', description: 'Failed to load categories', variant: 'destructive' });

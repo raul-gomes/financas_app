@@ -1,7 +1,7 @@
-import type { Infer } from '@/lib/parse';
+import type { z } from 'zod';
 import type { shoppingItemSchema } from '@/schemas/shopping';
 
-export type ShoppingItem = Infer<typeof shoppingItemSchema>;
+export type ShoppingItem = z.infer<typeof shoppingItemSchema>;
 
 export interface ShoppingItemCreate {
   name: string;

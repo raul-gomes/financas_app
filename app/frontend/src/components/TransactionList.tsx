@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { formatCurrency } from '@/lib/format';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -66,7 +66,7 @@ export function TransactionList({
     SettingsService.listBanks().then(setBanks).catch(() => {});
   }, []);
 
-  const getBankName = (bankCode: string | null): string | null => {
+  const getBankName = (bankCode: string | null | undefined): string | null => {
     if (!bankCode) return null;
     const bank = banks.find(b => b.bank_code === bankCode);
     return bank?.bank_name || null;
@@ -78,8 +78,8 @@ export function TransactionList({
     const q = searchQuery.toLowerCase();
     return transactions.filter(t => (
       t.description.toLowerCase().includes(q) ||
-      t.category_name.toLowerCase().includes(q) ||
-      t.subcategory_name.toLowerCase().includes(q) ||
+      (t.category_name ?? '').toLowerCase().includes(q) ||
+      (t.subcategory_name ?? '').toLowerCase().includes(q) ||
       t.payment_method.toLowerCase().includes(q) ||
       t.amount.toString().includes(q) ||
       (t.bank_code || '').toLowerCase().includes(q) ||

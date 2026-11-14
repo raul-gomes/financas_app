@@ -1,9 +1,9 @@
-import type { Infer } from '@/lib/parse';
+import type { z } from 'zod';
 import type { uploadResponseSchema, confirmResponseSchema } from '@/schemas/extract';
 
 /** Raw upload response; `SessionData` holds the normalised transactions. */
-export type UploadResponse = Infer<typeof uploadResponseSchema>;
-export type ConfirmResponse = Infer<typeof confirmResponseSchema>;
+export type UploadResponse = z.infer<typeof uploadResponseSchema>;
+export type ConfirmResponse = z.infer<typeof confirmResponseSchema>;
 
 export interface ParsedTransaction {
   date: string;

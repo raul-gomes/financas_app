@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { formatCurrency } from '@/lib/format';
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -1048,6 +1048,7 @@ setTransactionErrors(allErrors)
                                   className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                                   onClick={() => deleteTransaction(sIdx, rIdx)}
                                   title="Remover transaÃ§Ã£o"
+                                  aria-label="Remover transação"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>

@@ -185,10 +185,10 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                                                 <span className="font-medium">{item.name}</span>
                                             </div>
                                             <div className="flex gap-1">
-                                                <Button variant="ghost" size="sm" onClick={() => { setEditingItem(item); setEditNome(item.name) }}>
+                                                <Button aria-label="Editar item" variant="ghost" size="sm" onClick={() => { setEditingItem(item); setEditNome(item.name) }}>
                                                     <Pencil className="h-3.5 w-3.5" />
                                                 </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
+                                                <Button aria-label="Excluir item" variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
                                                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                                 </Button>
                                             </div>
@@ -242,7 +242,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                                                 )}
                                             </div>
                                         </div>
-                                        <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
+                                        <Button aria-label="Excluir item" variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
                                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                         </Button>
                                     </div>

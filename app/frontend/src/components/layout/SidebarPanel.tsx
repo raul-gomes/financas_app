@@ -22,7 +22,7 @@ export function SidebarPanel({ open, onClose, entityType, refreshKey }: SidebarP
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-foreground">Metas e Compras</h2>
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
+          <Button aria-label="Fechar painel" variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
