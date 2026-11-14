@@ -17,7 +17,7 @@ comando? Atualize este arquivo no mesmo commit. Segredos ficam no EnvVault: use
 
 | Comando | Quando usar |
 | --- | --- |
-| `docker compose -f docker-compose-prod.yml up -d --build` | Subir a stack de produção. Exige no `.env`: `POSTGRES_*`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_AUTH_URL`, `SUPABASE_JWT_SECRET`, `CORS_ORIGINS`, `DOMAIN`. Certificados em `infra/certbot/conf` (certbot, webroot `infra/certbot/www`) antes do primeiro `up`. |
+| `docker compose -f docker-compose-prod.yml up -d --build` | Subir a stack de produção. Exige no `.env`: `POSTGRES_*`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_AUTH_URL`, `SUPABASE_JWT_SECRET`, `PLUGGY_KEY_ENCRYPTION_KEYS`, `CORS_ORIGINS`, `DOMAIN`. Certificados em `infra/certbot/conf` (certbot, webroot `infra/certbot/www`) antes do primeiro `up`. |
 | `docker compose -f docker-compose-prod.yml down` | Parar a stack de produção (volumes `postgres-data` e `backend-logs` continuam). |
 | `docker compose -f docker-compose-prod.yml logs -f backend` | Logs dos containers; arquivos do loguru ficam no volume `backend-logs` (`/app/logs`). |
 | `docker compose -f docker-compose-prod.yml ps` | Estado e saúde (healthcheck) de cada serviço. |
@@ -43,6 +43,19 @@ Observação: as migrations (`alembic upgrade head`) rodam no start do backend e
 | `uv run ruff check .` / `uv run ruff format .` | Lint e formatação do backend (config em `pyproject.toml`; `--fix` aplica correções seguras). |
 | `uvx bandit==1.9.4 -r app -ll` | SAST do backend (roda no CI; bloqueia em severidade média ou maior; `# nosec` só com motivo escrito). |
 | `uvx pip-audit --disable-pip --no-deps -r <(uv export --frozen --no-hashes --no-emit-project)` | Auditoria de dependências do backend (roda no CI e bloqueia o build). |
+
+## Chave de cifra da chave Pluggy (`PLUGGY_KEY_ENCRYPTION_KEYS`)
+
+A chave Pluggy de cada usuário fica cifrada (Fernet) em `users.pluggy_api_key`. A variável
+`PLUGGY_KEY_ENCRYPTION_KEYS` é obrigatória em dev e produção (o backend não sobe sem ela, nem
+a migration roda se houver chave em texto puro). Ela vive no EnvVault, nunca no repositório.
+
+| Comando / passo | Quando usar |
+| --- | --- |
+| `uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` | Gerar uma chave nova (rode em `app/backend`; uma por ambiente: dev e prod diferentes). Guarde a saída no EnvVault como `PLUGGY_KEY_ENCRYPTION_KEYS`, sem colar em chat, nota ou arquivo versionado. |
+| `envvault run -p financas_app -- docker compose up -d --build` | Subir o dev com a chave injetada. A migration `b8c9d0e1f2a3` cifra as chaves Pluggy já salvas no primeiro start. |
+| Rotação: 1) gere uma chave nova; 2) no EnvVault ponha `NOVA,ANTIGA` (a primeira cifra, todas decifram); 3) reinicie o backend; 4) cada chave Pluggy salva de novo (Configurações) passa a usar a `NOVA`; 5) só remova `ANTIGA` quando todos os usuários com chave tiverem salvo de novo. | Trocar a chave de cifra sem perder dados. Ainda não há comando que re-cifre o banco inteiro; remover `ANTIGA` cedo demais deixa a chave Pluggy ilegível (erro 500 claro no sync; o usuário precisa salvá-la de novo). |
+| `uv run alembic downgrade -1` (com a chave no ambiente) | Desfaz a cifra (volta a texto puro); só para reverter este deploy. |
 
 ## Frontend (`app/frontend`)
 

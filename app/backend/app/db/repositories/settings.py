@@ -2,6 +2,7 @@ from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.crypto import encrypt_secret
 from app.core.database import get_session
 from app.db.models.user import UserORM
 from app.db.models.user_bank import UserBankORM
@@ -22,7 +23,10 @@ class SettingsRepository:
         if payload.name is not None:
             user.name = payload.name
         if payload.pluggy_api_key is not None:
-            user.pluggy_api_key = payload.pluggy_api_key or None
+            # Stored encrypted; an empty string removes the key.
+            user.pluggy_api_key = (
+                encrypt_secret(payload.pluggy_api_key) if payload.pluggy_api_key else None
+            )
         await self.db.commit()
         await self.db.refresh(user)
         return user

@@ -178,6 +178,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 #### Perfil
 - `GET/PUT /settings/profile` atuam sobre o usuário autenticado (nunca sobre um `user_id` enviado pelo cliente)
 - Só `name` e `pluggy_api_key` são editáveis; e-mail e senha ficam no Supabase. A API devolve `has_pluggy_key`, nunca a chave; `pluggy_api_key=""` remove a chave
+- `pluggy_api_key` armazenada **cifrada** (Fernet, `PLUGGY_KEY_ENCRYPTION_KEYS`)
 - A chave Pluggy não vai para logs (campos de credencial são redigidos)
 
 #### Bancos do Usuário
@@ -249,7 +250,7 @@ Aplicado em: criação/edição de transação, extrato, Pluggy, contas recorren
 ### 3.5 Segurança
 - Autenticação: JWT do Supabase (algoritmo/`aud`/`iss` verificados); o backend não guarda nem valida senha
 - Autorização: papel lido do banco (`users.role`), nunca do token nem do cliente; ver 3.6
-- `pluggy_api_key`: validada no sync, nunca devolvida pela API nem registrada em logs
+- `pluggy_api_key`: cifrada em repouso (`PLUGGY_KEY_ENCRYPTION_KEYS`, rotação por lista de chaves), decifrada só para chamar a Pluggy, nunca devolvida pela API nem registrada em logs
 - Erros internos: o cliente recebe mensagem genérica; o detalhe só vai para o log do servidor
 - Upload: limite 10 MB, decode UTF-8 com replace, parsing defensivo
 - SQL: parameterizado via SQLAlchemy ORM (sem concatenação)

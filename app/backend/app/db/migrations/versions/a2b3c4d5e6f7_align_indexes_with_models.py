@@ -1,7 +1,7 @@
 """align indexes with the ORM models (alembic check drift)
 
 Revision ID: a2b3c4d5e6f7
-Revises: a7b8c9d0e1f2
+Revises: b8c9d0e1f2a3
 Create Date: 2026-11-14
 
 Renames the indexes that still carried the pre-rename Portuguese table names,
@@ -13,7 +13,7 @@ live in the models. Nothing here changes query results.
 from alembic import op
 
 revision = "a2b3c4d5e6f7"
-down_revision = "a7b8c9d0e1f2"
+down_revision = "b8c9d0e1f2a3"
 branch_labels = None
 depends_on = None
 
