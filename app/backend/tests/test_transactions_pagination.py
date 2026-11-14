@@ -167,13 +167,32 @@ async def test_search_matches_description_case_insensitively_and_escapes_wildcar
     await _add(client, description="Padaria 100% pao")
     await _add(client, description="Padaria 1000 pao")
 
-    assert [i["description"] for i in await _all_pages(client, "&search=supermercado")] == [
+    assert [i["description"] for i in await _all_pages(client, "&search=EXTRA")] == [
         "Supermercado Extra"
     ]
     # A literal percent sign must not behave as a LIKE wildcard.
     literal = await _all_pages(client, "&search=100%25")
     assert [i["description"] for i in literal] == ["Padaria 100% pao"]
     assert await _all_pages(client, "&search=nothing-like-this") == []
+
+
+@pytest.mark.asyncio
+async def test_search_also_matches_category_subcategory_and_payment_method(client):
+    await _add(
+        client,
+        description="Anything",
+        category_name="Transporte",
+        subcategory_name="Combustivel",
+    )
+    await _add(client, description="Other", category_name="Lazer", subcategory_name="Cinema")
+
+    by_category = await _all_pages(client, "&search=transp")
+    by_subcategory = await _all_pages(client, "&search=combust")
+    by_payment = await _all_pages(client, "&search=PIX")
+
+    assert [i["description"] for i in by_category] == ["Anything"]
+    assert [i["description"] for i in by_subcategory] == ["Anything"]
+    assert len(by_payment) == 2
 
 
 @pytest.mark.asyncio

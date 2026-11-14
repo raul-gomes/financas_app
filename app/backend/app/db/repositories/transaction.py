@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_session
+from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
 from app.db.repositories.category import CategoriaRepository
 from app.db.repositories.subcategory import SubcategoriaRepository
@@ -328,7 +329,19 @@ class TransacaoRepository:
                 .replace("%", f"{LIKE_ESCAPE}%")
                 .replace("_", f"{LIKE_ESCAPE}_")
             )
-            stmt = stmt.where(TransactionORM.description.ilike(f"%{escaped}%", escape=LIKE_ESCAPE))
+            pattern = f"%{escaped}%"
+            stmt = stmt.where(
+                or_(
+                    TransactionORM.description.ilike(pattern, escape=LIKE_ESCAPE),
+                    TransactionORM.payment_method.ilike(pattern, escape=LIKE_ESCAPE),
+                    TransactionORM.category.has(
+                        CategoryORM.name.ilike(pattern, escape=LIKE_ESCAPE)
+                    ),
+                    TransactionORM.subcategory.has(
+                        SubcategoryORM.name.ilike(pattern, escape=LIKE_ESCAPE)
+                    ),
+                )
+            )
         return stmt
 
     async def list_page(

@@ -229,7 +229,7 @@ Legenda: 📖 lê · ✏️ escreve · 🗑 delete
 | Rota | Método(s) | Repositório/Serviço | Lê | Escreve | Transformação |
 |---|---|---|---|---|---|
 | `/transacoes` | POST, GET, GET/{id}, PUT, DELETE | TransactionService → TransacaoRepository (1 commit por request via UnitOfWork) | transacoes, categorias, subcategorias, limit_alerts* | transacoes (+cats/subs via T2, no mesmo commit), limit_alerts* (*disparo após o commit: `trigger_limit_evaluation` avalia limites e grava alertas) | T1, T2, T6 |
-| `/transacoes/paginated` | GET | TransactionService → TransacaoRepository.list_page | transacoes (+joins cats/subs) | — | página por cursor (keyset `transaction_date desc, id desc`) + `total`; filtros período, PF/PJ, tipo, categoria e texto (`ILIKE` na descrição) |
+| `/transacoes/paginated` | GET | TransactionService → TransacaoRepository.list_page | transacoes (+joins cats/subs) | — | página por cursor (keyset `transaction_date desc, id desc`) + `total`; filtros período, PF/PJ, tipo, categoria e texto (`ILIKE` em descrição, categoria, subcategoria e forma de pagamento) |
 | `/transacoes/check-duplicates` · `/resolve-duplicates` | POST | TransactionService → TransacaoRepository | transacoes | transacoes (🗑 em resolve) | T6 |
 | `/extracts/upload` | POST | extract_parsers | — (arquivo em memória) | **nada** | T7 (staging stateless) |
 | `/extracts/confirm` | POST | extract_parsers + TransacaoRepository | categorias, subcategorias, limit_alerts* | transacoes (+dims T2), limit_alerts* (*disparo post-commit, mês = menor data do lote) | T7, T1 |
