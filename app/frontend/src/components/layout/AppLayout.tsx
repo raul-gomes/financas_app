@@ -1,6 +1,6 @@
 // src/components/AppLayout.tsx
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router';
 import { DollarSign, BarChart3, TrendingUp, SlidersHorizontal, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SidebarProvider } from '@/contexts/SidebarContext';
