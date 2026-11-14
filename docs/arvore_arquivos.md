@@ -154,7 +154,7 @@ financas_app/
 │       │   │
 │       │   ├── components/
 │       │   │   ├── ErrorBoundary.tsx             # Barreira de erro por rota (fallback + retry; crash não derruba o app)
-│       │   │   ├── ui/                         # shadcn-ui primitives + compostos (button, dialog, card, responsive-modal, confirm-dialog, bank-logo, bank-select, bank-search, currency-input, stat-card, empty-state, page-header, etc.); smoke tests Vitest colocados (*.test.tsx ao lado). Obs: carousel.tsx e command.tsx REMOVIDOS (não usados; deps embla-carousel-react/cmdk removidas)
+│       │   │   ├── ui/                         # shadcn-ui primitives + compostos (button, dialog, card, responsive-modal, confirm-dialog, bank-logo, bank-select, bank-search, currency-input, stat-card, empty-state, page-header, segmented-control, chip-group, etc.); smoke tests Vitest colocados (*.test.tsx ao lado). Obs: carousel.tsx e command.tsx REMOVIDOS (não usados; deps embla-carousel-react/cmdk removidas)
 │       │   │   │
 │       │   │   ├── charts/                     # Componentes de gráficos D3
 │       │   │   │   ├── D3BarChart.tsx           # Gráfico de barras anual (income/expenses/investment por mês)
@@ -200,6 +200,7 @@ financas_app/
 │   │   │               │   ├── MobileTabBar.tsx          # Barra de abas inferior (Início, Financeiro, +, Limites, Mais): ≥44px, safe-area, aria-current
 │   │   │               │   ├── MobileTabBar.test.tsx     # Testes da barra de abas
 │   │   │               │   ├── MobileTopBar.tsx          # Barra superior mobile (logo/título, slot de mês `MobileTopBarSlot`, sino)
+│   │   │               │   ├── MonthStepper.tsx          # Seletor de mês compacto (‹ nov 2026 ›) para o slot da barra superior; addMonths/YearMonth (+ teste)
 │   │   │               │   ├── navigation.ts             # Abas, grupo "Mais", títulos por rota, isTabActive/getRouteTitle
 │   │   │               │   ├── navigation.test.ts        # Testes de navigation.ts
 │   │   │               │   ├── SidebarPanel.tsx          # Sidebar colapsável: tabs de metas, compras, resumo

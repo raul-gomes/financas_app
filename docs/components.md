@@ -437,3 +437,31 @@ Este arquivo **deve ser atualizado** quando:
 3. Novo token de cor/gradiente/sombra ⇒ registrar na seção 2.
 4. Padrão novo consolidado (ex.: forma canônica de montar formulários) ⇒ documentar na seção 5.
 5. Formatação de moeda/data/porcentagem ⇒ sempre importar de `@/lib/format` (§4.8).
+
+---
+
+## 8. Mobile (fase 2): primitivos de página
+
+Abaixo de `md` (< 768 px) as páginas usam estes primitivos; no desktop o visual segue o de antes.
+Todo alvo de toque tem **>= 44 px** no mobile.
+
+### 8.1 `SegmentedControl` (`ui/segmented-control.tsx`)
+
+Seletor segmentado (`role="radiogroup"`, setas movem a seleção) para PF/PJ, Ambos/PF/PJ, Entrada/Saída.
+**Props**: `options: {value, label, selectedClassName?}[]`, `value`, `onChange`, `aria-label` (obrigatório),
+`size?: 'md' | 'compact'` (compact = visual pequeno do desktop), `fill?` (opções dividem a largura), `className?`.
+
+### 8.2 `ChipGroup` (`ui/chip-group.tsx`)
+
+Fileira de chips que **rola na horizontal** (nunca quebra nem estoura a tela): filtros, forma de pagamento, seções.
+`variant="radio"` (escolha de formulário) ou `variant="tabs"` (`tablist`, troca de seção). **Props**: `options`, `value`, `onChange`, `aria-label`, `variant?`, `className?`.
+
+### 8.3 `MonthStepper` (`layout/MonthStepper.tsx`)
+
+"‹ nov 2026 ›" para o slot da barra superior (`MobileTopBarSlot`). Exporta `addMonths(ym, delta)` e o tipo `YearMonth` (`month` 1-12).
+
+### 8.4 `lib/transactionGroups.ts`
+
+`groupTransactionsByDay(lista, agora)` (grupos por dia, ordem preservada), `formatDayHeading(data, agora)`
+("Hoje · 14 nov", "Ontem · 13 nov", "12 nov", ano só se diferente) e `signedAmount(t)` ("+R$ 10,00" / "−R$ 10,00" com sinal de menos real).
+
