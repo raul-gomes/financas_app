@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Add current user to docker group (if exists)
 if getent group docker > /dev/null 2>&1; then
