@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useRef } from 'react';
 import { formatCurrency } from '@/lib/format';
-import * as d3 from 'd3';
+import * as d3 from '@/lib/d3';
 import { PortfolioEvolution } from '@/types/financial';
 
 interface D3LineChartProps {

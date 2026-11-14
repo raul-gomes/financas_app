@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useRef, useState } from 'react';
 import { formatCurrency, escapeHtml } from '@/lib/format';
-import * as d3 from 'd3';
+import * as d3 from '@/lib/d3';
 import { YearlyData } from '@/types/financial';
 
 interface D3BarChartProps {
