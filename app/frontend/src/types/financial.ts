@@ -36,6 +36,9 @@ export interface Transaction {
   recurring_account_id?: number | null;
 }
 
+/** Body sent when creating a transaction (category given by id or by name). */
+export type TransactionCreatePayload = Partial<Omit<Transaction, 'id'>>;
+
 export interface FinancialSummary {
   total_income: number;
   total_expenses: number;
@@ -65,7 +68,7 @@ export interface CategoryPeriodData {
   subcategories: Array<{
     total: number;
     limit: number;
-    [category: string]: any; // permite propriedades dinâmicas das categorias
+    [category: string]: number;
   }>;
 }
 

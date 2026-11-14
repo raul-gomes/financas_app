@@ -39,7 +39,7 @@ consolidados no fim.
 - [ ] **Q6** (média) Quebrar `BankExtract.tsx`, `ExtratoDialog.tsx`, `AddTransactionDialog.tsx`; unificar Add/Edit (ao tocar).
 - [ ] **Q7** (média) Trocar cores fixas por tokens (ao tocar).
 - [ ] **Q8** (média) Usar react-query nos fetches ou remover a dependência.
-- [ ] **Q9** (baixa) 17 erros de ESLint; remover `bun.lockb`; `lang="pt-BR"`; `aria-label` nos botões de ícone; `.dict()` → `model_dump()`; imports mortos; tetos de versão; tirar `psycopg2-binary`/`aiosqlite` de produção.
+- [ ] **Q9** (baixa) ~~17 erros de ESLint~~ (feito; restam 16 warnings); ~~remover `bun.lockb`~~ (feito); ~~`lang="pt-BR"`~~ (feito); `aria-label` nos botões de ícone; `.dict()` → `model_dump()`; imports mortos; tetos de versão; tirar `psycopg2-binary`/`aiosqlite` de produção.
 - [ ] **Q10** (baixa) Commits em inglês daqui em diante.
 
 ## Performance
@@ -57,8 +57,8 @@ consolidados no fim.
 
 ## Documentação e higiene
 - [x] **D1** (alta) `senhas.txt`, `acessos.md` e `ssh_key` movidos para `.private/` (ignorada, `0700`); `docs/` versionado (e-mail pessoal e URL de banco redigidos). FEITO. Falta o dono passar esses segredos para o EnvVault.
-- [ ] **D2** (média) Atualizar `regras_negocio.md` (limites 80/90/100, papéis) e o `AGENTS.md` (12 routers, 24 migrations, 29 arquivos de teste).
-- [ ] **D3** (baixa) Apagar branches paradas (`docs/agents-cerebro`, `origin/full-code`); remover os 2 PNGs de `docs/`.
+- [ ] **D2** (média) Atualizar `regras_negocio.md` (limites 80/90/100, papéis) e ~~o `AGENTS.md` (12 routers, 24 migrations, 29 arquivos de teste)~~ (AGENTS.md feito).
+- [ ] **D3** (baixa) Apagar branches paradas (`docs/agents-cerebro`, `origin/full-code`); ~~remover os 2 PNGs de `docs/`~~ (feito).
 
 ## Herdado de todo.md / backlog.md / ideias.md
 - [ ] Animação de cards subindo nos lançamentos do extrato (`todo.md`).

@@ -236,9 +236,9 @@ function D3BarChartBase({
       .style('max-width', '90vw');
 
     // Add hover and click effects
-    g.selectAll('.income-bar, .expense-bar, .investment-bar')
+    g.selectAll<SVGRectElement, YearlyData>('.income-bar, .expense-bar, .investment-bar')
       .style('cursor', 'pointer')
-        .on('mouseover', function(event, d: any) {
+        .on('mouseover', function(event, d) {
           const isIncome = d3.select(this).classed('income-bar');
           const isExpense = d3.select(this).classed('expense-bar');
           const isInvestment = d3.select(this).classed('investment-bar');
@@ -266,7 +266,7 @@ function D3BarChartBase({
         .on('mouseout', function() {
           tooltip.style('visibility', 'hidden');
         })
-        .on('click', function(event, d: any) {
+        .on('click', function(event, d) {
           if (onBarClick) {
             onBarClick(d.month);
           }
