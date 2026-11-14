@@ -500,7 +500,10 @@ class TransacaoRepository:
         return list(result.unique().scalars().all())
 
     async def assign_random_banks(self, bank_codes: list[str], user_id: int) -> int:
-        """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto."""
+        """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto.
+
+        Não faz commit: a unit of work do request é a dona da transação.
+        """
         from sqlalchemy import text
 
         if not bank_codes:
@@ -525,7 +528,6 @@ class TransacaoRepository:
 
         params = {"bank_codes": bank_codes, "user_id": user_id}
         result = await self.db.execute(stmt, params)
-        await self.db.commit()
         return result.rowcount
 
     async def create_batch_from_extract(

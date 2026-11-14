@@ -18,6 +18,7 @@ from app.services.category_service import CategoryService
 from app.services.dashboard_service import DashboardService
 from app.services.goal_service import GoalService
 from app.services.limits_service import LimitsService
+from app.services.settings_service import SettingsService
 from app.services.shopping_service import ShoppingService
 from app.services.transaction_service import TransactionService
 
@@ -121,3 +122,19 @@ async def get_shopping_reader(
 ) -> ShoppingService:
     """Shopping-list service for the read-only listing."""
     return ShoppingService(UnitOfWork(session), current_user)
+
+
+async def get_settings_service(
+    uow: UnitOfWork = Depends(get_unit_of_work, scope="function"),
+    current_user: UserORM = Depends(get_current_user),
+) -> SettingsService:
+    """Settings (profile + banks) service whose writes are committed once by the unit of work."""
+    return SettingsService(uow, current_user)
+
+
+async def get_settings_reader(
+    session: AsyncSession = Depends(get_session),
+    current_user: UserORM = Depends(get_current_user),
+) -> SettingsService:
+    """Settings service for read-only routes (profile, list_banks)."""
+    return SettingsService(UnitOfWork(session), current_user)

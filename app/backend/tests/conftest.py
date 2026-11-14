@@ -103,7 +103,7 @@ async def client():
 
         async def override_get_current_user() -> UserORM:
             # Re-read: a request rollback expires the instance of the shared test session.
-            return await session.get(UserORM, fake_user.id)
+            return await session.get(UserORM, 1)
 
         app.dependency_overrides[get_current_user] = override_get_current_user
 
@@ -165,7 +165,7 @@ async def client_user2():
         await session.commit()  # durable: a request rollback must not undo the seed users
 
         async def override_get_current_user() -> UserORM:
-            return await session.get(UserORM, fake_user2.id)
+            return await session.get(UserORM, 2)
 
         app.dependency_overrides[get_current_user] = override_get_current_user
 
