@@ -96,7 +96,7 @@ async def test_pluggy_calls_receive_the_decrypted_key(client, monkeypatch):
 
     app.dependency_overrides[get_current_user] = _current_user
     FakePluggy.received_keys = []
-    monkeypatch.setattr("app.routes.pluggy_routes.PluggyService", FakePluggy)
+    monkeypatch.setattr("app.services.pluggy_sync_service.PluggyService", FakePluggy)
 
     validate = await client.get("/pluggy/validate-key")
     accounts = await client.get("/pluggy/accounts")
@@ -116,7 +116,7 @@ async def test_undecryptable_stored_key_returns_500_without_leaking(client, monk
 
     app.dependency_overrides[get_current_user] = _current_user
     FakePluggy.received_keys = []
-    monkeypatch.setattr("app.routes.pluggy_routes.PluggyService", FakePluggy)
+    monkeypatch.setattr("app.services.pluggy_sync_service.PluggyService", FakePluggy)
 
     resp = await client.get("/pluggy/validate-key")
 

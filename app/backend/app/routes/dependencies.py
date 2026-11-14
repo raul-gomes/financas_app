@@ -16,8 +16,10 @@ from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.db.models.user import UserORM
 from app.services.category_service import CategoryService
 from app.services.dashboard_service import DashboardService
+from app.services.extract_service import ExtractService
 from app.services.goal_service import GoalService
 from app.services.limits_service import LimitsService
+from app.services.pluggy_sync_service import PluggySyncService
 from app.services.recurring_account_service import RecurringAccountService
 from app.services.settings_service import SettingsService
 from app.services.shopping_service import ShoppingService
@@ -155,3 +157,35 @@ async def get_recurring_account_reader(
 ) -> RecurringAccountService:
     """Recurring-accounts service for read-only routes (list_accounts, get)."""
     return RecurringAccountService(UnitOfWork(session), current_user)
+
+
+async def get_extract_service(
+    uow: UnitOfWork = Depends(get_unit_of_work, scope="function"),
+    current_user: UserORM = Depends(get_current_user),
+) -> ExtractService:
+    """Extract service whose batch import is committed once by the unit of work."""
+    return ExtractService(uow, current_user)
+
+
+async def get_extract_reader(
+    session: AsyncSession = Depends(get_session),
+    current_user: UserORM = Depends(get_current_user),
+) -> ExtractService:
+    """Extract service for the upload/parse route (touches no data: nothing to commit)."""
+    return ExtractService(UnitOfWork(session), current_user)
+
+
+async def get_pluggy_service(
+    uow: UnitOfWork = Depends(get_unit_of_work, scope="function"),
+    current_user: UserORM = Depends(get_current_user),
+) -> PluggySyncService:
+    """Pluggy service whose imports are committed once by the unit of work."""
+    return PluggySyncService(uow, current_user)
+
+
+async def get_pluggy_reader(
+    session: AsyncSession = Depends(get_session),
+    current_user: UserORM = Depends(get_current_user),
+) -> PluggySyncService:
+    """Pluggy service for routes that write nothing (list_accounts, validate_key)."""
+    return PluggySyncService(UnitOfWork(session), current_user)

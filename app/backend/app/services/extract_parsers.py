@@ -10,11 +10,12 @@ from xml.sax.saxutils import escape as xml_escape
 from defusedxml import ElementTree as SafeET
 from defusedxml.common import DefusedXmlException
 
+from app.core.errors import ValidationError
 from app.logger import logger
 
 
-class UnsafeOfxError(ValueError):
-    """Raised when an OFX document uses forbidden XML constructs (entities, DTD tricks)."""
+class UnsafeOfxError(ValidationError):
+    """Raised when an OFX document uses forbidden XML constructs (entities, DTD tricks): 400."""
 
 
 def parse_csv(content: str, delimiter: str | None = None) -> list[dict[str, Any]]:
