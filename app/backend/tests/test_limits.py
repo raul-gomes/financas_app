@@ -33,7 +33,7 @@ async def test_bulk_update_limits_create_new(client):
 
 @pytest.mark.asyncio
 async def test_bulk_update_limits_modify_existing(client):
-    cat, cat_id, sub_id = await _create_cat(client)
+    _cat, cat_id, sub_id = await _create_cat(client)
     payload = {
         "new": [],
         "modified": [

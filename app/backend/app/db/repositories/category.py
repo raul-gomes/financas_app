@@ -1,18 +1,18 @@
 # app/db/repositories/categoria.py
 
-from typing import List, Optional
+
 from fastapi import Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update as sql_update
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_session
 from app.db.models.category import CategoryORM
-from app.db.repositories.subcategory import SubcategoriaRepository
-from app.schemas.categories import CategoriaCreate, CategoriaUpdate
-from app.logger import log_database_operation
 from app.db.repositories.dashboard import _invalidate_opcoes_categorias_cache
+from app.db.repositories.subcategory import SubcategoriaRepository
+from app.logger import log_database_operation
+from app.schemas.categories import CategoriaCreate, CategoriaUpdate
 
 
 class CategoriaRepository:
@@ -25,7 +25,7 @@ class CategoriaRepository:
         self.model = CategoryORM
         self.sub_repo = SubcategoriaRepository(db)
 
-    async def get_by_id(self, id: int, user_id: int) -> Optional[CategoryORM]:
+    async def get_by_id(self, id: int, user_id: int) -> CategoryORM | None:
         """
         Busca uma categoria pelo ID, restrita ao usuário.
         """
@@ -42,7 +42,7 @@ class CategoriaRepository:
             log.warning(f"Categoria {id} não encontrada")
         return categoria
 
-    async def get_by_nome(self, nome: str, user_id: int) -> Optional[CategoryORM]:
+    async def get_by_nome(self, nome: str, user_id: int) -> CategoryORM | None:
         result = await self.db.execute(
             select(self.model).where(self.model.name == nome, self.model.user_id == user_id)
         )
@@ -50,7 +50,7 @@ class CategoriaRepository:
 
     async def get_by_nome_and_entity_type(
         self, nome: str, entity_type: str, user_id: int
-    ) -> Optional[CategoryORM]:
+    ) -> CategoryORM | None:
         result = await self.db.execute(
             select(self.model).where(
                 self.model.name == nome,
@@ -60,7 +60,7 @@ class CategoriaRepository:
         )
         return result.scalars().first()
 
-    async def get_by_tipo(self, tipo: str, user_id: int) -> Optional[CategoryORM]:
+    async def get_by_tipo(self, tipo: str, user_id: int) -> CategoryORM | None:
         """Busca a primeira categoria com o tipo informado (ex: 'income', 'investment')."""
         result = await self.db.execute(
             select(self.model).where(self.model.type == tipo, self.model.user_id == user_id)
@@ -130,7 +130,7 @@ class CategoriaRepository:
                 detail="Erro de integridade no banco de dados",
             )
 
-    async def get_all(self, user_id: int) -> List[CategoryORM]:
+    async def get_all(self, user_id: int) -> list[CategoryORM]:
         """
         Recupera todas as categorias do usuário, incluindo subcategorias.
         """
@@ -141,7 +141,7 @@ class CategoriaRepository:
         log.info(f"{len(categorias)} categorias recuperadas")
         return categorias
 
-    async def update(self, id: int, user_id: int, obj_in: CategoriaUpdate) -> Optional[CategoryORM]:
+    async def update(self, id: int, user_id: int, obj_in: CategoriaUpdate) -> CategoryORM | None:
         categoria = await self.get_by_id(id, user_id)
         if not categoria:
             return None
@@ -198,7 +198,7 @@ class CategoriaRepository:
         _invalidate_opcoes_categorias_cache()
         return result.scalars().first()
 
-    async def delete(self, id: int, user_id: int) -> Optional[CategoryORM]:
+    async def delete(self, id: int, user_id: int) -> CategoryORM | None:
         """
         Remove uma categoria pelo ID, restrita ao usuário.
         """

@@ -1,7 +1,7 @@
-import logging
-from dotenv import load_dotenv
 import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Search for .env from repo root
 repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent

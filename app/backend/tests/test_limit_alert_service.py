@@ -1,11 +1,10 @@
-import pytest_asyncio
 import pytest
 from sqlalchemy import select
 
 from app.db.models.category import CategoryORM, SubcategoryORM
+from app.db.models.limit_alert import LimitAlertORM
 from app.db.models.transaction import TransactionORM
 from app.db.models.user import UserORM
-from app.db.models.limit_alert import LimitAlertORM
 from app.services.limit_alert_service import LimitAlertService
 
 

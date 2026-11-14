@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.db.models.user import UserORM
 from app.core.security import get_current_user
+from app.db.models.user import UserORM
 from app.db.repositories.limit_alert import LimitAlertRepository
 from app.schemas.notifications import (
+    MarkReadResponse,
     NotificationItem,
     NotificationsResponse,
-    MarkReadResponse,
 )
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])

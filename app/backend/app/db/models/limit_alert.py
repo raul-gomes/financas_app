@@ -1,15 +1,16 @@
 from sqlalchemy import (
+    Boolean,
     Column,
+    DateTime,
+    Float,
+    ForeignKey,
     Integer,
     String,
-    Float,
-    Boolean,
-    DateTime,
-    ForeignKey,
     UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import relationship
+
 from app.db.base import Base
 
 

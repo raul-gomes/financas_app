@@ -5,9 +5,9 @@ Each user has their own API key from meu.pluggy.ai.
 This service uses that key to fetch accounts and transactions.
 """
 
-import httpx
-from typing import List, Optional
 from datetime import date, datetime
+
+import httpx
 from fastapi import HTTPException, status
 
 from app.logger import logger
@@ -24,8 +24,8 @@ class PluggyAccount:
     name: str
     balance: float
     currency_code: str
-    bank_code: Optional[str] = None
-    bank_name: Optional[str] = None
+    bank_code: str | None = None
+    bank_name: str | None = None
 
 
 class PluggyTransaction:
@@ -47,9 +47,9 @@ class PluggyItem:
     id: str
     status: str
     institution_name: str
-    institution_number: Optional[str] = None
+    institution_number: str | None = None
     created_at: datetime
-    last_updated_at: Optional[datetime] = None
+    last_updated_at: datetime | None = None
 
 
 MAX_PAGES = 50  # Safety limit for pagination
@@ -79,7 +79,7 @@ class PluggyService:
     async def close(self):
         await self.client.aclose()
 
-    async def _get(self, path: str, params: dict = None) -> dict:
+    async def _get(self, path: str, params: dict | None = None) -> dict:
         """Make a GET request to the Pluggy API."""
         try:
             response = await self.client.get(path, params=params)
@@ -103,7 +103,7 @@ class PluggyService:
                 detail="Não foi possível conectar ao Meu Pluggy. Verifique sua conexão.",
             )
 
-    async def fetch_items(self) -> List[PluggyItem]:
+    async def fetch_items(self) -> list[PluggyItem]:
         """Fetch all connected bank items (connections)."""
         data = await self._get("/items")
         items = []
@@ -118,7 +118,7 @@ class PluggyService:
             items.append(item)
         return items
 
-    async def fetch_accounts(self) -> List[dict]:
+    async def fetch_accounts(self) -> list[dict]:
         """Fetch all accounts from connected banks."""
         data = await self._get("/accounts")
         return data.get("results", [])
@@ -126,9 +126,9 @@ class PluggyService:
     async def fetch_transactions(
         self,
         account_id: str,
-        from_date: Optional[date] = None,
-        to_date: Optional[date] = None,
-    ) -> List[dict]:
+        from_date: date | None = None,
+        to_date: date | None = None,
+    ) -> list[dict]:
         """Fetch transactions for a specific account."""
         params = {"accountId": account_id}
         if from_date:

@@ -1,33 +1,34 @@
+from datetime import datetime
+
 import pytest
-from app.schemas.transaction import (
-    TransacaoCreate,
-    TransacaoUpdate,
-    TipoTransacao,
-    NaturezaTransacao,
-    TipoPagamento,
+
+from app.schemas.categories import CategoriaCreate
+from app.schemas.extract import (
+    ConfirmPayload,
+    ConfirmResponse,
+    ConfirmTransaction,
+    ParsedTransaction,
+    UploadResponse,
 )
-from app.schemas.categories import Categoria, CategoriaCreate, CategoriaUpdate
-from app.schemas.subcategory import Subcategoria, SubcategoriaCreate, SubcategoriaUpdate
+from app.schemas.limits import (
+    CategoriaLimiteUpdate,
+    LimitsUpdatePayload,
+    LimitsUpdateResponse,
+)
 from app.schemas.recurring_account import (
     ContaRecorrenteCreate,
     ContaRecorrenteUpdate,
     GenerateRequest,
     GenerateResponse,
 )
-from app.schemas.extract import (
-    ParsedTransaction,
-    UploadResponse,
-    ConfirmTransaction,
-    ConfirmPayload,
-    ConfirmResponse,
+from app.schemas.subcategory import SubcategoriaCreate
+from app.schemas.transaction import (
+    NaturezaTransacao,
+    TipoPagamento,
+    TipoTransacao,
+    TransacaoCreate,
+    TransacaoUpdate,
 )
-from app.schemas.limits import (
-    SubcategoriaLimiteUpdate,
-    CategoriaLimiteUpdate,
-    LimitsUpdatePayload,
-    LimitsUpdateResponse,
-)
-from datetime import datetime
 
 
 class TestTransacaoCreate:

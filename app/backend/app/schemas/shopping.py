@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 
 class ShoppingItemCreate(BaseModel):
@@ -16,18 +16,18 @@ class ShoppingItemCreate(BaseModel):
     is_recurring: bool = Field(
         default=False, description="Se o item é recorrente (aparece nos meses seguintes)"
     )
-    recurrence_end_date: Optional[date] = Field(None, description="Data fim da recorrência")
+    recurrence_end_date: date | None = Field(None, description="Data fim da recorrência")
 
 
 class ShoppingItemUpdate(BaseModel):
     """Schema para atualizar um item de compra"""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    checked: Optional[bool] = Field(None)
-    entity_type: Optional[str] = Field(None, description="Tipo de entidade: individual ou business")
+    name: str | None = Field(None, min_length=1, max_length=255)
+    checked: bool | None = Field(None)
+    entity_type: str | None = Field(None, description="Tipo de entidade: individual ou business")
     # Recurring fields
-    is_recurring: Optional[bool] = Field(None, description="Se o item é recorrente")
-    recurrence_end_date: Optional[date] = Field(None, description="Data fim da recorrência")
+    is_recurring: bool | None = Field(None, description="Se o item é recorrente")
+    recurrence_end_date: date | None = Field(None, description="Data fim da recorrência")
 
 
 class ShoppingItemResponse(BaseModel):
@@ -37,15 +37,15 @@ class ShoppingItemResponse(BaseModel):
     name: str
     reference_month: date
     checked: bool
-    completed_at: Optional[date] = None
-    created_at: Optional[datetime] = None
+    completed_at: date | None = None
+    created_at: datetime | None = None
     entity_type: str = Field(
         default="individual", description="Tipo de entidade: individual ou business"
     )
     # Recurring fields
     is_recurring: bool = Field(default=False)
-    recurrence_group_id: Optional[UUID] = None
-    recurrence_end_date: Optional[date] = None
+    recurrence_group_id: UUID | None = None
+    recurrence_end_date: date | None = None
 
     class Config:
         from_attributes = True
@@ -56,4 +56,4 @@ class GenerateRecurringShoppingRequest(BaseModel):
 
     start_month: date = Field(..., description="Mês inicial (primeiro dia)")
     end_month: date = Field(..., description="Mês final (primeiro dia)")
-    entity_type: Optional[str] = Field(None, description="Filtrar por tipo de entidade")
+    entity_type: str | None = Field(None, description="Filtrar por tipo de entidade")

@@ -1,9 +1,8 @@
 # app/logger.py
-import logging
 import sys
 from pathlib import Path
+
 from loguru import logger
-from datetime import datetime
 
 
 def setup_logger(app_name: str = "financas_backend"):
@@ -97,7 +96,7 @@ def log_with_context(**kwargs):
 
 
 # Função para logs de operações de banco
-def log_database_operation(operation: str, collection: str = None, **context):
+def log_database_operation(operation: str, collection: str | None = None, **context):
     """
     Log específico para operações de banco
     """

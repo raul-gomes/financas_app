@@ -167,8 +167,7 @@ async def test_overview_credito_usado_vs_limite(client):
 
 @pytest.mark.asyncio
 async def test_overview_recorrentes_e_parcelas_futuras(client):
-    resp = await client.post("/goals/", json={"subcategory_name": "MetaX", "target_amount": 5000})
-    meta_id = resp.json()["id"]
+    await client.post("/goals/", json={"subcategory_name": "MetaX", "target_amount": 5000})
 
     # Cria conta recorrente manualmente
     cats = await client.get("/dashboard/category-options?entity_type=individual")

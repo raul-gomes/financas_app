@@ -1,12 +1,13 @@
 # app/routes/limits.py
 
-from fastapi import APIRouter, Depends, status, Query
+from typing import Any
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict, Any, Optional
 
 from app.core.database import get_session
-from app.db.models.user import UserORM
 from app.core.security import get_current_user
+from app.db.models.user import UserORM
 from app.db.repositories.limits import LimitsRepository
 from app.schemas.limits import LimitsUpdatePayload, LimitsUpdateResponse, LimitsWithSpendingResponse
 from app.schemas.notifications import CategoryRiskResponse
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/limits", tags=["Limits"])
 
 @router.get(
     "/",
-    response_model=List[Dict[str, Any]],
+    response_model=list[dict[str, Any]],
     summary="Listar todas as categorias e limites",
     description="Retorna todas as categorias com subcategorias formatadas para gestão de limites",
 )
@@ -91,7 +92,7 @@ async def get_limits_with_spending(
     current_user: UserORM = Depends(get_current_user),
     year: int = Query(..., description="Ano (ex: 2024)"),
     month: int = Query(..., ge=1, le=12, description="Mês (1-12)"),
-    entity_type: Optional[str] = Query(
+    entity_type: str | None = Query(
         None, description="Filtrar por tipo de entidade: individual, business"
     ),
     db: AsyncSession = Depends(get_session),
@@ -113,7 +114,7 @@ async def get_limits_with_spending(
 )
 async def get_category_risk(
     category_id: int = Query(..., description="ID da categoria a verificar"),
-    amount: Optional[float] = Query(0.0, description="Valor da transação digitado (projeção)"),
+    amount: float | None = Query(0.0, description="Valor da transação digitado (projeção)"),
     current_user: UserORM = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ):

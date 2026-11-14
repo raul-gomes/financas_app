@@ -1,15 +1,15 @@
-import calendar
-from fastapi import APIRouter, Query, Depends, HTTPException, status
-from typing import Any, Dict, Literal, Optional
 from datetime import datetime
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.db.models.user import UserORM
 from app.core.security import get_current_user
-
+from app.db.models.user import UserORM
 from app.db.repositories.dashboard import DashboardRepository
 from app.db.repositories.overview import DashboardOverviewRepository
+from app.logger import log_api_request
 from app.schemas.dashboard import (
     EntradasPorCategoriaResponse,
     ExtratoResponse,
@@ -19,9 +19,6 @@ from app.schemas.dashboard import (
     TipoTrans,
 )
 from app.schemas.overview import OverviewResponse
-
-from app.logger import log_api_request
-
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -164,7 +161,7 @@ async def gastos_por_categoria(
 async def opcoes_categorias(
     current_user: UserORM = Depends(get_current_user),
     entity_type: Literal["individual", "business", "all"] = Query("all"),
-    type: Optional[str] = Query(
+    type: str | None = Query(
         None, description="Filtrar por tipo de transacao: income, expense, investment"
     ),
     db: AsyncSession = Depends(get_session),

@@ -1,24 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
-from typing import List, Any, Optional
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.repositories.recurring_account import ContaRecorrenteRepository
-from app.db.repositories.category import CategoriaRepository
-from app.db.repositories.subcategory import SubcategoriaRepository
-from app.services.limit_alert_service import trigger_limit_evaluation
-from app.db.models.user import UserORM
 from app.core.security import get_current_user, require_admin
+from app.db.models.user import UserORM
+from app.db.repositories.category import CategoriaRepository
+from app.db.repositories.recurring_account import ContaRecorrenteRepository
+from app.db.repositories.subcategory import SubcategoriaRepository
+from app.logger import log_api_request
+from app.schemas.categories import CategoriaCreate
 from app.schemas.recurring_account import (
     ContaRecorrenteCreate,
-    ContaRecorrenteUpdate,
     ContaRecorrenteResponse,
+    ContaRecorrenteUpdate,
     GenerateRequest,
     GenerateResponse,
 )
-from app.schemas.categories import CategoriaCreate
 from app.schemas.subcategory import SubcategoriaCreate
-from app.logger import log_api_request
+from app.services.limit_alert_service import trigger_limit_evaluation
 
 router = APIRouter(prefix="/recurring-accounts", tags=["Recurring Accounts"])
 
@@ -102,11 +103,11 @@ async def create_conta_recorrente(
         raise HTTPException(status_code=500, detail="Erro interno")
 
 
-@router.get("/", response_model=List[ContaRecorrenteResponse])
+@router.get("/", response_model=list[ContaRecorrenteResponse])
 async def list_contas_recorrentes(
     request: Request,
     current_user: UserORM = Depends(get_current_user),
-    entity_type: Optional[str] = Query(
+    entity_type: str | None = Query(
         None, description="Filtrar por tipo de entidade: individual, business"
     ),
     limit: int = Query(100, ge=1, le=500, description="Limite de itens por página"),
@@ -239,5 +240,5 @@ async def generate_recurrent_transactions(
     except Exception as e:
         log.error(f"Erro ao gerar transacoes recorrentes: {type(e).__name__}: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Erro interno ao gerar transacoes recorrentes: {str(e)}"
+            status_code=500, detail=f"Erro interno ao gerar transacoes recorrentes: {e!s}"
         )

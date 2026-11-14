@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Optional
 from datetime import datetime
-from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class TotaisOverview(BaseModel):
@@ -54,8 +54,8 @@ class ParcelaMesOverview(BaseModel):
     id: int
     description: str
     amount: float
-    installment_number: Optional[int]
-    total_installments: Optional[int]
+    installment_number: int | None
+    total_installments: int | None
     category_name: str
     subcategory_name: str
     payment_method: str
@@ -88,13 +88,13 @@ class OverviewResponse(BaseModel):
     totals: TotaisOverview
     month_progress: MonthProgressOverview
     credit_card: CreditCardOverview
-    categories_status: List[CategoriaStatusOverview] = Field(default_factory=list)
-    installments: List[ParcelaMesOverview] = Field(default_factory=list)
-    recurring_accounts: List[RecorrentePagarOverview] = Field(default_factory=list)
-    goals: List[Dict[str, Any]] = Field(
+    categories_status: list[CategoriaStatusOverview] = Field(default_factory=list)
+    installments: list[ParcelaMesOverview] = Field(default_factory=list)
+    recurring_accounts: list[RecorrentePagarOverview] = Field(default_factory=list)
+    goals: list[dict[str, Any]] = Field(
         default_factory=list, description="Metas com progresso (somente admin)"
     )
-    shopping: List[Dict[str, Any]] = Field(
+    shopping: list[dict[str, Any]] = Field(
         default_factory=list, description="Compras do mês (somente admin)"
     )
 

@@ -1,7 +1,7 @@
 # app/schemas/notifications.py
 
+
 from pydantic import BaseModel, Field
-from typing import List, Optional
 
 
 class NotificationItem(BaseModel):
@@ -19,7 +19,7 @@ class NotificationItem(BaseModel):
     threshold: int
     percent_used: float
     exceeded: bool
-    created_at: Optional[str] = None
+    created_at: str | None = None
     read: bool
     severity: str = Field(..., description="warning (80%) | critical (90%) | destructive (100%)")
     message: str = Field(..., description="Mensagem pronta para o frontend exibir")
@@ -63,7 +63,7 @@ class NotificationsResponse(BaseModel):
     """
 
     unread_count: int = Field(..., description="Quantidade de não lidas (para o badge da sine)")
-    items: List[NotificationItem] = Field(default_factory=list)
+    items: list[NotificationItem] = Field(default_factory=list)
 
 
 class MarkReadResponse(BaseModel):
@@ -88,9 +88,9 @@ class CategoryRiskResponse(BaseModel):
     percent_used: float
     projected_percent_used: float = Field(0, description="% do limite após somar o valor digitado")
     is_over_limit: bool = Field(False, description="projeção >= 100%")
-    severity: Optional[str] = Field(
+    severity: str | None = Field(
         None, description="warning (80) | critical (90) | destructive (100); None se <80%"
     )
-    thresholds_hit: List[int] = Field(
+    thresholds_hit: list[int] = Field(
         default_factory=list, description="thresholds 80/90/100 atingidos pela projeção"
     )

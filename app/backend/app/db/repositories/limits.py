@@ -1,22 +1,21 @@
 # app/db/repositories/limits.py
 
-from typing import List, Dict, Any, Optional
-from fastapi import Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from sqlalchemy.exc import IntegrityError
 from datetime import datetime
+from typing import Any
+
+from fastapi import Depends, HTTPException, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
-
 from app.db.repositories.category import CategoriaRepository
 from app.db.repositories.subcategory import SubcategoriaRepository
-from app.schemas.limits import LimitsUpdatePayload, LimitsUpdateResponse, CategoriaLimiteUpdate
-from app.schemas.categories import CategoriaCreate, CategoriaUpdate
-from app.schemas.subcategory import SubcategoriaCreate, SubcategoriaUpdate
 from app.logger import log_database_operation
+from app.schemas.categories import CategoriaCreate, CategoriaUpdate
+from app.schemas.limits import CategoriaLimiteUpdate, LimitsUpdatePayload, LimitsUpdateResponse
+from app.schemas.subcategory import SubcategoriaCreate, SubcategoriaUpdate
 
 
 class LimitsRepository:
@@ -53,7 +52,7 @@ class LimitsRepository:
                         await self.categoria_repo.delete(cat_id, user_id)
                         response.deleted_categories += 1
                 except Exception as e:
-                    response.errors.append(f"Erro ao excluir categoria ID {cat_id}: {str(e)}")
+                    response.errors.append(f"Erro ao excluir categoria ID {cat_id}: {e!s}")
                     log.error(f"Erro ao excluir categoria: {e}")
 
             # Processa categorias novas
@@ -62,7 +61,7 @@ class LimitsRepository:
                     await self._create_new_category(new_cat, response, user_id)
                 except Exception as e:
                     response.errors.append(
-                        f"Erro ao criar categoria '{new_cat.categoria_nome}': {str(e)}"
+                        f"Erro ao criar categoria '{new_cat.categoria_nome}': {e!s}"
                     )
                     log.error(f"Erro ao criar categoria: {e}")
 
@@ -71,7 +70,7 @@ class LimitsRepository:
                 try:
                     await self._update_existing_category(mod_cat, response, user_id)
                 except Exception as e:
-                    response.errors.append(f"Erro ao atualizar categoria ID {mod_cat.id}: {str(e)}")
+                    response.errors.append(f"Erro ao atualizar categoria ID {mod_cat.id}: {e!s}")
                     log.error(f"Erro ao atualizar categoria: {e}")
 
             # Commit final se não houver erros críticos
@@ -91,7 +90,7 @@ class LimitsRepository:
             log.error(f"Erro crítico no bulk update: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Erro interno ao processar limites: {str(e)}",
+                detail=f"Erro interno ao processar limites: {e!s}",
             )
 
     async def _create_new_category(
@@ -154,7 +153,7 @@ class LimitsRepository:
         await self._process_subcategories(mod_cat.id, mod_cat.subcategories, response, user_id)
 
     async def _process_subcategories(
-        self, categoria_id: int, subcategorias: List, response: LimitsUpdateResponse, user_id: int
+        self, categoria_id: int, subcategorias: list, response: LimitsUpdateResponse, user_id: int
     ):
         """Processa subcategorias de uma categoria (novas e atualizações)."""
 
@@ -174,7 +173,7 @@ class LimitsRepository:
                 await self.subcategoria_repo.create(categoria_id, user_id, sub_create)
                 response.created_subcategories += 1
 
-    async def get_all_limits(self, user_id: int) -> List[Dict[str, Any]]:
+    async def get_all_limits(self, user_id: int) -> list[dict[str, Any]]:
         """
         Retorna todas as categorias formatadas para o frontend de limites.
         """
@@ -210,8 +209,8 @@ class LimitsRepository:
         return formatted_data
 
     async def get_limits_with_spending(
-        self, year: int, month: int, user_id: int, entity_type: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, year: int, month: int, user_id: int, entity_type: str | None = None
+    ) -> dict[str, Any]:
         """
         Retorna categorias com limites e gastos para um mês específico.
 
@@ -232,10 +231,7 @@ class LimitsRepository:
 
         # Range do mês
         mes_inicio = datetime(year, month, 1)
-        if month == 12:
-            mes_fim = datetime(year + 1, 1, 1)
-        else:
-            mes_fim = datetime(year, month + 1, 1)
+        mes_fim = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
 
         # 1. Busca categorias com subcategorias
         stmt = select(CategoryORM).where(CategoryORM.user_id == user_id).order_by(CategoryORM.name)

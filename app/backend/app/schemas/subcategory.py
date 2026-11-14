@@ -1,5 +1,6 @@
+from typing import Any
+
 from pydantic import BaseModel, Field, model_validator
-from typing import Any, Optional
 
 
 class SubcategoriaBase(BaseModel):
@@ -8,7 +9,7 @@ class SubcategoriaBase(BaseModel):
 
 class Subcategoria(SubcategoriaBase):
     id: int = Field(..., description="ID da subcategoria")
-    target_amount: Optional[float] = Field(None, description="Valor alvo (se for meta)")
+    target_amount: float | None = Field(None, description="Valor alvo (se for meta)")
 
     class Config:
         from_attributes = True
@@ -17,7 +18,7 @@ class Subcategoria(SubcategoriaBase):
     @classmethod
     def extract_name(cls, data: Any) -> Any:
         if hasattr(data, "name") and not hasattr(data, "subcategory_name"):
-            setattr(data, "subcategory_name", data.name)
+            data.subcategory_name = data.name
         return data
 
 
@@ -28,7 +29,7 @@ class SubcategoriaCreate(SubcategoriaBase):
 
 
 class SubcategoriaUpdate(SubcategoriaBase):
-    id: Optional[int] = Field(None, description="ID da subcategoria existente")
+    id: int | None = Field(None, description="ID da subcategoria existente")
 
     class Config:
         from_attributes = True

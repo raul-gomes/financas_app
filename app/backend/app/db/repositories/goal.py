@@ -1,17 +1,16 @@
 # app/db/repositories/meta.py
 
-from typing import List, Optional
-from fastapi import Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
 from datetime import date
+
+from fastapi import Depends, HTTPException, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
-from app.schemas.goals import MetaCreate, MetaUpdate
 from app.logger import log_database_operation
-
+from app.schemas.goals import MetaCreate, MetaUpdate
 
 METAS_CATEGORIA_NOME = "Metas"
 
@@ -53,12 +52,12 @@ class MetaRepository:
 
     async def list_metas(
         self,
-        completed: Optional[bool] = None,
-        entity_type: Optional[str] = None,
+        completed: bool | None = None,
+        entity_type: str | None = None,
         limit: int = 100,
         offset: int = 0,
         user_id: int = 1,
-    ) -> List[SubcategoryORM]:
+    ) -> list[SubcategoryORM]:
         """Lista todas as subcategorias que são metas (possuem target_amount).
 
         Args:
@@ -123,7 +122,7 @@ class MetaRepository:
 
     async def update_meta(
         self, meta_id: int, obj_in: MetaUpdate, user_id: int = 1
-    ) -> Optional[SubcategoryORM]:
+    ) -> SubcategoryORM | None:
         """Atualiza uma meta existente."""
         log = log_database_operation(
             operation="update", collection="metas", meta_id=meta_id, user_id=user_id
@@ -146,7 +145,7 @@ class MetaRepository:
         log.info(f"Meta {meta_id} atualizada")
         return meta
 
-    async def delete_meta(self, meta_id: int, user_id: int = 1) -> Optional[SubcategoryORM]:
+    async def delete_meta(self, meta_id: int, user_id: int = 1) -> SubcategoryORM | None:
         """Remove uma meta (deleta a subcategoria)."""
         log = log_database_operation(
             operation="delete", collection="metas", meta_id=meta_id, user_id=user_id
@@ -161,7 +160,7 @@ class MetaRepository:
         log.info(f"Meta {meta_id} excluída")
         return meta
 
-    async def complete_goal(self, meta_id: int, user_id: int = 1) -> Optional[SubcategoryORM]:
+    async def complete_goal(self, meta_id: int, user_id: int = 1) -> SubcategoryORM | None:
         """Marca uma meta como concluída com a data atual."""
         log = log_database_operation(
             operation="complete", collection="metas", meta_id=meta_id, user_id=user_id
@@ -177,7 +176,7 @@ class MetaRepository:
         log.info(f"Meta {meta_id} concluída em {meta.completed_at}")
         return meta
 
-    async def reactivate_goal(self, meta_id: int, user_id: int = 1) -> Optional[SubcategoryORM]:
+    async def reactivate_goal(self, meta_id: int, user_id: int = 1) -> SubcategoryORM | None:
         """Reativa uma meta concluída."""
         log = log_database_operation(
             operation="reactivate", collection="metas", meta_id=meta_id, user_id=user_id
@@ -193,7 +192,7 @@ class MetaRepository:
         log.info(f"Meta {meta_id} reativada")
         return meta
 
-    async def _get_user_meta(self, meta_id: int, user_id: int) -> Optional[SubcategoryORM]:
+    async def _get_user_meta(self, meta_id: int, user_id: int) -> SubcategoryORM | None:
         """Busca uma meta (subcategoria) garantindo que pertença a uma categoria do usuário."""
         result = await self.db.execute(
             select(self.model)
@@ -206,10 +205,10 @@ class MetaRepository:
         self,
         ano: int,
         mes: int,
-        completed: Optional[bool] = None,
-        entity_type: Optional[str] = None,
+        completed: bool | None = None,
+        entity_type: str | None = None,
         user_id: int = 1,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """Calcula o progresso de todas as metas no mês informado usando GROUP BY (1 query).
 
         Args:
@@ -231,10 +230,7 @@ class MetaRepository:
         from datetime import datetime
 
         mes_inicio = datetime(ano, mes, 1)
-        if mes == 12:
-            mes_fim = datetime(ano + 1, 1, 1)
-        else:
-            mes_fim = datetime(ano, mes + 1, 1)
+        mes_fim = datetime(ano + 1, 1, 1) if mes == 12 else datetime(ano, mes + 1, 1)
 
         # Soma agrupada por subcategoria (1 query, não N+1)
         result = await self.db.execute(

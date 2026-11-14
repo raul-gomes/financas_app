@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field, ValidationInfo, model_validator, field_validator
-from typing import Optional, List
 from datetime import date, datetime
 from enum import Enum
 from uuid import UUID
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class TipoTransacao(str, Enum):
@@ -28,10 +28,10 @@ class TipoPagamento(str, Enum):
 class TransacaoBase(BaseModel):
     amount: float = Field(..., gt=0, description="Valor de transação")
     description: str = Field(..., min_length=1, max_length=500)
-    installment_number: Optional[int] = Field(None, ge=1)
-    total_installments: Optional[int] = Field(None, ge=1)
+    installment_number: int | None = Field(None, ge=1)
+    total_installments: int | None = Field(None, ge=1)
     is_installment: bool = Field(False, description="Indica se a transação é parcelada")
-    bank_code: Optional[str] = Field(None, description="Código COMPE do banco")
+    bank_code: str | None = Field(None, description="Código COMPE do banco")
     payment_method: str = Field(..., description="Forma de pagamento (aceita qualquer string)")
     transaction_date: datetime = Field(...)
 
@@ -47,11 +47,11 @@ class TransacaoCreate(TransacaoBase):
     type: TipoTransacao
     entity_type: NaturezaTransacao
 
-    category_id: Optional[int] = Field(None, description="ID da categoria")
-    category_name: Optional[str] = Field(None, description="Nome da categoria")
+    category_id: int | None = Field(None, description="ID da categoria")
+    category_name: str | None = Field(None, description="Nome da categoria")
 
-    subcategory_id: Optional[int] = Field(None, description="ID da subcategoria")
-    subcategory_name: Optional[str] = Field(None, description="Nome da subcategoria")
+    subcategory_id: int | None = Field(None, description="ID da subcategoria")
+    subcategory_name: str | None = Field(None, description="Nome da subcategoria")
 
     @model_validator(mode="before")
     def check_category(cls, values):
@@ -75,8 +75,8 @@ class TransacaoResponse(TransacaoBase):
     entity_type: NaturezaTransacao
     category_id: int
     subcategory_id: int
-    category_name: Optional[str] = None
-    subcategory_name: Optional[str] = None
+    category_name: str | None = None
+    subcategory_name: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -85,9 +85,9 @@ class TransacaoResponse(TransacaoBase):
     def extract_names(cls, data: any) -> any:
         # If it's an ORM object with loaded relationships
         if hasattr(data, "category") and data.category:
-            setattr(data, "category_name", data.category.name)
+            data.category_name = data.category.name
         if hasattr(data, "subcategory") and data.subcategory:
-            setattr(data, "subcategory_name", data.subcategory.name)
+            data.subcategory_name = data.subcategory.name
         return data
 
     class Config:
@@ -96,24 +96,24 @@ class TransacaoResponse(TransacaoBase):
 
 
 class TransacaoUpdate(BaseModel):
-    amount: Optional[float] = Field(None, gt=0, description="Valor da transação")
-    description: Optional[str] = Field(
+    amount: float | None = Field(None, gt=0, description="Valor da transação")
+    description: str | None = Field(
         None, min_length=1, max_length=500, description="Descrição da transação"
     )
-    installment_number: Optional[int] = Field(None, ge=1, description="Número de parcelas")
-    total_installments: Optional[int] = Field(None, ge=1, description="Total de parcelas")
-    is_installment: Optional[bool] = Field(None, description="Indica se a transação é parcelada")
-    transaction_date: Optional[datetime] = Field(None, description="Data da transação")
-    type: Optional[TipoTransacao] = Field(None, description="Tipo da transação")
-    entity_type: Optional[NaturezaTransacao] = Field(None, description="Entity type da transação")
-    payment_method: Optional[str] = Field(None, description="Forma de pagamento")
+    installment_number: int | None = Field(None, ge=1, description="Número de parcelas")
+    total_installments: int | None = Field(None, ge=1, description="Total de parcelas")
+    is_installment: bool | None = Field(None, description="Indica se a transação é parcelada")
+    transaction_date: datetime | None = Field(None, description="Data da transação")
+    type: TipoTransacao | None = Field(None, description="Tipo da transação")
+    entity_type: NaturezaTransacao | None = Field(None, description="Entity type da transação")
+    payment_method: str | None = Field(None, description="Forma de pagamento")
 
-    category_id: Optional[int] = Field(None, description="ID da categoria")
-    category_name: Optional[str] = Field(None, description="Nome da categoria")
+    category_id: int | None = Field(None, description="ID da categoria")
+    category_name: str | None = Field(None, description="Nome da categoria")
 
-    subcategory_id: Optional[int] = Field(None, description="ID da subcategoria")
-    subcategory_name: Optional[str] = Field(None, description="Nome da subcategoria")
-    bank_code: Optional[str] = Field(None, description="Código do banco")
+    subcategory_id: int | None = Field(None, description="ID da subcategoria")
+    subcategory_name: str | None = Field(None, description="Nome da subcategoria")
+    bank_code: str | None = Field(None, description="Código do banco")
 
     @model_validator(mode="before")
     def check_category(cls, values: dict) -> dict:
@@ -149,9 +149,9 @@ class SingleDuplicateCheckItem(BaseModel):
 
 
 class DuplicateCheckRequest(BaseModel):
-    transaction_date: Optional[date] = None
-    amount: Optional[float] = None
-    transactions: Optional[List[SingleDuplicateCheckItem]] = None
+    transaction_date: date | None = None
+    amount: float | None = None
+    transactions: list[SingleDuplicateCheckItem] | None = None
 
 
 class DuplicateInfo(BaseModel):
@@ -161,20 +161,20 @@ class DuplicateInfo(BaseModel):
     transaction_date: datetime
     type: str
     entity_type: str
-    category_name: Optional[str] = None
-    subcategory_name: Optional[str] = None
-    payment_method: Optional[str] = None
-    created_at: Optional[datetime] = None
+    category_name: str | None = None
+    subcategory_name: str | None = None
+    payment_method: str | None = None
+    created_at: datetime | None = None
 
 
 class SingleDuplicateCheckResult(BaseModel):
     index: int
     has_duplicate: bool
-    duplicates: List[DuplicateInfo]
+    duplicates: list[DuplicateInfo]
 
 
 class DuplicateCheckResponse(BaseModel):
-    results: List[SingleDuplicateCheckResult]
+    results: list[SingleDuplicateCheckResult]
 
 
 # ===== Duplicate Resolution (for Pluggy sync) =====
@@ -187,7 +187,7 @@ class DuplicateResolution(BaseModel):
 
 
 class ResolveDuplicatesRequest(BaseModel):
-    resolutions: List[DuplicateResolution]
+    resolutions: list[DuplicateResolution]
 
 
 class ResolveDuplicatesResponse(BaseModel):

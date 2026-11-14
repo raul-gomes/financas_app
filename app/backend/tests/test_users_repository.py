@@ -4,7 +4,6 @@ from sqlalchemy import select
 from app.db.models.user import UserORM
 from app.db.repositories.users import get_or_create_user_from_supabase
 
-
 # ── Testes: upsert de usuário ────────────────────────────────────────
 
 

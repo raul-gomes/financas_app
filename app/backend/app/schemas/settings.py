@@ -1,13 +1,13 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel
 
 
 class ProfileResponse(BaseModel):
     id: int
     name: str
     email: str
-    pluggy_api_key: Optional[str] = None
+    pluggy_api_key: str | None = None
     role: str = "user"
     created_at: datetime
     updated_at: datetime
@@ -16,10 +16,10 @@ class ProfileResponse(BaseModel):
 
 
 class ProfileUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    password: Optional[str] = None
-    pluggy_api_key: Optional[str] = None
+    name: str | None = None
+    email: str | None = None
+    password: str | None = None
+    pluggy_api_key: str | None = None
 
 
 class BankResponse(BaseModel):

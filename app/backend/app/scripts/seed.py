@@ -4,8 +4,8 @@ Dentro do container: docker exec financas-api python -m app.scripts.seed
 Fora do container: DATABASE_URL=postgresql://postgres:postgres@localhost:5436/financas python -m app.scripts.seed
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Garantir que o path do projeto esteja no sys.path
@@ -16,21 +16,23 @@ from dotenv import load_dotenv
 
 load_dotenv(repo_root.parent / ".env", override=False)
 
-from sqlalchemy import create_engine, text
+import random
+from datetime import date, datetime
+from uuid import uuid4
+
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.db.base import Base
 from app.db.models import (
     CategoryORM,
-    SubcategoryORM,
-    UserORM,
-    UserBankORM,
     RecurringAccountORM,
-    TransactionORM,
     ShoppingItemORM,
+    SubcategoryORM,
+    TransactionORM,
+    UserBankORM,
+    UserORM,
 )
-from uuid import uuid4
-from datetime import datetime, date
-import random
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
@@ -323,7 +325,6 @@ def seed():
 
         # ── Transações ──────────────────────────────────────────
         transactions = []
-        group_base = str(uuid4())
 
         def add_txn(
             desc,
@@ -740,8 +741,8 @@ def seed():
             db.add(si)
 
         db.commit()
-        print(f"Seed concluído com sucesso!")
-        print(f"  - 1 usuário")
+        print("Seed concluído com sucesso!")
+        print("  - 1 usuário")
         print(f"  - {len(banks)} bancos")
         print(
             f"  - {len(pf_categories) + len(pj_categories) + len(special_categories)} categorias (incl. {len(special_categories)} especiais de limite)"

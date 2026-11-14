@@ -3,10 +3,10 @@ import io
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Any
 
 
-def parse_csv(content: str, delimiter: str = None) -> List[Dict[str, Any]]:
+def parse_csv(content: str, delimiter: str | None = None) -> list[dict[str, Any]]:
     lines = content.strip().split("\n")
     if not lines:
         return []
@@ -47,7 +47,7 @@ def parse_csv(content: str, delimiter: str = None) -> List[Dict[str, Any]]:
     return transactions
 
 
-def parse_ofx(content: str) -> List[Dict[str, Any]]:
+def parse_ofx(content: str) -> list[dict[str, Any]]:
     transactions = []
 
     cleaned = _clean_ofx_tags(content)
@@ -100,14 +100,14 @@ def _detect_delimiter(line: str) -> str:
     return ","
 
 
-def _map_csv_columns(first_row: Dict[str, str]) -> Dict[str, str]:
+def _map_csv_columns(first_row: dict[str, str]) -> dict[str, str]:
     col_map = {"date": "", "amount": "", "description": ""}
 
     date_patterns = ["data", "date", "dt", "data_transacao", "data da transacao"]
     amount_patterns = ["valor", "amount", "value", "total", "vlr", "valor_transacao"]
     desc_patterns = ["descricao", "description", "desc", "memo", "historico", "detalhe", "nome"]
 
-    for key in first_row.keys():
+    for key in first_row:
         key_lower = key.lower().strip()
         for p in date_patterns:
             if p in key_lower:

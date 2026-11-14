@@ -1,8 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Optional
 from datetime import datetime
-
 from enum import Enum
+
+from pydantic import BaseModel, Field
 
 from app.schemas.transaction import NaturezaTransacao, TipoTransacao
 
@@ -17,13 +16,13 @@ class TransacaoExtrato(BaseModel):
     category_name: str
     subcategory_name: str
     payment_method: str
-    installment_number: Optional[int]
-    total_installments: Optional[int]
+    installment_number: int | None
+    total_installments: int | None
     is_installment: bool = False
     entity_type: NaturezaTransacao
     transaction_date: datetime
-    recurring_account_id: Optional[int] = None
-    bank_code: Optional[str] = None
+    recurring_account_id: int | None = None
+    bank_code: str | None = None
 
     class Config:
         from_attributes = True
@@ -36,7 +35,7 @@ class ExtratoResponse(BaseModel):
     end_date: str = Field(..., description="Data final do filtro (dd/mm/yyyy)")
     monthly_goal: float = Field(..., description="Meta mensal financeira")
     total_invested: float = Field(..., description="Total investido (igual às entradas)")
-    transactions: List[TransacaoExtrato] = Field(..., description="Lista de transações filtradas")
+    transactions: list[TransacaoExtrato] = Field(..., description="Lista de transações filtradas")
     credit_card_limit: float = Field(default=0, description="Limite do cartão de crédito")
     fixed_expenses: float = Field(
         default=0, description="Total de gastos fixos (contas recorrentes)"
@@ -54,7 +53,7 @@ class MesRendimento(BaseModel):
 
 class RendimentoPeriodoResponse(BaseModel):
     limit: float = Field(..., description="Limite/metas financeiras")
-    months: Dict[str, MesRendimento] = Field(
+    months: dict[str, MesRendimento] = Field(
         ..., description="Dados de entrada e saída por mês em minúsculo"
     )
 
@@ -79,13 +78,13 @@ class CategoriaGasto(BaseModel):
     name: str = Field(..., description="Nome da categoria")
     total: float = Field(..., description="Total agregado na categoria")
     limit: float = Field(..., description="Limite configurado na categoria")
-    subcategories: List[SubcategoriaGasto] = Field(..., description="Detalhamento por subcategoria")
+    subcategories: list[SubcategoriaGasto] = Field(..., description="Detalhamento por subcategoria")
 
 
 class GastosPorCategoriaResponse(BaseModel):
     start_date: str = Field(..., description="Data inicial do filtro (DD/MM/YYYY)")
     end_date: str = Field(..., description="Data final do filtro (DD/MM/YYYY)")
-    categories: List[CategoriaGasto] = Field(..., description="Categorias com valores agregados")
+    categories: list[CategoriaGasto] = Field(..., description="Categorias com valores agregados")
 
     class Config:
         from_attributes = True
@@ -99,14 +98,14 @@ class SubcategoriaOpcao(BaseModel):
 class CategoriaOpcao(BaseModel):
     id: int = Field(..., description="ID da categoria")
     name: str = Field(..., description="Nome da categoria")
-    type: Optional[str] = Field(
+    type: str | None = Field(
         default=None, description="Tipo de transação: income, expense, investment, ou null"
     )
-    subcategories: List[SubcategoriaOpcao] = Field(..., description="Lista de subcategorias")
+    subcategories: list[SubcategoriaOpcao] = Field(..., description="Lista de subcategorias")
 
 
 class OpcoesCategoriaResponse(BaseModel):
-    options: List[CategoriaOpcao] = Field(
+    options: list[CategoriaOpcao] = Field(
         ..., description="Lista de categorias com suas subcategorias"
     )
 
@@ -122,7 +121,7 @@ class EntradaSubcategoriaItem(BaseModel):
 class EntradasPorCategoriaResponse(BaseModel):
     start_date: str = Field(..., description="Data inicial do filtro (DD/MM/YYYY)")
     end_date: str = Field(..., description="Data final do filtro (DD/MM/YYYY)")
-    subcategories: List[EntradaSubcategoriaItem] = Field(
+    subcategories: list[EntradaSubcategoriaItem] = Field(
         ..., description="Lista de subcategorias com entradas agregadas"
     )
 

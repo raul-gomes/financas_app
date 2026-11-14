@@ -1,20 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
 
 from app.core.database import get_session
-from app.db.models.user import UserORM
 from app.core.security import get_current_user, require_admin
+from app.db.models.user import UserORM
 from app.db.repositories.goal import MetaRepository
-from app.schemas.goals import MetaCreate, MetaUpdate, MetaResponse, MetaProgresso
 from app.logger import log_api_request
+from app.schemas.goals import MetaCreate, MetaProgresso, MetaResponse, MetaUpdate
 
 router = APIRouter(prefix="/goals", tags=["Goals"], dependencies=[Depends(require_admin)])
 
 
 @router.get(
     "/",
-    response_model=List[MetaResponse],
+    response_model=list[MetaResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar todas as metas",
     description="Retorna todas as subcategorias que possuem valor_alvo (metas).",
@@ -22,10 +21,10 @@ router = APIRouter(prefix="/goals", tags=["Goals"], dependencies=[Depends(requir
 async def list_metas(
     request: Request,
     current_user: UserORM = Depends(get_current_user),
-    completed: Optional[bool] = Query(
+    completed: bool | None = Query(
         None, description="Filtrar por concluída (true=concluídas, false=ativas)"
     ),
-    entity_type: Optional[str] = Query(
+    entity_type: str | None = Query(
         None, description="Filtrar por tipo de entidade: individual, business"
     ),
     limit: int = Query(100, ge=1, le=500, description="Limite de itens por página"),
@@ -202,7 +201,7 @@ async def reactivate_goal(
 
 @router.get(
     "/progress",
-    response_model=List[MetaProgresso],
+    response_model=list[MetaProgresso],
     summary="Calcular progresso das metas",
     description="Retorna o progresso de todas as metas para um determinado mês/ano.",
 )
@@ -211,8 +210,8 @@ async def calcular_progresso(
     current_user: UserORM = Depends(get_current_user),
     year: int = Query(..., alias="year", description="Ano para calcular progresso"),
     month: int = Query(..., alias="month", ge=1, le=12, description="Mês para calcular progresso"),
-    completed: Optional[bool] = Query(None, description="Filtrar por status de conclusão"),
-    entity_type: Optional[str] = Query(
+    completed: bool | None = Query(None, description="Filtrar por status de conclusão"),
+    entity_type: str | None = Query(
         None, description="Filtrar por tipo de entidade: individual, business"
     ),
     db: AsyncSession = Depends(get_session),

@@ -102,7 +102,7 @@ async def test_exists_detecta_ja_criado(async_session, seed_user, seed_category)
 @pytest.mark.asyncio
 async def test_lista_por_usuario_ordena_mais_recente(async_session, seed_user, seed_category):
     repo = LimitAlertRepository(async_session)
-    a1 = await repo.create(
+    await repo.create(
         user_id=1,
         category_id=seed_category.id,
         scope="category",

@@ -1,14 +1,13 @@
-import pytest
-import pytest_asyncio
+from datetime import datetime
 
-from app.db.models.user import UserORM
+import pytest
+
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
+from app.db.models.user import UserORM
 from app.services.limit_alert_service import (
     evaluate_all_users_current_month,
-    trigger_limit_evaluation,
 )
-from datetime import datetime
 
 
 @pytest.fixture
