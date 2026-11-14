@@ -31,7 +31,8 @@ class ShoppingRepository:
         self,
         reference_month: date,
         entity_type: str | None = None,
-        user_id: int | None = None,
+        *,
+        user_id: int,
     ) -> list[ShoppingItemORM]:
         """Lista itens de um mês específico com ROLLOVER: inclui itens não-marcados
         de meses anteriores (que não foram comprados). Ordenados: não-marcados
@@ -51,8 +52,7 @@ class ShoppingRepository:
                 ),
             )
         )
-        if user_id is not None:
-            query = query.where(self.model.user_id == user_id)
+        query = query.where(self.model.user_id == user_id)
         if entity_type:
             query = query.where(self.model.entity_type == entity_type)
         query = query.order_by(order_expr, self.model.created_at.desc())
@@ -62,9 +62,7 @@ class ShoppingRepository:
         log.info(f"{len(items)} itens encontrados para {reference_month}")
         return items
 
-    async def create(
-        self, obj_in: ShoppingItemCreate, user_id: int | None = None
-    ) -> ShoppingItemORM:
+    async def create(self, obj_in: ShoppingItemCreate, user_id: int) -> ShoppingItemORM:
         """Cria um novo item na lista de compras."""
         log = log_database_operation(
             operation="create", collection="shopping_items", payload=obj_in.model_dump()
@@ -82,7 +80,7 @@ class ShoppingRepository:
         return item
 
     async def update(
-        self, item_id: int, obj_in: ShoppingItemUpdate, user_id: int | None = None
+        self, item_id: int, obj_in: ShoppingItemUpdate, user_id: int
     ) -> ShoppingItemORM | None:
         """Atualiza um item (nome e/ou checked).
         Quando checked=true, define completed_at automaticamente.
@@ -114,7 +112,7 @@ class ShoppingRepository:
         )
         return item
 
-    async def delete(self, item_id: int, user_id: int | None = None) -> ShoppingItemORM | None:
+    async def delete(self, item_id: int, user_id: int) -> ShoppingItemORM | None:
         """Remove um item da lista."""
         log = log_database_operation(
             operation="delete", collection="shopping_items", item_id=item_id
@@ -129,15 +127,14 @@ class ShoppingRepository:
         log.info(f"Item {item_id} excluído")
         return item
 
-    async def _get_scoped(self, item_id: int, user_id: int | None) -> ShoppingItemORM | None:
+    async def _get_scoped(self, item_id: int, user_id: int) -> ShoppingItemORM | None:
         stmt = select(self.model).where(self.model.id == item_id)
-        if user_id is not None:
-            stmt = stmt.where(self.model.user_id == user_id)
+        stmt = stmt.where(self.model.user_id == user_id)
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
     async def generate_recurring_items(
-        self, req: GenerateRecurringShoppingRequest, user_id: int | None = None
+        self, req: GenerateRecurringShoppingRequest, user_id: int
     ) -> int:
         """
         Gera itens de compras recorrentes para os meses no intervalo.
@@ -157,8 +154,7 @@ class ShoppingRepository:
             self.model.is_recurring == True,  # noqa: E712  # SQLAlchemy column comparison
             self.model.checked == False,  # só itens não comprados  # noqa: E712
         )
-        if user_id is not None:
-            stmt = stmt.where(self.model.user_id == user_id)
+        stmt = stmt.where(self.model.user_id == user_id)
         if req.entity_type:
             stmt = stmt.where(self.model.entity_type == req.entity_type)
 
@@ -184,8 +180,7 @@ class ShoppingRepository:
                         self.model.recurrence_group_id == item.recurrence_group_id,
                         self.model.reference_month == current_month,
                     )
-                    if user_id is not None:
-                        existing_stmt = existing_stmt.where(self.model.user_id == user_id)
+                    existing_stmt = existing_stmt.where(self.model.user_id == user_id)
                     existing = await self.db.execute(existing_stmt)
                     if existing.scalars().first():
                         continue  # já existe

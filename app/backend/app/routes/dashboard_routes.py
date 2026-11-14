@@ -173,7 +173,7 @@ async def opcoes_categorias(
     api_logger.info("Gerando opções de categorias", entity_type=entity_type, type=type)
 
     dashboard_repo = DashboardRepository(db)
-    opcoes = await dashboard_repo.opcoes_categorias(entity_type, type, current_user.id)
+    opcoes = await dashboard_repo.opcoes_categorias(entity_type, type, user_id=current_user.id)
 
     api_logger.success("Opções de categorias retornadas", count=len(opcoes.options))
     return opcoes
