@@ -10,21 +10,27 @@ interface PageHeaderProps {
   /** Conteúdo alinhado à direita (ex.: botão de criação). */
   action?: React.ReactNode
   className?: string
+  /**
+   * Hide icon, title and description below `md`: pages inside the app shell already show
+   * their title in the mobile top bar. The action stays visible.
+   */
+  hideTitleOnMobile?: boolean
 }
 
 /**
  * Cabeçalho padronizado de página: ícone + título + descrição e,
  * opcionalmente, uma ação à direita.
  */
-export function PageHeader({ icon: Icon, title, description, action, className }: PageHeaderProps) {
+export function PageHeader({ icon: Icon, title, description, action, className, hideTitleOnMobile = false }: PageHeaderProps) {
   return (
     <div
       className={cn(
         "flex flex-col sm:flex-row sm:items-center justify-between gap-4",
         className ?? "mb-6",
+        hideTitleOnMobile && !action && "max-md:hidden",
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className={cn("flex items-center gap-3", hideTitleOnMobile && "max-md:hidden")}>
         {Icon ? (
           <div className="shrink-0 p-2.5 rounded-xl bg-primary/10">
             <Icon className="h-6 w-6 text-primary" />

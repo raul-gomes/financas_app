@@ -226,6 +226,7 @@ const Settings = () => {
           title="Configurações"
           description="Gerencie seu perfil e bancos vinculados"
           className="mb-8"
+          hideTitleOnMobile
         />
 
         {/* ── Perfil ── */}
@@ -399,7 +400,7 @@ const Settings = () => {
           <CardContent className="space-y-6">
             <p className="text-sm text-muted-foreground">
               Conecte seus bancos via Open Finance. Crie uma conta grátis em{' '}
-              <a href="https://meu.pluggy.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              <a href="https://meu.pluggy.ai" target="_blank" rel="noopener noreferrer" className="-my-3 inline-block py-3 text-primary hover:underline">
                 meu.pluggy.ai
               </a>
               , conecte seus bancos lá e cole sua API Key abaixo.

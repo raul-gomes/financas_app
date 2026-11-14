@@ -505,3 +505,8 @@ Lógica pura e testada em `transactions/transactionFormModel.ts`.
 O `+` da barra de abas (`AppLayout`) não remonta mais a página: `onAddTransaction` só chama `queryClient.invalidateQueries()` e as telas em react-query atualizam sozinhas,
 mantendo mês, PF/PJ e filtros. O `main` não usa mais `overflow-x-clip` no mobile: nenhuma página pode ser mais larga que a tela (conteúdo largo rola dentro do próprio contêiner, ex.: tabelas do extrato bancário).
 O header desktop mostra, só para admin, os links **Recorrentes** e **Extrato bancário** (ícones até `lg`, ícone + texto a partir de `lg`).
+
+### 8.11 `PageHeader`: título escondido no mobile
+
+`PageHeader` ganhou `hideTitleOnMobile`: esconde ícone, título e descrição abaixo de `md` (a barra superior do app já mostra o título da página) e mantém a `action`; sem `action`, esconde o cabeçalho inteiro.
+Usado em `/investments`, `/configuracoes` e `/recorrentes`; `BankExtract` e `Limits` fazem o mesmo com `max-md:hidden` nos seus `h1`.

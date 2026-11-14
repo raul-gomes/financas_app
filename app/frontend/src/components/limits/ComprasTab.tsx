@@ -166,7 +166,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                                         </div>
                                     ) : (
                                         <>
-                                            <label className="flex min-h-[44px] min-w-0 flex-1 cursor-pointer items-center gap-3">
+                                            <label className="flex max-md:min-h-[44px] min-w-0 flex-1 cursor-pointer items-center gap-3">
                                                 <input
                                                     type="checkbox"
                                                     checked={item.checked}
@@ -217,7 +217,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                             ) : (
                                 concluidosFiltrados.map(item => (
                                     <div key={item.id} className="border border-success/30 rounded-lg p-3 bg-success/5 flex items-center justify-between">
-                                        <label className="flex min-h-[44px] min-w-0 flex-1 cursor-pointer items-center gap-3">
+                                        <label className="flex max-md:min-h-[44px] min-w-0 flex-1 cursor-pointer items-center gap-3">
                                             <input
                                                 type="checkbox"
                                                 checked={item.checked}

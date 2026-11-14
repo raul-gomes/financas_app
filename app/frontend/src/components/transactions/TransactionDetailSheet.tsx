@@ -3,7 +3,7 @@ import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { TYPE_TONE } from '@/components/transactions/TransactionRowMobile';
+import { TYPE_TONE } from '@/components/transactions/transactionTone';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/format';
 import { signedAmount } from '@/lib/transactionGroups';
