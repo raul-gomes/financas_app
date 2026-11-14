@@ -3,8 +3,9 @@
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 
+from app.core.errors import ValidationError
 from app.db.repositories.transaction import TransactionFilters
 from app.logger import log_api_request
 from app.routes.dependencies import get_transaction_reader, get_transaction_service, parse_date
@@ -48,9 +49,8 @@ async def check_duplicates(
     elif payload.transaction_date is not None and payload.amount is not None:
         items = [single_check_item(payload.transaction_date, payload.amount)]
     else:
-        raise HTTPException(
-            status_code=400,
-            detail="Envie transaction_date+amount para single check, ou transactions[] para bulk.",
+        raise ValidationError(
+            "Envie transaction_date+amount para single check, ou transactions[] para bulk."
         )
 
     response = await service.check_duplicates(items)

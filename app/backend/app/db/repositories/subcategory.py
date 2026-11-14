@@ -1,12 +1,13 @@
 # app/db/repositories/subcategoria.py
 
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.errors import NotFoundError, ValidationError
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.logger import log_database_operation
 from app.schemas.categories import SubcategoriaUpdate
@@ -54,7 +55,7 @@ class SubcategoriaRepository:
             # Garante que a categoria pertence ao usuário
             categoria = await self.db.get(CategoryORM, categoria_id)
             if not categoria or categoria.user_id != user_id:
-                raise HTTPException(status_code=404, detail="Categoria não encontrada")
+                raise NotFoundError("Categoria não encontrada")
             inst = self.model(name=obj_in.subcategory_name, category_id=categoria_id)
             self.db.add(inst)
             await self._persist(commit)
@@ -63,7 +64,7 @@ class SubcategoriaRepository:
             return inst
         except IntegrityError as exc:
             await self.db.rollback()
-            raise HTTPException(status_code=400, detail="Erro ao criar subcategoria") from exc
+            raise ValidationError("Erro ao criar subcategoria") from exc
 
     async def _persist(self, commit: bool) -> None:
         """Commits, or only flushes when the caller's unit of work owns the commit."""

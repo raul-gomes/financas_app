@@ -2,11 +2,12 @@
 
 from datetime import date
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.errors import ConflictError
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
 from app.logger import log_database_operation
@@ -104,10 +105,7 @@ class MetaRepository:
             )
         )
         if existente.scalars().first():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Meta com nome '{obj_in.subcategory_name}' já existe",
-            )
+            raise ConflictError(f"Meta com nome '{obj_in.subcategory_name}' já existe")
 
         meta = self.model(
             name=obj_in.subcategory_name,

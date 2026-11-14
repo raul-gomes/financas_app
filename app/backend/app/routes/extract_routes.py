@@ -1,10 +1,11 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Request, UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.errors import PayloadTooLargeError, ValidationError
 from app.core.security import get_current_user, require_admin
 from app.db.models.user import UserORM
 from app.db.repositories.transaction import TransacaoRepository
@@ -27,15 +28,14 @@ STATEMENT_DATE_FORMAT = "%d/%m/%Y"  # ParsedTransaction.date wire format
 
 
 async def _read_limited(file: UploadFile, max_size: int = MAX_UPLOAD_SIZE) -> bytes:
-    """Read the upload in chunks, raising 413 as soon as ``max_size`` is exceeded."""
+    """Read the upload in chunks, raising PayloadTooLargeError as soon as ``max_size`` is exceeded."""
     chunks: list[bytes] = []
     total = 0
     while chunk := await file.read(UPLOAD_READ_CHUNK_SIZE):
         total += len(chunk)
         if total > max_size:
-            raise HTTPException(
-                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                detail=f"Arquivo muito grande. Tamanho máximo: {max_size // (1024 * 1024)} MB",
+            raise PayloadTooLargeError(
+                f"Arquivo muito grande. Tamanho máximo: {max_size // (1024 * 1024)} MB"
             )
         chunks.append(chunk)
     return b"".join(chunks)
@@ -65,7 +65,7 @@ async def upload_extracto(
             else:
                 transactions = parse_csv(text)
     except UnsafeOfxError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise ValidationError(str(exc)) from exc
 
     income_transactions = [t for t in transactions if t["type"] == "income"]
     expense_transactions = [t for t in transactions if t["type"] == "expense"]

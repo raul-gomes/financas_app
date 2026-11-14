@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
 
+from app.core.errors import NotFoundError, ValidationError
 from app.core.security import get_current_user
 from app.db.models.user import UserORM
 from app.db.repositories.settings import SettingsRepository
@@ -77,7 +78,7 @@ async def remove_bank(
     removed = await repo.remove_bank(bank_id, current_user.id)
     if not removed:
         log.error("Banco nao encontrado", bank_id=bank_id)
-        raise HTTPException(status_code=404, detail="Banco não encontrado")
+        raise NotFoundError("Banco não encontrado")
     log.success("Banco removido", bank_id=bank_id)
 
 
@@ -93,9 +94,7 @@ async def assign_random_banks(
     banks = await settings_repo.list_banks(current_user.id)
 
     if not banks:
-        raise HTTPException(
-            status_code=400, detail="Nenhum banco cadastrado. Adicione bancos primeiro."
-        )
+        raise ValidationError("Nenhum banco cadastrado. Adicione bancos primeiro.")
 
     updated = await transacao_repo.assign_random_banks(
         [b.bank_code for b in banks], current_user.id

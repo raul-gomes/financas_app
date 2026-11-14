@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.errors import UnprocessableError
 from app.core.security import get_current_user, require_admin
 from app.db.models.user import UserORM
 from app.db.repositories.category import CategoriaRepository
@@ -38,7 +39,7 @@ async def _resolve_categoria_subcategoria(
     # Resolve categoria
     if categoria_id is None:
         if not payload.category_name:
-            raise HTTPException(status_code=422, detail="category_id or category_name is required")
+            raise UnprocessableError("category_id or category_name is required")
         existing_cat = await categoria_repo.get_by_nome(payload.category_name, user_id)
         if existing_cat:
             categoria_id = existing_cat.id
@@ -57,9 +58,7 @@ async def _resolve_categoria_subcategoria(
     # Resolve subcategoria
     if subcategoria_id is None:
         if not payload.subcategory_name:
-            raise HTTPException(
-                status_code=422, detail="subcategory_id or subcategory_name is required"
-            )
+            raise UnprocessableError("subcategory_id or subcategory_name is required")
         existing_sub = await subcategoria_repo.get_by_nome_and_categoria(
             payload.subcategory_name, categoria_id, user_id
         )

@@ -8,8 +8,8 @@ This service uses that key to fetch accounts and transactions.
 from datetime import date, datetime
 
 import httpx
-from fastapi import HTTPException, status
 
+from app.core.errors import DomainError, UpstreamError, ValidationError
 from app.logger import logger
 
 PLUGGY_API_BASE = "https://api.pluggy.ai"
@@ -87,20 +87,13 @@ class PluggyService:
             return response.json()
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 401:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="API Key inválida. Verifique sua chave no Meu Pluggy.",
-                ) from e
+                raise ValidationError("API Key inválida. Verifique sua chave no Meu Pluggy.") from e
             logger.error(f"Pluggy API error: {e.response.text}")
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Erro ao conectar com Meu Pluggy: {e.response.status_code}",
-            ) from e
+            raise UpstreamError(f"Erro ao conectar com Meu Pluggy: {e.response.status_code}") from e
         except httpx.RequestError as e:
             logger.error(f"Pluggy request error: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Não foi possível conectar ao Meu Pluggy. Verifique sua conexão.",
+            raise UpstreamError(
+                "Não foi possível conectar ao Meu Pluggy. Verifique sua conexão."
             ) from e
 
     async def fetch_items(self) -> list[PluggyItem]:
@@ -154,5 +147,5 @@ class PluggyService:
         try:
             await self.fetch_items()
             return True
-        except HTTPException:
+        except DomainError:
             return False

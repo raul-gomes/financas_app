@@ -3,12 +3,13 @@
 from datetime import datetime
 from typing import Any
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.errors import DomainError
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
 from app.db.repositories.category import CategoriaRepository
@@ -19,17 +20,17 @@ from app.schemas.limits import CategoriaLimiteUpdate, LimitsUpdatePayload, Limit
 from app.schemas.subcategory import SubcategoriaCreate, SubcategoriaUpdate
 
 GENERIC_ITEM_ERROR = "erro interno"
-BULK_ITEM_ERRORS = (HTTPException, ValueError, SQLAlchemyError)
+BULK_ITEM_ERRORS = (DomainError, ValueError, SQLAlchemyError)
 
 
 def client_error_text(exc: Exception) -> str:
     """Text that is safe to show the client for one failed bulk item.
 
-    Only deliberate domain messages (HTTPException detail, ValueError raised by this
+    Only deliberate domain messages (DomainError message, ValueError raised by this
     repository) are passed through; database errors become a generic text.
     """
-    if isinstance(exc, HTTPException):
-        return str(exc.detail)
+    if isinstance(exc, DomainError):
+        return exc.message
     if isinstance(exc, ValueError):
         return str(exc)
     return GENERIC_ITEM_ERROR
@@ -109,10 +110,7 @@ class LimitsRepository:
         except SQLAlchemyError as e:
             await self.db.rollback()
             log.error(f"Erro crítico no bulk update: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Erro interno ao processar limites",
-            ) from e
+            raise
 
     async def _create_new_category(
         self, new_cat: CategoriaLimiteUpdate, response: LimitsUpdateResponse, user_id: int

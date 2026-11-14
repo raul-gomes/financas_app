@@ -15,6 +15,7 @@ financas_app/
 │   │   │   │   ├── config.py                   # Classe Config + require_database_url (falha na partida sem DATABASE_URL): carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL do .env
 │   │   │   │   ├── crypto.py                   # Cifra em repouso da chave Pluggy (Fernet/MultiFernet): encrypt_secret/decrypt_secret, validate_encryption_keys (falha na partida), SecretDecryptionError, helpers idempotentes p/ migration
 │   │   │   │   ├── database.py                 # Engine async SQLAlchemy, AsyncSessionLocal, get_session() dependency
+│   │   │   │   ├── errors.py                   # Exceções de domínio (DomainError, NotFoundError, ConflictError, ValidationError, UnprocessableError, ForbiddenError, PayloadTooLargeError, UpstreamError, ServerConfigError) + register_exception_handlers: único ponto que traduz para HTTP (mensagens pt-BR genéricas)
 │   │   │   │   ├── unit_of_work.py             # UnitOfWork (commit/rollback único por request, after_commit para efeitos colaterais) + get_unit_of_work (usar com scope="function")
 │   │   │   │   └── security.py                 # get_current_user() — decodifica JWT Supabase via JWKS (ES256/RS256) ou HS256 (SUPABASE_JWT_SECRET), bearer_scheme (HTTPBearer auto_error=False → 401 sem token); require_role(*roles) + require_admin (403)
 │   │   │   │
@@ -52,7 +53,7 @@ financas_app/
 │   │   │   │
 │   │   │   ├── routes/                         # Rotas FastAPI (API REST)
 │   │   │   │   ├── transactions_routes.py      # /transacoes — CRUD, GET /paginated (cursor + total + filtros) e detecção/resolução de duplicatas; só HTTP, regras no TransactionService
-│   │   │   │   ├── dependencies.py             # Providers FastAPI: get_transaction_service (unit of work), get_transaction_reader/get_dashboard_service (leitura) e parse_date (DD/MM/YYYY → 400)
+│   │   │   │   ├── dependencies.py             # Providers FastAPI: get_transaction_service (unit of work), get_transaction_reader/get_dashboard_service (leitura) e parse_date (DD/MM/YYYY → ValidationError/400)
 │   │   │   │   ├── categories_routes.py        # /categories — CRUD categorias
 │   │   │   │   ├── dashboard_routes.py         # /dashboard — extrato, overview, rendimento, gastos por categoria (só HTTP; usa DashboardService)
 │   │   │   │   ├── limits_routes.py            # /limits — listar e atualizar limites em lote; /limits/risk-check projeta o valor digitado (gasto atual + amount → thresholds 80/90/100)
@@ -100,6 +101,7 @@ financas_app/
 │   │   │   ├── test_transaction_isolation.py   # Etapa 6: isolamento de transações por usuário (list, get, update, delete, duplicatas, extrato, export)
 │   │   │   ├── test_user_scoped_repositories.py # S5/P1: export e dashboard só retornam dados do usuário (filtro no SQL)
 │   │   │   ├── test_advisory_lock.py           # P5: lock consultivo (no-op fora do Postgres, SQL no Postgres, job pula se travado) e contagem de queries sem selectin
+│   │   │   ├── test_domain_errors.py           # Exceções de domínio: status/mensagem por classe, handler único, causa interna nunca vaza, 500 genérico
 │   │   │   ├── test_error_leak.py              # S9: erros internos nunca chegam ao cliente (mensagem genérica; texto real só no log)
 │   │   │   ├── test_user_model_columns.py      # S8: guarda — `users` não tem coluna de senha
 │   │   │   ├── test_users_repository.py        # Testes de upsert de usuário (criação, retorno existente, não duplica)

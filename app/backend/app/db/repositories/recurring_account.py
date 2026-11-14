@@ -2,12 +2,13 @@ import calendar
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from sqlalchemy import and_, func, select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.errors import ValidationError
 from app.db.models.recurring_account import RecurringAccountORM
 from app.db.models.transaction import TransactionORM
 from app.logger import log_database_operation, logger
@@ -53,7 +54,7 @@ class ContaRecorrenteRepository:
             await self.db.refresh(inst)
         except IntegrityError as exc:
             await self.db.rollback()
-            raise HTTPException(status_code=400, detail="Erro ao criar conta recorrente") from exc
+            raise ValidationError("Erro ao criar conta recorrente") from exc
 
         # Auto-generate 12 monthly installments
         try:
@@ -133,9 +134,7 @@ class ContaRecorrenteRepository:
             except SQLAlchemyError as e:
                 await self.db.rollback()
                 logger.error(f"Erro ao cancelar transações futuras da conta {conta.id}: {e}")
-                raise HTTPException(
-                    status_code=500, detail="Erro interno ao cancelar as transações futuras"
-                ) from e
+                raise
 
         try:
             await self.db.commit()
@@ -144,9 +143,7 @@ class ContaRecorrenteRepository:
             return conta
         except IntegrityError as exc:
             await self.db.rollback()
-            raise HTTPException(
-                status_code=400, detail="Erro ao atualizar conta recorrente"
-            ) from exc
+            raise ValidationError("Erro ao atualizar conta recorrente") from exc
 
     async def delete(self, id: int, user_id: int) -> RecurringAccountORM | None:
         conta = await self.get_by_id(id, user_id)
@@ -320,9 +317,7 @@ class ContaRecorrenteRepository:
         except SQLAlchemyError as e:
             await self.db.rollback()
             logger.error(f"Erro ao renovar conta recorrente {conta.id}: {e}")
-            raise HTTPException(
-                status_code=500, detail="Erro interno ao renovar a conta recorrente"
-            ) from e
+            raise
 
         await self.db.commit()
         await self.db.refresh(conta)

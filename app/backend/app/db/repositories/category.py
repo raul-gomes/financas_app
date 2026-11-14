@@ -1,13 +1,14 @@
 # app/db/repositories/categoria.py
 
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_session
+from app.core.errors import ConflictError, ValidationError
 from app.db.models.category import CategoryORM
 from app.db.repositories.dashboard import _invalidate_opcoes_categorias_cache
 from app.db.repositories.subcategory import SubcategoriaRepository
@@ -79,7 +80,7 @@ class CategoriaRepository:
     ) -> CategoryORM:
         """
         Insere uma nova categoria e suas subcategorias (se houver).
-        Lança HTTPException em caso de erro de unicidade.
+        Raises ConflictError on a duplicate name and ValidationError on other integrity errors.
 
         Com ``commit=False`` só faz flush: o commit fica com a unit of work do request.
         """
@@ -133,15 +134,9 @@ class CategoriaRepository:
                 or "uq_categorias_name_entity_type_user" in err
             ):
                 log.error("Violação de unicidade em (name, entity_type, user_id)")
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Categoria com nome '{obj_in.category_name}' já existe",
-                ) from e
+                raise ConflictError(f"Categoria com nome '{obj_in.category_name}' já existe") from e
             log.error(f"Erro de integridade no banco: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Erro de integridade no banco de dados",
-            ) from e
+            raise ValidationError("Erro de integridade no banco de dados") from e
 
     async def get_all(self, user_id: int) -> list[CategoryORM]:
         """
@@ -175,10 +170,7 @@ class CategoriaRepository:
                 .first()
             )
             if conflict:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Outra categoria com nome '{obj_in.category_name}' já existe",
-                )
+                raise ConflictError(f"Outra categoria com nome '{obj_in.category_name}' já existe")
 
         # 2) Atualiza campos básicos
         base = obj_in.model_dump(exclude_unset=True, exclude={"subcategories"})

@@ -1,12 +1,12 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 # from .core.database import connect_to_mongo, close_mongo_connection
 from .core.config import Config
 from .core.crypto import validate_encryption_keys
+from .core.errors import register_exception_handlers
 from .logger import logger
 from .routes.categories_routes import router as categories_router
 from .routes.dashboard_routes import router as dashboard_router
@@ -20,8 +20,6 @@ from .routes.recurring_accounts_routes import router as recurring_accounts_route
 from .routes.settings_routes import router as settings_router
 from .routes.shopping_routes import router as shopping_router
 from .routes.transactions_routes import router as transactions_router
-
-UNHANDLED_ERROR_DETAIL = "Erro interno do servidor"
 
 
 @asynccontextmanager
@@ -65,13 +63,7 @@ def create_app(environment: str | None = None, cors_origins: list[str] | None = 
         allow_headers=["*"],
     )
 
-    @application.exception_handler(Exception)
-    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        """Log the real error server-side; the client only gets a generic message."""
-        logger.opt(exception=exc).error(
-            f"Unhandled {type(exc).__name__} on {request.method} {request.url.path}"
-        )
-        return JSONResponse(status_code=500, content={"detail": UNHANDLED_ERROR_DETAIL})
+    register_exception_handlers(application)
 
     application.include_router(transactions_router)
     application.include_router(categories_router)

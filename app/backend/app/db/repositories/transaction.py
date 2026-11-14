@@ -9,12 +9,13 @@ from typing import Self
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.errors import ValidationError
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
 from app.db.repositories.category import CategoriaRepository
@@ -210,7 +211,7 @@ class TransacaoRepository:
         if obj_in.category_id is not None:
             categoria = await self.categoria_repo.get_by_id(obj_in.category_id, user_id)
             if not categoria:
-                raise HTTPException(status_code=400, detail="Categoria não encontrada")
+                raise ValidationError("Categoria não encontrada")
         else:
             categoria = await self.categoria_repo.get_by_nome(obj_in.category_name, user_id)
             if not categoria:
@@ -231,7 +232,7 @@ class TransacaoRepository:
         if obj_in.subcategory_id is not None:
             sub = await self.subcategoria_repo.get_by_id(obj_in.subcategory_id, user_id)
             if not sub or sub.category_id != categoria.id:
-                raise HTTPException(status_code=400, detail="Subcategoria inválida")
+                raise ValidationError("Subcategoria inválida")
         else:
             sub = await self.subcategoria_repo.get_by_nome_and_categoria(
                 obj_in.subcategory_name, categoria.id, user_id
@@ -280,9 +281,7 @@ class TransacaoRepository:
             log.info(f"Transação {inst.id} criada")
             return inst
         except IntegrityError as exc:
-            raise HTTPException(
-                status_code=400, detail="Erro ao criar transação (integridade)"
-            ) from exc
+            raise ValidationError("Erro ao criar transação (integridade)") from exc
         except Exception as e:
             log.error(f"Erro inesperado ao criar transação: {type(e).__name__}: {e}", exc_info=True)
             raise
@@ -407,7 +406,7 @@ class TransacaoRepository:
             if obj_in.category_id is not None:
                 categoria = await self.categoria_repo.get_by_id(obj_in.category_id, user_id)
                 if not categoria:
-                    raise HTTPException(status_code=400, detail="Categoria não encontrada")
+                    raise ValidationError("Categoria não encontrada")
             else:
                 categoria = await self.categoria_repo.get_by_nome(obj_in.category_name, user_id)
                 if not categoria:
@@ -430,7 +429,7 @@ class TransacaoRepository:
             if obj_in.subcategory_id is not None:
                 sub = await self.subcategoria_repo.get_by_id(obj_in.subcategory_id, user_id)
                 if not sub or sub.category_id != cat_id_for_sub:
-                    raise HTTPException(status_code=400, detail="Subcategoria inválida")
+                    raise ValidationError("Subcategoria inválida")
             else:
                 sub = await self.subcategoria_repo.get_by_nome_and_categoria(
                     obj_in.subcategory_name, cat_id_for_sub, user_id
@@ -473,7 +472,7 @@ class TransacaoRepository:
             await self.db.refresh(trans)
             return trans
         except IntegrityError as exc:
-            raise HTTPException(status_code=400, detail="Erro ao atualizar transação") from exc
+            raise ValidationError("Erro ao atualizar transação") from exc
 
     async def delete(self, id: int, user_id: int) -> TransactionORM | None:
         """Deletes the user's transaction (flush only; the unit of work commits)."""
@@ -706,7 +705,7 @@ class TransacaoRepository:
         if category_id is not None:
             cat = await self.categoria_repo.get_by_id(category_id, user_id)
             if not cat:
-                raise HTTPException(status_code=400, detail="Categoria não encontrada")
+                raise ValidationError("Categoria não encontrada")
         elif category_name is not None:
             cat = await self.categoria_repo.get_by_nome(category_name, user_id)
             if not cat:
@@ -721,14 +720,14 @@ class TransacaoRepository:
                     ),
                 )
         else:
-            raise HTTPException(status_code=400, detail="category_id or category_name is required")
+            raise ValidationError("category_id or category_name is required")
 
         # 2) Resolve subcategoria: by ID or by nome (cria se não existir)
         sub = None
         if subcategory_id is not None:
             sub = await self.subcategoria_repo.get_by_id(subcategory_id, user_id)
             if not sub or sub.category_id != cat.id:
-                raise HTTPException(status_code=400, detail="Subcategoria inválida")
+                raise ValidationError("Subcategoria inválida")
         elif subcategory_name is not None:
             sub = await self.subcategoria_repo.get_by_nome_and_categoria(
                 subcategory_name, cat.id, user_id

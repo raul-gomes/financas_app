@@ -6,10 +6,11 @@ request's session/unit of work -> service. Routes never receive a ``user_id`` fr
 
 from datetime import datetime
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.errors import ValidationError
 from app.core.security import get_current_user
 from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.db.models.user import UserORM
@@ -20,14 +21,11 @@ BR_DATE_FORMAT = "%d/%m/%Y"
 
 
 def parse_date(date_str: str, field_name: str) -> datetime:
-    """Parses a DD/MM/YYYY query parameter, answering 400 when it is malformed."""
+    """Parses a DD/MM/YYYY query parameter, raising ValidationError (400) when malformed."""
     try:
         return datetime.strptime(date_str, BR_DATE_FORMAT)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Formato inválido para {field_name}. Use DD/MM/YYYY.",
-        ) from exc
+        raise ValidationError(f"Formato inválido para {field_name}. Use DD/MM/YYYY.") from exc
 
 
 async def get_transaction_service(

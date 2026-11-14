@@ -3,9 +3,9 @@
 from datetime import datetime
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy import func, select
 
+from app.core.errors import NotFoundError, ValidationError
 from app.core.unit_of_work import UnitOfWork
 from app.db.models.category import CategoryORM
 from app.db.models.transaction import TransactionORM
@@ -115,9 +115,8 @@ async def test_other_users_transactions_are_invisible(async_session, evaluations
         intruder.update(created.id, TransacaoUpdate(description="hijack")),
         intruder.delete(created.id),
     ):
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(NotFoundError):
             await action
-        assert exc.value.status_code == 404
 
     assert await _count(async_session, TransactionORM) == 1
 
@@ -150,7 +149,5 @@ async def test_list_page_rejects_a_malformed_cursor(async_session, evaluations):
 
     service, _ = await _service(async_session, 1)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(ValidationError):
         await service.list_page(TransactionFilters(), 10, "###")
-
-    assert exc.value.status_code == 400
