@@ -29,7 +29,6 @@ async def notif_client(async_session):
         id=1,
         name="Teste",
         email="teste@teste.com",
-        password_hash="",
         role="admin",
     )
     async_session.add(user)

@@ -3,7 +3,7 @@
 > Documento de linhagem (lineage) dos dados: origem, transformações, armazenamento e consumo.
 >
 > **Última atualização:** 2026-11-14
-> **Head do Alembic:** `a2b3c4d5e6f7` (26 migrações)
+> **Head do Alembic:** `b3c4d5e6f7a8` (27 migrações)
 >
 > ⚠️ **Manutenção obrigatória**: qualquer alteração em models (`app/db/models/`), migrações
 > (`app/db/migrations/versions/`), repositories ou rotas que mude o fluxo de dados deve
@@ -141,7 +141,6 @@ Relationships: `subcategories` 1:N cascade `all, delete-orphan`. Unicidade por u
 | `name` | String | ✗ | `""` | |
 | `email` | String UNIQUE | ✗ | — | segue o e-mail do Supabase (atualizado no login) |
 | `supabase_id` | String(64) UNIQUE | ✓ | NULL | claim `sub` do Supabase: identidade estável; linhas antigas são vinculadas pelo e-mail no próximo login |
-| `password_hash` | String | ✗ | `""` | **legado, não usado** (senha é do Supabase); remover numa migration futura |
 | `pluggy_api_key` | String | ✓ | NULL | chave Open Finance por usuário; **nunca devolvida pela API** (`has_pluggy_key`); cifra em repouso pendente (S2) |
 | `role` | String(32) | ✗ | `'user'` (server) | enum: `admin`, `user` (pronto p/ multi-role) — substitui a coluna `is_admin` legada na Etapa 9; todo cadastro nasce `user` (admin só por promoção manual) |
 
@@ -353,7 +352,8 @@ Cadeia linear (root → head):
 | 23 | `e3f4a5b6c7d8` | replace_is_admin_with_role (Etapa 9) | `users.is_admin` Bool → `role` String(32) default `'user'`; `TRUNCATE`/`UPDATE` admin→'admin' / user→'user'; remove `is_admin` |
 | 24 | `f0a1b2c3d4e5` | create limit_alerts (notificações de limites) | Nova tabela `limit_alerts` (alertas 80/90/100 + exceeded, scope category/credit_card, `read_at`/`email_sent`), FKs CASCADE p/ users/categorias, constr. única `(user_id, category_id, month, threshold)`, índices `ix_limit_alerts_user_id`/`ix_limit_alerts_category_id` |
 | 25 | `f1a2b3c4d5e6` | add users.supabase_id | Coluna `supabase_id` String(64) nullable + índice único `ix_users_supabase_id`; identidade pelo `sub` em vez do e-mail (S4). Era `a7b8c9d0e1f2`, id duplicado com a #19: renomeado |
-| 26 | `a2b3c4d5e6f7` | align_indexes_with_models (**HEAD**) | Renomeia `ix_contas_recorrentes_group_id`/`_id` e `ix_transacoes_conta_recorrente_id` para os nomes dos models; remove o duplicado `idx_transacoes_group`. Os índices compostos passaram a ser declarados nos models (`alembic check` zerado) |
+| 26 | `a2b3c4d5e6f7` | align_indexes_with_models | Renomeia `ix_contas_recorrentes_group_id`/`_id` e `ix_transacoes_conta_recorrente_id` para os nomes dos models; remove o duplicado `idx_transacoes_group`. Os índices compostos passaram a ser declarados nos models (`alembic check` zerado) |
+| 27 | `b3c4d5e6f7a8` | drop_users_password_hash (**HEAD**) | Remove `users.password_hash` (legado, nunca lido); o downgrade recria a coluna nullable (S8) |
 
 ---
 

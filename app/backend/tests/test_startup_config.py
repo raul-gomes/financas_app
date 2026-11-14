@@ -47,7 +47,6 @@ async def test_pluggy_sync_uses_correctly_spelled_fallback_description(client, m
         id=1,
         name="Teste",
         email="teste@teste.com",
-        password_hash="",
         role="admin",
         pluggy_api_key="fake-key",
         created_at=now,

@@ -20,7 +20,7 @@ consolidados no fim.
 - [x] **S5** (média) FEITO: `user_id: int` obrigatório (sem `None` = sem filtro) em transaction, recurring_account, shopping, dashboard e export; todas as consultas filtram por ele; testes em `test_user_scoped_repositories.py`. Era: `user_id` obrigatório em todos os repositórios.
 - [x] **S6** (média) FEITO: OFX parseado com `defusedxml` (entidades/DTD malicioso → 400) e upload lido em blocos de 64 KB com 413 assim que passa de 10 MB; `S314`/`S112` saíram do `extend-ignore`. Era: Extrato: `defusedxml` e limite de tamanho antes de ler o arquivo.
 - [~] **S7** (média) CORS por variável de ambiente, rate limit, headers de segurança no nginx, containers sem root. _Feito: `CORS_ORIGINS`, `ENVIRONMENT=production` (sem /docs), `limit_req`, headers/CSP/HSTS, backend e frontend sem root (nginx de borda ainda root, precisa das portas 80/443)._
-- [ ] **S8** (baixa) passlib removido e `password_hash` não é mais escrito; falta a migration que apaga a coluna. Era: Remover `password_hash`/passlib se o login é só Supabase.
+- [x] **S8** (baixa) FEITO: migration `b3c4d5e6f7a8` apaga `users.password_hash` (model, repositório e testes sem a coluna; downgrade recria nullable). Era: Remover `password_hash`/passlib se o login é só Supabase.
 - [ ] **S9** (baixa) Não devolver `str(e)` ao cliente; `console.error` sem o objeto inteiro.
 - [x] **S10** (média) Tooltips D3 montavam HTML com o nome da categoria (dado do usuário). FEITO: `escapeHtml` (`lib/format.ts`) em todo texto interpolado.
 

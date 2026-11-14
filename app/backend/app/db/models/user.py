@@ -12,7 +12,6 @@ class UserORM(Base):
     email = Column(String, unique=True, nullable=False)
     # Supabase `sub` claim: the stable identity (e-mail can change in Supabase).
     supabase_id = Column(String(64), unique=True, index=True, nullable=True)
-    password_hash = Column(String, nullable=False, default="")
     pluggy_api_key = Column(String, nullable=True, default=None)
     role = Column(String(32), nullable=False, server_default="user")
     created_at = Column(DateTime, server_default=func.now())

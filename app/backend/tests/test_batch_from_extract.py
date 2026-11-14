@@ -24,7 +24,7 @@ def _row(description: str, category: str, subcategory: str) -> dict:
 
 @pytest.mark.asyncio
 async def test_batch_by_name_links_each_row_to_its_own_subcategory(async_session):
-    async_session.add(UserORM(id=7, name="", email="batch@example.com", password_hash=""))
+    async_session.add(UserORM(id=7, name="", email="batch@example.com"))
     await async_session.commit()
     repo = TransacaoRepository(async_session)
 

@@ -35,7 +35,7 @@ async def get_or_create_user_from_supabase(db: AsyncSession, sub: str, email: st
         return by_email
 
     # Every new sign-up is a 'user'; admin only by manual promotion in the database.
-    user = UserORM(name="", email=email, supabase_id=sub, password_hash="", role="user")
+    user = UserORM(name="", email=email, supabase_id=sub, role="user")
     db.add(user)
     await db.commit()
     await db.refresh(user)
