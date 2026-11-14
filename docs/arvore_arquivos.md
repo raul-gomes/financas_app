@@ -8,7 +8,7 @@ financas_app/
 │   ├── backend/
 │   │   ├── app/
 │   │   │   ├── main.py                         # FastAPI entry point: registra CORS, 12 routers, endpoints / e /health; lifespan inicia/para job de notificações (limit_alert_job)
-│   │   │   ├── logger.py                       # Configuração de logging com Loguru (console, arquivo, JSON)
+│   │   │   ├── logger.py                       # Loguru (console, arquivo, JSON, rotação); redact()/log_api_request() mascaram credenciais
 │   │   │   │
 │   │   │   ├── core/
 │   │   │   │   ├── config.py                   # Classe Config: carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL do .env
@@ -40,7 +40,7 @@ financas_app/
 │   │   │   │   │   ├── shopping.py             # ShoppingRepository: CRUD lista de compras + migração de itens não marcados
 │   │   │   │   │   ├── settings.py             # SettingsRepository: perfil do usuário + gerenciamento de bancos
 │   │   │   │   │   ├── limit_alert.py          # LimitAlertRepository: CRUD alertas de limite (create, list_for_user com notificações, mark read/read-all)
-│   │   │   │   │   └── users.py                # get_or_create_user_from_supabase(): upsert a partir do JWT; todo novo cadastro nasce role='user'
+│   │   │   │   │   └── users.py                # get_or_create_user_from_supabase(): identidade pelo sub (supabase_id), vincula legado pelo e-mail, IdentityConflictError; novo cadastro nasce role='user'
 │   │   │   │   │
 │   │   │   │   └── migrations/                 # Alembic — migrações do banco
 │   │   │   │       ├── env.py                  # Configuração do Alembic (lê DATABASE_URL do env)
@@ -84,7 +84,8 @@ financas_app/
 │   │   │
 │   │   ├── tests/                              # Suite de testes (pytest + pytest-asyncio)
 │   │   │   ├── conftest.py                     # Fixtures: SQLite in-memory, httpx.AsyncClient, factories de payload
-│   │   │   ├── test_security.py                # Testes de autenticação JWT (get_current_user: HS256 válido/inválido/expirado, ES256 via JWKS, 401) + require_role/require_admin (403)
+│   │   │   ├── test_security.py                # Testes de autenticação JWT (HS256/ES256, aud, iss, alg none, sem segredo → 401) + require_role/require_admin (403)
+│   │   │   ├── test_logger_redaction.py        # Credenciais nunca chegam ao log (redact, log_api_request)
 │   │   │   ├── test_admin_guard.py             # Etapa 9: rotas admin-only → 403 para role='user' (pluggy, export, shopping, goals, extract) + acesso user a recurring-accounts (generate segue 403)
 │   │   │   ├── test_auth_required.py           # Etapa 4: cada rota sem token → 401 (client_no_auth)
 │   │   │   ├── test_category_isolation.py      # Etapa 5: isolamento por usuário de categorias/subcategorias (via client_user2 + clients_ctrl)
@@ -253,6 +254,7 @@ financas_app/
 │       │       ├── utils.ts                    # cn() — merge de classes Tailwind (shadcn)
 │       │       ├── format.ts                   # formatCurrency/formatDate/formatPercent (fonte única de formatação)
 │       │       ├── format.test.ts              # Testes unitários da formatação (BRL/USD, datas, %)
+│       │       ├── format.escape.test.ts       # escapeHtml() para tooltips D3
 │       │       ├── supabase.ts                 # Cliente @supabase/supabase-js (VITE_SUPABASE_URL/ANON_KEY)
 │       │       ├── api.ts                      # apiFetch() — injeta Authorization: Bearer em chamadas /api/* + teste
 │       │       └── api.test.ts                 # Testes do apiFetch (header auth, base URL, headers)

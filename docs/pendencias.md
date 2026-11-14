@@ -13,15 +13,16 @@ consolidados no fim.
 - [x] Git flow: `develop` criada a partir de `mvp` e virou a branch padrão; `feature/*` → `develop`; `main` só por release. FEITO 2026-11-14.
 
 ## Segurança
-- [ ] **S1** (alta) Remover o log do payload em `PUT /settings/profile` (`settings_routes.py:34`) e redigir campos sensíveis no logger.
-- [ ] **S2** (alta) Não devolver `pluggy_api_key` (`schemas/settings.py:10`); cifrar em repouso.
-- [ ] **S3** (média) JWT: algoritmo fixo, `audience` e `issuer` (`core/security.py:26-45`).
-- [ ] **S4** (média) Identidade pelo `sub` do Supabase (`supabase_id`); não deixar o perfil trocar e-mail.
+- [x] **S1** (alta) FEITO: `log_api_request` redige campos de credencial em qualquer rota; o perfil loga só os nomes dos campos; `diagnose=False` no loguru (tracebacks mostravam variáveis locais). Era: Remover o log do payload em `PUT /settings/profile` (`settings_routes.py:34`) e redigir campos sensíveis no logger.
+- [ ] **S2** (alta) ~~Não devolver `pluggy_api_key`~~ FEITO (API devolve `has_pluggy_key`; string vazia remove a chave). **Falta:** cifrar em repouso (precisa de uma chave nova no EnvVault — decisão do dono).
+- [x] **S3** (média) FEITO: algoritmo pela config (HS256 só com segredo; ES256/RS256 só via JWKS; `none` recusado), `aud=authenticated`, `iss` do projeto, claims obrigatórias. Era: JWT: algoritmo fixo, `audience` e `issuer` (`core/security.py:26-45`).
+- [x] **S4** (média) FEITO: coluna `users.supabase_id` (migration `a7b8c9d0e1f2`), busca pelo `sub`, e-mail local segue o Supabase, e-mail de outra conta → 409. Perfil não aceita mais e-mail/senha (422): a tela troca pelo Supabase (antes a senha de login não mudava). Era: Identidade pelo `sub` do Supabase (`supabase_id`); não deixar o perfil trocar e-mail.
 - [ ] **S5** (média) `user_id` obrigatório em todos os repositórios.
 - [ ] **S6** (média) Extrato: `defusedxml` e limite de tamanho antes de ler o arquivo.
 - [ ] **S7** (média) CORS por variável de ambiente, rate limit, headers de segurança no nginx, containers sem root.
-- [ ] **S8** (baixa) Remover `password_hash`/passlib se o login é só Supabase.
+- [ ] **S8** (baixa) passlib removido e `password_hash` não é mais escrito; falta a migration que apaga a coluna. Era: Remover `password_hash`/passlib se o login é só Supabase.
 - [ ] **S9** (baixa) Não devolver `str(e)` ao cliente; `console.error` sem o objeto inteiro.
+- [x] **S10** (média) Tooltips D3 montavam HTML com o nome da categoria (dado do usuário). FEITO: `escapeHtml` (`lib/format.ts`) em todo texto interpolado.
 
 ## Bugs
 - [x] **B1** (média) FEITO: 4 testes dependiam da data (fixtures de setembro/2026 vs `now()`); agora o relógio é congelado com `time-machine` (fixture autouse em `test_limit_alert_job.py` e `test_notifications_routes.py`).
@@ -51,7 +52,7 @@ consolidados no fim.
 ## Infra e operação
 - [ ] **I1** (alta) Backup do Postgres (`pg_dump` agendado + teste de restauração).
 - [ ] **I2** (média) Não publicar o Postgres no host (ou só em `127.0.0.1`); sem senha padrão no compose.
-- [ ] **I3** (média) Logs com rotação e volume; health check nos containers.
+- [ ] **I3** (média) Logs num volume (rotação já existe no loguru); health check nos containers.
 - [ ] **I4** (baixa) Migração fora do start do container (ou com lock); `set -e` no `setup-docker.sh`.
 
 ## Documentação e higiene
