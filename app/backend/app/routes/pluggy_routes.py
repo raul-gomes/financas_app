@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,11 @@ from app.logger import log_api_request
 from app.schemas.transaction import NaturezaTransacao, TipoTransacao
 from app.services.limit_alert_service import trigger_limit_evaluation
 from app.services.pluggy_service import PluggyService
+
+# Description used when Pluggy sends none; the legacy (misspelled) text still matches rows
+# imported before the fix.
+FALLBACK_DESCRIPTION = "Sincronizado"
+LEGACY_FALLBACK_DESCRIPTION = "Sin cronizar"
 
 router = APIRouter(
     prefix="/pluggy", tags=["Pluggy / Open Finance"], dependencies=[Depends(require_admin)]
@@ -98,7 +103,7 @@ async def sync_pluggy(
                 tx_date = (
                     datetime.fromisoformat(tx_date_str.replace("Z", "+00:00"))
                     if tx_date_str
-                    else datetime.now()
+                    else datetime.now(UTC)
                 )
 
                 amount = abs(tx.get("amount", 0))
@@ -114,7 +119,7 @@ async def sync_pluggy(
                     {
                         "date": tx_date.strftime("%d/%m/%Y"),
                         "description": tx.get(
-                            "description", tx.get("descriptionRaw", "Sin cronizar")
+                            "description", tx.get("descriptionRaw", FALLBACK_DESCRIPTION)
                         )[:255],
                         "amount": amount,
                         "type": tipo.value,
@@ -146,7 +151,8 @@ async def sync_pluggy(
             stmt = (
                 select(TransactionORM)
                 .where(
-                    TransactionORM.description.like("%Sin cronizar%")
+                    TransactionORM.description.like(f"%{FALLBACK_DESCRIPTION}%")
+                    | TransactionORM.description.like(f"%{LEGACY_FALLBACK_DESCRIPTION}%")
                     | TransactionORM.description.like("%Pluggy%")
                 )
                 .where(TransactionORM.user_id == current_user.id)
@@ -191,7 +197,7 @@ async def sync_pluggy(
             "duplicates": duplicates_list,
         }
         try:
-            now = datetime.now()
+            now = datetime.now(UTC)
             await trigger_limit_evaluation(db, current_user.id, year=now.year, month=now.month)
         except Exception as e:
             log.warning(f"Falha ao avaliar limites pós-sync do pluggy: {e}")
