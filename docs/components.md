@@ -499,3 +499,9 @@ e `TransactionFormFields`, que escolhe o layout por largura. O **desktop** mante
 tipo em `SegmentedControl` (Saída/Entrada/Investimento), valor grande e centralizado com `inputMode="decimal"`, campos de 48 px, categoria e data lado a lado, chips (`ChipGroup`) para forma de pagamento e PF/PJ,
 "Parcelado" como linha com switch e botão **Salvar** em largura total no rodapé. O Editar agora tem os mesmos campos mascarados do Add (valor com `CurrencyInput`, data `dd/mm/aaaa`) e os textos em português.
 Lógica pura e testada em `transactions/transactionFormModel.ts`.
+
+### 8.10 Layout: nova transação sem remontar a página e links de admin
+
+O `+` da barra de abas (`AppLayout`) não remonta mais a página: `onAddTransaction` só chama `queryClient.invalidateQueries()` e as telas em react-query atualizam sozinhas,
+mantendo mês, PF/PJ e filtros. O `main` não usa mais `overflow-x-clip` no mobile: nenhuma página pode ser mais larga que a tela (conteúdo largo rola dentro do próprio contêiner, ex.: tabelas do extrato bancário).
+O header desktop mostra, só para admin, os links **Recorrentes** e **Extrato bancário** (ícones até `lg`, ícone + texto a partir de `lg`).

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { DollarSign, BarChart3, TrendingUp, SlidersHorizontal, Settings } from 'lucide-react';
+import { DollarSign, BarChart3, TrendingUp, SlidersHorizontal, Settings, RefreshCw, Landmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/brand/Logo';
 import { SidebarProvider } from '@/contexts/SidebarContext';
@@ -22,8 +22,6 @@ function LayoutContent() {
   // The dialog mounts on first use (no category/bank fetches until then) and stays mounted for its exit animation.
   const [addMounted, setAddMounted] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  // Bumping the key remounts the current page so it refetches after a transaction is added from the tab bar.
-  const [pageVersion, setPageVersion] = useState(0);
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     isActive
@@ -35,9 +33,9 @@ function LayoutContent() {
     setAddOpen(true);
   };
 
+  // The page stays mounted (month and filters are kept): every active query refetches through the cache.
   const handleTransactionAdded = () => {
     void queryClient.invalidateQueries();
-    setPageVersion((version) => version + 1);
   };
 
   return (
@@ -77,6 +75,21 @@ function LayoutContent() {
                   <SlidersHorizontal className="h-4 w-4" /><span className="hidden sm:inline">Limites</span>
                 </Button>
               </NavLink>
+              {isAdmin && (
+                <>
+                  {/* Admin pages: labels only from lg so seven items still fit at md */}
+                  <NavLink to="/recorrentes" aria-label="Recorrentes" title="Recorrentes" className={linkClass}>
+                    <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                      <RefreshCw className="h-4 w-4" /><span className="hidden lg:inline">Recorrentes</span>
+                    </Button>
+                  </NavLink>
+                  <NavLink to="/extrato-bancario" aria-label="Extrato bancário" title="Extrato bancário" className={linkClass}>
+                    <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                      <Landmark className="h-4 w-4" /><span className="hidden lg:inline">Extrato bancário</span>
+                    </Button>
+                  </NavLink>
+                </>
+              )}
               <NavLink to="/configuracoes" className={linkClass}>
                 <Button variant="ghost" size="sm" className="flex items-center gap-1">
                   <Settings className="h-4 w-4" /><span className="hidden sm:inline">Configurações</span>
@@ -88,9 +101,9 @@ function LayoutContent() {
           </div>
         </header>
 
-        {/* Bottom padding keeps content clear of the fixed tab bar (mobile only); relative z-0 makes main its own stacking context so 3D-transformed charts cannot paint over the bar. max-md:overflow-x-clip stops a page body that is wider than the screen from widening the layout viewport (which pushes the fixed tab bar off-screen); pages must still fix their own overflow. */}
-        <main className="relative z-0 min-w-0 max-md:overflow-x-clip flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] transition-all duration-300 md:pb-0">
-          <Outlet key={pageVersion} />
+        {/* Bottom padding keeps content clear of the fixed tab bar (mobile only); relative z-0 makes main its own stacking context so 3D-transformed charts cannot paint over the bar. No page may be wider than the screen (a page that is would widen the layout viewport and push the fixed tab bar off-screen); wide content scrolls inside its own container. */}
+        <main className="relative z-0 min-w-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] transition-all duration-300 md:pb-0">
+          <Outlet />
         </main>
 
         <MobileTabBar onAddTransaction={openAddTransaction} />

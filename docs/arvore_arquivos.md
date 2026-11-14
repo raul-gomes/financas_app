@@ -204,7 +204,8 @@ financas_app/
 │       │   │   │   └── Logo.test.tsx             # Testes do logo (wordmark, aria, tamanhos, sem cor fixa)
 │       │   │   │
 │       │   │   ├── layout/                     # Componentes de layout
-│   │   │               │   ├── AppLayout.tsx             # Layout principal: header desktop (md+), barra superior e de abas mobile, `+` global (AddTransactionDialog), conteúdo com padding para a barra
+│   │   │               │   ├── AppLayout.tsx             # Layout principal: header desktop (md+, com links de Recorrentes e Extrato bancário para admin), barra superior e de abas mobile, `+` global (AddTransactionDialog; a página não remonta, o cache é invalidado), conteúdo com padding para a barra
+│   │   │               │   ├── AppLayout.test.tsx        # Testes: + não remonta a página e invalida o cache; links de admin no header desktop
 │   │   │               │   ├── MobileTabBar.tsx          # Barra de abas inferior (Início, Financeiro, +, Limites, Mais): ≥44px, safe-area, aria-current
 │   │   │               │   ├── MobileTabBar.test.tsx     # Testes da barra de abas
 │   │   │               │   ├── MobileTopBar.tsx          # Barra superior mobile (logo/título, slot de mês `MobileTopBarSlot`, sino)
