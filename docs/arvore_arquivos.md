@@ -11,6 +11,7 @@ financas_app/
 │   │   │   ├── logger.py                       # Loguru (console, arquivo, JSON, rotação); redact()/log_api_request() mascaram credenciais
 │   │   │   │
 │   │   │   ├── core/
+│   │   │   │   ├── advisory_lock.py            # try_advisory_lock(engine, key): lock consultivo do Postgres em conexão dedicada (no-op em outros dialetos); LIMIT_ALERT_JOB_LOCK_KEY
 │   │   │   │   ├── config.py                   # Classe Config + require_database_url (falha na partida sem DATABASE_URL): carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL do .env
 │   │   │   │   ├── database.py                 # Engine async SQLAlchemy, AsyncSessionLocal, get_session() dependency
 │   │   │   │   └── security.py                 # get_current_user() — decodifica JWT Supabase via JWKS (ES256/RS256) ou HS256 (SUPABASE_JWT_SECRET), bearer_scheme (HTTPBearer auto_error=False → 401 sem token); require_role(*roles) + require_admin (403)
@@ -93,6 +94,7 @@ financas_app/
 │   │   │   ├── test_category_isolation.py      # Etapa 5: isolamento por usuário de categorias/subcategorias (via client_user2 + clients_ctrl)
 │   │   │   ├── test_transaction_isolation.py   # Etapa 6: isolamento de transações por usuário (list, get, update, delete, duplicatas, extrato, export)
 │   │   │   ├── test_user_scoped_repositories.py # S5/P1: export e dashboard só retornam dados do usuário (filtro no SQL)
+│   │   │   ├── test_advisory_lock.py           # P5: lock consultivo (no-op fora do Postgres, SQL no Postgres, job pula se travado) e contagem de queries sem selectin
 │   │   │   ├── test_error_leak.py              # S9: erros internos nunca chegam ao cliente (mensagem genérica; texto real só no log)
 │   │   │   ├── test_user_model_columns.py      # S8: guarda — `users` não tem coluna de senha
 │   │   │   ├── test_users_repository.py        # Testes de upsert de usuário (criação, retorno existente, não duplica)

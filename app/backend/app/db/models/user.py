@@ -21,5 +21,8 @@ class UserORM(Base):
         "UserBankORM",
         back_populates="user",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        # Only the settings endpoints read banks (they query them directly); loading
+        # them eagerly added a SELECT to every authenticated request.
+        lazy="select",
+        passive_deletes=True,
     )

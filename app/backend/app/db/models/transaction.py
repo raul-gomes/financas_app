@@ -51,4 +51,5 @@ class TransactionORM(Base):
 
     category = relationship("CategoryORM", lazy="joined")
     subcategory = relationship("SubcategoryORM", lazy="joined")
-    recurring_account = relationship("RecurringAccountORM", lazy="selectin")
+    # Not read by any response; repositories that need it add an explicit selectinload.
+    recurring_account = relationship("RecurringAccountORM", lazy="select")
