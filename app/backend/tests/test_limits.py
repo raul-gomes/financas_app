@@ -65,12 +65,15 @@ async def test_bulk_update_limits_empty(client):
 
 
 async def _create_cat(client):
-    resp = await client.post("/categories/", json={
-        "category_name": "Alimentacao",
-        "entity_type": "individual",
-        "limit": 1000.0,
-        "subcategories": [{"subcategory_name": "Supermercado"}],
-    })
+    resp = await client.post(
+        "/categories/",
+        json={
+            "category_name": "Alimentacao",
+            "entity_type": "individual",
+            "limit": 1000.0,
+            "subcategories": [{"subcategory_name": "Supermercado"}],
+        },
+    )
     assert resp.status_code == 201
     cat = resp.json()
     opts = await client.get("/dashboard/category-options")

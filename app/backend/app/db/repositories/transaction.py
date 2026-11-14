@@ -32,8 +32,10 @@ class TransacaoRepository:
 
     def _calculate_installment_amount(self, total_amount: float, total_installments: int) -> float:
         return round(total_amount / total_installments, 2)
-    
-    def _generate_installment_dates(self, base_date: datetime, total_installments: int) -> List[datetime]:
+
+    def _generate_installment_dates(
+        self, base_date: datetime, total_installments: int
+    ) -> List[datetime]:
         dates = []
 
         for i in range(total_installments):
@@ -48,28 +50,28 @@ class TransacaoRepository:
                 dates.append(mes_alvo.replace(day=dia))
 
         return dates
-    
+
     def _create_transactions(
-            self,
-            obj_in,
-            group_id: str,
-            installment_number: int,
-            total_installments: int,
-            amount: float,
-            transaction_date: datetime,
-            category_id=int,
-            sub_id=int,
-            user_id: int = None,
+        self,
+        obj_in,
+        group_id: str,
+        installment_number: int,
+        total_installments: int,
+        amount: float,
+        transaction_date: datetime,
+        category_id=int,
+        sub_id=int,
+        user_id: int = None,
     ) -> TransactionORM:
         return TransactionORM(
             group_id=group_id,
             type=obj_in.type,
             amount=amount,
-            description=f'{obj_in.description} - parcela {installment_number}/{total_installments}',
+            description=f"{obj_in.description} - parcela {installment_number}/{total_installments}",
             transaction_date=transaction_date,
             payment_method=obj_in.payment_method,
             entity_type=obj_in.entity_type,
-            installment_number=installment_number,  
+            installment_number=installment_number,
             total_installments=total_installments,
             is_installment=True,
             bank_code=obj_in.bank_code,
@@ -77,27 +79,30 @@ class TransacaoRepository:
             subcategory_id=sub_id,
             user_id=user_id,
         )
-    
+
     def _adjust_last_installment(self, transactions: List, amount: float):
         if not transactions:
             return
-        
+
         total_parcelas = sum(t.amount for t in transactions)
         diferenca = round(amount - total_parcelas, 2)
 
         if diferenca != 0:
             transactions[-1].amount = round(transactions[-1].amount + diferenca, 2)
-    
-    async def _create_installment_transactions(self, 
-                                      obj_in, 
-                                      group_id: str, 
-                                      category_id: int,
-                                      sub_id: int,
-                                      user_id: int = None,
-                                      ):
+
+    async def _create_installment_transactions(
+        self,
+        obj_in,
+        group_id: str,
+        category_id: int,
+        sub_id: int,
+        user_id: int = None,
+    ):
         total_installments = obj_in.total_installments
         amount = self._calculate_installment_amount(obj_in.amount, total_installments)
-        installment_dates = self._generate_installment_dates(obj_in.transaction_date, total_installments)
+        installment_dates = self._generate_installment_dates(
+            obj_in.transaction_date, total_installments
+        )
 
         created_transactions = []
 
@@ -126,7 +131,12 @@ class TransacaoRepository:
         return created_transactions
 
     async def create(self, obj_in: TransacaoCreate, user_id: int) -> TransactionORM:
-        log = log_database_operation(operation="create", collection="transacoes", payload=obj_in.model_dump(), user_id=user_id)
+        log = log_database_operation(
+            operation="create",
+            collection="transacoes",
+            payload=obj_in.model_dump(),
+            user_id=user_id,
+        )
         group_id = str(uuid4())
 
         # 1) Categoria: se id não informado, busca ou cria por nome
@@ -145,8 +155,8 @@ class TransacaoRepository:
                         entity_type=obj_in.entity_type,
                         limit=0,
                         type=obj_in.type.value,
-                        subcategories=[]
-                    )
+                        subcategories=[],
+                    ),
                 )
 
         # 2) Subcategoria: se id não informado, busca ou cria por nome sob a categoria
@@ -162,16 +172,18 @@ class TransacaoRepository:
                 sub = await self.subcategoria_repo.create(
                     categoria_id=categoria.id,
                     user_id=user_id,
-                    obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name)
+                    obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name),
                 )
 
         # 3) Cria a transação usando os IDs resolvidos
         try:
-            if (obj_in.total_installments is not None and obj_in.total_installments > 1):
-                transacoes = await self._create_installment_transactions(obj_in, group_id, categoria.id, sub.id, user_id)
+            if obj_in.total_installments is not None and obj_in.total_installments > 1:
+                transacoes = await self._create_installment_transactions(
+                    obj_in, group_id, categoria.id, sub.id, user_id
+                )
                 log.info(f"Transação {group_id} criada, com {len(transacoes)} parcelas")
                 return transacoes[0]
-            else: 
+            else:
                 inst = TransactionORM(
                     amount=obj_in.amount,
                     description=obj_in.description,
@@ -214,15 +226,13 @@ class TransacaoRepository:
         offset: int = 0,
         user_id: Optional[int] = None,
     ) -> List[TransactionORM]:
-        stmt = select(TransactionORM).options(
-            selectinload(TransactionORM.recurring_account)
-        )
+        stmt = select(TransactionORM).options(selectinload(TransactionORM.recurring_account))
         if user_id is not None:
             stmt = stmt.where(TransactionORM.user_id == user_id)
         if start_date:
             stmt = stmt.where(TransactionORM.transaction_date >= start_date)
         if end_date:
-        # Ajusta para incluir toda a faixa do dia final
+            # Ajusta para incluir toda a faixa do dia final
             data_final_completo = datetime.combine(end_date.date(), time.max)
             stmt = stmt.where(TransactionORM.transaction_date <= data_final_completo)
 
@@ -231,15 +241,19 @@ class TransacaoRepository:
         return result.unique().scalars().all()
 
     async def get_by_id(self, id: int, user_id: Optional[int] = None) -> Optional[TransactionORM]:
-        stmt = select(TransactionORM).options(
-            selectinload(TransactionORM.recurring_account)
-        ).where(TransactionORM.id == id)
+        stmt = (
+            select(TransactionORM)
+            .options(selectinload(TransactionORM.recurring_account))
+            .where(TransactionORM.id == id)
+        )
         if user_id is not None:
             stmt = stmt.where(TransactionORM.user_id == user_id)
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
-    async def update(self, id: int, obj_in: TransacaoUpdate, user_id: int) -> Optional[TransactionORM]:
+    async def update(
+        self, id: int, obj_in: TransacaoUpdate, user_id: int
+    ) -> Optional[TransactionORM]:
         trans = await self.get_by_id(id, user_id)
         if not trans:
             return None
@@ -261,8 +275,8 @@ class TransacaoRepository:
                             entity_type=obj_in.entity_type or trans.entity_type,
                             limit=0,
                             type=obj_in.type.value if obj_in.type else None,
-                            subcategories=[]
-                        )
+                            subcategories=[],
+                        ),
                     )
             resolved_category_id = categoria.id
 
@@ -281,7 +295,7 @@ class TransacaoRepository:
                     sub = await self.subcategoria_repo.create(
                         categoria_id=cat_id_for_sub,
                         user_id=user_id,
-                        obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name)
+                        obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name),
                     )
             trans.subcategory_id = sub.id
 
@@ -290,19 +304,20 @@ class TransacaoRepository:
             trans.category_id = resolved_category_id
 
         # 3) Atualiza demais campos
-        data = obj_in.model_dump(exclude_unset=True, exclude={
-            "category_id", "category_name", "subcategory_id", "subcategory_name"
-        })
+        data = obj_in.model_dump(
+            exclude_unset=True,
+            exclude={"category_id", "category_name", "subcategory_id", "subcategory_name"},
+        )
         field_map = {
-            'amount': 'amount',
-            'description': 'description',
-            'installment_number': 'installment_number',
-            'total_installments': 'total_installments',
-            'is_installment': 'is_installment',
-            'transaction_date': 'transaction_date',
-            'type': 'type',
-            'entity_type': 'entity_type',
-            'payment_method': 'payment_method',
+            "amount": "amount",
+            "description": "description",
+            "installment_number": "installment_number",
+            "total_installments": "total_installments",
+            "is_installment": "is_installment",
+            "transaction_date": "transaction_date",
+            "type": "type",
+            "entity_type": "entity_type",
+            "payment_method": "payment_method",
         }
         for field, val in data.items():
             orm_field = field_map.get(field, field)
@@ -324,29 +339,30 @@ class TransacaoRepository:
         await self.db.commit()
         return trans
 
-    async def check_duplicates(self, transaction_date: date, amount: float, user_id: Optional[int] = None) -> List[TransactionORM]:
+    async def check_duplicates(
+        self, transaction_date: date, amount: float, user_id: Optional[int] = None
+    ) -> List[TransactionORM]:
         """Retorna transações existentes com a mesma data (ignorando hora) e valor."""
         from datetime import timedelta
 
         start = datetime.combine(transaction_date, time.min)
         end = datetime.combine(transaction_date, time.max)
-        stmt = (
-            select(TransactionORM)
-            .where(
-                TransactionORM.transaction_date >= start,
-                TransactionORM.transaction_date <= end,
-                TransactionORM.amount == amount,
-            )
+        stmt = select(TransactionORM).where(
+            TransactionORM.transaction_date >= start,
+            TransactionORM.transaction_date <= end,
+            TransactionORM.amount == amount,
         )
         if user_id is not None:
             stmt = stmt.where(TransactionORM.user_id == user_id)
         result = await self.db.execute(stmt)
         return list(result.unique().scalars().all())
 
-    async def assign_random_banks(self, bank_codes: List[str], user_id: Optional[int] = None) -> int:
+    async def assign_random_banks(
+        self, bank_codes: List[str], user_id: Optional[int] = None
+    ) -> int:
         """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto."""
         from sqlalchemy import text
-        
+
         if not bank_codes:
             return 0
 
@@ -368,9 +384,9 @@ class TransacaoRepository:
             WHERE t.id = txs.id
         """)
 
-        params = {'bank_codes': bank_codes}
+        params = {"bank_codes": bank_codes}
         if user_id is not None:
-            params['user_id'] = user_id
+            params["user_id"] = user_id
         result = await self.db.execute(stmt, params)
         await self.db.commit()
         return result.rowcount
@@ -384,26 +400,31 @@ class TransacaoRepository:
         Creates multiple transactions from extract in a single batch.
         Returns (created_count, errors_list).
         """
-        log = log_database_operation(operation="batch_create", collection="transacoes", count=len(transactions), user_id=user_id)
-        
+        log = log_database_operation(
+            operation="batch_create",
+            collection="transacoes",
+            count=len(transactions),
+            user_id=user_id,
+        )
+
         # 1) Collect all unique category/subcategory resolutions needed
         cat_keys = set()
         sub_keys = set()
         for t in transactions:
-            if t.get('category_id'):
-                cat_keys.add(('id', t['category_id']))
-            elif t.get('category_name'):
-                cat_keys.add(('name', t['category_name'], t['entity_type']))
-            if t.get('subcategory_id'):
-                sub_keys.add(('id', t['subcategory_id']))
-            elif t.get('subcategory_name') and (t.get('category_id') or t.get('category_name')):
-                cat_key = t.get('category_id') or t.get('category_name')
-                sub_keys.add(('name', t['subcategory_name'], cat_key))
+            if t.get("category_id"):
+                cat_keys.add(("id", t["category_id"]))
+            elif t.get("category_name"):
+                cat_keys.add(("name", t["category_name"], t["entity_type"]))
+            if t.get("subcategory_id"):
+                sub_keys.add(("id", t["subcategory_id"]))
+            elif t.get("subcategory_name") and (t.get("category_id") or t.get("category_name")):
+                cat_key = t.get("category_id") or t.get("category_name")
+                sub_keys.add(("name", t["subcategory_name"], cat_key))
 
         # 2) Resolve all categories
         cat_cache: Dict[tuple, any] = {}
         for key in cat_keys:
-            if key[0] == 'id':
+            if key[0] == "id":
                 cat = await self.categoria_repo.get_by_id(key[1], user_id)
             else:  # name
                 cat = await self.categoria_repo.get_by_nome_and_entity_type(key[1], key[2], user_id)
@@ -416,19 +437,21 @@ class TransacaoRepository:
                             limit=0,
                             type=None,  # will be overridden per transaction
                             subcategories=[],
-                        )
+                        ),
                     )
             cat_cache[key] = cat
 
         # 3) Resolve all subcategories
         sub_cache: Dict[tuple, any] = {}
         for key in sub_keys:
-            if key[0] == 'id':
+            if key[0] == "id":
                 sub = await self.subcategoria_repo.get_by_id(key[1], user_id)
             else:  # name
-                cat = cat_cache.get(('id', key[2])) or cat_cache.get(('name', key[2], None))
+                cat = cat_cache.get(("id", key[2])) or cat_cache.get(("name", key[2], None))
                 if cat:
-                    sub = await self.subcategoria_repo.get_by_nome_and_categoria(key[1], cat.id, user_id)
+                    sub = await self.subcategoria_repo.get_by_nome_and_categoria(
+                        key[1], cat.id, user_id
+                    )
                     if not sub:
                         sub = await self.subcategoria_repo.create(
                             categoria_id=cat.id,
@@ -444,23 +467,29 @@ class TransacaoRepository:
         for t in transactions:
             try:
                 group_id = str(uuid4())
-                cat_key = ('id', t['category_id']) if t.get('category_id') else ('name', t['category_name'], t['entity_type'])
+                cat_key = (
+                    ("id", t["category_id"])
+                    if t.get("category_id")
+                    else ("name", t["category_name"], t["entity_type"])
+                )
                 cat = cat_cache[cat_key]
-                
+
                 sub_key = None
-                if t.get('subcategory_id'):
-                    sub_key = ('id', t['subcategory_id'])
-                elif t.get('subcategory_name'):
-                    sub_key = ('name', t['subcategory_name'], cat_key)
+                if t.get("subcategory_id"):
+                    sub_key = ("id", t["subcategory_id"])
+                elif t.get("subcategory_name"):
+                    sub_key = ("name", t["subcategory_name"], cat_key)
                 sub = sub_cache.get(sub_key) if sub_key else None
 
-                transaction_date = datetime.strptime(t['date'], '%d/%m/%Y')
-                total_installments = t.get('total_installments')
-                is_installment = t.get('is_installment', False)
+                transaction_date = datetime.strptime(t["date"], "%d/%m/%Y")
+                total_installments = t.get("total_installments")
+                is_installment = t.get("is_installment", False)
 
                 if total_installments and total_installments > 1:
                     # Create installments
-                    valor_parcela = self._calculate_installment_amount(t['amount'], total_installments)
+                    valor_parcela = self._calculate_installment_amount(
+                        t["amount"], total_installments
+                    )
                     datas = self._generate_installment_dates(transaction_date, total_installments)
                     for i in range(total_installments):
                         inst = TransactionORM(
@@ -470,30 +499,30 @@ class TransacaoRepository:
                             total_installments=total_installments,
                             is_installment=True,
                             transaction_date=datas[i],
-                            type=t['type'],
-                            entity_type=t['entity_type'],
-                            payment_method=t['payment_method'],
+                            type=t["type"],
+                            entity_type=t["entity_type"],
+                            payment_method=t["payment_method"],
                             category_id=cat.id,
                             subcategory_id=sub.id if sub else None,
-                            bank_code=t.get('bank_code'),
+                            bank_code=t.get("bank_code"),
                             group_id=group_id,
                             user_id=user_id,
                         )
                         all_instances.append(inst)
-                    self._adjust_last_installment(all_instances[-total_installments:], t['amount'])
+                    self._adjust_last_installment(all_instances[-total_installments:], t["amount"])
                 else:
                     inst = TransactionORM(
-                        amount=t['amount'],
-                        description=t['description'],
+                        amount=t["amount"],
+                        description=t["description"],
                         installment_number=1,
                         total_installments=1,
                         transaction_date=transaction_date,
-                        type=t['type'],
-                        entity_type=t['entity_type'],
-                        payment_method=t['payment_method'],
+                        type=t["type"],
+                        entity_type=t["entity_type"],
+                        payment_method=t["payment_method"],
                         category_id=cat.id,
                         subcategory_id=sub.id if sub else None,
-                        bank_code=t.get('bank_code'),
+                        bank_code=t.get("bank_code"),
                         group_id=group_id,
                         is_installment=is_installment,
                         user_id=user_id,
@@ -553,7 +582,7 @@ class TransacaoRepository:
                         limit=0,
                         type=type,
                         subcategories=[],
-                    )
+                    ),
                 )
         else:
             raise HTTPException(status_code=400, detail="category_id or category_name is required")
@@ -583,7 +612,7 @@ class TransacaoRepository:
             for i in range(total_installments):
                 inst = TransactionORM(
                     amount=valor_parcela,
-                    description=f'{description} - parcela {i + 1}/{total_installments}',
+                    description=f"{description} - parcela {i + 1}/{total_installments}",
                     installment_number=i + 1,
                     total_installments=total_installments,
                     is_installment=True,

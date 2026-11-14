@@ -10,7 +10,11 @@ from dateutil.relativedelta import relativedelta
 
 from app.core.database import get_session
 from app.db.models.shopping_item import ShoppingItemORM
-from app.schemas.shopping import ShoppingItemCreate, ShoppingItemUpdate, GenerateRecurringShoppingRequest
+from app.schemas.shopping import (
+    ShoppingItemCreate,
+    ShoppingItemUpdate,
+    GenerateRecurringShoppingRequest,
+)
 from app.logger import log_database_operation
 
 
@@ -23,25 +27,28 @@ class ShoppingRepository:
         self.db = db
         self.model = ShoppingItemORM
 
-    async def list_by_month(self, reference_month: date, entity_type: Optional[str] = None,
-                            user_id: Optional[int] = None) -> List[ShoppingItemORM]:
+    async def list_by_month(
+        self,
+        reference_month: date,
+        entity_type: Optional[str] = None,
+        user_id: Optional[int] = None,
+    ) -> List[ShoppingItemORM]:
         """Lista itens de um mês específico com ROLLOVER: inclui itens não-marcados
         de meses anteriores (que não foram comprados). Ordenados: não-marcados
         primeiro (mais recentes primeiro), depois marcados (mais recentes primeiro)."""
-        log = log_database_operation(operation="read_all", collection="shopping_items", mes_ref=str(reference_month))
+        log = log_database_operation(
+            operation="read_all", collection="shopping_items", mes_ref=str(reference_month)
+        )
         # Ordena: não-marcados (checked=false) primeiro, depois por created_at descendente
         order_expr = case((self.model.checked == False, 0), else_=1)
         # Rollover: itens do próprio mês + não-marcados (não comprados) de meses anteriores
-        query = (
-            select(self.model)
-            .where(
-                or_(
-                    self.model.reference_month == reference_month,
-                    and_(
-                        self.model.reference_month < reference_month,
-                        self.model.checked == False,
-                    ),
-                )
+        query = select(self.model).where(
+            or_(
+                self.model.reference_month == reference_month,
+                and_(
+                    self.model.reference_month < reference_month,
+                    self.model.checked == False,
+                ),
             )
         )
         if user_id is not None:
@@ -55,9 +62,13 @@ class ShoppingRepository:
         log.info(f"{len(items)} itens encontrados para {reference_month}")
         return items
 
-    async def create(self, obj_in: ShoppingItemCreate, user_id: Optional[int] = None) -> ShoppingItemORM:
+    async def create(
+        self, obj_in: ShoppingItemCreate, user_id: Optional[int] = None
+    ) -> ShoppingItemORM:
         """Cria um novo item na lista de compras."""
-        log = log_database_operation(operation="create", collection="shopping_items", payload=obj_in.model_dump())
+        log = log_database_operation(
+            operation="create", collection="shopping_items", payload=obj_in.model_dump()
+        )
         item = self.model(
             user_id=user_id,
             name=obj_in.name,
@@ -70,12 +81,15 @@ class ShoppingRepository:
         log.info(f"Item {item.id} criado: {item.name}")
         return item
 
-    async def update(self, item_id: int, obj_in: ShoppingItemUpdate,
-                     user_id: Optional[int] = None) -> Optional[ShoppingItemORM]:
-        """Atualiza um item (nome e/ou checked). 
+    async def update(
+        self, item_id: int, obj_in: ShoppingItemUpdate, user_id: Optional[int] = None
+    ) -> Optional[ShoppingItemORM]:
+        """Atualiza um item (nome e/ou checked).
         Quando checked=true, define completed_at automaticamente.
         Quando checked=false, limpa completed_at."""
-        log = log_database_operation(operation="update", collection="shopping_items", item_id=item_id)
+        log = log_database_operation(
+            operation="update", collection="shopping_items", item_id=item_id
+        )
         item = await self._get_scoped(item_id, user_id)
         if not item:
             log.warning(f"Item {item_id} não encontrado")
@@ -83,24 +97,30 @@ class ShoppingRepository:
 
         update_data = obj_in.model_dump(exclude_unset=True)
         field_map = {
-            'name': 'name',
-            'checked': 'checked',
-            'entity_type': 'entity_type',
+            "name": "name",
+            "checked": "checked",
+            "entity_type": "entity_type",
         }
         for field, value in update_data.items():
             orm_field = field_map.get(field, field)
             setattr(item, orm_field, value)
         # Auto-set completed_at when marking/unmarking (after setattr to avoid overwrite)
-        if 'checked' in update_data:
-            item.completed_at = date.today() if update_data['checked'] else None
+        if "checked" in update_data:
+            item.completed_at = date.today() if update_data["checked"] else None
         await self.db.commit()
         await self.db.refresh(item)
-        log.info(f"Item {item_id} atualizado (checked={item.checked}, completed_at={item.completed_at})")
+        log.info(
+            f"Item {item_id} atualizado (checked={item.checked}, completed_at={item.completed_at})"
+        )
         return item
 
-    async def delete(self, item_id: int, user_id: Optional[int] = None) -> Optional[ShoppingItemORM]:
+    async def delete(
+        self, item_id: int, user_id: Optional[int] = None
+    ) -> Optional[ShoppingItemORM]:
         """Remove um item da lista."""
-        log = log_database_operation(operation="delete", collection="shopping_items", item_id=item_id)
+        log = log_database_operation(
+            operation="delete", collection="shopping_items", item_id=item_id
+        )
         item = await self._get_scoped(item_id, user_id)
         if not item:
             log.warning(f"Item {item_id} não encontrado")
@@ -118,8 +138,9 @@ class ShoppingRepository:
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
-    async def generate_recurring_items(self, req: GenerateRecurringShoppingRequest,
-                                       user_id: Optional[int] = None) -> int:
+    async def generate_recurring_items(
+        self, req: GenerateRecurringShoppingRequest, user_id: Optional[int] = None
+    ) -> int:
         """
         Gera itens de compras recorrentes para os meses no intervalo.
         Busca itens marcados como recorrentes (is_recurring=true) e cria cópias

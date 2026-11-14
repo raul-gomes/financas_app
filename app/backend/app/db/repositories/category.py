@@ -29,7 +29,9 @@ class CategoriaRepository:
         """
         Busca uma categoria pelo ID, restrita ao usuário.
         """
-        log = log_database_operation(operation="read", collection="categorias", categoria_id=id, user_id=user_id)
+        log = log_database_operation(
+            operation="read", collection="categorias", categoria_id=id, user_id=user_id
+        )
         result = await self.db.execute(
             select(self.model).where(self.model.id == id, self.model.user_id == user_id)
         )
@@ -46,7 +48,9 @@ class CategoriaRepository:
         )
         return result.scalars().first()
 
-    async def get_by_nome_and_entity_type(self, nome: str, entity_type: str, user_id: int) -> Optional[CategoryORM]:
+    async def get_by_nome_and_entity_type(
+        self, nome: str, entity_type: str, user_id: int
+    ) -> Optional[CategoryORM]:
         result = await self.db.execute(
             select(self.model).where(
                 self.model.name == nome,
@@ -62,21 +66,26 @@ class CategoriaRepository:
             select(self.model).where(self.model.type == tipo, self.model.user_id == user_id)
         )
         return result.scalars().first()
-    
+
     async def create(self, user_id: int, obj_in: CategoriaCreate) -> CategoryORM:
         """
         Insere uma nova categoria e suas subcategorias (se houver).
         Lança HTTPException em caso de erro de unicidade.
         """
-        log = log_database_operation(operation="create", collection="categorias", payload=obj_in.model_dump(), user_id=user_id)
+        log = log_database_operation(
+            operation="create",
+            collection="categorias",
+            payload=obj_in.model_dump(),
+            user_id=user_id,
+        )
         try:
             # Map schema field names to ORM field names
             data = obj_in.model_dump(exclude={"subcategories"})
             field_map = {
-                'category_name': 'name',
-                'entity_type': 'entity_type',
-                'limit': 'limit',
-                'type': 'type',
+                "category_name": "name",
+                "entity_type": "entity_type",
+                "limit": "limit",
+                "type": "type",
             }
             orm_data = {}
             for schema_field, value in data.items():
@@ -93,26 +102,32 @@ class CategoriaRepository:
 
             log.info(f"Categoria {instance.id} criada")
             _invalidate_opcoes_categorias_cache()
-            
+
             # Recarrega categoria completa com subcategorias
             result = await self.db.execute(
-                select(self.model).options(selectinload(self.model.subcategories)).where(self.model.id == instance.id)
+                select(self.model)
+                .options(selectinload(self.model.subcategories))
+                .where(self.model.id == instance.id)
             )
             return result.scalars().first()
-            
+
         except IntegrityError as e:
             await self.db.rollback()
             err = str(e)
-            if "categorias.name" in err or "uq_categorias_name_entity_type" in err or "uq_categorias_name_entity_type_user" in err:
+            if (
+                "categorias.name" in err
+                or "uq_categorias_name_entity_type" in err
+                or "uq_categorias_name_entity_type_user" in err
+            ):
                 log.error("Violação de unicidade em (name, entity_type, user_id)")
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Categoria com nome '{obj_in.category_name}' já existe"
+                    detail=f"Categoria com nome '{obj_in.category_name}' já existe",
                 )
             log.error(f"Erro de integridade no banco: {e}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Erro de integridade no banco de dados"
+                detail="Erro de integridade no banco de dados",
             )
 
     async def get_all(self, user_id: int) -> List[CategoryORM]:
@@ -133,23 +148,32 @@ class CategoriaRepository:
 
         # 1) Unicidade de nome
         if obj_in.category_name:
-            conflict = (await self.db.execute(
-                select(self.model)
-                .where(self.model.name == obj_in.category_name, self.model.id != id, self.model.user_id == user_id)
-            )).scalars().first()
+            conflict = (
+                (
+                    await self.db.execute(
+                        select(self.model).where(
+                            self.model.name == obj_in.category_name,
+                            self.model.id != id,
+                            self.model.user_id == user_id,
+                        )
+                    )
+                )
+                .scalars()
+                .first()
+            )
             if conflict:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Outra categoria com nome '{obj_in.category_name}' já existe"
+                    detail=f"Outra categoria com nome '{obj_in.category_name}' já existe",
                 )
 
         # 2) Atualiza campos básicos
         base = obj_in.model_dump(exclude_unset=True, exclude={"subcategories"})
         field_map = {
-            'category_name': 'name',
-            'entity_type': 'entity_type',
-            'limit': 'limit',
-            'type': 'type',
+            "category_name": "name",
+            "entity_type": "entity_type",
+            "limit": "limit",
+            "type": "type",
         }
         for field, val in base.items():
             orm_field = field_map.get(field, field)
@@ -170,9 +194,7 @@ class CategoriaRepository:
             await self.sub_repo.create_many(categoria.id, user_id, new_subs)
 
         # 4) Recarrega e retorna
-        result = await self.db.execute(
-            select(self.model).where(self.model.id == id)
-        )
+        result = await self.db.execute(select(self.model).where(self.model.id == id))
         _invalidate_opcoes_categorias_cache()
         return result.scalars().first()
 
@@ -180,7 +202,9 @@ class CategoriaRepository:
         """
         Remove uma categoria pelo ID, restrita ao usuário.
         """
-        log = log_database_operation(operation="delete", collection="categorias", categoria_id=id, user_id=user_id)
+        log = log_database_operation(
+            operation="delete", collection="categorias", categoria_id=id, user_id=user_id
+        )
         categoria = await self.get_by_id(id, user_id)
         if not categoria:
             return None

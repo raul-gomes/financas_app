@@ -22,7 +22,8 @@ class ExportRepository:
     ) -> List[TransactionORM]:
         """Retorna transações no período com categoria/subcategoria carregadas (selectinload)."""
         log = log_database_operation(
-            operation="export", collection="transacoes",
+            operation="export",
+            collection="transacoes",
             payload={"start_date": start_date, "end_date": end_date, "user_id": user_id},
         )
         try:

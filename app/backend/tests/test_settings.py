@@ -43,9 +43,7 @@ async def test_add_bank_requires_code_and_name(client):
 
 @pytest.mark.asyncio
 async def test_remove_bank_then_404(client):
-    created = (
-        await client.post("/settings/banks", json=bank_payload("341", "Itaú"))
-    ).json()
+    created = (await client.post("/settings/banks", json=bank_payload("341", "Itaú"))).json()
 
     deleted = await client.delete(f"/settings/banks/{created['id']}")
     assert deleted.status_code == 204

@@ -86,7 +86,9 @@ async def send_limit_alert_email(
         logger.debug("[email] Notificações de e-mail desabilitadas (EMAIL_ALERTS_ENABLED=false)")
         return False
     if not _resend_api_key():
-        logger.warning("[email] EMAIL_ALERTS_ENABLED=true mas RESEND_API_KEY não configurada — pulando envio")
+        logger.warning(
+            "[email] EMAIL_ALERTS_ENABLED=true mas RESEND_API_KEY não configurada — pulando envio"
+        )
         return False
 
     html = build_alert_html(

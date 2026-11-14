@@ -22,7 +22,9 @@ THRESHOLDS = [80, 90, 100]
 SPECIAL_CATEGORIAS_ALERT = {"limite cartao credito", "metas"}
 
 
-async def trigger_limit_evaluation(db: AsyncSession, user_id: int, year: Optional[int] = None, month: Optional[int] = None) -> List[LimitAlertORM]:
+async def trigger_limit_evaluation(
+    db: AsyncSession, user_id: int, year: Optional[int] = None, month: Optional[int] = None
+) -> List[LimitAlertORM]:
     """Dispara a avaliação de limites para o mês atual (ou o mês informado).
 
     Usado pós-mutação (criar/editar/excluir transação, sincronizar extrato/pluggy,
@@ -114,15 +116,20 @@ class LimitAlertService:
         from app.db.models.category import CategoryORM
 
         user = (
-            await self.db.execute(select(UserORM).where(UserORM.id == user_id))
-        ).scalars().first()
+            (await self.db.execute(select(UserORM).where(UserORM.id == user_id))).scalars().first()
+        )
         if not user or not user.email:
             return
 
         cat_ids = sorted({a.category_id for a in alertas})
         nomes = {}
         if cat_ids:
-            cats = (await self.db.execute(select(CategoryORM).where(CategoryORM.id.in_(cat_ids)))).unique().scalars().all()
+            cats = (
+                (await self.db.execute(select(CategoryORM).where(CategoryORM.id.in_(cat_ids))))
+                .unique()
+                .scalars()
+                .all()
+            )
             nomes = {c.id: c.name for c in cats}
 
         for alerta in alertas:
@@ -136,7 +143,9 @@ class LimitAlertService:
                 month=alerta.month,
             )
 
-    async def _evaluate_credit_card(self, user_id: int, year: int, month: int, month_str: str) -> List[LimitAlertORM]:
+    async def _evaluate_credit_card(
+        self, user_id: int, year: int, month: int, month_str: str
+    ) -> List[LimitAlertORM]:
         """Cartão quase no limite; percentual como no dashboard (used = despesas 'credit')."""
         from datetime import datetime
 
@@ -176,13 +185,20 @@ class LimitAlertService:
             from app.db.models.category import CategoryORM as CO
 
             card_cat = (
-                await self.db.execute(
-                    select(CO).where(
-                        CO.user_id == user_id,
-                        func.lower(CO.name) == "limite cartao credito",
-                    ).order_by(CO.id).limit(1)
+                (
+                    await self.db.execute(
+                        select(CO)
+                        .where(
+                            CO.user_id == user_id,
+                            func.lower(CO.name) == "limite cartao credito",
+                        )
+                        .order_by(CO.id)
+                        .limit(1)
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             if not card_cat:
                 return criados
             if await self.repo.exists(user_id, card_cat.id, month_str, threshold):

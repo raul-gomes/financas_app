@@ -7,6 +7,7 @@ from app.db.repositories.users import get_or_create_user_from_supabase
 
 # ── Testes: upsert de usuário ────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_creates_new_user_when_not_exists(async_session):
     user = await get_or_create_user_from_supabase(
@@ -35,9 +36,7 @@ async def test_upsert_does_not_duplicate_users(async_session):
     await get_or_create_user_from_supabase(async_session, sub="dup-003", email="dup@example.com")
     await get_or_create_user_from_supabase(async_session, sub="dup-003", email="dup@example.com")
 
-    result = await async_session.execute(
-        select(UserORM).where(UserORM.email == "dup@example.com")
-    )
+    result = await async_session.execute(select(UserORM).where(UserORM.email == "dup@example.com"))
     users = result.scalars().all()
     assert len(users) == 1
 

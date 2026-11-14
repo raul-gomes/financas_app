@@ -31,8 +31,8 @@ class ConfirmTransaction(BaseModel):
     subcategory_id: Optional[int] = None
     category_name: Optional[str] = None
     subcategory_name: Optional[str] = None
-    payment_method: str = Field(default='pix')
-    entity_type: str = Field(default='individual')
+    payment_method: str = Field(default="pix")
+    entity_type: str = Field(default="individual")
     bank_code: Optional[str] = None
     total_installments: Optional[int] = None
     is_installment: bool = False

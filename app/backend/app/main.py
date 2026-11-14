@@ -23,6 +23,7 @@ from .routes.notifications_routes import router as notifications_router
 async def lifespan(app: FastAPI):
     # Job periódico de avaliação de limites (avisa por e-mail se habilitado).
     from .services.limit_alert_job import start_limit_alert_job, stop_limit_alert_job
+
     job_task = None
     try:
         job_task = await start_limit_alert_job()
@@ -34,14 +35,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="API Financeira",
-    description='API para gerenciamento de transações financeiras',
-    version='1.0.0',
+    description="API para gerenciamento de transações financeiras",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
 app.add_middleware(
-    CORSMiddleware, 
-    allow_origins=["http://localhost:8087", "http://localhost:8080", "http://localhost:8005"],  # Em producao, especificar dominios
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8087",
+        "http://localhost:8080",
+        "http://localhost:8005",
+    ],  # Em producao, especificar dominios
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -60,20 +65,15 @@ app.include_router(pluggy_router)
 app.include_router(export_router)
 app.include_router(notifications_router)
 
-@app.get('/', tags=['Root'])
-async def root():
-    '''Endpoint raiz da api'''
-    logger.info('Endpoint inicializado')
-    return {
-        'message': 'API Financeira está funcionando!',
-        'docs': '/docs',
-        'redoc': '/redoc'
-    }
 
-@app.get('/health', tags=['Health'])
+@app.get("/", tags=["Root"])
+async def root():
+    """Endpoint raiz da api"""
+    logger.info("Endpoint inicializado")
+    return {"message": "API Financeira está funcionando!", "docs": "/docs", "redoc": "/redoc"}
+
+
+@app.get("/health", tags=["Health"])
 async def health():
-    '''Health check geral da api'''
-    return {
-        'status': 'Healthy',
-        'service': 'api-financeira'
-    }
+    """Health check geral da api"""
+    return {"status": "Healthy", "service": "api-financeira"}

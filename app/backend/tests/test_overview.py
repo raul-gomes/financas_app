@@ -2,12 +2,15 @@ import pytest
 
 
 async def _create_cat(client, nome, entidade="individual", limite=1000.0):
-    resp = await client.post("/categories/", json={
-        "category_name": nome,
-        "entity_type": entidade,
-        "limit": limite,
-        "subcategories": [{"subcategory_name": "Sub" + nome}],
-    })
+    resp = await client.post(
+        "/categories/",
+        json={
+            "category_name": nome,
+            "entity_type": entidade,
+            "limit": limite,
+            "subcategories": [{"subcategory_name": "Sub" + nome}],
+        },
+    )
     assert resp.status_code == 201
     opts = await client.get("/dashboard/category-options")
     opt = next((c for c in opts.json()["options"] if c["name"] == nome), None)
@@ -15,8 +18,19 @@ async def _create_cat(client, nome, entidade="individual", limite=1000.0):
     return resp.json()["id"], sub_id
 
 
-async def _add_tx(client, amount, tipo, entidade, sub_id, cat_id, method="pix",
-                  day="2026-09-10T10:00:00", installment=None, total=None, is_installment=False):
+async def _add_tx(
+    client,
+    amount,
+    tipo,
+    entidade,
+    sub_id,
+    cat_id,
+    method="pix",
+    day="2026-09-10T10:00:00",
+    installment=None,
+    total=None,
+    is_installment=False,
+):
     payload = {
         "amount": amount,
         "description": f"Tx {amount}",
@@ -77,9 +91,9 @@ async def test_overview_categorias_status_somente_proximas_ou_estouradas(client)
     warn_cat, warn_sub = await _create_cat(client, "Lazer", "individual", 1000.0)
     over_cat, over_sub = await _create_cat(client, "Compras", "individual", 1000.0)
 
-    await _add_tx(client, 400.0, "expense", "individual", safe_sub, safe_cat)    # 40% -> fora
-    await _add_tx(client, 900.0, "expense", "individual", warn_sub, warn_cat)    # 90% -> warning
-    await _add_tx(client, 1200.0, "expense", "individual", over_sub, over_cat)   # 120% -> over
+    await _add_tx(client, 400.0, "expense", "individual", safe_sub, safe_cat)  # 40% -> fora
+    await _add_tx(client, 900.0, "expense", "individual", warn_sub, warn_cat)  # 90% -> warning
+    await _add_tx(client, 1200.0, "expense", "individual", over_sub, over_cat)  # 120% -> over
 
     resp = await client.get("/dashboard/overview?year=2026&month=9&entity_type=individual")
     status = {s["category_name"]: s["status"] for s in resp.json()["categories_status"]}
@@ -105,8 +119,18 @@ async def test_overview_categorias_status_limiar_80(client):
 async def test_overview_parcelas_do_mes(client):
     cat_id, sub_id = await _create_cat(client, "Eletro", "individual", 1000.0)
     # Parcelada: 1/10 de 5000
-    await _add_tx(client, 500.0, "expense", "individual", sub_id, cat_id,
-                  method="credit", installment=1, total=10, is_installment=True)
+    await _add_tx(
+        client,
+        500.0,
+        "expense",
+        "individual",
+        sub_id,
+        cat_id,
+        method="credit",
+        installment=1,
+        total=10,
+        is_installment=True,
+    )
     # À vista não entra em parcelas
     await _add_tx(client, 60.0, "expense", "individual", sub_id, cat_id)
 
@@ -120,12 +144,15 @@ async def test_overview_parcelas_do_mes(client):
 @pytest.mark.asyncio
 async def test_overview_credito_usado_vs_limite(client):
     # Cria categoria especial de limite de cartão
-    await client.post("/categories/", json={
-        "category_name": "Limite Cartao Credito",
-        "entity_type": "individual",
-        "limit": 10000.0,
-        "subcategories": [],
-    })
+    await client.post(
+        "/categories/",
+        json={
+            "category_name": "Limite Cartao Credito",
+            "entity_type": "individual",
+            "limit": 10000.0,
+            "subcategories": [],
+        },
+    )
     cat_id, sub_id = await _create_cat(client, "ComprasCartao", "individual", 1000.0)
     await _add_tx(client, 3000.0, "expense", "individual", sub_id, cat_id, method="credit")
     await _add_tx(client, 500.0, "expense", "individual", sub_id, cat_id, method="pix")
@@ -148,16 +175,19 @@ async def test_overview_recorrentes_e_parcelas_futuras(client):
     opts = [o for o in cats.json()["options"] if o["name"] != "Limite Cartao Credito"]
     opt = opts[0]
     sub_id = opt["subcategories"][0]["id"]
-    cr = await client.post("/recurring-accounts/", json={
-        "description": "Assinatura Netflix",
-        "amount": 50.0,
-        "due_day": 5,
-        "category_id": opt["id"],
-        "subcategory_id": sub_id,
-        "entity_type": "individual",
-        "payment_method": "pix",
-        "start_date": "2026-01-01T00:00:00",
-    })
+    cr = await client.post(
+        "/recurring-accounts/",
+        json={
+            "description": "Assinatura Netflix",
+            "amount": 50.0,
+            "due_day": 5,
+            "category_id": opt["id"],
+            "subcategory_id": sub_id,
+            "entity_type": "individual",
+            "payment_method": "pix",
+            "start_date": "2026-01-01T00:00:00",
+        },
+    )
     assert cr.status_code == 201, cr.text
 
     ov = await client.get("/dashboard/overview?year=2026&month=9&entity_type=all")
@@ -169,8 +199,12 @@ async def test_overview_recorrentes_e_parcelas_futuras(client):
 @pytest.mark.asyncio
 async def test_overview_metas_e_compras_somente_admin(clients_ctrl):
     # Como admin (user 1): metas e compras populadas
-    await clients_ctrl.post("/goals/", json={"subcategory_name": "Meta Eurotrip", "target_amount": 50000})
-    await clients_ctrl.post("/shopping/", json={"name": "Notebook", "reference_month": "2026-09-01"})
+    await clients_ctrl.post(
+        "/goals/", json={"subcategory_name": "Meta Eurotrip", "target_amount": 50000}
+    )
+    await clients_ctrl.post(
+        "/shopping/", json={"name": "Notebook", "reference_month": "2026-09-01"}
+    )
 
     resp = await clients_ctrl.get("/dashboard/overview?year=2026&month=9&entity_type=all")
     data = resp.json()

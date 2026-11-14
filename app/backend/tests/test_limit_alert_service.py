@@ -21,17 +21,19 @@ async def _seed_categoria_e_gasto(async_session, limit, spent, monthly=True, pay
     async_session.add(sub)
     await async_session.flush()
 
-    async_session.add(TransactionORM(
-        amount=spent,
-        description="Compras",
-        transaction_date=__import__("datetime").datetime(2026, 9, 15),
-        type="expense",
-        entity_type="individual",
-        payment_method=payment_method,
-        category_id=cat.id,
-        subcategory_id=sub.id,
-        user_id=1,
-    ))
+    async_session.add(
+        TransactionORM(
+            amount=spent,
+            description="Compras",
+            transaction_date=__import__("datetime").datetime(2026, 9, 15),
+            type="expense",
+            entity_type="individual",
+            payment_method=payment_method,
+            category_id=cat.id,
+            subcategory_id=sub.id,
+            user_id=1,
+        )
+    )
     await async_session.flush()
     return user, cat
 
@@ -109,23 +111,27 @@ async def test_cartaol_quase_no_limite_gera_alerta_scope_credit_card(async_sessi
     user = UserORM(id=1, name="Teste", email="alert@teste.com", password_hash="", role="admin")
     async_session.add(user)
     await async_session.flush()
-    card_cat = CategoryORM(name="Limite Cartao Credito", entity_type="individual", limit=2000.0, user_id=1)
+    card_cat = CategoryORM(
+        name="Limite Cartao Credito", entity_type="individual", limit=2000.0, user_id=1
+    )
     async_session.add(card_cat)
     await async_session.flush()
     sub = SubcategoryORM(name="Fatura", category_id=card_cat.id)
     async_session.add(sub)
     await async_session.flush()
-    async_session.add(TransactionORM(
-        amount=1700.0,
-        description="Fatura cartao",
-        transaction_date=__import__("datetime").datetime(2026, 9, 10),
-        type="expense",
-        entity_type="individual",
-        payment_method="credit",
-        category_id=card_cat.id,
-        subcategory_id=sub.id,
-        user_id=1,
-    ))
+    async_session.add(
+        TransactionORM(
+            amount=1700.0,
+            description="Fatura cartao",
+            transaction_date=__import__("datetime").datetime(2026, 9, 10),
+            type="expense",
+            entity_type="individual",
+            payment_method="credit",
+            category_id=card_cat.id,
+            subcategory_id=sub.id,
+            user_id=1,
+        )
+    )
     await async_session.flush()
 
     criados = await LimitAlertService(async_session).evaluate_limits(1, 2026, 9)

@@ -31,16 +31,23 @@ class TestAdminGuard:
         # user 3 = role='user' tem acesso a limites/recorrentes
         clients_ctrl.switch(3)
         resp = await clients_ctrl.get("/recurring-accounts/")
-        assert resp.status_code == 200, f"GET /recurring-accounts/ retornou {resp.status_code} p/ user"
+        assert resp.status_code == 200, (
+            f"GET /recurring-accounts/ retornou {resp.status_code} p/ user"
+        )
 
     async def test_user_role_cannot_generate_recurring(self, clients_ctrl):
         # generate cria transações em massa — permanece admin-only (Financial só chama p/ admin)
         clients_ctrl.switch(3)
-        resp = await clients_ctrl.post("/recurring-accounts/generate", json={
-            "start_date": "2026-06-01T00:00:00",
-            "end_date": "2026-06-30T00:00:00",
-        })
-        assert resp.status_code == 403, f"POST /recurring-accounts/generate retornou {resp.status_code} p/ user"
+        resp = await clients_ctrl.post(
+            "/recurring-accounts/generate",
+            json={
+                "start_date": "2026-06-01T00:00:00",
+                "end_date": "2026-06-30T00:00:00",
+            },
+        )
+        assert resp.status_code == 403, (
+            f"POST /recurring-accounts/generate retornou {resp.status_code} p/ user"
+        )
 
     async def test_admin_role_not_blocked_on_dashboard(self, clients_ctrl):
         # user 1 = role='admin' não leva 403 numa rota comum

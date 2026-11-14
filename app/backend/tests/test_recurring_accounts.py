@@ -74,12 +74,19 @@ async def test_create_conta_recorrente_com_parcelas(client):
 @pytest.mark.asyncio
 async def test_list_contas_recorrentes(client):
     cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta1")
-    await client.post("/recurring-accounts/", json={
-        "description": "Luz", "amount": 100.0, "due_day": 5,
-        "category_id": cat_id, "subcategory_id": sub_id,
-        "entity_type": "individual", "payment_method": "boleto",
-        "start_date": "2026-01-01T00:00:00",
-    })
+    await client.post(
+        "/recurring-accounts/",
+        json={
+            "description": "Luz",
+            "amount": 100.0,
+            "due_day": 5,
+            "category_id": cat_id,
+            "subcategory_id": sub_id,
+            "entity_type": "individual",
+            "payment_method": "boleto",
+            "start_date": "2026-01-01T00:00:00",
+        },
+    )
     response = await client.get("/recurring-accounts/")
     assert response.status_code == 200
     assert len(response.json()) >= 1
@@ -88,12 +95,19 @@ async def test_list_contas_recorrentes(client):
 @pytest.mark.asyncio
 async def test_get_conta_recorrente_by_id(client):
     cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta2")
-    create = await client.post("/recurring-accounts/", json={
-        "description": "Agua", "amount": 80.0, "due_day": 15,
-        "category_id": cat_id, "subcategory_id": sub_id,
-        "entity_type": "individual", "payment_method": "pix",
-        "start_date": "2026-02-01T00:00:00",
-    })
+    create = await client.post(
+        "/recurring-accounts/",
+        json={
+            "description": "Agua",
+            "amount": 80.0,
+            "due_day": 15,
+            "category_id": cat_id,
+            "subcategory_id": sub_id,
+            "entity_type": "individual",
+            "payment_method": "pix",
+            "start_date": "2026-02-01T00:00:00",
+        },
+    )
     conta_id = create.json()["id"]
     response = await client.get(f"/recurring-accounts/{conta_id}")
     assert response.status_code == 200
@@ -109,12 +123,19 @@ async def test_get_conta_recorrente_not_found(client):
 @pytest.mark.asyncio
 async def test_update_conta_recorrente_toggle_ativo(client):
     cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta3")
-    create = await client.post("/recurring-accounts/", json={
-        "description": "Internet", "amount": 120.0, "due_day": 20,
-        "category_id": cat_id, "subcategory_id": sub_id,
-        "entity_type": "individual", "payment_method": "pix",
-        "start_date": "2026-01-01T00:00:00",
-    })
+    create = await client.post(
+        "/recurring-accounts/",
+        json={
+            "description": "Internet",
+            "amount": 120.0,
+            "due_day": 20,
+            "category_id": cat_id,
+            "subcategory_id": sub_id,
+            "entity_type": "individual",
+            "payment_method": "pix",
+            "start_date": "2026-01-01T00:00:00",
+        },
+    )
     conta_id = create.json()["id"]
     response = await client.put(f"/recurring-accounts/{conta_id}", json={"active": False})
     assert response.status_code == 200
@@ -124,12 +145,19 @@ async def test_update_conta_recorrente_toggle_ativo(client):
 @pytest.mark.asyncio
 async def test_update_conta_recorrente_valor(client):
     cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta4")
-    create = await client.post("/recurring-accounts/", json={
-        "description": "Telefone", "amount": 50.0, "due_day": 25,
-        "category_id": cat_id, "subcategory_id": sub_id,
-        "entity_type": "individual", "payment_method": "pix",
-        "start_date": "2026-01-01T00:00:00",
-    })
+    create = await client.post(
+        "/recurring-accounts/",
+        json={
+            "description": "Telefone",
+            "amount": 50.0,
+            "due_day": 25,
+            "category_id": cat_id,
+            "subcategory_id": sub_id,
+            "entity_type": "individual",
+            "payment_method": "pix",
+            "start_date": "2026-01-01T00:00:00",
+        },
+    )
     conta_id = create.json()["id"]
     response = await client.put(f"/recurring-accounts/{conta_id}", json={"amount": 75.0})
     assert response.status_code == 200
@@ -139,12 +167,19 @@ async def test_update_conta_recorrente_valor(client):
 @pytest.mark.asyncio
 async def test_delete_conta_recorrente(client):
     cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta5")
-    create = await client.post("/recurring-accounts/", json={
-        "description": "Streaming", "amount": 30.0, "due_day": 1,
-        "category_id": cat_id, "subcategory_id": sub_id,
-        "entity_type": "individual", "payment_method": "credit",
-        "start_date": "2026-01-01T00:00:00",
-    })
+    create = await client.post(
+        "/recurring-accounts/",
+        json={
+            "description": "Streaming",
+            "amount": 30.0,
+            "due_day": 1,
+            "category_id": cat_id,
+            "subcategory_id": sub_id,
+            "entity_type": "individual",
+            "payment_method": "credit",
+            "start_date": "2026-01-01T00:00:00",
+        },
+    )
     conta_id = create.json()["id"]
     response = await client.delete(f"/recurring-accounts/{conta_id}")
     assert response.status_code == 200
@@ -162,12 +197,19 @@ async def test_delete_conta_recorrente_not_found(client):
 @pytest.mark.asyncio
 async def test_renew_conta_recorrente(client):
     cat, cat_id, sub_id = await create_categoria_with_sub(client, "ContaRenew")
-    create = await client.post("/recurring-accounts/", json={
-        "description": "Assinatura", "amount": 40.0, "due_day": 10,
-        "category_id": cat_id, "subcategory_id": sub_id,
-        "entity_type": "individual", "payment_method": "pix",
-        "start_date": "2025-06-01T00:00:00",
-    })
+    create = await client.post(
+        "/recurring-accounts/",
+        json={
+            "description": "Assinatura",
+            "amount": 40.0,
+            "due_day": 10,
+            "category_id": cat_id,
+            "subcategory_id": sub_id,
+            "entity_type": "individual",
+            "payment_method": "pix",
+            "start_date": "2025-06-01T00:00:00",
+        },
+    )
     conta_id = create.json()["id"]
 
     # Deactivate first
@@ -185,16 +227,26 @@ async def test_renew_conta_recorrente(client):
 @pytest.mark.asyncio
 async def test_generate_pending_transactions(client):
     cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta6")
-    await client.post("/recurring-accounts/", json={
-        "description": "Gas", "amount": 60.0, "due_day": 10,
-        "category_id": cat_id, "subcategory_id": sub_id,
-        "entity_type": "individual", "payment_method": "pix",
-        "start_date": "2025-01-01T00:00:00",
-    })
-    response = await client.post("/recurring-accounts/generate", json={
-        "start_date": "2026-01-01T00:00:00",
-        "end_date": "2026-03-31T00:00:00",
-    })
+    await client.post(
+        "/recurring-accounts/",
+        json={
+            "description": "Gas",
+            "amount": 60.0,
+            "due_day": 10,
+            "category_id": cat_id,
+            "subcategory_id": sub_id,
+            "entity_type": "individual",
+            "payment_method": "pix",
+            "start_date": "2025-01-01T00:00:00",
+        },
+    )
+    response = await client.post(
+        "/recurring-accounts/generate",
+        json={
+            "start_date": "2026-01-01T00:00:00",
+            "end_date": "2026-03-31T00:00:00",
+        },
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["generated"] >= 0

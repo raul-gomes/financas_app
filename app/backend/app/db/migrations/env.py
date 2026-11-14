@@ -10,8 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from app.core.config import Config
 
 
-
-
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -74,18 +72,21 @@ async def do_run_migrations_online() -> None:
         await connection.run_sync(_do_run_migrations)
     await connectable.dispose()
 
+
 def _do_run_migrations(connection: Connection):
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        compare_type=True,            # detecta mudança de tipo de coluna
-        render_as_batch=True,         # necessário para SQLite ao alterar colunas/tabelas
+        compare_type=True,  # detecta mudança de tipo de coluna
+        render_as_batch=True,  # necessário para SQLite ao alterar colunas/tabelas
     )
     with context.begin_transaction():
         context.run_migrations()
 
+
 def run_migrations_online():
     asyncio.run(do_run_migrations_online())
+
 
 if context.is_offline_mode():
     run_migrations_offline()

@@ -93,9 +93,13 @@ async def assign_random_banks(
     banks = await settings_repo.list_banks(current_user.id)
 
     if not banks:
-        raise HTTPException(status_code=400, detail="Nenhum banco cadastrado. Adicione bancos primeiro.")
+        raise HTTPException(
+            status_code=400, detail="Nenhum banco cadastrado. Adicione bancos primeiro."
+        )
 
-    updated = await transacao_repo.assign_random_banks([b.bank_code for b in banks], current_user.id)
+    updated = await transacao_repo.assign_random_banks(
+        [b.bank_code for b in banks], current_user.id
+    )
 
     log.success(f"{updated} transações atualizadas com banco aleatório")
     return {"updated": updated}

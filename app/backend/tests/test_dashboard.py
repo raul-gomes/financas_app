@@ -3,26 +3,45 @@ import pytest
 
 async def _setup_dashboard_data(client):
     cat, cat_id, sub_id = await _create_cat(client, "DashAlim")
-    await client.post("/transacoes/", json={
-        "amount": 100.0, "description": "Compras",
-        "transaction_date": "2026-01-15T10:00:00",
-        "type": "expense", "entity_type": "individual", "payment_method": "pix",
-        "category_id": cat_id, "subcategory_id": sub_id,
-    })
-    await client.post("/transacoes/", json={
-        "amount": 3000.0, "description": "Salario",
-        "transaction_date": "2026-01-01T00:00:00",
-        "type": "income", "entity_type": "individual", "payment_method": "pix",
-        "category_name": "Renda", "subcategory_name": "Salario",
-    })
+    await client.post(
+        "/transacoes/",
+        json={
+            "amount": 100.0,
+            "description": "Compras",
+            "transaction_date": "2026-01-15T10:00:00",
+            "type": "expense",
+            "entity_type": "individual",
+            "payment_method": "pix",
+            "category_id": cat_id,
+            "subcategory_id": sub_id,
+        },
+    )
+    await client.post(
+        "/transacoes/",
+        json={
+            "amount": 3000.0,
+            "description": "Salario",
+            "transaction_date": "2026-01-01T00:00:00",
+            "type": "income",
+            "entity_type": "individual",
+            "payment_method": "pix",
+            "category_name": "Renda",
+            "subcategory_name": "Salario",
+        },
+    )
     return cat_id, sub_id
 
 
 async def _create_cat(client, nome):
-    resp = await client.post("/categories/", json={
-        "category_name": nome, "entity_type": "individual", "limit": 1000.0,
-        "subcategories": [{"subcategory_name": "Sub1"}],
-    })
+    resp = await client.post(
+        "/categories/",
+        json={
+            "category_name": nome,
+            "entity_type": "individual",
+            "limit": 1000.0,
+            "subcategories": [{"subcategory_name": "Sub1"}],
+        },
+    )
     assert resp.status_code == 201
     cat = resp.json()
     opts = await client.get("/dashboard/category-options")
@@ -34,7 +53,9 @@ async def _create_cat(client, nome):
 @pytest.mark.asyncio
 async def test_extrato_financeiro(client):
     await _setup_dashboard_data(client)
-    response = await client.get("/dashboard/statement?start_date=01/01/2026&end_date=31/01/2026&entity_type=individual")
+    response = await client.get(
+        "/dashboard/statement?start_date=01/01/2026&end_date=31/01/2026&entity_type=individual"
+    )
     assert response.status_code == 200
     data = response.json()
     assert "total_income" in data
@@ -54,7 +75,9 @@ async def test_rendimento_periodo(client):
 @pytest.mark.asyncio
 async def test_gastos_por_categoria(client):
     await _setup_dashboard_data(client)
-    response = await client.get("/dashboard/expenses-by-category?start_date=01/01/2026&end_date=31/01/2026&entity_type=individual&type=expense")
+    response = await client.get(
+        "/dashboard/expenses-by-category?start_date=01/01/2026&end_date=31/01/2026&entity_type=individual&type=expense"
+    )
     assert response.status_code == 200
     data = response.json()
     assert "categories" in data
@@ -84,11 +107,14 @@ async def test_opcoes_categorias_escondem_categorias_de_configuracao(client):
     # Categorias de configuração (orçamento mensal / limite do cartão) NÃO
     # podem aparecer como opções de categoria no dropdown de transação.
     for nome in ["Mensal PF", "Mensal PJ", "Limite Cartao Credito"]:
-        resp = await client.post("/categories/", json={
-            "category_name": nome,
-            "entity_type": "individual",
-            "limit": 5000.0,
-        })
+        resp = await client.post(
+            "/categories/",
+            json={
+                "category_name": nome,
+                "entity_type": "individual",
+                "limit": 5000.0,
+            },
+        )
         assert resp.status_code == 201
 
     await _create_cat(client, "Moradia")
@@ -107,7 +133,9 @@ async def test_opcoes_categorias_escondem_categorias_de_configuracao(client):
 @pytest.mark.asyncio
 async def test_entradas_por_categoria(client):
     await _setup_dashboard_data(client)
-    response = await client.get("/dashboard/income-by-category?start_date=01/01/2026&end_date=31/01/2026&entity_type=individual")
+    response = await client.get(
+        "/dashboard/income-by-category?start_date=01/01/2026&end_date=31/01/2026&entity_type=individual"
+    )
     assert response.status_code == 200
     data = response.json()
     assert "subcategories" in data
@@ -115,5 +143,7 @@ async def test_entradas_por_categoria(client):
 
 @pytest.mark.asyncio
 async def test_extrato_invalid_date_format(client):
-    response = await client.get("/dashboard/statement?start_date=invalid&end_date=31/01/2026&entity_type=individual")
+    response = await client.get(
+        "/dashboard/statement?start_date=invalid&end_date=31/01/2026&entity_type=individual"
+    )
     assert response.status_code == 400
