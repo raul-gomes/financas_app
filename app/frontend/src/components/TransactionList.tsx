@@ -63,8 +63,13 @@ export function TransactionList({
 
   // Load banks once on mount (banks change rarely)
   useEffect(() => {
-    SettingsService.listBanks().then(setBanks).catch(() => {});
-  }, []);
+    SettingsService.listBanks()
+      .then(setBanks)
+      .catch((error: unknown) => {
+        console.error('Error loading banks:', error);
+        toast({ title: 'Erro', description: 'Falha ao carregar os bancos.', variant: 'destructive' });
+      });
+  }, [toast]);
 
   const getBankName = (bankCode: string | null | undefined): string | null => {
     if (!bankCode) return null;

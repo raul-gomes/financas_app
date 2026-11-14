@@ -194,11 +194,11 @@ export function EditTransactionDialog({
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="expense" id="expense" />
-                  <Label htmlFor="expense" className="text-destructive">Saída</Label>
+                  <Label htmlFor="expense" className="text-destructive">Despesa</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="income" id="income" />
-                  <Label htmlFor="income" className="text-success">Entrada</Label>
+                  <Label htmlFor="income" className="text-success">Receita</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="investment" id="investment" />
@@ -298,7 +298,7 @@ export function EditTransactionDialog({
                 </Select>
                 {showNewCategoryInput && (
                   <div className="mt-2">
-                    <Label>Nova Categoria</Label>
+                    <Label>Nova categoria</Label>
                     <div className="flex gap-2">
                       <Input
                         placeholder="Nova categoria"
@@ -357,7 +357,7 @@ export function EditTransactionDialog({
             </Select>
             {showNewSubcategoryInput && (
               <div className="mt-2">
-                <Label>Nova Subcategoria</Label>
+                <Label>Nova subcategoria</Label>
                 <div className="flex gap-2">
                   <Input
                     placeholder="Nova subcategoria"
@@ -471,7 +471,7 @@ export function EditTransactionDialog({
 
           {/* Payment Method + Installment Switch */}
           <div className="space-y-2">
-            <Label htmlFor="payment_method">Forma de Pagamento *</Label>
+            <Label htmlFor="payment_method">Forma de pagamento</Label>
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 <Select
@@ -499,7 +499,7 @@ export function EditTransactionDialog({
                 </Select>
                 {showNewPaymentMethodInput && (
                   <div className="mt-2">
-                    <Label>Nova Forma de Pagamento</Label>
+                    <Label>Nova forma de pagamento</Label>
                     <div className="flex gap-2">
                       <Input
                         placeholder="Digite a nova forma de pagamento"
@@ -540,7 +540,7 @@ export function EditTransactionDialog({
             <div className="border border-dashed border-primary/40 rounded-lg p-4 bg-primary/5 space-y-3">
               <div className="flex items-end gap-4">
                 <div className="flex-1 space-y-2">
-                  <Label htmlFor="total_installments">Total de Parcelas *</Label>
+                  <Label htmlFor="total_installments">Número de parcelas</Label>
                   <Input
                     id="total_installments"
                     type="number"

@@ -137,8 +137,9 @@ export function AddTransactionDialog({
       .then(risk => {
         if (!cancelled) setCategoryRisk(risk);
       })
-      .catch(() => {
-        // falha silenciosa — o aviso é bônus, não deve quebrar o fluxo
+      .catch((error: unknown) => {
+        // Fallback documentado: o aviso de limite é bônus e não bloqueia o fluxo; só registramos o erro.
+        console.error('Category risk check failed:', error);
       });
     return () => { cancelled = true; };
   }, [formData.category_name, formData.entity_type, formData.type, formData.amount, categoryOptions]);
@@ -267,8 +268,13 @@ export function AddTransactionDialog({
         });
         return;
       }
-    } catch {
-      // If check fails, proceed anyway
+    } catch (error) {
+      // The duplicate check is advisory: warn the user and still let them save.
+      console.error('Duplicate check failed; adding the transaction anyway:', error);
+      toast({
+        title: 'Aviso',
+        description: 'Não foi possível verificar duplicidade. A transação será salva mesmo assim.',
+      });
     } finally {
       setIsCheckingDuplicate(false);
     }
