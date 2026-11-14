@@ -35,7 +35,7 @@ consolidados no fim.
 - [x] **Q2** (média) FEITO: ruff configurado no `pyproject.toml` (format + lint zerados). Regras adiadas em `extend-ignore` com TODO: B904, UP042, S314, S112, B017 (testes); E501 ignorado (formatter cuida).
 - [ ] **Q3** (média) Extrair serviços dos repositórios e das rotas; unit of work por request.
 - [ ] **Q4** (média) Trocar `except Exception` silenciosos por exceções específicas.
-- [ ] **Q5** (média) Zod nos services do frontend; remover `any`.
+- [x] **Q5** (média) Zod nos services do frontend; remover `any`. Feito: `src/schemas/*` + `lib/parse.ts`; todo `res.json()` dos services é parseado uma vez na borda; sem `any` em src (fora de `ui/`). Follow-up: ligar `strictNullChecks` (hoje `Infer<>` compensa o `z.infer` no modo não estrito).
 - [ ] **Q6** (média) Quebrar `BankExtract.tsx`, `ExtratoDialog.tsx`, `AddTransactionDialog.tsx`; unificar Add/Edit (ao tocar).
 - [ ] **Q7** (média) Trocar cores fixas por tokens (ao tocar).
 - [ ] **Q8** (média) Usar react-query nos fetches ou remover a dependência.

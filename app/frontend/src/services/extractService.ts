@@ -1,4 +1,6 @@
 import { apiFetch } from '@/lib/api';
+import { parseResponse } from '@/lib/parse';
+import { uploadResponseSchema, confirmResponseSchema } from '@/schemas/extract';
 import {
   UploadResponse,
   ConfirmPayload,
@@ -15,7 +17,7 @@ export class ExtractoService {
       body: formData,
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao fazer upload do extrato`);
-    return res.json();
+    return parseResponse(res, uploadResponseSchema, 'fazer upload do extrato');
   }
 
   static async uploadMultiple(files: File[]): Promise<SessionData[]> {
@@ -47,6 +49,6 @@ export class ExtractoService {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao confirmar extrato`);
-    return res.json();
+    return parseResponse(res, confirmResponseSchema, 'confirmar extrato');
   }
 }

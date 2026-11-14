@@ -1,4 +1,6 @@
 import { apiFetch } from '@/lib/api';
+import { parseResponse } from '@/lib/parse';
+import { overviewResponseSchema } from '@/schemas/overview';
 import { OverviewResponse } from '@/types/overview';
 
 export class OverviewService {
@@ -14,6 +16,6 @@ export class OverviewService {
     });
     const res = await apiFetch(`/dashboard/overview?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar overview`);
-    return res.json();
+    return parseResponse(res, overviewResponseSchema, 'buscar overview');
   }
 }
