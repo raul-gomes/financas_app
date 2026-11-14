@@ -75,8 +75,8 @@ describe('OverviewDashboard', () => {
     await waitFor(() => {
       expect(screen.getByText("Entradas")).toBeTruthy();
     });
-    expect(screen.getByText('R$3,200.00')).toBeTruthy();
-    expect(screen.getByText('R$1,800.00')).toBeTruthy();
+    expect(screen.getByText(/R\$\s3\.200,00/)).toBeTruthy();
+    expect(screen.getByText(/R\$\s1\.800,00/)).toBeTruthy();
     expect(screen.getAllByText('30%').length).toBeGreaterThan(0);
   });
 

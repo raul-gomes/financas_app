@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.transaction import NaturezaTransacao, TipoTransacao
 
@@ -24,8 +24,7 @@ class TransacaoExtrato(BaseModel):
     recurring_account_id: int | None = None
     bank_code: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ExtratoResponse(BaseModel):
@@ -42,8 +41,7 @@ class ExtratoResponse(BaseModel):
     )
     variable_expenses: float = Field(default=0, description="Total de gastos variáveis")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MesRendimento(BaseModel):
@@ -57,8 +55,7 @@ class RendimentoPeriodoResponse(BaseModel):
         ..., description="Dados de entrada e saída por mês em minúsculo"
     )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # app/schemas/dashboard.py
@@ -86,8 +83,7 @@ class GastosPorCategoriaResponse(BaseModel):
     end_date: str = Field(..., description="Data final do filtro (DD/MM/YYYY)")
     categories: list[CategoriaGasto] = Field(..., description="Categorias com valores agregados")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SubcategoriaOpcao(BaseModel):
@@ -109,8 +105,7 @@ class OpcoesCategoriaResponse(BaseModel):
         ..., description="Lista de categorias com suas subcategorias"
     )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EntradaSubcategoriaItem(BaseModel):
@@ -125,5 +120,4 @@ class EntradasPorCategoriaResponse(BaseModel):
         ..., description="Lista de subcategorias com entradas agregadas"
     )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

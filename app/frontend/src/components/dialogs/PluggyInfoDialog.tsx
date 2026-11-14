@@ -107,7 +107,7 @@ export function PluggyInfoDialog() {
                     'No menu, vá em "API Keys" e clique em "Criar nova chave". Copie a chave gerada (uma string longa que começa com "plk_").',
                 },
                 {
-                  title: 'Cole a chave no Finanças App',
+                  title: 'Cole a chave no Placo',
                   description:
                     'Volte para esta página de Configurações, cole a chave no campo "API Key do Meu Pluggy" e clique em "Validar". Se a chave for válida, você verá uma confirmação verde.',
                 },

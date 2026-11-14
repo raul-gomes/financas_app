@@ -22,7 +22,7 @@ async def test_commit_runs_callbacks_after_the_commit(async_session):
     async def callback() -> None:
         seen.append(await _count_users(async_session))
 
-    async_session.add(UserORM(id=1, name="A", email="a@example.com", password_hash=""))
+    async_session.add(UserORM(id=1, name="A", email="a@example.com"))
     uow.after_commit(callback)
     await uow.commit()
 
@@ -36,7 +36,7 @@ async def test_failing_callback_does_not_undo_the_commit(async_session):
     async def boom() -> None:
         raise RuntimeError("side effect failed")
 
-    async_session.add(UserORM(id=1, name="A", email="a@example.com", password_hash=""))
+    async_session.add(UserORM(id=1, name="A", email="a@example.com"))
     uow.after_commit(boom)
     await uow.commit()
 
@@ -51,7 +51,7 @@ async def test_rollback_discards_changes_and_pending_callbacks(async_session):
     async def callback() -> None:
         called.append(True)
 
-    async_session.add(UserORM(id=1, name="A", email="a@example.com", password_hash=""))
+    async_session.add(UserORM(id=1, name="A", email="a@example.com"))
     uow.after_commit(callback)
     await uow.rollback()
     await uow.commit()
@@ -71,12 +71,12 @@ def _build_app(session) -> FastAPI:
 
     @app.post("/ok")
     async def ok(uow: UnitOfWork = Depends(get_unit_of_work, scope="function")) -> dict:
-        uow.session.add(UserORM(id=1, name="A", email="a@example.com", password_hash=""))
+        uow.session.add(UserORM(id=1, name="A", email="a@example.com"))
         return {"ok": True}
 
     @app.post("/fail")
     async def fail(uow: UnitOfWork = Depends(get_unit_of_work, scope="function")) -> dict:
-        uow.session.add(UserORM(id=2, name="B", email="b@example.com", password_hash=""))
+        uow.session.add(UserORM(id=2, name="B", email="b@example.com"))
         await uow.session.flush()
         raise HTTPException(status_code=409, detail="conflict")
 

@@ -10,6 +10,7 @@ import type { ShoppingItem } from '@/types/shopping';
 import { Plus, ShoppingCart, Trash2, Search } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/hooks/use-toast';
+import { formatDate } from '@/lib/format';
 
 interface ComprasListProps {
   entityType?: string;
@@ -176,7 +177,7 @@ export function ComprasList({ entityType }: ComprasListProps) {
                         <span className="text-sm text-muted-foreground line-through">{item.name}</span>
                         {item.completed_at && (
                           <p className="text-[10px] text-muted-foreground/60">
-                            {new Date(item.completed_at + 'T12:00:00').toLocaleDateString('en-US')}
+                            {formatDate(item.completed_at)}
                           </p>
                         )}
                       </div>

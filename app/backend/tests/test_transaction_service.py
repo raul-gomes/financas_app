@@ -52,9 +52,7 @@ def evaluations(monkeypatch):
 
 async def _service(session, user_id: int) -> tuple[TransactionService, UnitOfWork]:
     if await session.get(UserORM, user_id) is None:
-        session.add(
-            UserORM(id=user_id, name="U", email=f"u{user_id}@example.com", password_hash="")
-        )
+        session.add(UserORM(id=user_id, name="U", email=f"u{user_id}@example.com"))
         await session.commit()
     user = await session.get(UserORM, user_id)
     uow = UnitOfWork(session)

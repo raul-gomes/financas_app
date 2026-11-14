@@ -48,7 +48,7 @@ describe('BankSelect', () => {
 
     expect(await screen.findByText('Nubank')).toBeInTheDocument();
     expect(screen.getByText('Itaú')).toBeInTheDocument();
-    expect(screen.getByText('Add new bank')).toBeInTheDocument();
+    expect(screen.getByText('Adicionar novo banco')).toBeInTheDocument();
   });
 
   it('seleciona um banco existente e propaga o código', async () => {
@@ -67,7 +67,7 @@ describe('BankSelect', () => {
 
     openSelect();
     await screen.findByText('Nubank');
-    await selectOption(/Add new bank/);
+    await selectOption(/Adicionar novo banco/);
 
     expect(await screen.findByPlaceholderText('Ex: 260')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Ex: Nubank')).toBeInTheDocument();
@@ -81,7 +81,7 @@ describe('BankSelect', () => {
 
     openSelect();
     await screen.findByText('Nubank');
-    await selectOption(/Add new bank/);
+    await selectOption(/Adicionar novo banco/);
     fireEvent.change(await screen.findByPlaceholderText('Ex: 260'), { target: { value: '077' } });
     fireEvent.change(screen.getByPlaceholderText('Ex: Nubank'), { target: { value: 'Banco Inter' } });
     fireEvent.click(screen.getByRole('button', { name: /add/i }));
@@ -101,7 +101,7 @@ describe('BankSelect', () => {
 
     openSelect();
     await screen.findByText('Nubank');
-    await selectOption(/Add new bank/);
+    await selectOption(/Adicionar novo banco/);
     await screen.findByPlaceholderText('Ex: 260');
     fireEvent.click(screen.getByRole('button', { name: /add/i }));
 
@@ -117,7 +117,7 @@ describe('BankSelect', () => {
 
     openSelect();
     await screen.findByRole('option', { name: /Nubank/ });
-    await selectOption(/Add new bank/);
+    await selectOption(/Adicionar novo banco/);
     await screen.findByPlaceholderText('Ex: 260');
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
 

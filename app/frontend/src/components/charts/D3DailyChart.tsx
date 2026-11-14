@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { formatCurrency, escapeHtml } from '@/lib/format';
+import { formatCurrency, escapeHtml, formatCompactNumber } from '@/lib/format';
 import * as d3 from '@/lib/d3';
 import { DailyData } from '@/types/financial';
 
@@ -151,7 +151,7 @@ function D3DailyChartBase({
     g.append('g')
       .call(d3.axisLeft(yScale).ticks(6).tickFormat(d => {
         const value = Number(d);
-        if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+        if (value >= 1000) return formatCompactNumber(value);
         return value.toString();
       }))
       .selectAll('text')
@@ -182,7 +182,7 @@ function D3DailyChartBase({
         .attr('fill', 'hsl(var(--destructive))')
         .style('font-size', '13px')
         .style('font-weight', 'bold')
-        .text(`Meta: R$ ${monthlyGoal.toLocaleString('en-US')}`);
+        .text(`Meta: ${formatCurrency(monthlyGoal)}`);
     }
 
     // Tooltip

@@ -50,8 +50,8 @@ async def seeded(async_session):
     s = async_session
     s.add_all(
         [
-            UserORM(id=USER, name="U1", email="u1@example.com", password_hash=""),
-            UserORM(id=OTHER_USER, name="U2", email="u2@example.com", password_hash=""),
+            UserORM(id=USER, name="U1", email="u1@example.com"),
+            UserORM(id=OTHER_USER, name="U2", email="u2@example.com"),
         ]
     )
     await s.flush()

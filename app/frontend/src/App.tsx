@@ -24,6 +24,7 @@ const Investments = lazy(() => import("./pages/Investments"));
 const Limits = lazy(() => import("./pages/Limits"));
 const RecurrentBills = lazy(() => import("./pages/RecurrentBills"));
 const Settings = lazy(() => import("./pages/Settings"));
+const More = lazy(() => import("./pages/More"));
 const BankExtract = lazy(() => import("./pages/BankExtract"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -65,6 +66,7 @@ const App = () => (
                   <Route path="/investments" element={guarded(<AdminRoute><Investments /></AdminRoute>)} />
                   <Route path="/limits" element={guarded(<Limits />)} />
                   <Route path="/recorrentes" element={guarded(<AdminRoute><RecurrentBills /></AdminRoute>)} />
+                  <Route path="/mais" element={guarded(<More />)} />
                   <Route path="/configuracoes" element={guarded(<Settings />)} />
                   <Route path="/extrato-bancario" element={guarded(<AdminRoute><BankExtract /></AdminRoute>)} />
                 </Route>

@@ -9,6 +9,7 @@ const mockCheckDuplicates = vi.fn();
 const mockAddTransaction = vi.fn();
 const mockAddBank = vi.fn();
 const mockSearchBrasilApi = vi.fn();
+const mockToast = vi.fn();
 
 vi.mock('@/services/financialService', () => ({
   FinancialService: {
@@ -34,7 +35,7 @@ vi.mock('@/services/notificationService', () => ({
 }));
 
 vi.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({ toast: vi.fn() }),
+  useToast: () => ({ toast: mockToast }),
 }));
 
 const categoryOptions = {
@@ -280,5 +281,20 @@ describe('AddTransactionDialog', () => {
         bank_name: 'NU PAGAMENTOS S.A. - NUBANK',
       });
     });
+  });
+
+  it('avisa e loga quando a checagem de duplicidade falha, mas ainda salva', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockCheckDuplicates.mockRejectedValue(new Error('network'));
+    await renderAndFillBaseForm();
+
+    fireEvent.click(screen.getByText('Adicionar'));
+
+    await waitFor(() => expect(mockAddTransaction).toHaveBeenCalled());
+    expect(consoleError).toHaveBeenCalled();
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Aviso', description: expect.stringContaining('duplicidade') }),
+    );
+    consoleError.mockRestore();
   });
 });

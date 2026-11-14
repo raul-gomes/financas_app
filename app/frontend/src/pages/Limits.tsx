@@ -20,7 +20,7 @@ const Limits = () => {
                 <div className="mb-8">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold">Configurações</h1>
+                            <h1 className="text-3xl font-bold">Limites</h1>
                             <p className="text-muted-foreground">Gerencie limites e contas recorrentes</p>
                         </div>
                         {/* PF/PJ Toggle */}

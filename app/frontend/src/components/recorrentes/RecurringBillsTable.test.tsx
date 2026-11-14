@@ -44,7 +44,7 @@ describe('RecurringBillsTable', () => {
 
   it('renderiza colunas básicas sem a coluna Banco por padrão', () => {
     render(<RecurringBillsTable {...setup()} />);
-    expect(screen.getByText('Descricao')).toBeInTheDocument();
+    expect(screen.getByText('Descrição')).toBeInTheDocument();
     expect(screen.queryByText('Banco')).not.toBeInTheDocument();
     ['Netflix', 'Academia', 'Notebook'].forEach((d) => expect(screen.getByText(d)).toBeInTheDocument());
   });

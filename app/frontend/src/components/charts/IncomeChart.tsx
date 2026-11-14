@@ -1,7 +1,7 @@
 // src/components/IncomeChart.tsx
 
 import { memo, useMemo } from 'react'
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatPercent } from '@/lib/format';
 import { D3PieChart } from './D3PieChart'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { TrendingUp } from 'lucide-react'
@@ -86,7 +86,7 @@ function IncomeChartBase({ breakdown }: IncomeChartProps) {
                 {formatCurrency(cat.value)}
               </span>
               <span className="text-xs text-muted-foreground ml-2">
-                ({((cat.value / incomeData.total) * 100).toFixed(1)}%)
+                ({formatPercent((cat.value / incomeData.total) * 100, 1)})
               </span>
             </div>
           </div>

@@ -29,6 +29,7 @@ services:
       SUPABASE_AUTH_URL: ${SUPABASE_AUTH_URL:?set in .env}
       SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:?set in .env}
       ENVIRONMENT: production
+      PLUGGY_KEY_ENCRYPTION_KEYS: ${PLUGGY_KEY_ENCRYPTION_KEYS:?set in .env (see .env.example)}
       CORS_ORIGINS: ${CORS_ORIGINS:?set in .env}
     # Single-replica assumption: migrations run at start (see docs/comandos.md)
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"

@@ -2,7 +2,7 @@ from datetime import date, datetime
 from enum import Enum
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 # Paginated transactions listing (GET /transacoes/paginated)
 TRANSACTIONS_DEFAULT_PAGE_SIZE = 30
@@ -95,9 +95,7 @@ class TransacaoResponse(TransacaoBase):
             data.subcategory_name = data.subcategory.name
         return data
 
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class TransacaoPageResponse(BaseModel):
@@ -155,8 +153,7 @@ class TransacaoUpdate(BaseModel):
                 raise ValueError("Informe subcategory_id ou subcategory_name")
         return values
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ===== Duplicate Checking =====

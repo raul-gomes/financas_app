@@ -61,9 +61,9 @@ class SubcategoriaRepository:
             await self.db.refresh(inst)
             log.info(f"Subcategoria {inst.id} criada para categoria {categoria_id}")
             return inst
-        except IntegrityError:
+        except IntegrityError as exc:
             await self.db.rollback()
-            raise HTTPException(status_code=400, detail="Erro ao criar subcategoria")
+            raise HTTPException(status_code=400, detail="Erro ao criar subcategoria") from exc
 
     async def _persist(self, commit: bool) -> None:
         """Commits, or only flushes when the caller's unit of work owns the commit."""

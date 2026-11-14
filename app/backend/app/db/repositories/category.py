@@ -136,12 +136,12 @@ class CategoriaRepository:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"Categoria com nome '{obj_in.category_name}' já existe",
-                )
+                ) from e
             log.error(f"Erro de integridade no banco: {e}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Erro de integridade no banco de dados",
-            )
+            ) from e
 
     async def get_all(self, user_id: int) -> list[CategoryORM]:
         """

@@ -25,7 +25,7 @@ describe('Limits page', () => {
   it('mostra aba Recorrentes para user (não-admin)', () => {
     mockIsAdmin = false;
     render(<Limits />);
-    expect(screen.getByText('Limites')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Limites' })).toBeInTheDocument();
     expect(screen.getByText('Recorrentes')).toBeInTheDocument();
     expect(screen.queryByText('Metas')).not.toBeInTheDocument();
     expect(screen.queryByText('Compras')).not.toBeInTheDocument();
@@ -34,7 +34,7 @@ describe('Limits page', () => {
   it('mostra todas as abas para admin', () => {
     mockIsAdmin = true;
     render(<Limits />);
-    expect(screen.getByText('Limites')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Limites' })).toBeInTheDocument();
     expect(screen.getByText('Recorrentes')).toBeInTheDocument();
     expect(screen.getByText('Metas')).toBeInTheDocument();
     expect(screen.getByText('Compras')).toBeInTheDocument();

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { formatCurrency } from '@/lib/format';
 
 interface AnimatedNumberProps {
   value: number;
@@ -10,12 +11,7 @@ interface AnimatedNumberProps {
   withDelay?: number;
 }
 
-const defaultFormat = (value: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value);
-};
+const defaultFormat = (value: number): string => formatCurrency(value);
 
 export function AnimatedNumber({
   value,

@@ -31,7 +31,7 @@ async def list_notifications(
     unread = await repo.unread_count(current_user.id)
     return NotificationsResponse(
         unread_count=unread,
-        items=[NotificationItem.from_orm(a) for a in alertas],
+        items=[NotificationItem.from_alert(a) for a in alertas],
     )
 
 

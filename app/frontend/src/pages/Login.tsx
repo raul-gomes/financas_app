@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Logo } from '@/components/brand/Logo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -35,6 +36,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex flex-col items-center justify-center p-6">
+      <Logo size="lg" className="mb-6" />
       <Card className="w-full max-w-md shadow-card border-none">
         <CardHeader>
           <CardTitle className="text-2xl text-center">Entrar</CardTitle>

@@ -1,5 +1,5 @@
 // TransactionList.tsx
-import { useState, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { formatCurrency } from '@/lib/format';
 import { useNavigate } from 'react-router';
@@ -63,7 +63,12 @@ export function TransactionList({
   const { isAdmin } = useRole();
 
   // Banks change rarely: cached and shared with the Settings screen
-  const { data: banks = [] } = useBanks();
+  const { data: banks = [], isError: isBanksError, error: banksError } = useBanks();
+  useEffect(() => {
+    if (!isBanksError) return;
+    console.error('Error loading banks:', banksError);
+    toast({ title: 'Erro', description: 'Falha ao carregar os bancos.', variant: 'destructive' });
+  }, [isBanksError, banksError, toast]);
   const debouncedSearch = useDebouncedValue(searchQuery.trim(), SEARCH_DEBOUNCE_MS);
 
   // The list is paged by the server (filters: period, PF/PJ and text); "Carregar mais" fetches the next page
@@ -118,7 +123,7 @@ export function TransactionList({
             <div className="flex items-center gap-3">
               <ArrowUpRight className="h-5 w-5 text-success" />
               <div>
-                <p className="text-sm text-muted-foreground">Income</p>
+                <p className="text-sm text-muted-foreground">Entradas</p>
                 <p className="text-lg font-semibold text-success">
                   <AnimatedNumber value={monthlyBalance.income} withDelay={100} />
                 </p>
@@ -129,7 +134,7 @@ export function TransactionList({
             <div className="flex items-center gap-3">
               <ArrowDownRight className="h-5 w-5 text-destructive" />
               <div>
-                <p className="text-sm text-muted-foreground">Expenses</p>
+                <p className="text-sm text-muted-foreground">Saídas</p>
                 <p className="text-lg font-semibold text-destructive">
                   <AnimatedNumber value={monthlyBalance.expenses} withDelay={250} />
                 </p>

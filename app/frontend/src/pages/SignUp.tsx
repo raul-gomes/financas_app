@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Logo } from '@/components/brand/Logo';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -49,7 +50,8 @@ export default function SignUp() {
 
   if (needsVerification) {
     return (
-      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-subtle flex flex-col items-center justify-center p-6">
+        <Logo size="lg" className="mb-6" />
         <Card className="w-full max-w-md shadow-card border-none">
           <CardHeader>
             <CardTitle className="text-2xl text-center">Verifique seu e-mail</CardTitle>
@@ -69,6 +71,7 @@ export default function SignUp() {
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex flex-col items-center justify-center p-6">
+      <Logo size="lg" className="mb-6" />
       <Card className="w-full max-w-md shadow-card border-none">
         <CardHeader>
           <CardTitle className="text-2xl text-center">Criar conta</CardTitle>

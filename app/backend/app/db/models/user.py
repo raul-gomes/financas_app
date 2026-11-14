@@ -12,7 +12,6 @@ class UserORM(Base):
     email = Column(String, unique=True, nullable=False)
     # Supabase `sub` claim: the stable identity (e-mail can change in Supabase).
     supabase_id = Column(String(64), unique=True, index=True, nullable=True)
-    password_hash = Column(String, nullable=False, default="")
     pluggy_api_key = Column(String, nullable=True, default=None)
     role = Column(String(32), nullable=False, server_default="user")
     created_at = Column(DateTime, server_default=func.now())
@@ -22,5 +21,8 @@ class UserORM(Base):
         "UserBankORM",
         back_populates="user",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        # Only the settings endpoints read banks (they query them directly); loading
+        # them eagerly added a SELECT to every authenticated request.
+        lazy="select",
+        passive_deletes=True,
     )
