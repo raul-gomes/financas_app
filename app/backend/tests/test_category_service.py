@@ -1,10 +1,14 @@
 """CategoryService: authorization via the authenticated user, one commit per request."""
 
+from datetime import datetime
+
 import pytest
 from sqlalchemy import func, select
 
 from app.core.errors import ConflictError, NotFoundError
 from app.db.models.category import CategoryORM, SubcategoryORM
+from app.db.models.transaction import TransactionORM
+from app.db.repositories.category import HAS_TRANSACTIONS_MESSAGE
 from app.schemas.categories import CategoriaCreate, CategoriaUpdate
 from app.schemas.subcategory import SubcategoriaCreate
 from app.services import category_service as module
@@ -135,3 +139,37 @@ async def test_delete_returns_the_removed_category(async_session, make_uow):
     assert deleted.id == category_id
     assert await _count(async_session, CategoryORM) == 0
     assert await _count(async_session, SubcategoryORM) == 0
+
+
+@pytest.mark.asyncio
+async def test_delete_with_transactions_is_a_conflict_and_changes_nothing(async_session, make_uow):
+    """Regression (Q12 b): a category that has transactions answers 409, not a crash."""
+    uow, user = await make_uow(1)
+    service = CategoryService(uow, user)
+    category_id = (await service.create(_payload())).id
+    subcategory_id = (await async_session.execute(select(SubcategoryORM.id))).scalar_one()
+    async_session.add(
+        TransactionORM(
+            amount=10.0,
+            description="Lunch",
+            transaction_date=datetime(2026, 1, 10),
+            type="expense",
+            entity_type="individual",
+            payment_method="pix",
+            category_id=category_id,
+            subcategory_id=subcategory_id,
+            user_id=1,
+        )
+    )
+    await uow.commit()
+    async_session.expire_all()
+    uow, user = await make_uow(1)
+    service = CategoryService(uow, user)
+
+    with pytest.raises(ConflictError) as raised:
+        await service.delete(category_id)
+
+    assert raised.value.message == HAS_TRANSACTIONS_MESSAGE
+    assert await _count(async_session, CategoryORM) == 1
+    assert await _count(async_session, SubcategoryORM) == 1
+    assert await _count(async_session, TransactionORM) == 1

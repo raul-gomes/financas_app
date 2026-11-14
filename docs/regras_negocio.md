@@ -74,7 +74,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 - **type:** `income` | `expense` | `investment` | `NULL` (categorias especiais: "Mensal PF", "Mensal PJ", "Limite Cartao Credito", "Metas")
 
 #### Subcategorias
-- Cascade delete-orphan ao deletar categoria
+- Cascade delete-orphan nas subcategorias ao deletar categoria; categoria com transações vinculadas não pode ser excluída (409 "Categoria possui transações vinculadas", nada é alterado)
 - **Meta:** Subcategoria com `target_amount ≠ null` ⇒ aparece em `/goals`
 - `completed` + `completed_at` (data de conclusão)
 
