@@ -40,7 +40,7 @@ Observação: as migrations (`alembic upgrade head`) rodam no start do backend e
 | `uv run alembic revision -m "<descrição>"` | Nova migration (nunca editar uma já aplicada). |
 | `SEED_USER_EMAIL=<seu-email-de-dev> DATABASE_URL=postgresql://<usuário>:<senha>@localhost:5436/financas uv run python -m app.scripts.seed` | Popular o banco de dev com dados de exemplo (usuário admin com o e-mail informado). |
 | `uv run ruff check .` / `uv run ruff format .` | Lint e formatação do backend (config em `pyproject.toml`; `--fix` aplica correções seguras). |
-| `uvx pip-audit --disable-pip --no-deps -r <(uv export --frozen --no-hashes --no-emit-project)` | Auditoria de dependências do backend (roda no CI de forma informativa; ver Q1). |
+| `uvx pip-audit --disable-pip --no-deps -r <(uv export --frozen --no-hashes --no-emit-project)` | Auditoria de dependências do backend (roda no CI e bloqueia o build). |
 
 ## Frontend (`app/frontend`)
 
@@ -52,6 +52,7 @@ Observação: as migrations (`alembic upgrade head`) rodam no start do backend e
 | `npm run test` | Testes unitários (Vitest). |
 | `npm run lint` | Lint (ESLint). |
 | `npm run build` | Build de produção (`dist/`). |
+| `npm audit --omit=dev` | Auditoria de dependências de produção do frontend (`npm audit fix` sem `--force`). |
 | `node scripts/check-bundle-size.mjs` | Orçamento de bundle (500 kB gzip por chunk), o mesmo do CI. |
 
 ## Git e CI

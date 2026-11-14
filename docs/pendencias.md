@@ -33,7 +33,7 @@ consolidados no fim.
 - [x] **B6** (alta) Lote por nome (sync Pluggy) estourava `UnboundLocalError` ou gravava a subcategoria errada (chaves de cache diferentes entre os passos). FEITO.
 
 ## Qualidade
-- [~] **Q1** (alta) PARCIAL: job de backend no CI (ruff, pytest, pip-audit informativo), actions por SHA, `permissions` mínimas, concurrency e CI em todos os PRs FEITOS. Falta: SAST, `alembic check`, e tornar o pip-audit bloqueante (hoje reporta 43 vulnerabilidades em anyio, certifi, idna, mako, pyjwt, python-dotenv, python-multipart, starlette; atualizar dependências).
+- [~] **Q1** (alta) PARCIAL: job de backend no CI (ruff, pytest, pip-audit bloqueante), actions por SHA, `permissions` mínimas, concurrency e CI em todos os PRs FEITOS. pip-audit agora bloqueante (backend com 0 vulnerabilidades após upgrade). Falta: SAST, `alembic check`; frontend (prod) ainda com zod 3 e react-router 6 (correção só em major novo) e glob/minimatch via tailwind/sucrase.
 - [x] **Q2** (média) FEITO: ruff configurado no `pyproject.toml` (format + lint zerados). Regras adiadas em `extend-ignore` com TODO: B904, UP042, S314, S112, B017 (testes); E501 ignorado (formatter cuida).
 - [ ] **Q3** (média) Extrair serviços dos repositórios e das rotas; unit of work por request.
 - [ ] **Q4** (média) PARCIAL (extrato FEITO: parsers CSV/OFX capturam exceções específicas e registram aviso com nº da linha, sem valores). Trocar `except Exception` silenciosos por exceções específicas.
@@ -41,7 +41,7 @@ consolidados no fim.
 - [ ] **Q6** (média) Quebrar `BankExtract.tsx`, `ExtratoDialog.tsx`, `AddTransactionDialog.tsx`; unificar Add/Edit (ao tocar).
 - [x] **Q7** (média) Trocar cores fixas por tokens. Feito em todo `src/`: novos tokens `critical` e `chart-1..12` (light+dark); só restam overlays `bg-black/80` do shadcn.
 - [ ] **Q8** (média) Usar react-query nos fetches ou remover a dependência.
-- [ ] **Q9** (baixa) ~~17 erros de ESLint~~ (feito; restam 16 warnings); ~~remover `bun.lockb`~~ (feito); ~~`lang="pt-BR"`~~ (feito); `aria-label` nos botões de ícone; `.dict()` → `model_dump()`; imports mortos; tetos de versão; tirar `psycopg2-binary`/`aiosqlite` de produção.
+- [ ] **Q9** (baixa) ~~17 erros de ESLint~~ (feito; restam 16 warnings); ~~remover `bun.lockb`~~ (feito); ~~`lang="pt-BR"`~~ (feito); `aria-label` nos botões de ícone; `.dict()` → `model_dump()`; imports mortos; tetos de versão; tirar `psycopg2-binary`/`aiosqlite` de produção. Backend: tetos de versão, `psycopg2-binary` removido e `aiosqlite` só em dev — FEITO.
 - [ ] **Q11** (média) Frontend: `npm audit --omit=dev` com 5 moderados — react-router 6 (corrigido só na v7, major) e glob/minimatch (só build, via tailwind). Zod já foi para a v4 (alerta alto resolvido). Chunk principal 684 kB (202 kB gzip): analisar `manualChunks`/`zod/mini`.
 - [ ] **Q10** (baixa) Commits em inglês daqui em diante.
 
