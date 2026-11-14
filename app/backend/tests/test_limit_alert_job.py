@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
+import time_machine
 
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
@@ -8,6 +9,16 @@ from app.db.models.user import UserORM
 from app.services.limit_alert_service import (
     evaluate_all_users_current_month,
 )
+
+# Fixtures use September 2026 data, so pin "now" to that month.
+FROZEN_NOW = datetime(2026, 9, 20, 12, 0, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def _frozen_clock():
+    """Freeze the clock so month-relative logic matches the hardcoded fixtures."""
+    with time_machine.travel(FROZEN_NOW, tick=False):
+        yield
 
 
 @pytest.fixture

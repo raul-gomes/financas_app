@@ -22,7 +22,7 @@ comando? Atualize este arquivo no mesmo commit. Segredos ficam no EnvVault: use
 | `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` | Backend local fora do Docker. |
 | `DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas uv run alembic upgrade head` | Aplicar migrations no Postgres do Docker (porta 5436 no host). |
 | `uv run alembic revision -m "<descrição>"` | Nova migration (nunca editar uma já aplicada). |
-| `uvx ruff check app` / `uvx ruff format --check app` | Medir lint e formato (ainda sem config no projeto; ver Q2). |
+| `uv run ruff check .` / `uv run ruff format .` | Lint e formatação do backend (config em `pyproject.toml`; `--fix` aplica correções seguras). |
 
 ## Frontend (`app/frontend`)
 

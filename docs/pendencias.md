@@ -24,14 +24,14 @@ consolidados no fim.
 - [ ] **S9** (baixa) Não devolver `str(e)` ao cliente; `console.error` sem o objeto inteiro.
 
 ## Bugs
-- [ ] **B1** (média) 4 testes dependentes da data (`test_limit_alert_job.py`, `test_notifications_routes.py`).
+- [x] **B1** (média) FEITO: 4 testes dependiam da data (fixtures de setembro/2026 vs `now()`); agora o relógio é congelado com `time-machine` (fixture autouse em `test_limit_alert_job.py` e `test_notifications_routes.py`).
 - [ ] **B2** (média) Confirmar 413 em extrato > 1 MB; definir `client_max_body_size 10m`.
 - [ ] **B3** (média) Nginx de prod: upstream `frontend:8080` × imagem na 80; 443 sem TLS. Versionar o compose de prod sem segredos.
 - [ ] **B4** (baixa) `database.py:9` sem `DATABASE_URL`; `sync_engine` morto; `"Sin cronizar"` e `datetime.now()` sem fuso em `pluggy_routes.py`.
 
 ## Qualidade
 - [ ] **Q1** (alta) Job de backend no CI (ruff, pytest, `alembic check`), audit de dependências, SAST, actions por SHA, CI em todas as branches de PR.
-- [ ] **Q2** (média) Configurar ruff (lint + format) no `pyproject.toml` e zerar.
+- [x] **Q2** (média) FEITO: ruff configurado no `pyproject.toml` (format + lint zerados). Regras adiadas em `extend-ignore` com TODO: B904, UP042, S314, S112, B017 (testes); E501 ignorado (formatter cuida).
 - [ ] **Q3** (média) Extrair serviços dos repositórios e das rotas; unit of work por request.
 - [ ] **Q4** (média) Trocar `except Exception` silenciosos por exceções específicas.
 - [ ] **Q5** (média) Zod nos services do frontend; remover `any`.
