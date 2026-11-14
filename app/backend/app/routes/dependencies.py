@@ -14,6 +14,7 @@ from app.core.errors import ValidationError
 from app.core.security import get_current_user
 from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.db.models.user import UserORM
+from app.services.category_service import CategoryService
 from app.services.dashboard_service import DashboardService
 from app.services.transaction_service import TransactionService
 
@@ -53,3 +54,19 @@ async def get_dashboard_service(
 ) -> DashboardService:
     """Dashboard/overview service (read-only: no unit of work, nothing to commit)."""
     return DashboardService(session, current_user)
+
+
+async def get_category_service(
+    uow: UnitOfWork = Depends(get_unit_of_work, scope="function"),
+    current_user: UserORM = Depends(get_current_user),
+) -> CategoryService:
+    """Categories service whose writes are committed once by the unit of work."""
+    return CategoryService(uow, current_user)
+
+
+async def get_category_reader(
+    session: AsyncSession = Depends(get_session),
+    current_user: UserORM = Depends(get_current_user),
+) -> CategoryService:
+    """Categories service for read-only routes (only call ``list``/``get`` through it)."""
+    return CategoryService(UnitOfWork(session), current_user)

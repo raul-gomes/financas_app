@@ -41,7 +41,7 @@ _opcoes_categorias_cache: dict[tuple, tuple] = {}
 _CACHE_TTL_SECONDS = 300  # 5 minutes
 
 
-def _invalidate_opcoes_categorias_cache():
+def invalidate_opcoes_categorias_cache():
     """Invalidates the opcoes_categorias cache."""
     global _opcoes_categorias_cache
     _opcoes_categorias_cache.clear()

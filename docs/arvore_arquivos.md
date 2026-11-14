@@ -53,8 +53,8 @@ financas_app/
 │   │   │   │
 │   │   │   ├── routes/                         # Rotas FastAPI (API REST)
 │   │   │   │   ├── transactions_routes.py      # /transacoes — CRUD, GET /paginated (cursor + total + filtros) e detecção/resolução de duplicatas; só HTTP, regras no TransactionService
-│   │   │   │   ├── dependencies.py             # Providers FastAPI: get_transaction_service (unit of work), get_transaction_reader/get_dashboard_service (leitura) e parse_date (DD/MM/YYYY → ValidationError/400)
-│   │   │   │   ├── categories_routes.py        # /categories — CRUD categorias
+│   │   │   │   ├── dependencies.py             # Providers FastAPI por domínio: get_*_service (unit of work, escrita) e get_*_reader/get_dashboard_service (leitura, sem commit) e parse_date (DD/MM/YYYY → ValidationError/400)
+│   │   │   │   ├── categories_routes.py        # /categories — CRUD categorias; só HTTP, regras no CategoryService
 │   │   │   │   ├── dashboard_routes.py         # /dashboard — extrato, overview, rendimento, gastos por categoria (só HTTP; usa DashboardService)
 │   │   │   │   ├── limits_routes.py            # /limits — listar e atualizar limites em lote; /limits/risk-check projeta o valor digitado (gasto atual + amount → thresholds 80/90/100)
 │   │   │   │   ├── recurring_accounts_routes.py # /recurring-accounts — CRUD + renovação + geração
@@ -82,6 +82,7 @@ financas_app/
 │   │   │   │
 │   │   │   └── services/                       # Lógica de negócio e integrações externas
 │   │   │       ├── transaction_service.py      # TransactionService: casos de uso de transações (create/get/update/delete, list_page, duplicatas); autorização pelo usuário autenticado; avalia limites após o commit
+│   │   │       ├── category_service.py         # CategoryService: casos de uso de categorias/subcategorias (list/get/create/update/delete), só flush; invalida o cache de opções após o commit
 │   │   │       ├── dashboard_service.py        # DashboardService: overview e dashboard financeiro (leitura); metas/compras só para admin decididas pelo role do token
 │   │   │       ├── pluggy_service.py           # Cliente HTTP para API Meu Pluggy (Open Finance)
 │   │   │       ├── extract_parsers.py          # Parsers de extrato bancário (CSV e OFX via defusedxml; UnsafeOfxError)
@@ -90,7 +91,7 @@ financas_app/
 │   │   │       └── limit_alert_job.py          # Job periódico de avaliação de limites (run_evaluation_once, _job_loop, start/stop) — roda no lifespan
 │   │   │
 │   │   ├── tests/                              # Suite de testes (pytest + pytest-asyncio)
-│   │   │   ├── conftest.py                     # Fixtures: SQLite in-memory, httpx.AsyncClient, factories de payload
+│   │   │   ├── conftest.py                     # Fixtures: SQLite in-memory, httpx.AsyncClient, make_uow (service + UnitOfWork sobre a sessão de teste), factories de payload
 │   │   │   ├── test_security.py                # Testes de autenticação JWT (HS256/ES256, aud, iss, alg none, sem segredo → 401) + require_role/require_admin (403)
 │   │   │   ├── test_logger_redaction.py        # Credenciais nunca chegam ao log (redact, log_api_request)
 │   │   │   ├── test_ofx_parser.py              # OFX 1.x (SGML) e 2.x (XML) reais
@@ -123,6 +124,7 @@ financas_app/
 │   │   │   ├── test_startup_config.py          # B4: DATABASE_URL e PLUGGY_KEY_ENCRYPTION_KEYS obrigatórios (falha na partida) e descrição padrão do sync Pluggy
 │   │   │   ├── test_goals.py                   # CRUD metas + progresso + duplicatas
 │   │   │   ├── test_unit_of_work.py            # UnitOfWork: commit/rollback únicos, callbacks pós-commit (falha não desfaz o commit), dependência com scope="function"
+│   │   │   ├── test_category_service.py        # CategoryService: nada comitado antes do UoW, rollback desfaz, cache invalidado após commit, isolamento entre usuários, 409 em nome duplicado
 │   │   │   ├── test_transaction_service.py     # TransactionService: nada comitado antes do UoW, rollback desfaz categoria auto-criada, limites avaliados após commit, isolamento entre usuários
 │   │   │   ├── test_transactions_pagination.py # GET /transacoes/paginated: ordem estável (data desc, id desc), cursor, total, filtros, teto de página, isolamento
 │   │   │   ├── test_dashboard_sql_parity.py    # Agregações SQL do dashboard/overview x referência em Python (PF/PJ, 2 usuários) + teto de queries

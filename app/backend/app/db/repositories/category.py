@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_session
 from app.core.errors import ConflictError, ValidationError
 from app.db.models.category import CategoryORM
-from app.db.repositories.dashboard import _invalidate_opcoes_categorias_cache
+from app.db.repositories.dashboard import invalidate_opcoes_categorias_cache
 from app.db.repositories.subcategory import SubcategoriaRepository
 from app.logger import log_database_operation
 from app.schemas.categories import CategoriaCreate, CategoriaUpdate
@@ -115,7 +115,7 @@ class CategoriaRepository:
                 )
 
             log.info(f"Categoria {instance.id} criada")
-            _invalidate_opcoes_categorias_cache()
+            invalidate_opcoes_categorias_cache()
 
             # Recarrega categoria completa com subcategorias
             result = await self.db.execute(
@@ -126,7 +126,8 @@ class CategoriaRepository:
             return result.scalars().first()
 
         except IntegrityError as e:
-            await self.db.rollback()
+            if commit:
+                await self.db.rollback()
             err = str(e)
             if (
                 "categorias.name" in err
@@ -149,7 +150,10 @@ class CategoriaRepository:
         log.info(f"{len(categorias)} categorias recuperadas")
         return categorias
 
-    async def update(self, id: int, user_id: int, obj_in: CategoriaUpdate) -> CategoryORM | None:
+    async def update(
+        self, id: int, user_id: int, obj_in: CategoriaUpdate, *, commit: bool = True
+    ) -> CategoryORM | None:
+        """Updates a category and syncs its subcategories (flush only with ``commit=False``)."""
         categoria = await self.get_by_id(id, user_id)
         if not categoria:
             return None
@@ -183,7 +187,7 @@ class CategoriaRepository:
         for field, val in base.items():
             orm_field = field_map.get(field, field)
             setattr(categoria, orm_field, val)
-        await self.db.commit()
+        await self._persist(commit)
 
         # 3) Sincroniza subcategorias sem deletar as existentes
         incoming = obj_in.subcategories or []
@@ -191,21 +195,21 @@ class CategoriaRepository:
         # Mapear IDs existentes para atualização
         for sub in incoming:
             if sub.id is not None:
-                await self.sub_repo.update(sub.id, user_id, sub)
+                await self.sub_repo.update(sub.id, user_id, sub, commit=commit)
 
         # Criar apenas as novas (sem id)
         new_subs = [s for s in incoming if s.id is None]
         if new_subs:
-            await self.sub_repo.create_many(categoria.id, user_id, new_subs)
+            await self.sub_repo.create_many(categoria.id, user_id, new_subs, commit=commit)
 
         # 4) Recarrega e retorna
         result = await self.db.execute(select(self.model).where(self.model.id == id))
-        _invalidate_opcoes_categorias_cache()
+        invalidate_opcoes_categorias_cache()
         return result.scalars().first()
 
-    async def delete(self, id: int, user_id: int) -> CategoryORM | None:
+    async def delete(self, id: int, user_id: int, *, commit: bool = True) -> CategoryORM | None:
         """
-        Remove uma categoria pelo ID, restrita ao usuário.
+        Remove uma categoria pelo ID, restrita ao usuário (só flush com ``commit=False``).
         """
         log = log_database_operation(
             operation="delete", collection="categorias", categoria_id=id, user_id=user_id
@@ -214,7 +218,7 @@ class CategoriaRepository:
         if not categoria:
             return None
         await self.db.delete(categoria)
-        await self.db.commit()
-        _invalidate_opcoes_categorias_cache()
+        await self._persist(commit)
+        invalidate_opcoes_categorias_cache()
         log.info(f"Categoria {id} excluída")
         return categoria

@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.exc import SQLAlchemyError
+"""Categories routes: HTTP concerns only. Rules and authorization live in CategoryService."""
 
-from app.core.security import get_current_user
-from app.db.models.user import UserORM
-from app.db.repositories.category import CategoriaRepository
+from fastapi import APIRouter, Depends, Request, status
+
 from app.logger import log_api_request
+from app.routes.dependencies import get_category_reader, get_category_service
 from app.schemas.categories import Categoria, CategoriaCreate, CategoriaUpdate
+from app.services.category_service import CategoryService
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
@@ -19,23 +19,15 @@ router = APIRouter(prefix="/categories", tags=["Categories"])
 )
 async def list_categories(
     request: Request,
-    current_user: UserORM = Depends(get_current_user),
-    repo: CategoriaRepository = Depends(CategoriaRepository),
+    service: CategoryService = Depends(get_category_reader),
 ):
     """
     Obtém a lista completa de categorias.
     """
     log = log_api_request(method="GET", endpoint=str(request.url))
-    try:
-        categorias = await repo.get_all(current_user.id)
-        log.info("Categorias listadas com sucesso")
-        return categorias
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao listar categorias: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao listar categorias",
-        ) from e
+    categorias = await service.list()
+    log.info("Categorias listadas com sucesso")
+    return categorias
 
 
 @router.get(
@@ -48,19 +40,13 @@ async def list_categories(
 async def get_categoria_by_id(
     request: Request,
     categoria_id: int,
-    current_user: UserORM = Depends(get_current_user),
-    repo: CategoriaRepository = Depends(CategoriaRepository),
+    service: CategoryService = Depends(get_category_reader),
 ):
     """
     Busca uma categoria pelo seu identificador.
     """
     log = log_api_request(method="GET", endpoint=str(request.url), categoria_id=categoria_id)
-    categoria = await repo.get_by_id(categoria_id, current_user.id)
-    if not categoria:
-        log.warning(f"Categoria {categoria_id} não encontrada")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Categoria não encontrada"
-        )
+    categoria = await service.get(categoria_id)
     log.info(f"Categoria {categoria_id} retornada com sucesso")
     return categoria
 
@@ -75,26 +61,15 @@ async def get_categoria_by_id(
 async def create_categoria(
     request: Request,
     payload: CategoriaCreate,
-    current_user: UserORM = Depends(get_current_user),
-    repo: CategoriaRepository = Depends(CategoriaRepository),
+    service: CategoryService = Depends(get_category_service),
 ):
     """
     Cria uma categoria a partir dos dados fornecidos.
     """
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
-    try:
-        categoria = await repo.create(current_user.id, payload)
-        log.info(f"Categoria criada com ID {categoria.id}")
-        return categoria
-    except HTTPException:
-        # já está logado e formatado no repositório
-        raise
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao criar categoria: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao criar categoria",
-        ) from e
+    categoria = await service.create(payload)
+    log.info(f"Categoria criada com ID {categoria.id}")
+    return categoria
 
 
 @router.put(
@@ -107,8 +82,7 @@ async def update_categoria(
     request: Request,
     categoria_id: int,
     payload: CategoriaUpdate,
-    current_user: UserORM = Depends(get_current_user),
-    repo: CategoriaRepository = Depends(CategoriaRepository),
+    service: CategoryService = Depends(get_category_service),
 ):
     """
     Atualiza uma categoria existente e sincroniza subcategorias.
@@ -119,23 +93,9 @@ async def update_categoria(
         categoria_id=categoria_id,
         payload=payload.model_dump(exclude_unset=True),
     )
-    try:
-        categoria = await repo.update(categoria_id, current_user.id, payload)
-        if not categoria:
-            log.warning(f"Tentativa de atualizar categoria {categoria_id} não encontrada")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Categoria não encontrada"
-            )
-        log.info(f"Categoria {categoria_id} atualizada com sucesso")
-        return categoria
-    except HTTPException:
-        raise
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao atualizar categoria {categoria_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao atualizar categoria",
-        ) from e
+    categoria = await service.update(categoria_id, payload)
+    log.info(f"Categoria {categoria_id} atualizada com sucesso")
+    return categoria
 
 
 @router.delete(
@@ -147,27 +107,12 @@ async def update_categoria(
 async def delete_categoria(
     request: Request,
     categoria_id: int,
-    current_user: UserORM = Depends(get_current_user),
-    repo: CategoriaRepository = Depends(CategoriaRepository),
+    service: CategoryService = Depends(get_category_service),
 ):
     """
     Deleta uma categoria existente.
     """
     log = log_api_request(method="DELETE", endpoint=str(request.url), categoria_id=categoria_id)
-    try:
-        categoria = await repo.delete(categoria_id, current_user.id)
-        if not categoria:
-            log.warning(f"Tentativa de excluir categoria {categoria_id} não encontrada")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Categoria não encontrada"
-            )
-        log.info(f"Categoria {categoria_id} excluída com sucesso")
-        return categoria
-    except HTTPException:
-        raise
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao excluir categoria {categoria_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao excluir categoria",
-        ) from e
+    categoria = await service.delete(categoria_id)
+    log.info(f"Categoria {categoria_id} excluída com sucesso")
+    return categoria

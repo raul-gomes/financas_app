@@ -63,7 +63,8 @@ class SubcategoriaRepository:
             log.info(f"Subcategoria {inst.id} criada para categoria {categoria_id}")
             return inst
         except IntegrityError as exc:
-            await self.db.rollback()
+            if commit:
+                await self.db.rollback()
             raise ValidationError("Erro ao criar subcategoria") from exc
 
     async def _persist(self, commit: bool) -> None:
@@ -96,7 +97,7 @@ class SubcategoriaRepository:
         return result.scalars().all()
 
     async def update(
-        self, id: int, user_id: int, obj_in: SubcategoriaUpdate
+        self, id: int, user_id: int, obj_in: SubcategoriaUpdate, *, commit: bool = True
     ) -> SubcategoryORM | None:
         """Atualiza uma subcategoria, garantindo que pertença a uma categoria do usuário."""
         sub = await self.get_by_id(id, user_id)
@@ -111,21 +112,23 @@ class SubcategoriaRepository:
             orm_field = field_map.get(field, field)
             setattr(sub, orm_field, value)
 
-        await self.db.commit()
+        await self._persist(commit)
         await self.db.refresh(sub)
         return sub
 
-    async def delete(self, id: int, user_id: int) -> SubcategoryORM | None:
+    async def delete(self, id: int, user_id: int, *, commit: bool = True) -> SubcategoryORM | None:
         """Deleta uma subcategoria, garantindo que pertença a uma categoria do usuário."""
         sub = await self.get_by_id(id, user_id)
         if not sub:
             return None
 
         await self.db.delete(sub)
-        await self.db.commit()
+        await self._persist(commit)
         return sub
 
-    async def delete_by_categoria(self, categoria_id: int, user_id: int) -> None:
+    async def delete_by_categoria(
+        self, categoria_id: int, user_id: int, *, commit: bool = True
+    ) -> None:
         """Deleta todas as subcategorias de uma categoria do usuário"""
         await self.db.execute(
             delete(self.model).where(
@@ -133,4 +136,4 @@ class SubcategoriaRepository:
                 self.model.category.has(CategoryORM.user_id == user_id),
             )
         )
-        await self.db.commit()
+        await self._persist(commit)
