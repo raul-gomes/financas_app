@@ -1,9 +1,11 @@
 import csv
+import html
 import io
 import re
 from datetime import datetime
 from typing import Any
 from xml.etree.ElementTree import Element
+from xml.sax.saxutils import escape as xml_escape
 
 from defusedxml import ElementTree as SafeET
 from defusedxml.common import DefusedXmlException
@@ -64,6 +66,8 @@ def parse_ofx(content: str) -> list[dict[str, Any]]:
     """
     transactions = []
 
+    if _FORBIDDEN_XML.search(content):
+        raise UnsafeOfxError("OFX com construções XML não permitidas")
     cleaned = _clean_ofx_tags(content)
 
     try:
@@ -91,8 +95,8 @@ def parse_ofx(content: str) -> list[dict[str, Any]]:
             if not dtposted or not trnamt:
                 continue
 
-            date = datetime.strptime(dtposted, "%Y%m%d")
-            amount = float(trnamt)
+            date = datetime.strptime(dtposted[:OFX_DATE_LENGTH], "%Y%m%d")
+            amount = float(trnamt.replace(",", "."))
             trans_type = "expense" if amount < 0 else "income"
             description = memo or name or "Sem descricao"
 
@@ -198,10 +202,28 @@ def _parse_amount(amount_str: str) -> float:
     return float(amount_str)
 
 
+# DTD and entity declarations are never part of a bank OFX (entity-expansion attacks).
+_FORBIDDEN_XML = re.compile(r"<!(DOCTYPE|ENTITY)", re.IGNORECASE)
+OFX_DATE_LENGTH = 8  # DTPOSTED starts with YYYYMMDD; time and [tz] may follow
+# A leaf element whose value is not followed by its own closing tag (SGML OFX 1.x).
+_UNCLOSED_LEAF = re.compile(r"<(\w+)>([^<\s][^<]*?)\s*(?=<(?!/\1>))")
+
+
 def _clean_ofx_tags(content: str) -> str:
-    content = re.sub(r"(\w+)>", r"\1></\1>", content)
-    content = re.sub(r"</(\w+)><\1>", "", content)
-    return content
+    """Turn OFX 1.x (SGML) or 2.x (XML) into well-formed XML.
+
+    Drops the header block and any ``<?...?>`` declarations, then closes leaf
+    elements that SGML leaves open (``<TRNAMT>-50.00`` → ``<TRNAMT>-50.00</TRNAMT>``),
+    escaping their text. Elements that are already closed are left untouched.
+    """
+    start = content.find("<OFX>")
+    body = content[start:] if start >= 0 else content
+
+    def close_leaf(match: re.Match[str]) -> str:
+        tag, value = match.group(1), html.unescape(match.group(2).strip())
+        return f"<{tag}>{xml_escape(value)}</{tag}>"
+
+    return _UNCLOSED_LEAF.sub(close_leaf, body)
 
 
 def _get_text(element: Element, tag: str, default: str = "") -> str:
