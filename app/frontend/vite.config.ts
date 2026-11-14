@@ -49,5 +49,11 @@ export default defineConfig(({ mode }) => ({
     setupFiles: ["./src/test/setup.ts"],
     globals: false,
     css: false,
+    // Placeholder values (not secrets) so modules that build the Supabase client at import
+    // time can be loaded by tests that only mock the services they exercise.
+    env: {
+      VITE_SUPABASE_URL: "http://localhost:54321",
+      VITE_SUPABASE_ANON_KEY: "test-anon-key",
+    },
   },
 }));

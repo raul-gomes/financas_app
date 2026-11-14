@@ -115,11 +115,11 @@ describe('FinancialService boundary', () => {
     await expect(FinancialService.getCategorySubcategories()).rejects.toBeInstanceOf(ApiSchemaError);
   });
 
-  it('parses the year transactions and rejects a non-list', async () => {
-    respondWith([transaction]);
-    await expect(FinancialService.getYearTransactions(2026)).resolves.toHaveLength(1);
+  it('parses the transactions page and rejects a non-page', async () => {
+    respondWith({ items: [transaction], total: 1, limit: 30, has_more: false, next_cursor: null });
+    await expect(FinancialService.getTransactionsPage({})).resolves.toMatchObject({ total: 1 });
     respondWith({ detail: 'x' });
-    await expect(FinancialService.getYearTransactions(2026)).rejects.toBeInstanceOf(ApiSchemaError);
+    await expect(FinancialService.getTransactionsPage({})).rejects.toBeInstanceOf(ApiSchemaError);
   });
 
   it('parses duplicate checks and rejects a malformed result', async () => {

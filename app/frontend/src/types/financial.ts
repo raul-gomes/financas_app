@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import type {
-  transactionSchema, financialSummarySchema, yearlyPerformanceSchema,
+  transactionSchema, transactionPageSchema, financialSummarySchema, yearlyPerformanceSchema,
   categoryBreakdownSchema, incomeBySubcategorySchema, categorySubcategoriesSchema,
   limitsUpdateResponseSchema, limitsWithSpendingSchema, duplicateCheckResponseSchema,
   limitsPayloadSchema,
@@ -192,6 +192,7 @@ export const INVESTMENT_CATEGORIES = {
 
 // ===== API response types, derived from the Zod schemas in src/schemas/financial.ts =====
 export type Transaction = z.infer<typeof transactionSchema>;
+export type TransactionPage = z.infer<typeof transactionPageSchema>;
 export type FinancialSummary = z.infer<typeof financialSummarySchema>;
 export type YearlyPerformance = z.infer<typeof yearlyPerformanceSchema>;
 export type CategoryBreakdown = z.infer<typeof categoryBreakdownSchema>;

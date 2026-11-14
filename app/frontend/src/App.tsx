@@ -3,7 +3,8 @@ import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createQueryClient } from "@/lib/queryClient";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -26,16 +27,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const BankExtract = lazy(() => import("./pages/BankExtract"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 min — evita refetch a cada mount
-      gcTime: 1000 * 60 * 30, // 30 min — cache em memória após desmontar
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
+const queryClient = createQueryClient();
 
 const guarded = (node: React.ReactNode) => (
   <ErrorBoundary>{node}</ErrorBoundary>

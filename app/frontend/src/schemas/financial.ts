@@ -26,8 +26,14 @@ export const transactionSchema = z.object({
   recurring_account_id: z.number().nullish(),
 });
 
-/** `TransacaoResponse[]` from `GET /transacoes/`. */
-export const transactionListSchema = z.array(transactionSchema);
+/** `TransacaoPageResponse` from `GET /transacoes/paginated` (keyset cursor). */
+export const transactionPageSchema = z.object({
+  items: z.array(transactionSchema),
+  total: z.number(),
+  limit: z.number(),
+  has_more: z.boolean(),
+  next_cursor: z.string().nullable(),
+});
 
 /** `ExtratoResponse`. */
 export const financialSummarySchema = z.object({

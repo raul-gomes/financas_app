@@ -121,6 +121,15 @@ only       authorization
 - Repos used by other flows may keep an opt-in `commit: bool = True` (see `CategoriaRepository.create(..., commit=False)`); pass `commit=False` when called from a service.
 - Tests: services are tested directly with an `async_session` + `UnitOfWork` (`tests/test_transaction_service.py`); the unit of work itself in `tests/test_unit_of_work.py`.
 
+## Frontend data fetching (react-query)
+
+Server data goes through `@tanstack/react-query`, not `useEffect` + `useState`:
+
+- Cache keys come only from `src/lib/queryKeys.ts`; hooks live in `src/hooks/queries/` (one file per domain). Zod parsing stays in the services (`src/services/*`, at the boundary); hooks only call services.
+- Lists that page use `useInfiniteQuery` with the backend `next_cursor` ("Carregar mais"). Filters are part of the key.
+- After a create/update/delete, invalidate through `useTransactionMutations()` / `invalidateTransactionData` / `invalidateDomain` so every derived screen refetches. Query failures are logged once by `createQueryClient` and surfaced with `useErrorToast`.
+- Tests wrap components in `renderWithQuery` (`src/test/queryWrapper.tsx`: retry off) and mock the services.
+
 ## Pagination (lists)
 
 List endpoints return a page DTO written by hand with `items`, `total`, `limit`, `has_more`, `next_cursor`. Ordering must be total and stable (e.g. `transaction_date desc, id desc`) and the page size capped by a named constant (`TRANSACTIONS_MAX_PAGE_SIZE`). Reference: `GET /transacoes/paginated` (keyset cursor).

@@ -175,8 +175,8 @@ financas_app/
 │       │   │   │   ├── FinancialDashboard.tsx   # Dashboard financeiro: orçamento, gráfico flip, categorias; cartão com barra de % (>=80 warning, estourado destructive + badge "Estourando")
 │       │   │   │   ├── ChartAnchors.tsx         # Âncoras de navegação que rolam até cada gráfico/seção do dashboard
 │       │   │   │   ├── ChartAnchors.test.tsx    # Testes das âncoras (render, scrollIntoView, seção inexistente)
-│       │   │   │   ├── OverviewDashboard.tsx    # Dashboard geral da página inicial: indicadores, progresso mês, cartão (badge "Estourando" e tone 80/100), status limites, parcelas, recorrentes, metas/compras (admin)
-│       │   │   │   ├── OverviewDashboard.test.tsx # Testes do dashboard geral (render, refetch por entidade, isAdmin, badge cartão estourando)
+│       │   │   │   ├── OverviewDashboard.tsx    # Dashboard geral da página inicial: indicadores, progresso mês, cartão (badge "Estourando" e tone 80/100), status limites, parcelas, recorrentes, metas/compras (admin); dados via useOverviewQuery (react-query)
+│       │   │   │   ├── OverviewDashboard.test.tsx # Testes do dashboard geral (render, refetch por entidade, cache ao voltar de filtro, esqueleto/erro, isAdmin, badge cartão estourando)
 │       │   │   │   └── FinancialDashboard.test.tsx # Testes de rolagem dos boxes (100vh→130vh; Entradas/Gastos rolam quando estouram o teto) + badge "Estourando" do cartão
 │       │   │   │
 │       │   │   ├── investments/                # Componentes de investimentos
@@ -207,16 +207,18 @@ financas_app/
 │       │   │   ├── recorrentes/                  # Feature compartilhada de contas recorrentes
 │       │   │   │   └── RecurringBillsTable.tsx    # Tabela única usada por /recorrentes e aba Limites (helpers currentInstallment/isEndingSoon exportados); virtualizada (useVirtualizer, sticky header)
 │       │   │   │
-│       │   │   ├── TransactionList.tsx          # Lista de transações com filtros (memoizado), paginação e ações; virtualizada (useVirtualizer)
+│       │   │   ├── TransactionList.tsx          # Extrato paginado no servidor (useInfiniteQuery + "Carregar mais", busca com debounce, filtros período/PF-PJ); virtualizado (useVirtualizer); estados vazio/erro/carregando
+│       │   │   ├── TransactionList.test.tsx     # Testes do extrato paginado (carregar mais, filtros no servidor, busca debounced, vazio, erro/tentar de novo)
 │       │   │   ├── CategoryBreakdownSection.tsx # Seção de breakdown de gastos por categoria
-│       │   │   ├── ComprasList.tsx              # Lista de compras do mês com checkbox e CRUD
-│       │   │   ├── MetasList.tsx                # Lista de metas com progresso e ações
+│       │   │   ├── ComprasList.tsx              # Lista de compras do mês com checkbox e CRUD (useShoppingItems + invalidação)
+│       │   │   ├── MetasList.tsx                # Lista de metas com progresso e ações (useGoalsProgress + invalidação)
 │       │   │   └── AnimatedNumber.tsx           # Componente de número com animação de contagem
 │       │   │
 │       │   ├── pages/                          # Páginas (rotas da aplicação)
 │       │   │   ├── Index.tsx                   # Página inicial: Visão Geral (OverviewDashboard) + links de navegação
 │       │   │   ├── Financial.tsx               # Página financeira: dashboard + transações + sidebar
-│       │   │   ├── Financial.test.tsx          # Testes de altura da tela (inicia 100vh, cresce até max 130vh)
+│       │   │   ├── Financial.test.tsx          # Testes da página (altura, queries por bloco, PF/PJ, geração de recorrentes antes dos dados, virada de mês, exclusão recarrega)
+│       │   │   ├── Settings.test.tsx           # Testes das Configurações (perfil/bancos em cache, remover banco, salvar nome, toast de erro)
 │       │   │   ├── Investments.tsx             # Página de investimentos (placeholder)
 │       │   │   ├── Limits.tsx                  # Página de limites: tabs por role (admin: Limites/Recorrentes/Metas/Compras; user: Limites/Recorrentes)
 │       │   │   ├── Limits.test.tsx             # Testes das abas por role (user: sem Metas/Compras)
@@ -264,7 +266,15 @@ financas_app/
 │       │   ├── hooks/                          # Custom React hooks
 │       │   │   ├── use-mobile.tsx              # useIsMobile() — detecção de viewport mobile
 │       │   │   ├── use-toast.ts                # useToast() — sistema de notificações toast
-│       │   │   └── useLimitAlerts.ts           # useLimitAlerts() — poll de /notifications a cada 30s (+ listagem inicial)
+│       │   │   ├── useLimitAlerts.ts           # useLimitAlerts() — poll de /notifications a cada 30s (+ listagem inicial)
+│       │   │   ├── useDebouncedValue.ts        # useDebouncedValue(value, ms) — usado na busca do extrato (+ teste ao lado)
+│       │   │   └── queries/                    # Hooks react-query (um por domínio); a chave vem de lib/queryKeys
+│       │   │       ├── useTransactionQueries.ts # useTransactionsInfinite (cursor), useYearInvestments, useTransactionMutations, invalidateTransactionData (+ teste)
+│       │   │       ├── useFinancialQueries.ts   # Extrato do período, rendimento anual, categorias, geração de recorrentes (admin)
+│       │   │       ├── useOverviewQuery.ts      # Overview do mês (GET /dashboard/overview)
+│       │   │       ├── useLimitsQueries.ts      # Limites, gastos do mês, recorrentes, metas, compras + invalidateDomain
+│       │   │       ├── useSettingsQueries.ts    # Perfil e bancos (compartilhados com o extrato)
+│       │   │       └── useErrorToast.ts         # Toast pt-BR quando uma query falha
 │       │   │
 │       │   ├── contexts/                       # React contexts
 │       │   │   ├── SidebarContext.tsx           # SidebarContext — estado open/toggle da sidebar
@@ -274,7 +284,8 @@ financas_app/
 │       │   │   └── RoleContext.test.tsx         # Testes do RoleContext (refetch ao trocar de conta; admin/user paths)
 │       │   │
 │       │   ├── test/                            # Infra de testes frontend (Vitest + jsdom + RTL)
-│       │   │   └── setup.ts                     # cleanup RTL + mocks matchMedia/ResizeObserver
+│       │   │   ├── setup.ts                     # cleanup RTL + mocks matchMedia/ResizeObserver
+│       │   │   └── queryWrapper.tsx             # QueryClient de teste (retry off) + renderWithQuery/createQueryWrapper
 │       │   │
 │       │   └── lib/                            # Utilitários
 │       │       ├── utils.ts                    # cn() — merge de classes Tailwind (shadcn)
@@ -282,6 +293,8 @@ financas_app/
 │       │       ├── format.test.ts              # Testes unitários da formatação (BRL/USD, datas, %)
 │       │       ├── format.escape.test.ts       # escapeHtml() para tooltips D3
 │       │       ├── supabase.ts                 # Cliente @supabase/supabase-js (VITE_SUPABASE_URL/ANON_KEY)
+│       │       ├── queryClient.ts              # createQueryClient(): defaults (stale 5 min, gc 30 min, retry 1) e log único de erros de query
+│       │       ├── queryKeys.ts                # Fábrica de chaves de cache (transactions, financial, overview, limits, recurring, goals, shopping, settings)
 │       │       ├── api.ts                      # apiFetch() — injeta Authorization: Bearer em chamadas /api/* + teste
 │       │       └── api.test.ts                 # Testes do apiFetch (header auth, base URL, headers)
 │       │

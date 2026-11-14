@@ -8,10 +8,9 @@ interface SidebarPanelProps {
   open: boolean;
   onClose: () => void;
   entityType?: string;
-  refreshKey?: number;
 }
 
-export function SidebarPanel({ open, onClose, entityType, refreshKey }: SidebarPanelProps) {
+export function SidebarPanel({ open, onClose, entityType }: SidebarPanelProps) {
   return (
     <div
       className={`h-full border-r border-border bg-card transition-all duration-300 overflow-hidden ${
@@ -27,7 +26,7 @@ export function SidebarPanel({ open, onClose, entityType, refreshKey }: SidebarP
           </Button>
         </div>
 
-        {/* Tabs — key força refetch ao abrir/fechar sidebar */}
+        {/* Tabs — os dados são cacheados e invalidados pelas mutações */}
         <div className="flex-1 overflow-y-auto px-3 py-3">
           <Tabs defaultValue="metas" className="w-full">
             <TabsList className="w-full mb-3">
@@ -35,10 +34,10 @@ export function SidebarPanel({ open, onClose, entityType, refreshKey }: SidebarP
               <TabsTrigger value="compras" className="flex-1 text-xs">Compras</TabsTrigger>
             </TabsList>
             <TabsContent value="metas" className="mt-0">
-              <MetasList sidebarOpen={open} entityType={entityType} refreshKey={refreshKey} />
+              <MetasList entityType={entityType} />
             </TabsContent>
             <TabsContent value="compras" className="mt-0">
-              <ComprasList sidebarOpen={open} entityType={entityType} refreshKey={refreshKey} />
+              <ComprasList entityType={entityType} />
             </TabsContent>
           </Tabs>
         </div>
