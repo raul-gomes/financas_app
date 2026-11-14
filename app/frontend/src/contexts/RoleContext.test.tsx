@@ -107,4 +107,29 @@ describe('RoleContext', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.isAdmin).toBe(false);
   });
+  it('never reports loaded-as-non-admin while the profile of a restored session is still pending', async () => {
+    // Regression: on a full page reload the session is restored asynchronously. For one render the
+    // provider had a user id but had not started fetching the profile, so `loading` was false and
+    // `isAdmin` false, and AdminRoute redirected admins away from /investments etc.
+    let resolveProfile: (profile: { role: string }) => void = () => {};
+    mockGetProfile.mockReturnValue(new Promise((resolve) => { resolveProfile = resolve; }));
+    mockGetSession.mockResolvedValue({
+      data: { session: { user: { id: '1', email: 'admin@example.com' }, access_token: 'a-token' } },
+    });
+
+    const snapshots: Ctx[] = [];
+    const { result } = renderHook(() => {
+      const ctx = useRole();
+      snapshots.push({ isAdmin: ctx.isAdmin, loading: ctx.loading });
+      return ctx;
+    }, { wrapper });
+
+    await waitFor(() => expect(mockGetProfile).toHaveBeenCalled());
+    // Profile still pending: every render so far must still be "loading".
+    expect(snapshots.every((snap) => snap.loading)).toBe(true);
+
+    resolveProfile({ role: 'admin' });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.isAdmin).toBe(true);
+  });
 });
