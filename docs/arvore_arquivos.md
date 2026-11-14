@@ -177,7 +177,8 @@ financas_app/
 │       │   │   ├── layout/                     # Componentes de layout
 │   │   │               │   ├── AppLayout.tsx             # Layout principal: sidebar + conteúdo + redirecionamento
 │   │   │               │   ├── SidebarPanel.tsx          # Sidebar colapsável: tabs de metas, compras, resumo
-│   │   │               │   └── PageSkeleton.tsx          # Fallback de <Suspense> para rotas code-split (lazy load)
+│   │   │               │   ├── PageSkeleton.tsx          # Fallback de <Suspense> acessível (role=status, pt-BR) para rotas lazy
+│   │   │               │   └── PageSkeleton.test.tsx     # Teste do fallback de carregamento
 │   │   │               │
 │   │   │               ├── notifications/               # Componentes de notificações de limites
 │   │   │               │   ├── NotificationBell.tsx      # Sino de alertas no header (badge não-lidas, popover com severidade, marcar lido/todos)
@@ -243,7 +244,7 @@ financas_app/
 │       │   │   ├── notifications.ts            # NotificationItem, NotificationsResponse, MarkReadResponse, CategoryRiskResponse
 │       │   │   └── settings.ts                 # Perfil, bancos, BrasilAPI, Meu Pluggy
 │       │   │
-│       │   ├── types/                          # Tipos TypeScript (respostas da API derivadas dos schemas via Infer<>; payloads de envio escritos à mão)
+│       │   ├── types/                          # Tipos TypeScript (respostas da API derivadas dos schemas via z.infer; payloads de envio escritos à mão)
 │       │   │   ├── financial.ts                # Transaction, YearlyData, FinancialSummary, CategoryBreakdown, etc.
 │       │   │   ├── overview.ts                 # OverviewResponse + sub-tipos do dashboard geral
 │       │   │   ├── recurringAccount.ts         # ContaRecorrente, ContaRecorrenteCreate/Update

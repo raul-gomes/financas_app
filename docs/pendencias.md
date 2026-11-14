@@ -37,19 +37,19 @@ consolidados no fim.
 - [x] **Q2** (média) FEITO: ruff configurado no `pyproject.toml` (format + lint zerados). Regras adiadas em `extend-ignore` com TODO: B904, UP042, S314, S112, B017 (testes); E501 ignorado (formatter cuida).
 - [ ] **Q3** (média) Extrair serviços dos repositórios e das rotas; unit of work por request.
 - [ ] **Q4** (média) PARCIAL (extrato FEITO: parsers CSV/OFX capturam exceções específicas e registram aviso com nº da linha, sem valores). Trocar `except Exception` silenciosos por exceções específicas.
-- [x] **Q5** (média) Zod nos services do frontend; remover `any`. Feito: `src/schemas/*` + `lib/parse.ts`; todo `res.json()` dos services é parseado uma vez na borda; sem `any` em src (fora de `ui/`). Follow-up: ligar `strictNullChecks` (hoje `Infer<>` compensa o `z.infer` no modo não estrito).
+- [x] **Q5** (média) Zod nos services do frontend; remover `any`. Feito: `src/schemas/*` + `lib/parse.ts`; todo `res.json()` dos services é parseado uma vez na borda; sem `any` em src (fora de `ui/`). Follow-up FEITO: `strict: true` ligado no `tsconfig.app.json`; o helper `Infer<>` foi removido e os tipos usam `z.infer`.
 - [ ] **Q6** (média) Quebrar `BankExtract.tsx`, `ExtratoDialog.tsx`, `AddTransactionDialog.tsx`; unificar Add/Edit (ao tocar).
 - [x] **Q7** (média) Trocar cores fixas por tokens. Feito em todo `src/`: novos tokens `critical` e `chart-1..12` (light+dark); só restam overlays `bg-black/80` do shadcn.
 - [ ] **Q8** (média) Usar react-query nos fetches ou remover a dependência.
-- [ ] **Q9** (baixa) ~~17 erros de ESLint~~ (feito; restam 16 warnings); ~~remover `bun.lockb`~~ (feito); ~~`lang="pt-BR"`~~ (feito); `aria-label` nos botões de ícone; `.dict()` → `model_dump()`; imports mortos; tetos de versão; tirar `psycopg2-binary`/`aiosqlite` de produção. Backend: tetos de versão, `psycopg2-binary` removido e `aiosqlite` só em dev — FEITO.
-- [ ] **Q11** (média) Frontend: `npm audit --omit=dev` com 5 moderados — react-router 6 (corrigido só na v7, major) e glob/minimatch (só build, via tailwind). Zod já foi para a v4 (alerta alto resolvido). Chunk principal 684 kB (202 kB gzip): analisar `manualChunks`/`zod/mini`.
+- [ ] **Q9** (baixa) ~~17 erros de ESLint~~ (feito; restam 16 warnings `react-refresh/only-export-components`, só afetam o HMR em dev e exigiriam separar arquivos de `ui/` e contextos, ficam para a refatoração mobile); ~~remover `bun.lockb`~~ (feito); ~~`lang="pt-BR"`~~ (feito); ~~`aria-label` nos botões de ícone~~ (feito, pt-BR); `.dict()` → `model_dump()`; imports mortos; tetos de versão; tirar `psycopg2-binary`/`aiosqlite` de produção. Backend: tetos de versão, `psycopg2-binary` removido e `aiosqlite` só em dev — FEITO.
+- [x] **Q11** (média) FEITO: react-router 6 -> v7 (modo biblioteca, import de `react-router`) e `npm audit fix` (glob/minimatch de produção): `npm audit --omit=dev` = 0 vulnerabilidades. Chunk principal 684 kB (202 kB gzip) -> 113 kB (35 kB gzip) com `manualChunks` (ver P4). Restam só alertas de dev (`npm audit`: 15, vite/esbuild, vitest/tinypool e minimatch de eslint), todos exigindo major de vite/vitest (`audit fix --force`); tratar em item próprio (Vite 8/Vitest 4).
 - [ ] **Q10** (baixa) Commits em inglês daqui em diante.
 
 ## Performance
 - [x] **P1** (média) FEITO: export filtra `user_id` no SQL (teste captura o SQL). Era: Export filtrar `user_id` no SQL (`repositories/export.py:48`).
 - [ ] **P2** (média) Overview agregando no SQL.
 - [ ] **P3** (média) Paginação de transações no backend; cache no frontend.
-- [x] **P4** (baixa) Lazy nas páginas de auth; importar só os módulos do D3 usados. Feito: Login/SignUp/ForgotPassword/UpdatePassword lazy; `d3` trocado por submódulos via `src/lib/d3.ts`; chunk principal 658,09 -> 648,77 kB (gzip 191,44 -> 189,83).
+- [x] **P4** (baixa) Lazy nas páginas de auth; importar só os módulos do D3 usados. Feito: Login/SignUp/ForgotPassword/UpdatePassword lazy; `d3` trocado por submódulos via `src/lib/d3.ts`; chunk principal 658,09 -> 648,77 kB (gzip 191,44 -> 189,83). Fase 2: todas as rotas já eram lazy; `manualChunks` (react-vendor, d3, supabase, zod, radix) e fallback acessível (`role="status"`, texto pt-BR). Maior chunk: 684 kB -> 223 kB (supabase), gzip 202 -> 58 kB; orçamento do CI apertado de 500 kB para 64 kB gzip por chunk.
 - [ ] **P5** (baixa) Lock no job de alertas; evitar `selectin` de bancos em toda request.
 
 ## Infra e operação
