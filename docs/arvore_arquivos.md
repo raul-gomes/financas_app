@@ -63,8 +63,8 @@ financas_app/
 │   │   │   │   ├── goals_routes.py             # /goals — CRUD metas + progresso (admin); só HTTP, regras no GoalService
 │   │   │   │   ├── shopping_routes.py          # /shopping — CRUD lista de compras + migração (admin); só HTTP, regras no ShoppingService
 │   │   │   │   ├── pluggy_routes.py            # /pluggy — integração Open Finance (contas, sincronização, validar chave); só HTTP, regras no PluggySyncService
-│   │   │   │   ├── notifications_routes.py     # /notifications — listar alertas, marcar lido (1 ou todos)
-│   │   │   │   └── export_routes.py            # /export — exportação CSV e OFX
+│   │   │   │   ├── notifications_routes.py     # /notifications — listar alertas, marcar lido (1 ou todos); só HTTP, regras no NotificationService
+│   │   │   │   └── export_routes.py            # /export — exportação CSV e OFX (admin); só HTTP, arquivos gerados pelo ExportService
 │   │   │   │
 │   │   │   ├── schemas/                        # DTOs Pydantic (validação de request/response)
 │   │   │   │   ├── transaction.py              # TransacaoCreate/Response/Update, TransacaoPageResponse (paginação) + constantes TRANSACTIONS_*_PAGE_SIZE + schemas de duplicatas
@@ -90,10 +90,12 @@ financas_app/
 │   │   │       ├── recurring_account_service.py # RecurringAccountService: contas recorrentes do usuário (CRUD, renew, generate); resolve/cria categoria e subcategoria por nome; avalia limites após o commit; só flush
 │   │   │       ├── extract_service.py          # ExtractService: parse_upload (CSV/OFX por extensão ou conteúdo) e confirm (importação em lote, só flush; limites avaliados após o commit no mês mais antigo)
 │   │   │       ├── pluggy_sync_service.py      # PluggySyncService: contas, validar chave e sync do Pluggy do usuário (chave decifrada do usuário autenticado), detecção de duplicatas; limites após o commit; pluggy_client_for
+│   │   │       ├── notification_service.py     # NotificationService: alertas de limite do usuário (list_notifications, mark_read, mark_all_read); só altera linhas carregadas, commit da unit of work
+│   │   │       ├── export_service.py           # ExportService: CSV/OFX das transações do usuário no período (leitura; relógio injetável) → ExportFile
 │   │   │       ├── dashboard_service.py        # DashboardService: overview e dashboard financeiro (leitura); metas/compras só para admin decididas pelo role do token
 │   │   │       ├── pluggy_service.py           # Cliente HTTP para API Meu Pluggy (Open Finance)
 │   │   │       ├── extract_parsers.py          # Parsers de extrato bancário (CSV e OFX via defusedxml; UnsafeOfxError é um ValidationError)
-│   │   │       ├── limit_alert_service.py      # LimitAlertService: avalia limites (evaluate_limits, _evaluate_credit_card), envia emails, trigger_limit_evaluation e evaluate_all_users_current_month (disparos pós-mutação)
+│   │   │       ├── limit_alert_service.py      # LimitAlertService: avalia limites (evaluate_limits só faz flush, _evaluate_credit_card), send_alert_emails; trigger_limit_evaluation (commit próprio e só então e-mails) e evaluate_all_users_current_month (disparos pós-commit/job)
 │   │   │       ├── email_service.py            # Envio de e-mails via Resend API (opt-in EMAIL_ALERTS_ENABLED; best-effort, nunca levanta)
 │   │   │       └── limit_alert_job.py          # Job periódico de avaliação de limites (run_evaluation_once, _job_loop, start/stop) — roda no lifespan
 │   │   │
@@ -139,6 +141,8 @@ financas_app/
 │   │   │   ├── test_recurring_account_service.py # RecurringAccountService: rollback desfaz conta+parcelas+categoria, nomes resolvidos, 422, isolamento, desativar cancela futuras, limites avaliados após commit
 │   │   │   ├── test_extract_service.py         # ExtractService: parse (extensão/conteúdo/OFX hostil), confirm só flush + rollback, limites após commit no mês mais antigo, falha do lote vira erro sem poluir a sessão
 │   │   │   ├── test_pluggy_sync_service.py     # PluggySyncService: importação do usuário, rollback, duplicatas só do usuário, sem chave → 400, chave ilegível → 500 sem vazar, validate_key
+│   │   │   ├── test_notification_service.py    # NotificationService: lista só do usuário (severity computada), marcar lido só vale após o commit, id alheio/inexistente = success False
+│   │   │   ├── test_export_service.py          # ExportService: CSV/OFX exatos com relógio fixo, fim em aberto = hoje, só dados do usuário, data inválida → 400
 │   │   │   ├── test_transaction_service.py     # TransactionService: nada comitado antes do UoW, rollback desfaz categoria auto-criada, limites avaliados após commit, isolamento entre usuários
 │   │   │   ├── test_transactions_pagination.py # GET /transacoes/paginated: ordem estável (data desc, id desc), cursor, total, filtros, teto de página, isolamento
 │   │   │   ├── test_dashboard_sql_parity.py    # Agregações SQL do dashboard/overview x referência em Python (PF/PJ, 2 usuários) + teto de queries

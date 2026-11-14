@@ -16,9 +16,11 @@ from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.db.models.user import UserORM
 from app.services.category_service import CategoryService
 from app.services.dashboard_service import DashboardService
+from app.services.export_service import ExportService
 from app.services.extract_service import ExtractService
 from app.services.goal_service import GoalService
 from app.services.limits_service import LimitsService
+from app.services.notification_service import NotificationService
 from app.services.pluggy_sync_service import PluggySyncService
 from app.services.recurring_account_service import RecurringAccountService
 from app.services.settings_service import SettingsService
@@ -189,3 +191,27 @@ async def get_pluggy_reader(
 ) -> PluggySyncService:
     """Pluggy service for routes that write nothing (list_accounts, validate_key)."""
     return PluggySyncService(UnitOfWork(session), current_user)
+
+
+async def get_notification_service(
+    uow: UnitOfWork = Depends(get_unit_of_work, scope="function"),
+    current_user: UserORM = Depends(get_current_user),
+) -> NotificationService:
+    """Notifications service whose mark-as-read writes are committed once by the unit of work."""
+    return NotificationService(uow, current_user)
+
+
+async def get_notification_reader(
+    session: AsyncSession = Depends(get_session),
+    current_user: UserORM = Depends(get_current_user),
+) -> NotificationService:
+    """Notifications service for the read-only listing."""
+    return NotificationService(UnitOfWork(session), current_user)
+
+
+async def get_export_service(
+    session: AsyncSession = Depends(get_session),
+    current_user: UserORM = Depends(get_current_user),
+) -> ExportService:
+    """Export service (read-only: no unit of work, nothing to commit)."""
+    return ExportService(session, current_user)

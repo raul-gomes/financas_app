@@ -140,3 +140,35 @@ async def test_cartaol_quase_no_limite_gera_alerta_scope_credit_card(async_sessi
     # Reavaliar não duplica o alerta de cartão
     await LimitAlertService(async_session).evaluate_limits(1, 2026, 9)
     assert len(await _count_alerts(async_session)) == 1
+
+
+@pytest.mark.asyncio
+async def test_evaluate_limits_only_flushes_leaving_the_commit_to_the_caller(async_session):
+    await _seed_categoria_e_gasto(async_session, limit=1000, spent=850)
+    await async_session.commit()
+
+    criados = await LimitAlertService(async_session).evaluate_limits(1, 2026, 9)
+    assert len(criados) == 1
+    await async_session.rollback()
+
+    assert await _count_alerts(async_session) == []
+
+
+@pytest.mark.asyncio
+async def test_trigger_commits_the_alerts_before_sending_emails(async_session, monkeypatch):
+    from app.services.limit_alert_service import trigger_limit_evaluation
+
+    await _seed_categoria_e_gasto(async_session, limit=1000, spent=850)
+    await async_session.commit()
+    durable_when_emailing: list[int] = []
+
+    async def fake_send(self, user_id, alertas):
+        await async_session.rollback()  # whatever is not committed would vanish here
+        durable_when_emailing.append(len(await _count_alerts(async_session)))
+
+    monkeypatch.setattr(LimitAlertService, "send_alert_emails", fake_send)
+
+    criados = await trigger_limit_evaluation(async_session, 1, year=2026, month=9)
+
+    assert len(criados) == 1
+    assert durable_when_emailing == [1]
