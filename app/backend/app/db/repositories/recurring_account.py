@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from fastapi import Depends, HTTPException
 from sqlalchemy import and_, func, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -51,9 +51,9 @@ class ContaRecorrenteRepository:
         try:
             await self.db.commit()
             await self.db.refresh(inst)
-        except IntegrityError:
+        except IntegrityError as exc:
             await self.db.rollback()
-            raise HTTPException(status_code=400, detail="Erro ao criar conta recorrente")
+            raise HTTPException(status_code=400, detail="Erro ao criar conta recorrente") from exc
 
         # Auto-generate 12 monthly installments
         try:
@@ -61,7 +61,7 @@ class ContaRecorrenteRepository:
             log.info(
                 f"Conta recorrente {inst.id} criada com {geradas}/{inst.total_installments} parcelas geradas"
             )
-        except Exception as e:
+        except SQLAlchemyError as e:
             log.error(f"Erro ao gerar parcelas para conta {inst.id}: {e}")
             raise
 
@@ -130,18 +130,23 @@ class ContaRecorrenteRepository:
         if was_active and data.get("active") is False:
             try:
                 await self._cancel_future_transactions(conta)
-            except Exception as e:
+            except SQLAlchemyError as e:
                 await self.db.rollback()
-                raise HTTPException(status_code=500, detail=f"Erro ao cancelar futuras: {e}")
+                logger.error(f"Erro ao cancelar transações futuras da conta {conta.id}: {e}")
+                raise HTTPException(
+                    status_code=500, detail="Erro interno ao cancelar as transações futuras"
+                ) from e
 
         try:
             await self.db.commit()
             await self.db.refresh(conta)
             await self._set_remaining_installments(conta)
             return conta
-        except IntegrityError:
+        except IntegrityError as exc:
             await self.db.rollback()
-            raise HTTPException(status_code=400, detail="Erro ao atualizar conta recorrente")
+            raise HTTPException(
+                status_code=400, detail="Erro ao atualizar conta recorrente"
+            ) from exc
 
     async def delete(self, id: int, user_id: int) -> RecurringAccountORM | None:
         conta = await self.get_by_id(id, user_id)
@@ -261,7 +266,7 @@ class ContaRecorrenteRepository:
                 },
             )
             geradas = result.rowcount
-        except Exception as e:
+        except SQLAlchemyError as e:
             # Fallback to original method if PostgreSQL-specific fails (e.g., SQLite in tests)
             logger.warning(f"Bulk insert failed, falling back to row-by-row: {e}")
             geradas = 0
@@ -312,9 +317,12 @@ class ContaRecorrenteRepository:
         # Generate 12 new installments
         try:
             await self._generate_installments(conta, user_id)
-        except Exception as e:
+        except SQLAlchemyError as e:
             await self.db.rollback()
-            raise HTTPException(status_code=500, detail=f"Erro ao renovar: {e}")
+            logger.error(f"Erro ao renovar conta recorrente {conta.id}: {e}")
+            raise HTTPException(
+                status_code=500, detail="Erro interno ao renovar a conta recorrente"
+            ) from e
 
         await self.db.commit()
         await self.db.refresh(conta)
@@ -422,7 +430,7 @@ class ContaRecorrenteRepository:
                     already_exists = await self._check_transaction_exists(
                         conta.group_id, year, month
                     )
-                except Exception as e:
+                except SQLAlchemyError as e:
                     log.error(
                         f"Erro ao verificar transacao existente para {conta.description}: {e}"
                     )
@@ -454,7 +462,7 @@ class ContaRecorrenteRepository:
                         detalhes.append(
                             f"{conta.description} - R$ {conta.amount:.2f} em {transaction_date.strftime('%d/%m/%Y')}"
                         )
-                    except Exception as e:
+                    except (SQLAlchemyError, ValueError) as e:
                         log.error(
                             f"Erro ao gerar transacao recorrente para {conta.description}: {e}"
                         )
@@ -468,7 +476,7 @@ class ContaRecorrenteRepository:
             try:
                 await self.db.commit()
                 log.info(f"{geradas} transacoes recorrentes geradas")
-            except Exception as e:
+            except SQLAlchemyError as e:
                 await self.db.rollback()
                 log.error(f"Erro ao commit transacoes recorrentes: {e}", exc_info=True)
                 raise
@@ -490,8 +498,5 @@ class ContaRecorrenteRepository:
                 TransactionORM.transaction_date < next_month_start,
             )
         )
-        try:
-            result = await self.db.execute(stmt)
-            return result.scalars().first() is not None
-        except Exception:
-            return False
+        result = await self.db.execute(stmt)
+        return result.scalars().first() is not None

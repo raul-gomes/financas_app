@@ -118,6 +118,6 @@ async def send_limit_alert_email(
             return True
         logger.warning("[email] Resend respondeu %s: %s", resp.status_code, resp.text[:200])
         return False
-    except Exception as e:
+    except httpx.HTTPError as e:
         logger.error("[email] Falha ao enviar para %s: %s", to_email, e)
         return False

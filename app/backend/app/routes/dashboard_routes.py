@@ -52,10 +52,10 @@ async def overview_geral(
 def parse_date(date_str: str, field_name: str) -> datetime:
     try:
         return datetime.strptime(date_str, "%d/%m/%Y")
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400, detail=f"Formato inválido para {field_name}. Use DD/MM/YYYY."
-        )
+        ) from exc
 
 
 @router.get(

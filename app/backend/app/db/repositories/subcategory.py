@@ -61,9 +61,9 @@ class SubcategoriaRepository:
             await self.db.refresh(inst)
             log.info(f"Subcategoria {inst.id} criada para categoria {categoria_id}")
             return inst
-        except IntegrityError:
+        except IntegrityError as exc:
             await self.db.rollback()
-            raise HTTPException(status_code=400, detail="Erro ao criar subcategoria")
+            raise HTTPException(status_code=400, detail="Erro ao criar subcategoria") from exc
 
     async def create_many(self, categoria_id: int, user_id: int, subs: list[SubcategoriaCreate]):
         sub_objs = [self.model(name=s.subcategory_name, category_id=categoria_id) for s in subs]

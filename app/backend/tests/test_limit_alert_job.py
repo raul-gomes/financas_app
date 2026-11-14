@@ -24,7 +24,7 @@ def _frozen_clock():
 @pytest.fixture
 def _user_gasto(async_session):
     async def _seed(limit=1000.0, spent=1050.0, user_id=1):
-        user = UserORM(id=user_id, name="Teste", email="a@b.com", password_hash="", role="admin")
+        user = UserORM(id=user_id, name="Teste", email="a@b.com", role="admin")
         async_session.add(user)
         await async_session.flush()
         cat = CategoryORM(

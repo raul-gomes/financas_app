@@ -13,7 +13,6 @@ async def seed_user(async_session):
         id=1,
         name="Teste",
         email="alert@teste.com",
-        password_hash="",
         role="admin",
     )
     async_session.add(user)

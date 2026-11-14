@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -16,6 +17,22 @@ from app.logger import log_database_operation
 from app.schemas.categories import CategoriaCreate, CategoriaUpdate
 from app.schemas.limits import CategoriaLimiteUpdate, LimitsUpdatePayload, LimitsUpdateResponse
 from app.schemas.subcategory import SubcategoriaCreate, SubcategoriaUpdate
+
+GENERIC_ITEM_ERROR = "erro interno"
+BULK_ITEM_ERRORS = (HTTPException, ValueError, SQLAlchemyError)
+
+
+def client_error_text(exc: Exception) -> str:
+    """Text that is safe to show the client for one failed bulk item.
+
+    Only deliberate domain messages (HTTPException detail, ValueError raised by this
+    repository) are passed through; database errors become a generic text.
+    """
+    if isinstance(exc, HTTPException):
+        return str(exc.detail)
+    if isinstance(exc, ValueError):
+        return str(exc)
+    return GENERIC_ITEM_ERROR
 
 
 class LimitsRepository:
@@ -51,17 +68,19 @@ class LimitsRepository:
                     if cat:
                         await self.categoria_repo.delete(cat_id, user_id)
                         response.deleted_categories += 1
-                except Exception as e:
-                    response.errors.append(f"Erro ao excluir categoria ID {cat_id}: {e!s}")
+                except BULK_ITEM_ERRORS as e:
+                    response.errors.append(
+                        f"Erro ao excluir categoria ID {cat_id}: {client_error_text(e)}"
+                    )
                     log.error(f"Erro ao excluir categoria: {e}")
 
             # Processa categorias novas
             for new_cat in payload.new:
                 try:
                     await self._create_new_category(new_cat, response, user_id)
-                except Exception as e:
+                except BULK_ITEM_ERRORS as e:
                     response.errors.append(
-                        f"Erro ao criar categoria '{new_cat.categoria_nome}': {e!s}"
+                        f"Erro ao criar categoria '{new_cat.category_name}': {client_error_text(e)}"
                     )
                     log.error(f"Erro ao criar categoria: {e}")
 
@@ -69,8 +88,10 @@ class LimitsRepository:
             for mod_cat in payload.modified:
                 try:
                     await self._update_existing_category(mod_cat, response, user_id)
-                except Exception as e:
-                    response.errors.append(f"Erro ao atualizar categoria ID {mod_cat.id}: {e!s}")
+                except BULK_ITEM_ERRORS as e:
+                    response.errors.append(
+                        f"Erro ao atualizar categoria ID {mod_cat.id}: {client_error_text(e)}"
+                    )
                     log.error(f"Erro ao atualizar categoria: {e}")
 
             # Commit final se não houver erros críticos
@@ -85,13 +106,13 @@ class LimitsRepository:
             )
             return response
 
-        except Exception as e:
+        except SQLAlchemyError as e:
             await self.db.rollback()
             log.error(f"Erro crítico no bulk update: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Erro interno ao processar limites: {e!s}",
-            )
+                detail="Erro interno ao processar limites",
+            ) from e
 
     async def _create_new_category(
         self, new_cat: CategoriaLimiteUpdate, response: LimitsUpdateResponse, user_id: int
