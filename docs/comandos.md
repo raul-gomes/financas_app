@@ -53,7 +53,7 @@ Observação: as migrations (`alembic upgrade head`) rodam no start do backend e
 | `npm run lint` | Lint (ESLint). |
 | `npm run build` | Build de produção (`dist/`). |
 | `npm audit --omit=dev` | Auditoria de dependências de produção do frontend (`npm audit fix` sem `--force`). |
-| `node scripts/check-bundle-size.mjs` | Orçamento de bundle (500 kB gzip por chunk), o mesmo do CI. |
+| `node scripts/check-bundle-size.mjs` | Orçamento de bundle (64 kB gzip por chunk), o mesmo do CI. |
 
 ## Git e CI
 
