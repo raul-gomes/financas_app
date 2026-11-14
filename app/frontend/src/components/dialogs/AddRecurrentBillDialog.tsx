@@ -121,7 +121,7 @@ export function AddRecurrentBillDialog({
     >
         <form id="add-recurrent-bill-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="descricao">Descricao *</Label>
+            <Label htmlFor="descricao">Descrição *</Label>
             <Input
               id="descricao"
               placeholder="Ex: Aluguel, Internet, etc."

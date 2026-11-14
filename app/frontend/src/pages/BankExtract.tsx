@@ -596,7 +596,7 @@ setTransactionErrors(allErrors)
     <div className="min-h-screen bg-gradient-subtle">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" onClick={handleCancel}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
@@ -608,7 +608,7 @@ setTransactionErrors(allErrors)
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button variant="outline" size="sm" onClick={handleCancel} disabled={isConfirming}>
               <X className="w-4 h-4 mr-2" />Cancelar
             </Button>

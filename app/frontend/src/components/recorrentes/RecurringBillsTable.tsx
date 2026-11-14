@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BankLogo } from "@/components/ui/bank-logo";
 import { formatCurrency } from "@/lib/format";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { ContaRecorrente } from "@/types/recurringAccount";
 
 /** Altura fixa estimada de cada linha da tabela (px). */
@@ -39,7 +40,117 @@ export const isEndingSoon = (conta: ContaRecorrente): boolean =>
  * Virtualização: apenas linhas visíveis (+ overscan) são montadas no DOM;
  * espaçadores `<tr>` preservam a altura total do scroll.
  */
-export function RecurringBillsTable({
+export function RecurringBillsTable(props: RecurringBillsTableProps) {
+  const isMobile = useIsMobile();
+  return isMobile ? <RecurringBillsCards {...props} /> : <RecurringBillsDesktopTable {...props} />;
+}
+
+/**
+ * Versão mobile (abaixo de `md`): um card por conta, sem as 8 colunas da tabela.
+ * Mesmos dados e ações; alvos de toque de 44px.
+ */
+function RecurringBillsCards({
+  contas,
+  onToggleActive,
+  onEdit,
+  onDelete,
+  onRenew,
+  renewingId,
+  showBank = false,
+}: RecurringBillsTableProps) {
+  return (
+    <ul className="space-y-3 p-3" data-testid="recurring-bills-cards">
+      {contas.map((conta) => {
+        const cannotRenew = conta.active && conta.remaining_installments > 2;
+        return (
+          <li
+            key={conta.id}
+            className={`rounded-2xl border border-border bg-card p-3 ${!conta.active ? 'opacity-60' : ''}`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="break-words font-semibold text-foreground">{conta.description}</p>
+                <p className="text-xs text-muted-foreground">
+                  Dia {conta.due_day} · {conta.category_name}
+                  {conta.subcategory_name && ` / ${conta.subcategory_name}`}
+                </p>
+              </div>
+              <span className="whitespace-nowrap font-bold text-foreground">{formatCurrency(conta.amount)}</span>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span>
+                Parcela {currentInstallment(conta)}/{conta.total_installments}
+              </span>
+              {showBank && conta.bank_code && (
+                <span className="flex items-center gap-1.5">
+                  <BankLogo code={conta.bank_code} size="xs" />
+                  {conta.bank_code}
+                </span>
+              )}
+              {isEndingSoon(conta) && (
+                <Badge variant="warning" className="gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Acabando
+                </Badge>
+              )}
+            </div>
+            <div className="mt-2 flex items-center justify-between border-t border-border pt-1">
+              <button
+                type="button"
+                onClick={() => onToggleActive(conta)}
+                className="flex min-h-[44px] items-center gap-1 pr-3 text-sm"
+              >
+                {conta.active ? (
+                  <ToggleRight className="h-6 w-6 text-success" />
+                ) : (
+                  <ToggleLeft className="h-6 w-6 text-muted-foreground" />
+                )}
+                <span className={conta.active ? 'text-success' : 'text-muted-foreground'}>
+                  {conta.active ? 'Ativa' : 'Inativa'}
+                </span>
+              </button>
+              <div className="flex">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11"
+                  aria-label={`Editar ${conta.description}`}
+                  onClick={() => onEdit(conta)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                {onRenew && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-11 w-11"
+                    aria-label={`Renovar ${conta.description}`}
+                    onClick={() => onRenew(conta.id)}
+                    disabled={renewingId === conta.id || cannotRenew}
+                    title={cannotRenew ? 'Ainda há parcelas restantes' : 'Renovar por mais 12 meses'}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${renewingId === conta.id ? 'animate-spin' : ''}`} />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11"
+                  aria-label={`Excluir ${conta.description}`}
+                  onClick={() => onDelete(conta.id)}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function RecurringBillsDesktopTable({
   contas,
   onToggleActive,
   onEdit,
@@ -71,7 +182,7 @@ export function RecurringBillsTable({
       <table className="w-full">
         <thead>
           <tr>
-            <th className="sticky top-0 z-10 bg-muted text-left px-4 py-3 text-sm font-medium text-muted-foreground">Descricao</th>
+            <th className="sticky top-0 z-10 bg-muted text-left px-4 py-3 text-sm font-medium text-muted-foreground">Descrição</th>
             <th className="sticky top-0 z-10 bg-muted text-left px-4 py-3 text-sm font-medium text-muted-foreground">Valor</th>
             <th className="sticky top-0 z-10 bg-muted text-left px-4 py-3 text-sm font-medium text-muted-foreground">Vencimento</th>
             <th className="sticky top-0 z-10 bg-muted text-left px-4 py-3 text-sm font-medium text-muted-foreground">Categoria</th>
@@ -80,7 +191,7 @@ export function RecurringBillsTable({
             )}
             <th className="sticky top-0 z-10 bg-muted text-left px-4 py-3 text-sm font-medium text-muted-foreground">Parcelas</th>
             <th className="sticky top-0 z-10 bg-muted text-left px-4 py-3 text-sm font-medium text-muted-foreground">Status</th>
-            <th className="sticky top-0 z-10 bg-muted text-left px-4 py-3 text-sm font-medium text-muted-foreground">Acoes</th>
+            <th className="sticky top-0 z-10 bg-muted text-left px-4 py-3 text-sm font-medium text-muted-foreground">Ações</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -156,7 +267,7 @@ export function RecurringBillsTable({
                         disabled={renewingId === conta.id || (conta.active && conta.remaining_installments > 2)}
                         title={
                           conta.active && conta.remaining_installments > 2
-                            ? 'Ainda ha parcelas restantes'
+                            ? 'Ainda há parcelas restantes'
                             : 'Renovar por mais 12 meses'
                         }
                       >
