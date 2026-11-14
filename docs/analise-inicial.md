@@ -126,7 +126,7 @@ FastAPI ──JWKS──> Supabase Auth     FastAPI ──> Pluggy, Resend
 
 - **I1 (alta). Sem backup do Postgres**: só o volume Docker.
 - **I2 (média).** Postgres publicado no host (`docker-compose.yml:8`, porta 5436) com usuário e senha padrão no compose de dev.
-- **I3 (média).** Logs sem rotação nem volume (somem ao recriar o container); sem métricas ou alertas.
+- **I3 (média).** Logs sem volume (somem ao recriar o container); sem métricas ou alertas. (Correção de 2026-11-14: o loguru já tem `rotation`/`retention`.)
 - **I4 (baixa).** `alembic upgrade head` no start do container, sem lock; `setup-docker.sh` sem `set -e`.
 
 ### Documentação e higiene

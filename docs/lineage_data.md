@@ -2,8 +2,8 @@
 
 > Documento de linhagem (lineage) dos dados: origem, transformações, armazenamento e consumo.
 >
-> **Última atualização:** 2026-09-15
-> **Head do Alembic:** `f0a1b2c3d4e5` (24 migrações)
+> **Última atualização:** 2026-11-14
+> **Head do Alembic:** `a7b8c9d0e1f2` (25 migrações)
 >
 > ⚠️ **Manutenção obrigatória**: qualquer alteração em models (`app/db/models/`), migrações
 > (`app/db/migrations/versions/`), repositories ou rotas que mude o fluxo de dados deve
@@ -139,9 +139,10 @@ Relationships: `subcategories` 1:N cascade `all, delete-orphan`. Unicidade por u
 |---|---|---|---|---|
 | `id` | Integer PK | ✗ | — | index |
 | `name` | String | ✗ | `""` | |
-| `email` | String UNIQUE | ✗ | — | |
-| `password_hash` | String | ✗ | `""` | bcrypt via PUT /settings/profile |
-| `pluggy_api_key` | String | ✓ | NULL | chave Open Finance por usuário |
+| `email` | String UNIQUE | ✗ | — | segue o e-mail do Supabase (atualizado no login) |
+| `supabase_id` | String(64) UNIQUE | ✓ | NULL | claim `sub` do Supabase: identidade estável; linhas antigas são vinculadas pelo e-mail no próximo login |
+| `password_hash` | String | ✗ | `""` | **legado, não usado** (senha é do Supabase); remover numa migration futura |
+| `pluggy_api_key` | String | ✓ | NULL | chave Open Finance por usuário; **nunca devolvida pela API** (`has_pluggy_key`); cifra em repouso pendente (S2) |
 | `role` | String(32) | ✗ | `'user'` (server) | enum: `admin`, `user` (pronto p/ multi-role) — substitui a coluna `is_admin` legada na Etapa 9; todo cadastro nasce `user` (admin só por promoção manual) |
 
 Relationships: `banks` 1:N cascade `all, delete-orphan`.
@@ -350,7 +351,8 @@ Cadeia linear (root → head):
 | 21 | `c1d2e3f4a5b6` | add_user_id_to_recurring_accounts (Etapa 7) | `recurring_accounts.user_id` FK NOT NULL + índice `ix_recurring_accounts_user_id`; backfill p/ user 1 |
 | 22 | `d2e3f4a5b6c7` | add_user_id_to_shopping_items (Etapa 8) | `shopping_items.user_id` FK NOT NULL + índice `ix_shopping_items_user_id`; backfill p/ user 1 |
 | 23 | `e3f4a5b6c7d8` | replace_is_admin_with_role (Etapa 9) | `users.is_admin` Bool → `role` String(32) default `'user'`; `TRUNCATE`/`UPDATE` admin→'admin' / user→'user'; remove `is_admin` |
-| 24 | `f0a1b2c3d4e5` | create limit_alerts (notificações de limites) (**HEAD**) | Nova tabela `limit_alerts` (alertas 80/90/100 + exceeded, scope category/credit_card, `read_at`/`email_sent`), FKs CASCADE p/ users/categorias, constr. única `(user_id, category_id, month, threshold)`, índices `ix_limit_alerts_user_id`/`ix_limit_alerts_category_id` |
+| 24 | `f0a1b2c3d4e5` | create limit_alerts (notificações de limites) | Nova tabela `limit_alerts` (alertas 80/90/100 + exceeded, scope category/credit_card, `read_at`/`email_sent`), FKs CASCADE p/ users/categorias, constr. única `(user_id, category_id, month, threshold)`, índices `ix_limit_alerts_user_id`/`ix_limit_alerts_category_id` |
+| 25 | `a7b8c9d0e1f2` | add users.supabase_id (**HEAD**) | Coluna `supabase_id` String(64) nullable + índice único `ix_users_supabase_id`; identidade pelo `sub` em vez do e-mail (S4) |
 
 ---
 
