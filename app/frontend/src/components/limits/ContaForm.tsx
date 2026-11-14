@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import { Plus } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { reportLoadError } from '@/lib/reportLoadError'
 import { FinancialService } from '@/services/financialService'
 import { ContaRecorrente, ContaRecorrenteCreate, ContaRecorrenteUpdate } from '@/types/recurringAccount'
 import { CategorySubcategories } from '@/types/financial'
@@ -51,7 +52,9 @@ export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
     useEffect(() => {
         FinancialService.getCategorySubcategories(form.entity_type, 'expense')
             .then(options => setCategoryOptions(options))
-            .catch(() => {})
+            .catch((error: unknown) => reportLoadError(toast, 'as categorias', error))
+        // toast is a stable global dispatcher; only the scope should reload the options
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [form.entity_type])
 
     const handleSubmit = (e: React.FormEvent) => {

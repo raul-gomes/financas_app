@@ -104,7 +104,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-end gap-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
                         <div className="flex-1 space-y-2">
                             <Label>Nome do Item</Label>
                             <Input
@@ -114,7 +114,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                                 onKeyDown={e => e.key === 'Enter' && handleCreate()}
                             />
                         </div>
-                        <Button onClick={handleCreate} disabled={!newNome.trim()}>
+                        <Button onClick={handleCreate} disabled={!newNome.trim()} className="max-sm:w-full">
                             <PlusCircle className="h-4 w-4 mr-2" />Adicionar
                         </Button>
                     </div>
@@ -154,7 +154,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                             {pendentesFiltrados.map(item => (
                                 <div key={item.id} className="border rounded-lg p-3 flex items-center justify-between">
                                     {editingItem?.id === item.id ? (
-                                        <div className="flex items-end gap-2 w-full">
+                                        <div className="flex flex-wrap items-end gap-2 w-full">
                                             <div className="flex-1 space-y-1">
                                                 <Label className="text-xs">Nome</Label>
                                                 <Input value={editNome} onChange={e => setEditNome(e.target.value)} placeholder="Nome" />
@@ -166,15 +166,15 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="flex items-center gap-3">
+                                            <label className="flex min-h-[44px] min-w-0 flex-1 cursor-pointer items-center gap-3">
                                                 <input
                                                     type="checkbox"
                                                     checked={item.checked}
                                                     onChange={() => handleToggle(item)}
-                                                    className="h-4 w-4 rounded border-input"
+                                                    className="h-4 w-4 shrink-0 rounded border-input"
                                                 />
-                                                <span className="font-medium">{item.name}</span>
-                                            </div>
+                                                <span className="min-w-0 break-words font-medium">{item.name}</span>
+                                            </label>
                                             <div className="flex gap-1">
                                                 <Button aria-label="Editar item" variant="ghost" size="sm" onClick={() => { setEditingItem(item); setEditNome(item.name) }}>
                                                     <Pencil className="h-3.5 w-3.5" />
@@ -217,14 +217,14 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                             ) : (
                                 concluidosFiltrados.map(item => (
                                     <div key={item.id} className="border border-success/30 rounded-lg p-3 bg-success/5 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
+                                        <label className="flex min-h-[44px] min-w-0 flex-1 cursor-pointer items-center gap-3">
                                             <input
                                                 type="checkbox"
                                                 checked={item.checked}
                                                 onChange={() => handleToggle(item)}
-                                                className="h-4 w-4 rounded border-input"
+                                                className="h-4 w-4 shrink-0 rounded border-input"
                                             />
-                                            <div>
+                                            <div className="min-w-0">
                                                 <span className="font-medium text-success line-through">{item.name}</span>
                                                 {item.completed_at && (
                                                     <p className="text-xs text-muted-foreground">
@@ -232,7 +232,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                                                     </p>
                                                 )}
                                             </div>
-                                        </div>
+                                        </label>
                                         <Button aria-label="Excluir item" variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
                                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                         </Button>

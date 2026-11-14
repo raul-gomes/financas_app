@@ -483,3 +483,11 @@ O desktop segue com `FinancialDashboard` + `TransactionList` (os dois usam `Paym
 `OverviewDashboard` escolhe `OverviewMobile` abaixo de `md` (o desktop não muda): controle segmentado Ambos/PF/PJ, cartão de destaque "Saldo do mês" com entradas e saídas,
 progresso do mês com o uso do cartão, "Perto do limite" (3 piores categorias, link "Ver limites" para `/limits`), "A pagar este mês", "Parcelas do mês" e, para admin, "Metas" e "Compras".
 Listas longas mostram 3 itens e o botão "Ver tudo"/"Ver menos". O seletor de mês (`MonthStepper`) vai para o `MobileTopBarSlot`; o `h1` da página some no mobile (a barra superior já tem o título).
+
+### 8.8 Limites (`/limits`) no mobile
+
+`Limits` troca as abas por `ChipGroup variant="tabs"` (Categorias, Recorrentes; Metas e Compras só para admin) e põe PF/PJ num `SegmentedControl`.
+Na aba Categorias, `LimitsCards` mostra um card por limite (mensal, cartão e categorias): barra de progresso e "Restam R$ X" ou "Passou R$ X do limite" —
+os números vêm do backend (`/limits/with-spending`), sem recalcular no cliente. Tocar no card abre `LimitEditSheet` (nome em largura total, valor com `inputMode="decimal"`,
+subcategorias, excluir com confirmação); o "+" da barra superior cria uma categoria. Salvar grava só aquela categoria. O estado editável e o salvar ficam em `useLimitsDraft`
+(compartilhado com a tabela do desktop); a lógica pura está em `limitsModel.ts`.

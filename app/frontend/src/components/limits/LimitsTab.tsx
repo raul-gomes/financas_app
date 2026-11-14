@@ -1,7 +1,3 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { useErrorToast } from '@/hooks/queries/useErrorToast'
-import { invalidateDomain, useLimitCategories, useLimitsWithSpending } from '@/hooks/queries/useLimitsQueries'
 import {
     Card,
     CardHeader,
@@ -12,71 +8,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { DollarSign, Save, BarChart3, Trash2, PlusCircle, CreditCard } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
-import { FinancialService } from '@/services/financialService'
-import { formatCurrency } from '@/lib/format';
-
-// ===== Types =====
-interface Subcategory {
-    name: string
-    id: number | string
-    isNew?: boolean
-    isModified?: boolean
-}
-
-interface Category {
-    name: string
-    entity_type: 'pf' | 'pj' | 'mensal'
-    limit: number
-    id: number | string
-    subcategories: Subcategory[]
-    type?: string | null
-    isNew?: boolean
-    isModified?: boolean
-}
-
-/** Subcategory as returned by the backend (name may come as subcategory_name). */
-interface RawSubcategory {
-    id: number | string
-    name?: string
-    subcategory_name?: string
-}
-
-/** Category as returned by the backend (name may come as category_name). */
-interface RawCategory {
-    id: number | string
-    name?: string
-    category_name?: string
-    entity_type: string
-    limit: number
-    type?: string | null
-    subcategories?: RawSubcategory[]
-}
-
-/** Body sent to save the limits; items follow the backend contract. */
-interface LimitsSaveBody {
-    new: Record<string, unknown>[]
-    modified: Record<string, unknown>[]
-    deleted: number[]
-}
-
-// Map backend entity_type to local: 'individual'->'pf', 'business'->'pj'
-const mapEntityType = (et: string): 'pf' | 'pj' | 'mensal' => {
-    if (et === 'individual') return 'pf'
-    if (et === 'business') return 'pj'
-    return 'mensal'
-}
-
-// Transform backend response to local Category type
-const transformCategory = (c: RawCategory): Category => ({
-    ...c,
-    name: c.name ?? c.category_name ?? '',
-    entity_type: mapEntityType(c.entity_type),
-    subcategories: (c.subcategories || []).map((s: RawSubcategory) => ({
-        ...s,
-        name: s.name ?? s.subcategory_name ?? '',
-    })),
-})
+import { useIsMobile } from '@/hooks/use-mobile'
+import { LimitAlertBanner } from './LimitAlertBanner'
+import { LimitsCards } from './LimitsCards'
+import { SPECIAL_CATEGORY_NAMES, type Category } from './limitsModel'
+import { useLimitsDraft } from './useLimitsDraft'
 
 // ===== Limits Tab =====
 interface LimitsTabProps {
@@ -84,193 +20,47 @@ interface LimitsTabProps {
 }
 
 export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
-    const queryClient = useQueryClient()
-    // Server data is cached; `rawData` is the editable draft built from it
-    const [rawData, setRawData] = useState<Category[]>([])
-    const [saving, setSaving] = useState(false)
-    const { toast } = useToast()
-    const { data: fetchedLimits, isPending: loadingLimits, isError: limitsError } = useLimitCategories()
-    const now = new Date()
-    const { data: spendingData } = useLimitsWithSpending(now.getFullYear(), now.getMonth() + 1)
-    const loading = loadingLimits || saving
-    useErrorToast(limitsError, 'Nao foi possivel carregar limites')
+    const isMobile = useIsMobile()
+    const {
+        data,
+        loading,
+        saving,
+        spendingRows,
+        limitAlert,
+        updateCategoryField,
+        updateSubcategoryField,
+        addSubcategory,
+        deleteSubcategory,
+        addCategory,
+        handleCartaoLimitChange,
+        deleteCategory,
+        handleSave,
+        saveCategory,
+        removeCategory,
+    } = useLimitsDraft(entityTypeFilter)
 
-    const data = rawData.filter(cat => {
-        if (entityTypeFilter === 'all') return true
-        return cat.entity_type === entityTypeFilter || cat.entity_type === 'mensal'
-    })
-
-    // (Re)build the draft whenever the server data arrives or is refreshed (e.g. after saving)
-    useEffect(() => {
-        if (!fetchedLimits) return
-        const mapped = fetchedLimits.map(transformCategory)
-        const ensureCategory = (name: string, entity_type: 'pf' | 'pj', defaultLimit: number): Category => {
-            const existing = mapped.find(c => c.name.trim().toLowerCase() === name.toLowerCase())
-            if (existing) return existing
-            return {
-                id: `new_${name.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`,
-                name,
-                entity_type,
-                limit: defaultLimit,
-                subcategories: [],
-                isNew: true,
-            }
-        }
-
-        const mensalPF = ensureCategory('Mensal PF', 'pf', 1000)
-        const mensalPJ = ensureCategory('Mensal PJ', 'pj', 1000)
-        const limiteCartao = ensureCategory('Limite Cartao Credito', 'pf', 5000)
-
-        const specialNames = ['mensal pf', 'mensal pj', 'limite cartao credito', 'mensal']
-        const rest = mapped.filter(c => !specialNames.includes(c.name.trim().toLowerCase()))
-
-        setRawData([mensalPF, mensalPJ, limiteCartao, ...rest])
-        setDeletedCategoryIds([])
-    }, [fetchedLimits])
-
-    // Gasto real do mês por categoria (key: nome|pf/pj) para o aviso de % pré-save
-    // (sem gastos disponíveis o aviso simplesmente não aparece)
-    const spending = useMemo(() => {
-        const map: Record<string, number> = {}
-        for (const cat of spendingData?.categories ?? []) {
-            const entity = cat.entity_type === 'individual' ? 'pf' : cat.entity_type === 'business' ? 'pj' : cat.entity_type
-            map[`${cat.category_name.trim().toLowerCase()}|${entity}`] = cat.spent
-        }
-        return map
-    }, [spendingData])
-
-    // % de uso pré-save: gato real do mês ÷ limite digitado (antes de persistir)
-    const limitAlert = (cat: Category): { severity: 'warning' | 'critical' | 'destructive'; percent: number; spent: number } | null => {
-        const spent = spending[`${cat.name.trim().toLowerCase()}|${cat.entity_type}`] ?? 0
-        const limit = cat.limit || 0
-        if (limit <= 0 || cat.name.trim() === '') return null
-        const percent = Math.round((spent / limit) * 100)
-        if (percent < 80) return null
-        const severity = percent >= 100 ? 'destructive' : percent >= 90 ? 'critical' : 'warning'
-        return { severity, percent, spent }
-    }
-
-    const updateCategoryField = (catId: number | string, key: keyof Category, value: Category[keyof Category]) => {
-        setRawData(prev => prev.map(cat => cat.id === catId ? { ...{ ...cat, [key]: value }, isModified: !cat.isNew && cat.isModified !== false ? true : cat.isModified } : cat))
-    }
-
-    const updateSubcategoryField = (catId: number | string, subId: number | string, value: string) => {
-        setRawData(prev => prev.map(cat => {
-            if (cat.id !== catId) return cat
-            return { ...cat, subcategories: cat.subcategories.map(sub => sub.id === subId ? { ...sub, name: value, isModified: !sub.isNew } : sub), isModified: !cat.isNew }
-        }))
-    }
-
-    const addSubcategory = (catId: number | string) => {
-        setRawData(prev => prev.map(cat => cat.id === catId ? { ...cat, subcategories: [...cat.subcategories, { id: `new_sub_${Date.now()}`, name: '', isNew: true }], isModified: !cat.isNew } : cat))
-    }
-
-    const deleteSubcategory = (catId: number | string, subId: number | string) => {
-        setRawData(prev => prev.map(cat => cat.id === catId ? { ...cat, subcategories: cat.subcategories.filter(s => s.id !== subId), isModified: !cat.isNew } : cat))
-    }
-
-    const addCategory = (entity_type: 'pf' | 'pj') => {
-        setRawData(prev => [...prev, { id: `new_cat_${Date.now()}`, name: '', entity_type, limit: 0, subcategories: [], isNew: true }])
-    }
-
-    // Handle credit card limit change, auto-creating the category if it doesn't exist
-    const handleCartaoLimitChange = (entityType: 'pf' | 'pj', value: number) => {
-        const existing = rawData.find(c =>
-            c.name.trim().toLowerCase() === 'limite cartao credito' && c.entity_type === entityType
+    // Mobile: one card per limit, edited in a bottom sheet (the PF/PJ scope is never "all" there)
+    if (isMobile) {
+        return (
+            <LimitsCards
+                scope={entityTypeFilter === 'pj' ? 'pj' : 'pf'}
+                categories={data}
+                spendingRows={spendingRows}
+                saving={saving}
+                alertFor={limitAlert}
+                onSave={saveCategory}
+                onRemove={removeCategory}
+            />
         )
-        if (existing) {
-            updateCategoryField(existing.id, 'limit', value)
-        } else {
-            const tempId = `new_cc_${Date.now()}`
-            setRawData(prev => [...prev, {
-                id: tempId,
-                name: 'Limite Cartao Credito',
-                entity_type: entityType,
-                limit: value,
-                subcategories: [],
-                isNew: true,
-            }])
-        }
-    }
-
-    const [deletedCategoryIds, setDeletedCategoryIds] = useState<number[]>([])
-
-    const deleteCategory = (catId: number | string) => {
-        // Track real IDs for backend deletion
-        if (typeof catId === 'number') {
-            setDeletedCategoryIds(prev => [...prev, catId])
-        }
-        setRawData(prev => prev.filter(cat => cat.id !== catId))
-    }
-
-    const preparePayloadForSave = () => {
-        // Track (name, entity_type) combos of DB-backed categories to avoid duplicates;
-        // keys are added here as new categories are processed so duplicates among them are skipped
-        const existingKeys = new Set(
-            data.filter(c => !c.isNew).map(c => `${c.name.trim().toLowerCase()}|${c.entity_type}`)
-        )
-        const payload: LimitsSaveBody = { new: [], modified: [], deleted: deletedCategoryIds }
-        data.forEach(cat => {
-            if (cat.isNew) {
-                const key = `${cat.name.trim().toLowerCase()}|${cat.entity_type}`
-                if (existingKeys.has(key)) {
-                    return
-                }
-                existingKeys.add(key)
-                payload.new.push({
-                    category_name: cat.name,
-                    entity_type: cat.entity_type === 'pf' ? 'individual' : cat.entity_type === 'pj' ? 'business' : cat.entity_type,
-                    limit: cat.limit,
-                    subcategories: cat.subcategories.filter(s => s.name.trim()).map(s => ({ subcategory_name: s.name }))
-                })
-            } else if (cat.isModified) {
-                payload.modified.push({
-                    id: cat.id,
-                    category_name: cat.name,
-                    entity_type: cat.entity_type === 'pf' ? 'individual' : cat.entity_type === 'pj' ? 'business' : cat.entity_type,
-                    limit: cat.limit,
-                    subcategories: cat.subcategories.map(sub => ({
-                        ...(sub.isNew ? {} : { id: sub.id }),
-                        subcategory_name: sub.name
-                    })).filter(s => s.subcategory_name?.trim())
-                })
-            }
-        })
-        return payload
-    }
-
-    const handleSave = async () => {
-        const affected = data
-            .map(cat => ({ cat, alert: limitAlert(cat) }))
-            .filter((x): x is { cat: Category; alert: { severity: 'warning' | 'critical' | 'destructive'; percent: number; spent: number } } => x.alert !== null)
-        if (affected.length > 0) {
-            toast({
-                title: 'Atenção: limites próximos do estouro',
-                description: affected.map(({ cat, alert }) => `"${cat.name}" (${alert.percent}%)`).join(', '),
-            })
-        }
-
-        setSaving(true)
-        try {
-            const res = await FinancialService.saveLimits(preparePayloadForSave())
-            toast({ title: 'Sucesso', description: res.message })
-            // Refetch the limits (rebuilds the draft) and the spending they are compared with
-            await invalidateDomain(queryClient, 'limits')
-        } catch {
-            toast({ title: 'Erro', description: 'Falha ao salvar limites.', variant: 'destructive' })
-        } finally {
-            setSaving(false)
-        }
     }
 
     const mensalPFItem = data.find(cat => cat.name.trim().toLowerCase() === 'mensal pf')
     const mensalPJItem = data.find(cat => cat.name.trim().toLowerCase() === 'mensal pj')
     const limiteCartaoPFItem = data.find(cat => cat.name.trim().toLowerCase() === 'limite cartao credito' && cat.entity_type === 'pf')
     const limiteCartaoPJItem = data.find(cat => cat.name.trim().toLowerCase() === 'limite cartao credito' && cat.entity_type === 'pj')
-    const specialNames = ['mensal pf', 'mensal pj', 'limite cartao credito', 'mensal']
     const hasLimit = (c: Category) => !c.type || c.type === 'expense'
-    const pfGroup = data.filter(cat => cat.entity_type === 'pf' && !specialNames.includes(cat.name.trim().toLowerCase()) && hasLimit(cat))
-    const pjGroup = data.filter(cat => cat.entity_type === 'pj' && !specialNames.includes(cat.name.trim().toLowerCase()) && hasLimit(cat))
+    const pfGroup = data.filter(cat => cat.entity_type === 'pf' && !SPECIAL_CATEGORY_NAMES.includes(cat.name.trim().toLowerCase()) && hasLimit(cat))
+    const pjGroup = data.filter(cat => cat.entity_type === 'pj' && !SPECIAL_CATEGORY_NAMES.includes(cat.name.trim().toLowerCase()) && hasLimit(cat))
 
     // Which limit card to show
     const showMensalPF = entityTypeFilter === 'all' || entityTypeFilter === 'pf'
@@ -309,23 +99,7 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
                             </div>
                             {(() => {
                                 const alert = limitAlert(cat)
-                                if (!alert) return null
-                                const styles = {
-                                    warning: 'bg-warning/15 text-warning border-warning/30',
-                                    critical: 'bg-critical/15 text-critical border-critical/30',
-                                    destructive: 'bg-destructive/15 text-destructive border-destructive/30',
-                                }[alert.severity]
-                                const suffix = alert.severity === 'destructive' ? ' (estoura agora!)' : alert.severity === 'critical' ? ' (crítico)' : ''
-                                return (
-                                    <div
-                                        data-testid={`limit-alert-${cat.name.trim().toLowerCase()}`}
-                                        data-severity={alert.severity}
-                                        className={`rounded-md border px-3 py-2 text-sm font-medium ${styles}`}
-                                    >
-                                        Este limite deixará "{cat.name}" com {alert.percent}% de uso neste mês
-                                        ({formatCurrency(alert.spent)} gastos){suffix}.
-                                    </div>
-                                )
+                                return alert ? <LimitAlertBanner categoryName={cat.name} alert={alert} /> : null
                             })()}
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">

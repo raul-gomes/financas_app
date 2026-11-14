@@ -223,8 +223,15 @@ financas_app/
 │   │   │               │   └── AuthGuard.test.tsx       # Testes do guard (redireciona sem sessão, renderiza com sessão)
 │       │   │   │
 │       │   │   ├── limits/                     # Componentes da feature de limites
-│       │   │   │   ├── LimitsTab.tsx             # Aba de gerenciamento de limites por categoria; aviso de % pré-save (banner colorido 80/90/100) e toast antes de persistir
+│       │   │   │   ├── LimitsTab.tsx             # Aba de limites por categoria: tabela no desktop, cards (LimitsCards) no mobile; aviso de % pré-save (banner colorido 80/90/100) e toast antes de persistir
 │       │   │   │   ├── LimitsTab.test.tsx        # Testes do aviso pré-save (cores por threshold, some ao aumentar limite, toast no save)
+│       │   │   │   ├── limitsModel.ts            # Modelo editável dos limites (Category, transformCategory, buildLimitsPayload, limitAlertFor, limitStatus) — funções puras
+│       │   │   │   ├── limitsModel.test.ts       # Testes do modelo (payload novo/modificado/duplicado, alerta 80/90/100, status Restam/Passou)
+│       │   │   │   ├── useLimitsDraft.ts         # Rascunho editável dos limites (react-query + ações + salvar) compartilhado por desktop e mobile
+│       │   │   │   ├── LimitAlertBanner.tsx      # Banner de % de uso pré-save (data-testid limit-alert-*)
+│       │   │   │   ├── LimitsCards.tsx           # Aba Categorias no mobile: um card por limite (barra, "Restam R$ X"/"Passou R$ X do limite"), + no topo cria
+│       │   │   │   ├── LimitEditSheet.tsx        # Folha de edição de um limite: nome, valor com teclado decimal, subcategorias, excluir com confirmação
+│       │   │   │   ├── LimitEditSheet.test.tsx   # Testes da folha de edição
 │       │   │   │   ├── RecorrentesTab.tsx        # Aba de contas recorrentes
 │       │   │   │   ├── MetasTab.tsx              # Aba de metas financeiras
 │       │   │   │   ├── ComprasTab.tsx            # Aba de lista de compras
@@ -254,7 +261,7 @@ financas_app/
 │       │   │   ├── Financial.test.tsx          # Testes da página (altura, queries por bloco, PF/PJ, geração de recorrentes antes dos dados, virada de mês, exclusão recarrega)
 │       │   │   ├── Settings.test.tsx           # Testes das Configurações (perfil/bancos em cache, remover banco, salvar nome, toast de erro)
 │       │   │   ├── Investments.tsx             # Página de investimentos (placeholder)
-│       │   │   ├── Limits.tsx                  # Página de limites: tabs por role (admin: Limites/Recorrentes/Metas/Compras; user: Limites/Recorrentes)
+│       │   │   ├── Limits.tsx                  # Página de limites: tabs por role no desktop; chips (Categorias/Recorrentes/Metas/Compras) + PF/PJ segmentado no mobile
 │       │   │   ├── Limits.test.tsx             # Testes das abas por role (user: sem Metas/Compras)
 │       │   │   ├── RecurrentBills.tsx          # Página de contas recorrentes: lista + CRUD
 │       │   │   ├── BankExtract.tsx             # Página de extrato bancário: upload + preview + confirmação
