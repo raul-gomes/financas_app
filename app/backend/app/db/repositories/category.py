@@ -5,7 +5,6 @@ from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.database import get_session
 from app.core.errors import ConflictError, ValidationError
@@ -118,13 +117,10 @@ class CategoriaRepository:
             log.info(f"Categoria {instance.id} criada")
             invalidate_opcoes_categorias_cache()
 
-            # Recarrega categoria completa com subcategorias
-            result = await self.db.execute(
-                select(self.model)
-                .options(selectinload(self.model.subcategories))
-                .where(self.model.id == instance.id)
-            )
-            return result.scalars().first()
+            # The collection loaded by the first refresh is stale once subcategories were
+            # added: reload just that attribute so the returned category is complete.
+            await self.db.refresh(instance, attribute_names=["subcategories"])
+            return instance
 
         except IntegrityError as e:
             err = str(e)

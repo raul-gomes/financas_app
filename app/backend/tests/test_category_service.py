@@ -173,3 +173,14 @@ async def test_delete_with_transactions_is_a_conflict_and_changes_nothing(async_
     assert await _count(async_session, CategoryORM) == 1
     assert await _count(async_session, SubcategoryORM) == 1
     assert await _count(async_session, TransactionORM) == 1
+
+
+@pytest.mark.asyncio
+async def test_create_returns_the_subcategories_created_in_the_same_request(make_uow):
+    """Regression (Q12 a): the returned category is not left with a stale empty collection."""
+    uow, user = await make_uow(1)
+    service = CategoryService(uow, user)
+
+    created = await service.create(_payload(subs=("Lunch", "Dinner")))
+
+    assert sorted(sub.name for sub in created.subcategories) == ["Dinner", "Lunch"]
