@@ -14,10 +14,12 @@ from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.br_number import parse_br_amount
 from app.core.database import get_session
 from app.core.errors import ValidationError
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
+from app.db.models.user_bank import UserBankORM
 from app.db.repositories.category import CategoriaRepository
 from app.db.repositories.subcategory import SubcategoriaRepository
 from app.logger import log_database_operation
@@ -27,6 +29,8 @@ from app.schemas.transaction import TransacaoCreate, TransacaoUpdate
 
 # Escape character for LIKE patterns built from user-supplied search text
 LIKE_ESCAPE = "\\"
+# Half a cent: an amount search matches the value to the cent despite float storage
+AMOUNT_MATCH_TOLERANCE = 0.005
 
 
 class InvalidCursorError(ValueError):
@@ -332,18 +336,31 @@ class TransacaoRepository:
                 .replace("_", f"{LIKE_ESCAPE}_")
             )
             pattern = f"%{escaped}%"
-            stmt = stmt.where(
-                or_(
-                    TransactionORM.description.ilike(pattern, escape=LIKE_ESCAPE),
-                    TransactionORM.payment_method.ilike(pattern, escape=LIKE_ESCAPE),
-                    TransactionORM.category.has(
-                        CategoryORM.name.ilike(pattern, escape=LIKE_ESCAPE)
-                    ),
-                    TransactionORM.subcategory.has(
-                        SubcategoryORM.name.ilike(pattern, escape=LIKE_ESCAPE)
-                    ),
+            matches = [
+                TransactionORM.description.ilike(pattern, escape=LIKE_ESCAPE),
+                TransactionORM.payment_method.ilike(pattern, escape=LIKE_ESCAPE),
+                TransactionORM.category.has(CategoryORM.name.ilike(pattern, escape=LIKE_ESCAPE)),
+                TransactionORM.subcategory.has(
+                    SubcategoryORM.name.ilike(pattern, escape=LIKE_ESCAPE)
+                ),
+                # Bank name: only the banks the user registered (never another user's)
+                TransactionORM.bank_code.in_(
+                    select(UserBankORM.bank_code).where(
+                        UserBankORM.user_id == user_id,
+                        UserBankORM.bank_name.ilike(pattern, escape=LIKE_ESCAPE),
+                    )
+                ),
+            ]
+            amount = parse_br_amount(filters.search)
+            if amount is not None:
+                # Exact value to the cent: amounts are floats, so compare within half a cent
+                value = float(amount)
+                matches.append(
+                    TransactionORM.amount.between(
+                        value - AMOUNT_MATCH_TOLERANCE, value + AMOUNT_MATCH_TOLERANCE
+                    )
                 )
-            )
+            stmt = stmt.where(or_(*matches))
         return stmt
 
     async def list_page(

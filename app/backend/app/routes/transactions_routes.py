@@ -138,7 +138,7 @@ async def list_transacoes(
     summary="Listar transações paginadas",
     description=(
         "Página de transações ordenada por data desc e id desc (estável), com cursor opaco, "
-        "total e filtros combináveis: período, PF/PJ, tipo, categoria e texto em descrição, categoria, subcategoria ou forma de pagamento."
+        "total e filtros combináveis: período, PF/PJ, tipo, categoria e texto em descrição, categoria, subcategoria, forma de pagamento, banco ou valor (pt-BR)."
     ),
 )
 async def list_transacoes_paginated(
@@ -153,7 +153,7 @@ async def list_transacoes_paginated(
     search: str | None = Query(
         None,
         max_length=TRANSACTIONS_SEARCH_MAX_LENGTH,
-        description="Texto contido na descrição, categoria, subcategoria ou forma de pagamento (sem diferenciar maiúsculas)",
+        description="Texto contido na descrição, categoria, subcategoria, forma de pagamento ou nome do banco (sem diferenciar maiúsculas); um valor pt-BR (120, 120,50, 1.234,56) também casa com o valor da transação",
     ),
     limit: int = Query(
         TRANSACTIONS_DEFAULT_PAGE_SIZE,

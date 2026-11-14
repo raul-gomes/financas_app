@@ -15,6 +15,7 @@ financas_app/
 │   │   │   │   ├── config.py                   # Classe Config + require_database_url (falha na partida sem DATABASE_URL): carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL do .env
 │   │   │   │   ├── crypto.py                   # Cifra em repouso da chave Pluggy (Fernet/MultiFernet): encrypt_secret/decrypt_secret, validate_encryption_keys (falha na partida), SecretDecryptionError, helpers idempotentes p/ migration
 │   │   │   │   ├── database.py                 # Engine async SQLAlchemy, AsyncSessionLocal, get_session() dependency
+│   │   │   │   ├── br_number.py                # parse_br_amount: valor digitado em pt-BR → Decimal (None se não for valor); usado na busca de transações
 │   │   │   │   ├── errors.py                   # Exceções de domínio (DomainError, NotFoundError, ConflictError, ValidationError, UnprocessableError, ForbiddenError, PayloadTooLargeError, UpstreamError, ServerConfigError) + register_exception_handlers: único ponto que traduz para HTTP (mensagens pt-BR genéricas)
 │   │   │   │   ├── unit_of_work.py             # UnitOfWork (commit/rollback único por request, after_commit para efeitos colaterais) + get_unit_of_work (usar com scope="function")
 │   │   │   │   └── security.py                 # get_current_user() — decodifica JWT Supabase via JWKS (ES256/RS256) ou HS256 (SUPABASE_JWT_SECRET), bearer_scheme (HTTPBearer auto_error=False → 401 sem token); require_role(*roles) + require_admin (403)
@@ -143,6 +144,8 @@ financas_app/
 │   │   │   ├── test_pluggy_sync_service.py     # PluggySyncService: importação do usuário, rollback, duplicatas só do usuário, sem chave → 400, chave ilegível → 500 sem vazar, validate_key
 │   │   │   ├── test_notification_service.py    # NotificationService: lista só do usuário (severity computada), marcar lido só vale após o commit, id alheio/inexistente = success False
 │   │   │   ├── test_export_service.py          # ExportService: CSV/OFX exatos com relógio fixo, fim em aberto = hoje, só dados do usuário, data inválida → 400
+│   │   │   ├── test_transactions_search.py     # GET /transacoes/paginated: busca por valor pt-BR (exato) e por nome do banco do usuário, OR com texto, total, isolamento entre usuários
+│   │   │   ├── test_br_number.py               # parse_br_amount: formas aceitas (120, 120,50, 1.234,56, R$) e texto ignorado
 │   │   │   ├── test_transaction_service.py     # TransactionService: nada comitado antes do UoW, rollback desfaz categoria auto-criada, limites avaliados após commit, isolamento entre usuários
 │   │   │   ├── test_transactions_pagination.py # GET /transacoes/paginated: ordem estável (data desc, id desc), cursor, total, filtros, teto de página, isolamento
 │   │   │   ├── test_dashboard_sql_parity.py    # Agregações SQL do dashboard/overview x referência em Python (PF/PJ, 2 usuários) + teto de queries

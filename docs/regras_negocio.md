@@ -45,13 +45,15 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 - **Resolução:** `keep_both` | `keep_new` (deleta existente) | `keep_existing` (deleta nova)
 
 #### Listagem/Filtros
-- Filtro por `start_date` / `end_date` (formato DD/MM/YYYY)
-- Ordenação: `transaction_date DESC`
+- `GET /transacoes` (legado, `limit`/`offset`): filtro por `start_date` / `end_date` (DD/MM/YYYY), ordenação `transaction_date DESC`
+- `GET /transacoes/paginated` (usado pelo frontend): página por cursor opaco (`next_cursor`), ordem estável `transaction_date DESC, id DESC`, `total` do filtro, `limit` máx. `TRANSACTIONS_MAX_PAGE_SIZE`; filtros combináveis (AND): período, PF/PJ (`entity_type`), `type`, `category_id` e `search`
+- **Busca (`search`, máx. 100 caracteres, sem diferenciar maiúsculas/minúsculas, `%` e `_` são literais):** um registro entra se o texto aparece na descrição, na forma de pagamento, no nome da categoria ou da subcategoria, **no nome de um banco que o próprio usuário cadastrou** (`user_banks.bank_name`, ligado pelo `bank_code` da transação), **ou** se o texto é um valor em pt-BR igual ao `amount` da transação (comparação exata, ao centavo)
+- **Valor digitado:** aceita `120`, `120,5`, `120,50`, `1.234,56`, `1.234` (= 1234) e prefixo `R$`; `120.50` (um ponto + 1–2 dígitos) vale como decimal. Texto que não é valor (`abc`, `1,234.56`, `120,555`, sinais) é ignorado para o valor e só vale como texto. A busca por valor e por banco nunca enxerga dados de outro usuário
 
 #### Importação de Extrato (CSV/OFX)
 - **Upload:** Stateless, máx 10 MB, retorna preview com totais income/expense
 - **Parsers:** Auto-detecta delimitador CSV (; → tab → ,); fuzzy mapping colunas PT/EN; 6 formatos de data; valores BR (`1.234,56`); sinal negativo ⇒ expense
-- **Confirmação:** Loop `create_from_extract()` (1 commit/item), suporta parcelamento
+- **Confirmação:** `ExtractService.confirm` importa tudo num lote (uma transação por request, 1 commit pela unit of work); linhas inválidas voltam em `errors`; suporta parcelamento; limites reavaliados após o commit
 
 #### Pluggy Sync (Open Finance)
 - Requer `pluggy_api_key` no perfil
