@@ -46,8 +46,23 @@ jobs:
         run: npm run check:bundle
 
   backend:
-    name: Backend (ruff, pytest, pip-audit)
+    name: Backend (ruff, pytest, alembic check, bandit, pip-audit)
     runs-on: ubuntu-latest
+    # Throwaway Postgres for the migration check (CI-only credentials, never reused).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci-throwaway
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: app/backend
@@ -73,6 +88,19 @@ jobs:
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
         run: uv run pytest -q
+
+      # Models and migrations must agree: apply every migration to an empty Postgres,
+      # then fail if autogenerate still finds differences.
+      - name: Migrations match models (alembic check)
+        env:
+          DATABASE_URL: "postgresql+asyncpg://ci:ci-throwaway@localhost:5432/ci"
+        run: |
+          uv run alembic upgrade head
+          uv run alembic check
+
+      # SAST: blocks on medium+ severity. A `# nosec` needs a written reason on the same line.
+      - name: SAST (bandit)
+        run: uvx bandit==1.9.4 -r app -ll
 
       # Blocking: any known vulnerability in the locked dependencies fails the build.
       - name: Dependency audit

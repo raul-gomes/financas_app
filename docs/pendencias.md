@@ -33,7 +33,7 @@ consolidados no fim.
 - [x] **B6** (alta) Lote por nome (sync Pluggy) estourava `UnboundLocalError` ou gravava a subcategoria errada (chaves de cache diferentes entre os passos). FEITO.
 
 ## Qualidade
-- [~] **Q1** (alta) PARCIAL: job de backend no CI (ruff, pytest, pip-audit bloqueante), actions por SHA, `permissions` mínimas, concurrency e CI em todos os PRs FEITOS. pip-audit agora bloqueante (backend com 0 vulnerabilidades após upgrade). Falta: SAST, `alembic check`; frontend (prod) ainda com zod 3 e react-router 6 (correção só em major novo) e glob/minimatch via tailwind/sucrase.
+- [x] **Q1** (alta) FEITO (backend): `alembic upgrade head` + `alembic check` num Postgres de serviço e SAST (bandit 1.9.4, bloqueia média+) no CI; achou e corrigiu id de migration duplicado e drift de índices. Antes: job de backend no CI (ruff, pytest, pip-audit bloqueante), actions por SHA, `permissions` mínimas, concurrency e CI em todos os PRs FEITOS. pip-audit agora bloqueante (backend com 0 vulnerabilidades após upgrade). Falta: frontend (prod) ainda com zod 3 e react-router 6 (correção só em major novo) e glob/minimatch via tailwind/sucrase.
 - [x] **Q2** (média) FEITO: ruff configurado no `pyproject.toml` (format + lint zerados). Regras adiadas em `extend-ignore` com TODO: B904, UP042, S314, S112, B017 (testes); E501 ignorado (formatter cuida).
 - [ ] **Q3** (média) Extrair serviços dos repositórios e das rotas; unit of work por request.
 - [ ] **Q4** (média) PARCIAL (extrato FEITO: parsers CSV/OFX capturam exceções específicas e registram aviso com nº da linha, sem valores). Trocar `except Exception` silenciosos por exceções específicas.

@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -8,6 +8,7 @@ from app.db.base import Base
 
 class RecurringAccountORM(Base):
     __tablename__ = "recurring_accounts"
+    __table_args__ = (Index("idx_recurring_entity_start", "entity_type", "start_date"),)
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(

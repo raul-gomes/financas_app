@@ -1,6 +1,16 @@
 from uuid import uuid4
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    func,
+)
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -8,6 +18,13 @@ from app.db.base import Base
 
 class TransactionORM(Base):
     __tablename__ = "transacoes"
+    __table_args__ = (
+        Index("idx_transacoes_cat_date", "category_id", "transaction_date"),
+        Index("idx_transacoes_entity_date", "entity_type", "transaction_date"),
+        Index("idx_transacoes_recurring", "recurring_account_id", "transaction_date"),
+        Index("idx_transacoes_subcat_date", "subcategory_id", "transaction_date"),
+        Index("idx_transacoes_type_date", "type", "transaction_date"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     group_id = Column(String, nullable=False, default=lambda: str(uuid4()), index=True)
@@ -15,7 +32,7 @@ class TransactionORM(Base):
     description = Column(String, nullable=False)
     installment_number = Column(Integer)
     total_installments = Column(Integer)
-    is_installment = Column(Boolean, default=False, server_default="false")
+    is_installment = Column(Boolean, nullable=False, default=False, server_default="false")
     transaction_date = Column(DateTime, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

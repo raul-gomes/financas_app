@@ -367,22 +367,21 @@ class TransacaoRepository:
             return 0
 
         # Single SQL statement using CTE + row_number() for random assignment
-        user_filter = "AND user_id = :user_id"
-        stmt = text(f"""
+        stmt = text("""
             WITH banks AS (
                 SELECT bank_code, row_number() OVER (ORDER BY random()) AS rn
                 FROM UNNEST(:bank_codes::text[]) AS bank_code
             ), txs AS (
                 SELECT id, row_number() OVER (ORDER BY id) AS rn
                 FROM transacoes
-                WHERE bank_code IS NULL {user_filter}
+                WHERE bank_code IS NULL AND user_id = :user_id
             )
             UPDATE transacoes t
             SET bank_code = b.bank_code
             FROM txs
             JOIN banks b ON txs.rn = b.rn
             WHERE t.id = txs.id
-        """)  # noqa: S608  # only a constant filter fragment is interpolated; values are bound
+        """)
 
         params = {"bank_codes": bank_codes, "user_id": user_id}
         result = await self.db.execute(stmt, params)
