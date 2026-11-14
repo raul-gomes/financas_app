@@ -27,6 +27,7 @@ import { BankSearchInput } from '@/components/ui/bank-search';
 import { PageHeader } from '@/components/ui/page-header';
 import { useRole } from '@/contexts/RoleContext';
 import { supabase } from '@/lib/supabase';
+import { formatCurrency } from '@/lib/format';
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -58,7 +59,7 @@ const Settings = () => {
     const now = new Date();
     const first = new Date(now.getFullYear(), now.getMonth(), 1);
     const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const fmt = (d: Date) => d.toLocaleDateString('en-US');
+    const fmt = (d: Date) => d.toLocaleDateString('pt-BR');
     return `${fmt(first)} - ${fmt(last)}`;
   });
 
@@ -198,7 +199,7 @@ const Settings = () => {
   const handleExport = (format: 'csv' | 'ofx') => {
     const parts = exportDateRange.split('-').map((s) => s.trim());
     const dataInicio = parts[0] || '01/01/2000';
-    const dataFinal = parts[1] || new Date().toLocaleDateString('en-US');
+    const dataFinal = parts[1] || new Date().toLocaleDateString('pt-BR');
 
     // Validate format
     const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
@@ -471,7 +472,7 @@ const Settings = () => {
                         <div>
                           <div className="text-sm font-medium">{acc.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            Saldo: R$ {acc.balance?.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            Saldo: {formatCurrency(acc.balance ?? 0)}
                           </div>
                         </div>
                       </div>

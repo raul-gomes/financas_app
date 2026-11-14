@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { AnimatedNumber } from './AnimatedNumber';
 import { CategoryBreakdown, CategoryExpense } from '@/types/financial';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatNumber } from '@/lib/format';
 
 interface CategoryBreakdownSectionProps {
   categoryBreakdown: CategoryBreakdown | null;
@@ -83,7 +83,7 @@ export function CategoryBreakdownSection({
                       <AnimatedNumber
                         value={category.percentage}
                         duration={800}
-                        format={(v) => v.toFixed(1)}
+                        format={(v) => formatNumber(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                         suffix="%"
                         withDelay={200 + idxCat * 150}
                       />

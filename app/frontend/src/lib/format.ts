@@ -7,29 +7,43 @@
  */
 export const DEFAULT_CURRENCY = 'BRL';
 
-const formatters = new Map<string, Intl.NumberFormat>();
+/** Locale único do app: todo número, moeda e data é exibido em pt-BR. */
+export const APP_LOCALE = 'pt-BR';
+
+const currencyFormatters = new Map<string, Intl.NumberFormat>();
 
 const getCurrencyFormatter = (currency: string): Intl.NumberFormat => {
-  let fmt = formatters.get(currency);
+  let fmt = currencyFormatters.get(currency);
   if (!fmt) {
-    fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency });
-    formatters.set(currency, fmt);
+    fmt = new Intl.NumberFormat(APP_LOCALE, { style: 'currency', currency });
+    currencyFormatters.set(currency, fmt);
   }
   return fmt;
 };
 
+/** Moeda em pt-BR, ex.: "R$ 5.865,00". */
 export const formatCurrency = (value: number, currency: string = DEFAULT_CURRENCY): string =>
   getCurrencyFormatter(currency).format(value);
 
+/** Número em pt-BR (separador de milhar "." e decimal ","), sem símbolo de moeda. */
+export const formatNumber = (value: number, options?: Intl.NumberFormatOptions): string =>
+  value.toLocaleString(APP_LOCALE, options);
+
+const compactFormatter = new Intl.NumberFormat(APP_LOCALE, { notation: 'compact', maximumFractionDigits: 1 });
+
+/** Número abreviado em pt-BR para eixos de gráfico, ex.: "5 mil". */
+export const formatCompactNumber = (value: number): string => compactFormatter.format(value);
+
 /**
- * Formata datas 'YYYY-MM-DD' ou ISO completas sem sofrer deslocamento de fuso
- * (anexa T12:00:00 quando a string é só data).
+ * Formata datas 'YYYY-MM-DD' ou ISO completas (dd/mm/aaaa) sem sofrer deslocamento
+ * de fuso (anexa T12:00:00 quando a string é só data).
  */
 export const formatDate = (dateStr: string): string =>
-  new Date(dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`).toLocaleDateString('en-US');
+  new Date(dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`).toLocaleDateString(APP_LOCALE);
 
+/** Porcentagem em pt-BR com vírgula decimal, ex.: "12,35%". */
 export const formatPercent = (value: number, digits = 2): string =>
-  `${value.toFixed(digits)}%`;
+  `${formatNumber(value, { minimumFractionDigits: digits, maximumFractionDigits: digits })}%`;
 
 /**
  * Escapa texto para uso dentro de HTML montado como string (tooltips do D3).

@@ -15,6 +15,7 @@ import {
 } from '@/types/financial';
 import { SettingsService, UserBank } from '@/services/settingsService';
 import { BankBreakdownModal, BankBreakdownItem } from '@/components/dialogs/BankBreakdownModal';
+import { formatCurrency } from '@/lib/format';
 
 interface FinancialDashboardProps {
   yearlyData: YearlyData[];
@@ -224,7 +225,7 @@ export function FinancialDashboard({
                         <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-destructive">Estourando</span>
                       )}
                     </span>
-                    <span>Limite: R$ {creditCardLimit.toLocaleString('en-US')}</span>
+                    <span>Limite: {formatCurrency(creditCardLimit)}</span>
                   </div>
                   <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
                     <div
@@ -352,8 +353,8 @@ export function FinancialDashboard({
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span className="text-success font-medium">Fixos: R$ {fixedExpenses.toLocaleString('en-US')}</span>
-                <span className="text-warning font-medium">Variáveis: R$ {variableExpenses.toLocaleString('en-US')}</span>
+                <span className="text-success font-medium">Fixos: {formatCurrency(fixedExpenses)}</span>
+                <span className="text-warning font-medium">Variáveis: {formatCurrency(variableExpenses)}</span>
               </div>
               <div className="w-full bg-muted rounded-full h-3 flex overflow-hidden">
                 <div

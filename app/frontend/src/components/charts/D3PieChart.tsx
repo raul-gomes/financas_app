@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
-import { formatCurrency, escapeHtml } from '@/lib/format';
+import { formatCurrency, escapeHtml, formatPercent } from '@/lib/format';
 import * as d3 from '@/lib/d3';
 
 interface PieChartData {
@@ -106,7 +106,7 @@ function D3PieChartBase({ data, width = 400, height = 300 }: D3PieChartProps) {
         const totalSpent = d.data.value;
         const limit = d.data.limit || 0;
         const diff = limit - totalSpent;
-        const percentage = ((totalSpent / d3.sum(data, d => d.value)) * 100).toFixed(1);
+        const percentage = formatPercent((totalSpent / d3.sum(data, d => d.value)) * 100, 1);
 
         let statusHtml = '';
         if (limit > 0) {
@@ -122,7 +122,7 @@ function D3PieChartBase({ data, width = 400, height = 300 }: D3PieChartProps) {
           .html(`
             <div class="space-y-1">
               <div class="font-bold border-b pb-1 mb-1">${escapeHtml(d.data.category)}</div>
-              <div>Gasto: ${formatCurrency(totalSpent)} (${escapeHtml(percentage)}%)</div>
+              <div>Gasto: ${formatCurrency(totalSpent)} (${escapeHtml(percentage)})</div>
               ${limit > 0 ? `<div class="text-muted-foreground">Limite: ${formatCurrency(limit)}</div>` : ''}
               ${statusHtml}
             </div>
@@ -150,8 +150,8 @@ function D3PieChartBase({ data, width = 400, height = 300 }: D3PieChartProps) {
       .attr('fill', 'hsl(var(--primary-foreground))') // Light text over the slice colors
       .style('pointer-events', 'none')
       .text(d => {
-        const percentage = ((d.data.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
-        return parseFloat(percentage) > 5 ? `${percentage}%` : '';
+        const share = (d.data.value / d3.sum(data, d => d.value)) * 100;
+        return share > 5 ? formatPercent(share, 1) : '';
       });
 
     // Cleanup function

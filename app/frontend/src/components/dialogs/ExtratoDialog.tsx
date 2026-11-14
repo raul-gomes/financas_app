@@ -233,7 +233,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     }
 
     const validateSession = (session: SessionData, sIdx: number): string | null => {
-        if (!session.bankCode) return 'Select a bank for this session.'
+        if (!session.bankCode) return 'Selecione um banco para esta sessão.'
 
         for (let i = 0; i < session.transactions.length; i++) {
             const t = session.transactions[i]
@@ -318,7 +318,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
         try {
             const result = await ExtractoService.confirm(payload)
             updateSession(sIdx, { isConfirmed: true })
-            toast({ title: 'Success', description: `${result.created} transactions imported from "${session.filename}"!` })
+            toast({ title: 'Sucesso', description: `${result.created} transações importadas de "${session.filename}"!` })
 
             const updated = sessions.map((s, i) => i === sIdx ? { ...s, isConfirmed: true } : s)
             const allDone = updated.every(s => s.isConfirmed)
@@ -330,7 +330,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                 }, 1000)
             }
         } catch {
-            toast({ title: 'Error', description: `Failed to confirm session "${session.filename}".`, variant: 'destructive' })
+            toast({ title: 'Erro', description: `Falha ao confirmar a sessão "${session.filename}".`, variant: 'destructive' })
         } finally {
             setIsConfirming(false)
         }
@@ -463,7 +463,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
     // ============================================================
     if (sessions.length === 0) {
         return (
-            <ResponsiveModal open={open} onOpenChange={onOpenChange} size="lg" title="Import Bank Statement">
+            <ResponsiveModal open={open} onOpenChange={onOpenChange} size="lg" title="Importar Extrato Bancário">
                     <div
                         onDrop={handleDrop}
                         onDragOver={(e) => e.preventDefault()}
@@ -489,8 +489,8 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                         ) : (
                             <div className="flex flex-col items-center gap-4">
                                 <Upload className="w-12 h-12 text-muted-foreground" />
-                                <p className="text-lg text-muted-foreground">Drag files here or click to select</p>
-                                <p className="text-sm text-muted-foreground">Accepted formats: CSV, OFX, QFX (multiple files)</p>
+                                <p className="text-lg text-muted-foreground">Arraste os arquivos aqui ou clique para selecionar</p>
+                                <p className="text-sm text-muted-foreground">Formatos aceitos: CSV, OFX, QFX (múltiplos arquivos)</p>
                             </div>
                         )}
                     </div>
@@ -504,7 +504,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                 open={open}
                 onOpenChange={(o) => { if (!o) handleCancel() }}
                 size="xl"
-                title="Review Statement"
+                title="Revisar Extrato"
                 description={`${sessions.length} arquivo${sessions.length > 1 ? 's' : ''} — ${totals.total} transações`}
                 footer={
                     <div className="flex flex-wrap gap-3 w-full sm:justify-end">
@@ -523,7 +523,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                 ) : (
                                     <CheckCircle className="w-4 h-4 mr-2" />
                                 )}
-                                {isConfirming ? 'Importing...' : `Confirm All (${pendingCount})`}
+                                {isConfirming ? 'Importando...' : `Confirmar Todas (${pendingCount})`}
                             </Button>
                         )}
                     </div>
@@ -536,17 +536,17 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                         <p className="text-2xl font-bold">{totals.total}</p>
                     </div>
                     <div className="bg-card rounded-lg p-4 border border-border">
-                        <p className="text-sm text-muted-foreground">Income</p>
+                        <p className="text-sm text-muted-foreground">Entradas</p>
                         <p className="text-2xl font-bold text-success">{totals.income}</p>
                     </div>
                     <div className="bg-card rounded-lg p-4 border border-border">
-                        <p className="text-sm text-muted-foreground">Expenses</p>
+                        <p className="text-sm text-muted-foreground">Saídas</p>
                         <p className="text-2xl font-bold text-destructive">{totals.expense}</p>
                     </div>
                     <div className="bg-card rounded-lg p-4 border border-border">
-                        <p className="text-sm text-success">Total Income</p>
+                        <p className="text-sm text-success">Total Entradas</p>
                         <p className="text-lg font-bold text-success">{formatCurrency(totals.totalIncome)}</p>
-                        <p className="text-sm text-destructive">Total Expenses</p>
+                        <p className="text-sm text-destructive">Total Saídas</p>
                         <p className="text-lg font-bold text-destructive">{formatCurrency(totals.totalExpense)}</p>
                     </div>
                 </div>
@@ -670,15 +670,15 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                         <table className="w-full text-sm">
                                             <thead className="bg-muted/50 border-b border-border">
                                                 <tr>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Date</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Description</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Amount</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Type</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Data</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Descrição</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Valor</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tipo</th>
                                                     <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Parcelas</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Payment</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Pagamento</th>
                                                     <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Nat.</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Category</th>
-                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Subcategory</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Categoria</th>
+                                                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Subcategoria</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-border">
@@ -712,7 +712,7 @@ export function ExtratoDialog({ open, onOpenChange, onImported }: ExtratoDialogP
                                                                         ? 'bg-success/15 text-success'
                                                                         : 'bg-destructive/15 text-destructive'
                                                                 }`}>
-                                                                    {trans.type === 'income' ? 'Income' : 'Expense'}
+                                                                    {trans.type === 'income' ? 'Entrada' : 'Saída'}
                                                                 </span>
                                                             </td>
                                                             <td className="px-3 py-2 whitespace-nowrap">

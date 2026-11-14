@@ -148,7 +148,7 @@ export function AddTransactionDialog({
     if (!isInstallment || !formData.total_installments || !formData.amount) return null;
     const num = parseInt(formData.total_installments, 10);
     if (num <= 0) return null;
-    return (parseFloat(formData.amount) / num).toFixed(2);
+    return parseFloat(formData.amount) / num;
   };
 
   // Reset form on close
@@ -693,7 +693,7 @@ export function AddTransactionDialog({
                 {installmentAmount && (
                   <div className="pb-1">
                     <p className="text-xs text-muted-foreground mb-0.5">Valor de cada parcela</p>
-                    <p className="text-lg font-bold text-primary">R$ {installmentAmount}</p>
+                    <p className="text-lg font-bold text-primary">{formatCurrency(installmentAmount)}</p>
                   </div>
                 )}
               </div>

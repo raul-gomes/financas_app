@@ -85,30 +85,30 @@ export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
 
     return (
         <Card className="border border-border">
-            <CardHeader><CardTitle>{conta ? 'Edit Recurring Account' : 'New Recurring Account'}</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{conta ? 'Editar Conta Recorrente' : 'Nova Conta Recorrente'}</CardTitle></CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Description</Label><Input value={form.description} onChange={e => setForm({...form, description: e.target.value})} required /></div>
-                    <div className="space-y-2"><Label>Amount</Label><Input type="number" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required /></div>
-                    <div className="space-y-2"><Label>Due Day</Label><Input type="number" min="1" max="31" value={form.due_day} onChange={e => setForm({...form, due_day: e.target.value})} required /></div>
+                    <div className="space-y-2"><Label>Descrição</Label><Input value={form.description} onChange={e => setForm({...form, description: e.target.value})} required /></div>
+                    <div className="space-y-2"><Label>Valor</Label><Input type="number" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required /></div>
+                    <div className="space-y-2"><Label>Dia de Vencimento</Label><Input type="number" min="1" max="31" value={form.due_day} onChange={e => setForm({...form, due_day: e.target.value})} required /></div>
                     <div className="space-y-2">
-                        <Label>Entity Type</Label>
+                        <Label>Tipo de Pessoa</Label>
                         <Select value={form.entity_type} onValueChange={v => {
                             setForm({...form, entity_type: v as 'individual'|'business', category_name: '', subcategory_name: ''})
                             setShowNewCategoryInput(false)
                             setShowNewSubcategoryInput(false)
                         }}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="individual">Pessoa Fisica</SelectItem><SelectItem value="business">Pessoa Juridica</SelectItem></SelectContent>
+                            <SelectContent><SelectItem value="individual">Pessoa Física</SelectItem><SelectItem value="business">Pessoa Jurídica</SelectItem></SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label>Payment Method</Label>
+                        <Label>Forma de Pagamento</Label>
                         <Select value={form.payment_method} onValueChange={v => setForm({...form, payment_method: v})}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="pix">PIX</SelectItem><SelectItem value="debito">Debito</SelectItem><SelectItem value="credito">Credito</SelectItem>
-                                <SelectItem value="boleto">Boleto</SelectItem><SelectItem value="transferencia">Transferencia</SelectItem><SelectItem value="dinheiro">Dinheiro</SelectItem>
+                                <SelectItem value="pix">PIX</SelectItem><SelectItem value="debito">Débito</SelectItem><SelectItem value="credito">Crédito</SelectItem>
+                                <SelectItem value="boleto">Boleto</SelectItem><SelectItem value="transferencia">Transferência</SelectItem><SelectItem value="dinheiro">Dinheiro</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -119,10 +119,10 @@ export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
                             onValueChange={code => setForm(prev => ({ ...prev, bank_code: code ?? '' }))}
                         />
                     </div>
-                    <div className="space-y-2"><Label>Start Date</Label><Input type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} required /></div>
-                    <div className="space-y-2"><Label>End Date (optional)</Label><Input type="date" value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Data de Início</Label><Input type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} required /></div>
+                    <div className="space-y-2"><Label>Data de Término (opcional)</Label><Input type="date" value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} /></div>
                     <div className="space-y-2">
-                        <Label>Category</Label>
+                        <Label>Categoria</Label>
                         <Select value={showNewCategoryInput ? 'outros' : form.category_name} onValueChange={v => {
                             if (v === 'outros') {
                                 setShowNewCategoryInput(true)
@@ -141,8 +141,8 @@ export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
                         </Select>
                         {showNewCategoryInput && (
                             <div className="space-y-2 mt-2">
-                                <Label>Nova Category</Label>
-                                <Input placeholder="Type new category" value={newCategory} onChange={e => {
+                                <Label>Nova Categoria</Label>
+                                <Input placeholder="Digite a nova categoria" value={newCategory} onChange={e => {
                                     setNewCategory(e.target.value)
                                     setForm({...form, category_name: e.target.value.trim(), subcategory_name: ''})
                                 }} />
@@ -151,7 +151,7 @@ export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
                     </div>
                     {form.category_name && (
                         <div className="space-y-2">
-                            <Label>Subcategory</Label>
+                            <Label>Subcategoria</Label>
                             <Select value={showNewSubcategoryInput ? 'outros' : form.subcategory_name} onValueChange={v => {
                                 if (v === 'outros') {
                                     setShowNewSubcategoryInput(true)
@@ -172,8 +172,8 @@ export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
                             </Select>
                             {showNewSubcategoryInput && (
                                 <div className="space-y-2 mt-2">
-                                    <Label>Nova Subcategory</Label>
-                                    <Input placeholder="Type new subcategory" value={newSubcategory} onChange={e => {
+                                    <Label>Nova Subcategoria</Label>
+                                    <Input placeholder="Digite a nova subcategoria" value={newSubcategory} onChange={e => {
                                         setNewSubcategory(e.target.value)
                                         setForm({...form, subcategory_name: e.target.value.trim()})
                                     }} />
@@ -182,8 +182,8 @@ export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
                         </div>
                     )}
                     <div className="col-span-2 flex gap-2">
-                        <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-                        <Button type="submit" className="flex-1 bg-gradient-primary">{conta ? 'Save' : 'Create'}</Button>
+                        <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
+                        <Button type="submit" className="flex-1 bg-gradient-primary">{conta ? 'Salvar' : 'Criar'}</Button>
                     </div>
                 </form>
             </CardContent>

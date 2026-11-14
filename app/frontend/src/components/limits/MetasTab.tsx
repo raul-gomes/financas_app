@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 import { MetasService } from '@/services/goalsService'
 import type { Meta } from '@/types/goals'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { formatCurrency, formatDate } from '@/lib/format';
 
 interface MetasTabProps {
     entityTypeFilter?: 'pf' | 'pj' | 'all'
@@ -210,14 +211,14 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                                             <Button size="sm" onClick={() => handleUpdate(meta.id)} disabled={!editNome.trim() || !editValor}>
                                                 <Save className="h-3.5 w-3.5 mr-1" />Salvar
                                             </Button>
-                                            <Button size="sm" variant="outline" onClick={() => setEditingMeta(null)}>Cancel</Button>
+                                            <Button size="sm" variant="outline" onClick={() => setEditingMeta(null)}>Cancelar</Button>
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-between">
                                             <div>
                                                 <p className="font-medium">{meta.subcategory_name}</p>
                                                 <p className="text-sm text-muted-foreground">
-                                                    R$ {meta.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                    {formatCurrency(meta.target_amount)}
                                                 </p>
                                             </div>
                                             <div className="flex gap-1">
@@ -269,11 +270,11 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                                             <div>
                                                 <p className="font-medium text-success">{meta.subcategory_name}</p>
                                                 <p className="text-sm text-success">
-                                                    R$ {meta.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                    {formatCurrency(meta.target_amount)}
                                                 </p>
                                                 {meta.completed_at && (
                                                     <p className="text-xs text-muted-foreground mt-0.5">
-                                                        Concluída em {new Date(meta.completed_at + 'T12:00:00').toLocaleDateString('en-US')}
+                                                        Concluída em {formatDate(meta.completed_at)}
                                                     </p>
                                                 )}
                                             </div>

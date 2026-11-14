@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useRef } from 'react';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatCompactNumber } from '@/lib/format';
 import * as d3 from '@/lib/d3';
 import { PortfolioEvolution } from '@/types/financial';
 
@@ -125,7 +125,7 @@ function D3LineChartBase({ data, width = 800, height = 250 }: D3LineChartProps) 
     // Y Axis
     g.append('g')
       .call(d3.axisLeft(yScale)
-        .tickFormat(d => `R$ ${(Number(d) / 1000).toFixed(0)}k`))
+        .tickFormat(d => `R$ ${formatCompactNumber(Number(d))}`))
       .selectAll('text')
       .attr('fill', 'hsl(var(--muted-foreground))')
       .style('font-size', '12px');
@@ -150,7 +150,7 @@ function D3LineChartBase({ data, width = 800, height = 250 }: D3LineChartProps) 
           .style('visibility', 'visible')
           .html(`
             <div>
-              <strong>${d.parsedDate.toLocaleDateString('en-US')}</strong><br/>
+              <strong>${d.parsedDate.toLocaleDateString('pt-BR')}</strong><br/>
               Valor da Carteira: ${formatCurrency(d.value)}
             </div>
           `);

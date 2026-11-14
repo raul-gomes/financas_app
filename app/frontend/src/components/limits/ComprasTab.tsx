@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 import { ShoppingService } from '@/services/shoppingService'
 import type { ShoppingItem } from '@/types/shopping'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { formatDate } from '@/lib/format';
 
 interface ComprasTabProps {
     entityTypeFilter?: 'pf' | 'pj' | 'all'
@@ -237,7 +238,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                                                 <span className="font-medium text-success line-through">{item.name}</span>
                                                 {item.completed_at && (
                                                     <p className="text-xs text-muted-foreground">
-                                                        Concluído em {new Date(item.completed_at + 'T12:00:00').toLocaleDateString('en-US')}
+                                                        Concluído em {formatDate(item.completed_at)}
                                                     </p>
                                                 )}
                                             </div>

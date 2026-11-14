@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/hooks/use-toast';
+import { formatCurrency, formatDate } from '@/lib/format';
 
 interface MetasListProps {
   sidebarOpen?: boolean;
@@ -59,13 +60,13 @@ export function MetasList({ sidebarOpen, entityType, refreshKey }: MetasListProp
         subcategory_name: formNome.trim(),
         target_amount: parseFloat(formValor),
       });
-      toast({ title: 'Success', description: 'Meta criada!' });
+      toast({ title: 'Sucesso', description: 'Meta criada!' });
       setFormNome('');
       setFormValor('');
       setShowCreate(false);
       fetchMetas();
     } catch {
-      toast({ title: 'Error', description: 'Failed to create goal.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Falha ao criar meta.', variant: 'destructive' });
     } finally {
       setCreating(false);
     }
@@ -179,7 +180,7 @@ export function MetasList({ sidebarOpen, entityType, refreshKey }: MetasListProp
                             await MetasService.concluir(meta.subcategory_id);
                             fetchMetas();
                           } catch {
-                            toast({ title: 'Error', description: 'Falha ao concluir meta.', variant: 'destructive' });
+                            toast({ title: 'Erro', description: 'Falha ao concluir meta.', variant: 'destructive' });
                           }
                         }}
                       >
@@ -200,8 +201,8 @@ export function MetasList({ sidebarOpen, entityType, refreshKey }: MetasListProp
                       />
                     </div>
                     <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                      <span>R$ {meta.current_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                      <span>R$ {meta.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                      <span>{formatCurrency(meta.current_amount)}</span>
+                      <span>{formatCurrency(meta.target_amount)}</span>
                     </div>
                   </div>
                 ))}
@@ -232,7 +233,7 @@ export function MetasList({ sidebarOpen, entityType, refreshKey }: MetasListProp
                             await MetasService.reativar(meta.subcategory_id);
                             fetchMetas();
                           } catch {
-                            toast({ title: 'Error', description: 'Falha ao reativar meta.', variant: 'destructive' });
+                            toast({ title: 'Erro', description: 'Falha ao reativar meta.', variant: 'destructive' });
                           }
                         }}
                       >
@@ -245,11 +246,11 @@ export function MetasList({ sidebarOpen, entityType, refreshKey }: MetasListProp
                     </div>
                     <div className="mt-1 flex justify-between text-xs text-muted-foreground">
                       <span className="text-success">Completa</span>
-                      <span>R$ {meta.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                      <span>{formatCurrency(meta.target_amount)}</span>
                     </div>
                     {meta.completed_at && (
                       <p className="mt-1 text-[10px] text-muted-foreground">
-                        Concluída em {new Date(meta.completed_at + 'T12:00:00').toLocaleDateString('en-US')}
+                        Concluída em {formatDate(meta.completed_at)}
                       </p>
                     )}
                   </div>
