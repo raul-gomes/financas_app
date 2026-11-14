@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useRef, useState } from 'react';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, escapeHtml } from '@/lib/format';
 import * as d3 from 'd3';
 import { YearlyData } from '@/types/financial';
 
@@ -252,8 +252,8 @@ function D3BarChartBase({
             .style('visibility', 'visible')
             .html(`
               <div>
-                <strong>Mês: ${d.month}</strong><br/>
-                ${type}: ${formatCurrency(value)}<br/>
+                <strong>Mês: ${escapeHtml(d.month)}</strong><br/>
+                ${escapeHtml(type)}: ${formatCurrency(value)}<br/>
                 <span class="text-[10px] text-muted-foreground">Clique para detalhes</span>
               </div>
             `);

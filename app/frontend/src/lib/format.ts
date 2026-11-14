@@ -30,3 +30,15 @@ export const formatDate = (dateStr: string): string =>
 
 export const formatPercent = (value: number, digits = 2): string =>
   `${value.toFixed(digits)}%`;
+
+/**
+ * Escapa texto para uso dentro de HTML montado como string (tooltips do D3).
+ * Todo dado que vem da API (ex.: nome de categoria) passa por aqui antes de `.html()`.
+ */
+export const escapeHtml = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
