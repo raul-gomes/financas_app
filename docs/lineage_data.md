@@ -3,7 +3,7 @@
 > Documento de linhagem (lineage) dos dados: origem, transformações, armazenamento e consumo.
 >
 > **Última atualização:** 2026-11-14
-> **Head do Alembic:** `c9d0e1f2a3b4` (25 migrações)
+> **Head do Alembic:** `b8c9d0e1f2a3` (26 migrações)
 >
 > ⚠️ **Manutenção obrigatória**: qualquer alteração em models (`app/db/models/`), migrações
 > (`app/db/migrations/versions/`), repositories ou rotas que mude o fluxo de dados deve
@@ -142,7 +142,7 @@ Relationships: `subcategories` 1:N cascade `all, delete-orphan`. Unicidade por u
 | `email` | String UNIQUE | ✗ | — | segue o e-mail do Supabase (atualizado no login) |
 | `supabase_id` | String(64) UNIQUE | ✓ | NULL | claim `sub` do Supabase: identidade estável; linhas antigas são vinculadas pelo e-mail no próximo login |
 | `password_hash` | String | ✗ | `""` | **legado, não usado** (senha é do Supabase); remover numa migration futura |
-| `pluggy_api_key` | String | ✓ | NULL | chave Open Finance por usuário; **nunca devolvida pela API** (`has_pluggy_key`); cifra em repouso pendente (S2) |
+| `pluggy_api_key` | String | ✓ | NULL | chave Open Finance por usuário; **cifrada em repouso** (Fernet, `core/crypto.py`, chaves em `PLUGGY_KEY_ENCRYPTION_KEYS`; só o token `gAAAAA…` vai ao banco); **nunca devolvida pela API** (`has_pluggy_key`); decifrada só em `routes/pluggy_routes.py` para chamar a Pluggy (S2) |
 | `role` | String(32) | ✗ | `'user'` (server) | enum: `admin`, `user` (pronto p/ multi-role) — substitui a coluna `is_admin` legada na Etapa 9; todo cadastro nasce `user` (admin só por promoção manual) |
 
 Relationships: `banks` 1:N cascade `all, delete-orphan`.
@@ -182,7 +182,7 @@ Constraint única: `uq_limit_alerts_user_cat_month_threshold` `(user_id, categor
 ## 3. Fontes de Dados (entradas)
 
 ### 3.1 Pluggy API / Open Finance (`services/pluggy_service.py`)
-- Origem: `https://api.pluggy.ai`, autenticado por `X-API-Key` lida de `users.pluggy_api_key`.
+- Origem: `https://api.pluggy.ai`, autenticado por `X-API-Key` lida de `users.pluggy_api_key` (decifrada em memória por `pluggy_client_for`).
 - Endpoints externos chamados: `GET /items` (conexões), `GET /accounts`, `GET /transactions`
   (paginado, limite de segurança `MAX_PAGES = 50`).
 - **Não persiste nada diretamente** — a escrita ocorre apenas em `POST /pluggy/sync`.
@@ -352,7 +352,8 @@ Cadeia linear (root → head):
 | 22 | `d2e3f4a5b6c7` | add_user_id_to_shopping_items (Etapa 8) | `shopping_items.user_id` FK NOT NULL + índice `ix_shopping_items_user_id`; backfill p/ user 1 |
 | 23 | `e3f4a5b6c7d8` | replace_is_admin_with_role (Etapa 9) | `users.is_admin` Bool → `role` String(32) default `'user'`; `TRUNCATE`/`UPDATE` admin→'admin' / user→'user'; remove `is_admin` |
 | 24 | `f0a1b2c3d4e5` | create limit_alerts (notificações de limites) | Nova tabela `limit_alerts` (alertas 80/90/100 + exceeded, scope category/credit_card, `read_at`/`email_sent`), FKs CASCADE p/ users/categorias, constr. única `(user_id, category_id, month, threshold)`, índices `ix_limit_alerts_user_id`/`ix_limit_alerts_category_id` |
-| 25 | `c9d0e1f2a3b4` | add users.supabase_id (**HEAD**) | Coluna `supabase_id` String(64) nullable + índice único `ix_users_supabase_id`; identidade pelo `sub` em vez do e-mail (S4) |
+| 25 | `c9d0e1f2a3b4` | add users.supabase_id | Coluna `supabase_id` String(64) nullable + índice único `ix_users_supabase_id`; identidade pelo `sub` em vez do e-mail (S4) |
+| 26 | `b8c9d0e1f2a3` | encrypt_pluggy_api_key (S2, **HEAD**) | Só dados: cifra com Fernet os `users.pluggy_api_key` em texto puro (idempotente: pula valores `gAAAAA…`; exige `PLUGGY_KEY_ENCRYPTION_KEYS` só se houver o que cifrar); downgrade decifra. Sem mudança de tipo (VARCHAR sem limite). Também: `c9d0e1f2a3b4` ganhou id próprio (antes duplicava `a7b8c9d0e1f2`, e o Alembic via dois heads) |
 
 ---
 

@@ -3,12 +3,13 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.crypto import SecretDecryptionError, decrypt_secret
 from app.core.database import get_session
 from app.core.security import get_current_user, require_admin
 from app.db.models.user import UserORM
 from app.db.repositories.settings import SettingsRepository
 from app.db.repositories.transaction import TransacaoRepository
-from app.logger import log_api_request
+from app.logger import log_api_request, logger
 from app.schemas.transaction import NaturezaTransacao, TipoTransacao
 from app.services.limit_alert_service import trigger_limit_evaluation
 from app.services.pluggy_service import PluggyService
@@ -17,6 +18,24 @@ from app.services.pluggy_service import PluggyService
 # imported before the fix.
 FALLBACK_DESCRIPTION = "Sincronizado"
 LEGACY_FALLBACK_DESCRIPTION = "Sin cronizar"
+
+
+def pluggy_client_for(user: UserORM) -> PluggyService:
+    """Build a Pluggy client from the user's stored (encrypted) API key.
+
+    Raises:
+        HTTPException: 500 if the stored key cannot be decrypted with the configured keys
+            (server misconfiguration); the response never carries key material.
+    """
+    try:
+        return PluggyService(decrypt_secret(user.pluggy_api_key))
+    except SecretDecryptionError:
+        logger.error("Stored Pluggy API key could not be decrypted (check encryption keys)")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Não foi possível ler a API Key do Meu Pluggy salva. Contate o administrador.",
+        )
+
 
 router = APIRouter(
     prefix="/pluggy", tags=["Pluggy / Open Finance"], dependencies=[Depends(require_admin)]
@@ -41,7 +60,7 @@ async def list_pluggy_accounts(
             detail="API Key do Meu Pluggy não configurada. Vá em Configurações para adicionar.",
         )
 
-    pluggy = PluggyService(user.pluggy_api_key)
+    pluggy = pluggy_client_for(user)
     try:
         accounts = await pluggy.fetch_accounts()
         items = await pluggy.fetch_items()
@@ -81,7 +100,7 @@ async def sync_pluggy(
             status_code=status.HTTP_400_BAD_REQUEST, detail="API Key do Meu Pluggy não configurada."
         )
 
-    pluggy = PluggyService(user.pluggy_api_key)
+    pluggy = pluggy_client_for(user)
     try:
         # Fetch accounts
         accounts = await pluggy.fetch_accounts()
@@ -221,7 +240,7 @@ async def validate_pluggy_key(
     if not user.pluggy_api_key:
         return {"valid": False, "message": "API Key não configurada."}
 
-    pluggy = PluggyService(user.pluggy_api_key)
+    pluggy = pluggy_client_for(user)
     try:
         valid = await pluggy.validate_api_key()
         return {

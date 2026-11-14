@@ -12,6 +12,7 @@ financas_app/
 │   │   │   │
 │   │   │   ├── core/
 │   │   │   │   ├── config.py                   # Classe Config + require_database_url (falha na partida sem DATABASE_URL): carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL do .env
+│   │   │   │   ├── crypto.py                   # Cifra em repouso da chave Pluggy (Fernet/MultiFernet): encrypt_secret/decrypt_secret, validate_encryption_keys (falha na partida), SecretDecryptionError, helpers idempotentes p/ migration
 │   │   │   │   ├── database.py                 # Engine async SQLAlchemy, AsyncSessionLocal, get_session() dependency
 │   │   │   │   └── security.py                 # get_current_user() — decodifica JWT Supabase via JWKS (ES256/RS256) ou HS256 (SUPABASE_JWT_SECRET), bearer_scheme (HTTPBearer auto_error=False → 401 sem token); require_role(*roles) + require_admin (403)
 │   │   │   │
@@ -105,7 +106,11 @@ financas_app/
 │   │   │   ├── test_extract_parsers.py         # Unit tests do parser CSV (delimitadores, datas, valores)
 │   │   │   ├── test_extract_upload_safety.py   # S6: OFX com entidades recusado (400), upload > 10 MB (413) lido em blocos
 │   │   │   ├── test_extract_skipped_rows.py    # Q4: linhas CSV ignoradas viram aviso com número da linha
-│   │   │   ├── test_startup_config.py          # B4: DATABASE_URL obrigatório (falha na partida) e descrição padrão do sync Pluggy
+│   │   │   ├── test_crypto.py                  # Cifra da chave Pluggy: roundtrip, chave errada falha alto, rotação, chaves ausentes/inválidas, helpers idempotentes
+│   │   │   ├── test_pluggy_key_encryption.py   # Perfil grava cifrado, string vazia remove, rotas Pluggy recebem a chave decifrada, 500 sem vazar se não decifra
+│   │   │   ├── test_pluggy_key_migration.py    # Migration b8c9d0e1f2a3: cifra texto puro, idempotente, exige a chave só se houver o que cifrar, downgrade decifra
+│   │   │   ├── test_migration_graph.py         # Revisões Alembic únicas e um único head
+│   │   │   ├── test_startup_config.py          # B4: DATABASE_URL e PLUGGY_KEY_ENCRYPTION_KEYS obrigatórios (falha na partida) e descrição padrão do sync Pluggy
 │   │   │   ├── test_goals.py                   # CRUD metas + progresso + duplicatas
 │   │   │   ├── test_overview.py                # Dashboard geral (/dashboard/overview): totais, progresso mês, cartão, status limites, parcelas, recorrentes, metas/compras só admin
 │   │   │   ├── test_shopping.py                # CRUD lista de compras + rollover (não-comprados p/ mês seguinte) + ordenação

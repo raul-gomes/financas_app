@@ -58,6 +58,8 @@ extend-immutable-calls = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106", "S311"]
+# The test encryption key must be in os.environ before the app modules are imported
+"tests/conftest.py" = ["E402"]
 # TODO(pendencias Q4/B017): replace blind `pytest.raises(Exception)` with the specific error
 "tests/test_schemas.py" = ["B017"]
 # Re-exports so Alembic/metadata see every model
