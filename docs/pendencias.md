@@ -40,6 +40,7 @@ consolidados no fim.
 - [x] **Q7** (média) Trocar cores fixas por tokens. Feito em todo `src/`: novos tokens `critical` e `chart-1..12` (light+dark); só restam overlays `bg-black/80` do shadcn.
 - [ ] **Q8** (média) Usar react-query nos fetches ou remover a dependência.
 - [ ] **Q9** (baixa) ~~17 erros de ESLint~~ (feito; restam 16 warnings); ~~remover `bun.lockb`~~ (feito); ~~`lang="pt-BR"`~~ (feito); `aria-label` nos botões de ícone; `.dict()` → `model_dump()`; imports mortos; tetos de versão; tirar `psycopg2-binary`/`aiosqlite` de produção.
+- [ ] **Q11** (média) Frontend: `npm audit --omit=dev` com 5 moderados — react-router 6 (corrigido só na v7, major) e glob/minimatch (só build, via tailwind). Zod já foi para a v4 (alerta alto resolvido). Chunk principal 684 kB (202 kB gzip): analisar `manualChunks`/`zod/mini`.
 - [ ] **Q10** (baixa) Commits em inglês daqui em diante.
 
 ## Performance
