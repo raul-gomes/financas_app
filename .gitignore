@@ -66,8 +66,8 @@ Thumbs.db
 # Visual companion mockups
 .superpowers/
 
-# Docs (estrutura de pastas mantida localmente)
-docs/
+# Segredos e dados pessoais (docs/ é versionado; nada sensível ali)
+.private/
 
 # Runtime/build artifacts
 logs/
