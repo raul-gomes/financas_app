@@ -18,6 +18,7 @@ from app.services.category_service import CategoryService
 from app.services.dashboard_service import DashboardService
 from app.services.goal_service import GoalService
 from app.services.limits_service import LimitsService
+from app.services.recurring_account_service import RecurringAccountService
 from app.services.settings_service import SettingsService
 from app.services.shopping_service import ShoppingService
 from app.services.transaction_service import TransactionService
@@ -138,3 +139,19 @@ async def get_settings_reader(
 ) -> SettingsService:
     """Settings service for read-only routes (profile, list_banks)."""
     return SettingsService(UnitOfWork(session), current_user)
+
+
+async def get_recurring_account_service(
+    uow: UnitOfWork = Depends(get_unit_of_work, scope="function"),
+    current_user: UserORM = Depends(get_current_user),
+) -> RecurringAccountService:
+    """Recurring-accounts service whose writes are committed once by the unit of work."""
+    return RecurringAccountService(uow, current_user)
+
+
+async def get_recurring_account_reader(
+    session: AsyncSession = Depends(get_session),
+    current_user: UserORM = Depends(get_current_user),
+) -> RecurringAccountService:
+    """Recurring-accounts service for read-only routes (list_accounts, get)."""
+    return RecurringAccountService(UnitOfWork(session), current_user)

@@ -57,7 +57,7 @@ financas_app/
 │   │   │   │   ├── categories_routes.py        # /categories — CRUD categorias; só HTTP, regras no CategoryService
 │   │   │   │   ├── dashboard_routes.py         # /dashboard — extrato, overview, rendimento, gastos por categoria (só HTTP; usa DashboardService)
 │   │   │   │   ├── limits_routes.py            # /limits — listar e atualizar limites em lote; /limits/risk-check projeta o valor digitado (gasto atual + amount → thresholds 80/90/100); só HTTP, regras no LimitsService
-│   │   │   │   ├── recurring_accounts_routes.py # /recurring-accounts — CRUD + renovação + geração
+│   │   │   │   ├── recurring_accounts_routes.py # /recurring-accounts — CRUD + renovação + geração; só HTTP, regras no RecurringAccountService
 │   │   │   │   ├── extract_routes.py           # /extracts — upload de extrato CSV/OFX (leitura em blocos, limite 10 MB) + confirmação
 │   │   │   │   ├── settings_routes.py          # /settings — perfil + bancos + atribuição aleatória; só HTTP, regras no SettingsService
 │   │   │   │   ├── goals_routes.py             # /goals — CRUD metas + progresso (admin); só HTTP, regras no GoalService
@@ -87,6 +87,7 @@ financas_app/
 │   │   │       ├── goal_service.py             # GoalService: metas do usuário (list_goals/create/update/delete/complete/reactivate/progress); NotFoundError/ConflictError; só flush
 │   │   │       ├── shopping_service.py         # ShoppingService: lista de compras do usuário (list_month com rollover, create/update/delete, generate_recurring); NotFoundError; só flush
 │   │   │       ├── settings_service.py         # SettingsService: perfil (nome, chave Pluggy cifrada), bancos e assign_random_banks do usuário; NotFoundError/ValidationError; só flush
+│   │   │       ├── recurring_account_service.py # RecurringAccountService: contas recorrentes do usuário (CRUD, renew, generate); resolve/cria categoria e subcategoria por nome; avalia limites após o commit; só flush
 │   │   │       ├── dashboard_service.py        # DashboardService: overview e dashboard financeiro (leitura); metas/compras só para admin decididas pelo role do token
 │   │   │       ├── pluggy_service.py           # Cliente HTTP para API Meu Pluggy (Open Finance)
 │   │   │       ├── extract_parsers.py          # Parsers de extrato bancário (CSV e OFX via defusedxml; UnsafeOfxError)
@@ -133,6 +134,7 @@ financas_app/
 │   │   │   ├── test_goal_service.py            # GoalService: nada comitado antes do UoW, rollback desfaz a categoria "Metas", 409 em nome duplicado, isolamento entre usuários, concluir/reativar
 │   │   │   ├── test_shopping_service.py        # ShoppingService: nada comitado antes do UoW, rollback, isolamento entre usuários, completed_at ao marcar, rollover do mês
 │   │   │   ├── test_settings_service.py        # SettingsService: rollback, bancos isolados por usuário, chave Pluggy cifrada/removida, assign_random_banks só com os bancos do usuário
+│   │   │   ├── test_recurring_account_service.py # RecurringAccountService: rollback desfaz conta+parcelas+categoria, nomes resolvidos, 422, isolamento, desativar cancela futuras, limites avaliados após commit
 │   │   │   ├── test_transaction_service.py     # TransactionService: nada comitado antes do UoW, rollback desfaz categoria auto-criada, limites avaliados após commit, isolamento entre usuários
 │   │   │   ├── test_transactions_pagination.py # GET /transacoes/paginated: ordem estável (data desc, id desc), cursor, total, filtros, teto de página, isolamento
 │   │   │   ├── test_dashboard_sql_parity.py    # Agregações SQL do dashboard/overview x referência em Python (PF/PJ, 2 usuários) + teto de queries

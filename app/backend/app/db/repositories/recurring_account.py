@@ -20,6 +20,8 @@ from app.schemas.recurring_account import (
 
 
 class ContaRecorrenteRepository:
+    """Contas recorrentes e suas parcelas. Só faz flush: o commit é da unit of work do request."""
+
     def __init__(self, db: AsyncSession = Depends(get_session)):
         self.db = db
 
@@ -50,10 +52,9 @@ class ContaRecorrenteRepository:
         )
         self.db.add(inst)
         try:
-            await self.db.commit()
+            await self.db.flush()
             await self.db.refresh(inst)
         except IntegrityError as exc:
-            await self.db.rollback()
             raise ValidationError("Erro ao criar conta recorrente") from exc
 
         # Auto-generate 12 monthly installments
@@ -132,17 +133,15 @@ class ContaRecorrenteRepository:
             try:
                 await self._cancel_future_transactions(conta)
             except SQLAlchemyError as e:
-                await self.db.rollback()
                 logger.error(f"Erro ao cancelar transações futuras da conta {conta.id}: {e}")
                 raise
 
         try:
-            await self.db.commit()
+            await self.db.flush()
             await self.db.refresh(conta)
             await self._set_remaining_installments(conta)
             return conta
         except IntegrityError as exc:
-            await self.db.rollback()
             raise ValidationError("Erro ao atualizar conta recorrente") from exc
 
     async def delete(self, id: int, user_id: int) -> RecurringAccountORM | None:
@@ -158,7 +157,7 @@ class ContaRecorrenteRepository:
             await self.db.delete(t)
 
         await self.db.delete(conta)
-        await self.db.commit()
+        await self.db.flush()
         return conta
 
     # ── 12-installment generation ─────────────────────────
@@ -291,7 +290,7 @@ class ContaRecorrenteRepository:
                     geradas += 1
 
         if geradas > 0:
-            await self.db.commit()
+            await self.db.flush()
         return geradas
 
     async def renew(self, conta_id: int, user_id: int) -> RecurringAccountORM | None:
@@ -315,11 +314,10 @@ class ContaRecorrenteRepository:
         try:
             await self._generate_installments(conta, user_id)
         except SQLAlchemyError as e:
-            await self.db.rollback()
             logger.error(f"Erro ao renovar conta recorrente {conta.id}: {e}")
             raise
 
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(conta)
         await self._set_remaining_installments(conta)
         return conta
@@ -342,7 +340,7 @@ class ContaRecorrenteRepository:
 
         count = len(futures)
         if count > 0:
-            await self.db.commit()
+            await self.db.flush()
         return count
 
     async def _set_remaining_installments(self, conta: RecurringAccountORM) -> None:
@@ -469,11 +467,10 @@ class ContaRecorrenteRepository:
 
         if geradas > 0:
             try:
-                await self.db.commit()
+                await self.db.flush()
                 log.info(f"{geradas} transacoes recorrentes geradas")
             except SQLAlchemyError as e:
-                await self.db.rollback()
-                log.error(f"Erro ao commit transacoes recorrentes: {e}", exc_info=True)
+                log.error(f"Erro ao gravar transacoes recorrentes: {e}", exc_info=True)
                 raise
 
         return geradas, detalhes
