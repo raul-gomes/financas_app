@@ -6,6 +6,7 @@ import type { Transaction, TransactionPage } from '@/types/financial';
 
 const mockGetTransactionsPage = vi.fn();
 const mockListBanks = vi.fn();
+const mockToast = vi.fn();
 
 vi.mock('@/services/financialService', () => ({
   TRANSACTIONS_PAGE_SIZE: 30,
@@ -16,6 +17,10 @@ vi.mock('@/services/financialService', () => ({
 
 vi.mock('@/services/settingsService', () => ({
   SettingsService: { listBanks: () => mockListBanks() },
+}));
+
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({ toast: mockToast }),
 }));
 
 vi.mock('@/contexts/RoleContext', () => ({
@@ -139,5 +144,23 @@ describe('TransactionList (paginated)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
 
     await waitFor(() => expect(screen.getByText('Compra 1')).toBeTruthy());
+  });
+
+  it('warns with a pt-BR toast and logs the error when the banks fail to load', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const failure = new Error('banks down');
+    mockListBanks.mockRejectedValue(failure);
+    mockGetTransactionsPage.mockResolvedValue(page([1], null, 1));
+    renderWithQuery(<TransactionList {...baseProps} />);
+
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ description: 'Falha ao carregar os bancos.', variant: 'destructive' }),
+      ),
+    );
+    expect(logged).toHaveBeenCalledWith('Error loading banks:', failure);
+    // the list itself still renders
+    await waitFor(() => expect(screen.getByText('Compra 1')).toBeTruthy());
+    logged.mockRestore();
   });
 });
