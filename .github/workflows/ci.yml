@@ -74,10 +74,8 @@ jobs:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
         run: uv run pytest -q
 
-      # Reports known vulnerabilities without failing the build until they are
-      # triaged (pendencias Q1). Remove continue-on-error once the report is clean.
+      # Blocking: any known vulnerability in the locked dependencies fails the build.
       - name: Dependency audit
-        continue-on-error: true
         run: |
           uv export --frozen --no-hashes --no-emit-project > "$RUNNER_TEMP/requirements.txt"
           uvx pip-audit --disable-pip --no-deps -r "$RUNNER_TEMP/requirements.txt"
