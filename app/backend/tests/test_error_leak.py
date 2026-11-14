@@ -5,11 +5,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.repositories.category import CategoriaRepository
-from app.db.repositories.limits import LimitsRepository
 from app.db.repositories.recurring_account import ContaRecorrenteRepository
 from app.db.repositories.shopping import ShoppingRepository
 from app.db.repositories.transaction import TransacaoRepository
 from app.main import app
+from app.services.limits_service import LimitsService
 
 LEAK_MARKER = "leak-marker-db-host-10.0.0.9"
 GENERIC_500 = "Erro interno"
@@ -81,7 +81,7 @@ async def test_bulk_limits_commit_failure_does_not_leak(tolerant_client, monkeyp
     async def failing_commit(self):
         raise SQLAlchemyError(LEAK_MARKER)
 
-    monkeypatch.setattr(LimitsRepository, "_create_new_category", _boom(ValueError("dup")))
+    monkeypatch.setattr(LimitsService, "_create_new_category", _boom(ValueError("dup")))
     monkeypatch.setattr("sqlalchemy.ext.asyncio.AsyncSession.commit", failing_commit)
     payload = {"new": [{"category_name": "Nova", "entity_type": "individual", "limit": 1}]}
     _assert_generic(await tolerant_client.put("/limits/", json=payload))

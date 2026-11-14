@@ -16,6 +16,7 @@ from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.db.models.user import UserORM
 from app.services.category_service import CategoryService
 from app.services.dashboard_service import DashboardService
+from app.services.limits_service import LimitsService
 from app.services.transaction_service import TransactionService
 
 BR_DATE_FORMAT = "%d/%m/%Y"
@@ -70,3 +71,19 @@ async def get_category_reader(
 ) -> CategoryService:
     """Categories service for read-only routes (only call ``list``/``get`` through it)."""
     return CategoryService(UnitOfWork(session), current_user)
+
+
+async def get_limits_service(
+    uow: UnitOfWork = Depends(get_unit_of_work, scope="function"),
+    current_user: UserORM = Depends(get_current_user),
+) -> LimitsService:
+    """Limits service whose writes (bulk update) are committed once by the unit of work."""
+    return LimitsService(uow, current_user)
+
+
+async def get_limits_reader(
+    session: AsyncSession = Depends(get_session),
+    current_user: UserORM = Depends(get_current_user),
+) -> LimitsService:
+    """Limits service for read-only routes (list_all, with_spending, category_risk)."""
+    return LimitsService(UnitOfWork(session), current_user)

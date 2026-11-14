@@ -5,192 +5,23 @@ from typing import Any
 
 from fastapi import Depends
 from sqlalchemy import func, select
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.core.errors import DomainError
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
-from app.db.repositories.category import CategoriaRepository
-from app.db.repositories.subcategory import SubcategoriaRepository
 from app.logger import log_database_operation
-from app.schemas.categories import CategoriaCreate, CategoriaUpdate
-from app.schemas.limits import CategoriaLimiteUpdate, LimitsUpdatePayload, LimitsUpdateResponse
-from app.schemas.subcategory import SubcategoriaCreate, SubcategoriaUpdate
-
-GENERIC_ITEM_ERROR = "erro interno"
-BULK_ITEM_ERRORS = (DomainError, ValueError, SQLAlchemyError)
-
-
-def client_error_text(exc: Exception) -> str:
-    """Text that is safe to show the client for one failed bulk item.
-
-    Only deliberate domain messages (DomainError message, ValueError raised by this
-    repository) are passed through; database errors become a generic text.
-    """
-    if isinstance(exc, DomainError):
-        return exc.message
-    if isinstance(exc, ValueError):
-        return str(exc)
-    return GENERIC_ITEM_ERROR
 
 
 class LimitsRepository:
     """
-    Repositório especializado para operações em lote de limites de categorias/subcategorias.
+    Repositório de leitura dos limites de categorias/subcategorias e dos gastos do mês.
+
+    As escritas em lote ficam no ``LimitsService`` (regra de negócio + unit of work).
     """
 
     def __init__(self, db: AsyncSession = Depends(get_session)):
         self.db = db
-        self.categoria_repo = CategoriaRepository(db)
-        self.subcategoria_repo = SubcategoriaRepository(db)
-
-    async def bulk_update_limits(
-        self, payload: LimitsUpdatePayload, user_id: int
-    ) -> LimitsUpdateResponse:
-        """
-        Processa atualizações em lote de limites de categorias e subcategorias.
-        """
-        log = log_database_operation(
-            operation="bulk_update_limits",
-            collection="categorias",
-            payload=payload.model_dump(),
-            user_id=user_id,
-        )
-
-        response = LimitsUpdateResponse(success=True, message="Limites atualizados com sucesso")
-
-        try:
-            # Processa categorias a excluir
-            for cat_id in payload.deleted:
-                try:
-                    cat = await self.categoria_repo.get_by_id(cat_id, user_id)
-                    if cat:
-                        await self.categoria_repo.delete(cat_id, user_id)
-                        response.deleted_categories += 1
-                except BULK_ITEM_ERRORS as e:
-                    response.errors.append(
-                        f"Erro ao excluir categoria ID {cat_id}: {client_error_text(e)}"
-                    )
-                    log.error(f"Erro ao excluir categoria: {e}")
-
-            # Processa categorias novas
-            for new_cat in payload.new:
-                try:
-                    await self._create_new_category(new_cat, response, user_id)
-                except BULK_ITEM_ERRORS as e:
-                    response.errors.append(
-                        f"Erro ao criar categoria '{new_cat.category_name}': {client_error_text(e)}"
-                    )
-                    log.error(f"Erro ao criar categoria: {e}")
-
-            # Processa categorias modificadas
-            for mod_cat in payload.modified:
-                try:
-                    await self._update_existing_category(mod_cat, response, user_id)
-                except BULK_ITEM_ERRORS as e:
-                    response.errors.append(
-                        f"Erro ao atualizar categoria ID {mod_cat.id}: {client_error_text(e)}"
-                    )
-                    log.error(f"Erro ao atualizar categoria: {e}")
-
-            # Commit final se não houver erros críticos
-            await self.db.commit()
-
-            if response.errors:
-                response.success = False
-                response.message = f"Operação concluída com {len(response.errors)} erro(s)"
-
-            log.info(
-                f"Bulk update concluído: {response.created_categories} criadas, {response.updated_categories} atualizadas"
-            )
-            return response
-
-        except SQLAlchemyError as e:
-            await self.db.rollback()
-            log.error(f"Erro crítico no bulk update: {e}")
-            raise
-
-    async def _create_new_category(
-        self, new_cat: CategoriaLimiteUpdate, response: LimitsUpdateResponse, user_id: int
-    ):
-        """Cria uma nova categoria com suas subcategorias."""
-
-        # Verifica se já existe categoria com mesmo nome E entity_type
-        existing = await self.categoria_repo.get_by_nome_and_entity_type(
-            new_cat.category_name, new_cat.entity_type, user_id
-        )
-        if existing:
-            raise ValueError(
-                f"Categoria '{new_cat.category_name}' com tipo '{new_cat.entity_type}' já existe"
-            )
-
-        # Cria a categoria
-        categoria_create = CategoriaCreate(
-            category_name=new_cat.category_name,
-            entity_type=new_cat.entity_type,
-            limit=new_cat.limit,
-            subcategories=[],  # Vamos criar as subcategorias separadamente
-        )
-
-        categoria = await self.categoria_repo.create(user_id, categoria_create)
-        response.created_categories += 1
-
-        # Cria subcategorias associadas
-        for sub_data in new_cat.subcategories:
-            if sub_data.subcategory_name.strip():  # Só cria se tiver nome
-                sub_create = SubcategoriaCreate(subcategory_name=sub_data.subcategory_name)
-                await self.subcategoria_repo.create(categoria.id, user_id, sub_create)
-                response.created_subcategories += 1
-
-    async def _update_existing_category(
-        self, mod_cat: CategoriaLimiteUpdate, response: LimitsUpdateResponse, user_id: int
-    ):
-        """Atualiza uma categoria existente e suas subcategorias."""
-
-        if not mod_cat.id:
-            raise ValueError("ID da categoria é obrigatório para atualização")
-
-        # Verifica se a categoria existe
-        categoria = await self.categoria_repo.get_by_id(mod_cat.id, user_id)
-        if not categoria:
-            raise ValueError(f"Categoria ID {mod_cat.id} não encontrada")
-
-        # Atualiza campos básicos da categoria
-        categoria_update = CategoriaUpdate(
-            category_name=mod_cat.category_name,
-            entity_type=mod_cat.entity_type,
-            limit=mod_cat.limit,
-            subcategories=[],  # Processaremos separadamente
-        )
-
-        await self.categoria_repo.update(mod_cat.id, user_id, categoria_update)
-        response.updated_categories += 1
-
-        # Processa subcategorias
-        await self._process_subcategories(mod_cat.id, mod_cat.subcategories, response, user_id)
-
-    async def _process_subcategories(
-        self, categoria_id: int, subcategorias: list, response: LimitsUpdateResponse, user_id: int
-    ):
-        """Processa subcategorias de uma categoria (novas e atualizações)."""
-
-        for sub_data in subcategorias:
-            if not sub_data.subcategory_name.strip():  # Ignora vazias
-                continue
-
-            if sub_data.id:
-                # Subcategoria existente - atualizar
-                sub_update = SubcategoriaUpdate(subcategory_name=sub_data.subcategory_name)
-                updated_sub = await self.subcategoria_repo.update(sub_data.id, user_id, sub_update)
-                if updated_sub:
-                    response.updated_subcategories += 1
-            else:
-                # Nova subcategoria - criar
-                sub_create = SubcategoriaCreate(subcategory_name=sub_data.subcategory_name)
-                await self.subcategoria_repo.create(categoria_id, user_id, sub_create)
-                response.created_subcategories += 1
 
     async def get_all_limits(self, user_id: int) -> list[dict[str, Any]]:
         """
