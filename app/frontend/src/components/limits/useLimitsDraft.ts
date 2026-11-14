@@ -46,11 +46,13 @@ export function useLimitsDraft(entityTypeFilter: EntityScope = 'all') {
     useEffect(() => {
         if (!fetchedLimits) return
         const mapped = fetchedLimits.map(transformCategory)
+        // The special limits are matched by name AND scope: the card limit exists once per scope
+        const isCardLimit = (c: Category) => c.name.trim().toLowerCase() === CARD_LIMIT_NAME.toLowerCase()
         const ensureCategory = (name: string, entity_type: 'pf' | 'pj', defaultLimit: number): Category => {
-            const existing = mapped.find(c => c.name.trim().toLowerCase() === name.toLowerCase())
+            const existing = mapped.find(c => c.name.trim().toLowerCase() === name.toLowerCase() && c.entity_type === entity_type)
             if (existing) return existing
             return {
-                id: `new_${name.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`,
+                id: `new_${name.replace(/\s+/g, '_').toLowerCase()}_${entity_type}_${Date.now()}`,
                 name,
                 entity_type,
                 limit: defaultLimit,
@@ -61,11 +63,13 @@ export function useLimitsDraft(entityTypeFilter: EntityScope = 'all') {
 
         const mensalPF = ensureCategory('Mensal PF', 'pf', DEFAULT_MONTHLY_LIMIT)
         const mensalPJ = ensureCategory('Mensal PJ', 'pj', DEFAULT_MONTHLY_LIMIT)
-        const limiteCartao = ensureCategory(CARD_LIMIT_NAME, 'pf', DEFAULT_CARD_LIMIT)
+        const limiteCartaoPF = ensureCategory(CARD_LIMIT_NAME, 'pf', DEFAULT_CARD_LIMIT)
+        // The PJ card limit is only created when the user sets it (see handleCartaoLimitChange)
+        const limiteCartaoPJ = mapped.find(c => isCardLimit(c) && c.entity_type === 'pj')
 
         const rest = mapped.filter(c => !SPECIAL_CATEGORY_NAMES.includes(c.name.trim().toLowerCase()))
 
-        setRawData([mensalPF, mensalPJ, limiteCartao, ...rest])
+        setRawData([mensalPF, mensalPJ, limiteCartaoPF, ...(limiteCartaoPJ ? [limiteCartaoPJ] : []), ...rest])
         setDeletedCategoryIds([])
     }, [fetchedLimits])
 

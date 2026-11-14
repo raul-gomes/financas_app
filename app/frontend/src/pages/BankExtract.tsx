@@ -787,14 +787,14 @@ setTransactionErrors(allErrors)
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 max-sm:w-full sm:shrink-0">
                     <span className="text-xs text-muted-foreground">Banco:</span>
                     <Select
                       value={session.bankCode}
                       onValueChange={(v) => handleBankSelect(sIdx, v)}
                       disabled={session.isConfirmed}
                     >
-                      <SelectTrigger className={`h-8 text-xs min-w-[180px] ${!hasBank && isPending ? 'border-warning border-2' : ''}`}>
+                      <SelectTrigger className={`h-8 text-xs max-sm:min-w-0 max-sm:flex-1 sm:min-w-[180px] ${!hasBank && isPending ? 'border-warning border-2' : ''}`}>
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
                       <SelectContent>

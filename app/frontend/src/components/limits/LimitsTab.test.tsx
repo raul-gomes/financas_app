@@ -113,6 +113,21 @@ describe('LimitsTab', () => {
   });
 });
 
+describe('LimitsTab - limites de cartão PF e PJ', () => {
+  it('mostra o limite do cartão de cada escopo mesmo quando o PJ vem primeiro na lista', async () => {
+    mockGetLimits.mockResolvedValue([
+      { id: 26, name: 'Limite Cartao Credito', entity_type: 'business', limit: 30000, subcategories: [] },
+      { id: 25, name: 'Limite Cartao Credito', entity_type: 'individual', limit: 15000, subcategories: [] },
+      { id: 23, name: 'Mensal PF', entity_type: 'individual', limit: 6000, subcategories: [] },
+      { id: 24, name: 'Mensal PJ', entity_type: 'business', limit: 12000, subcategories: [] },
+    ]);
+    renderWithQuery(<LimitsTab />);
+
+    await waitFor(() => expect(screen.getByDisplayValue('30000')).toBeTruthy());
+    expect(screen.getByDisplayValue('15000')).toBeTruthy();
+  });
+});
+
 describe('LimitsTab no celular', () => {
   const originalWidth = window.innerWidth;
   beforeEach(() => {
