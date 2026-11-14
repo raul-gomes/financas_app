@@ -4,6 +4,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+# Paginated transactions listing (GET /transacoes/paginated)
+TRANSACTIONS_DEFAULT_PAGE_SIZE = 30
+TRANSACTIONS_MAX_PAGE_SIZE = 100
+TRANSACTIONS_SEARCH_MAX_LENGTH = 100
+
 
 class TipoTransacao(str, Enum):
     ENTRADA = "income"
@@ -93,6 +98,21 @@ class TransacaoResponse(TransacaoBase):
     class Config:
         from_attributes = True
         populate_by_name = True
+
+
+class TransacaoPageResponse(BaseModel):
+    """One page of transactions, newest first (date desc, id desc).
+
+    Frontend uses: items (rows), total (counter), has_more + next_cursor ("Carregar mais").
+    """
+
+    items: list[TransacaoResponse]
+    total: int = Field(..., ge=0, description="Total de transações que casam com os filtros")
+    limit: int = Field(..., ge=1, description="Tamanho de página solicitado")
+    has_more: bool = Field(..., description="Existem mais páginas após esta")
+    next_cursor: str | None = Field(
+        None, description="Cursor opaco para a próxima página (null na última)"
+    )
 
 
 class TransacaoUpdate(BaseModel):

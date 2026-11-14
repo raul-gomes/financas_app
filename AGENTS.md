@@ -80,7 +80,8 @@ DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas ale
 - Models: `app/db/models/` — 7 ORM models
 - Repositories: `app/db/repositories/` — 13 data access classes
 - Schemas: `app/schemas/` — Pydantic DTOs
-- Services: `app/services/` — Pluggy API client, extract parsers
+- Services: `app/services/` — use cases (`transaction_service.py`, `dashboard_service.py`), Pluggy API client, extract parsers
+- Unit of work: `app/core/unit_of_work.py`; route dependencies: `app/routes/dependencies.py`
 - Config: `app/core/config.py` — loads env via `python-dotenv`
 - Migrations: `app/db/migrations/versions/` — 24 Alembic migrations
 - Tests: `tests/` — 28 test files (pytest + pytest-asyncio)
@@ -101,6 +102,28 @@ DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas ale
 - Types: `src/types/` — TypeScript interfaces
 - Hooks: `src/hooks/` — Custom React hooks
 - Contexts: `src/contexts/` — SidebarContext
+
+## Layers and unit of work (pattern for new and migrated domains)
+
+Transactions and the overview/dashboard already follow it; other domains migrate when touched.
+
+```
+route  ->  service  ->  repository
+HTTP       rules +      data access (SQL)
+only       authorization
+```
+
+- **Route** (`app/routes/*_routes.py`): parses/validates HTTP input (query, body, `DD/MM/YYYY` dates via `parse_date`), calls ONE service method, returns the DTO. No SQL, no business rules, no `user_id` from the client.
+- **Service** (`app/services/*_service.py`): built per request from the authenticated user (`get_current_user`) and the request's unit of work/session (see `app/routes/dependencies.py`). Every repository call receives `self.user.id`; admin-only behavior is decided from `user.role`. Raises `HTTPException` for 404/400 (swap for domain exceptions when Q4 lands).
+- **Repository** (`app/db/repositories/*.py`): queries only, always filtered by `user_id`. Aggregations (`SUM`/`GROUP BY`, filters on user, date range, PF/PJ) run in SQL, never by looping over ORM rows. It `add`/`flush`/`refresh`es but **never commits**.
+- **Unit of work** (`get_unit_of_work`, declared `Depends(get_unit_of_work, scope="function")`): one `AsyncSession` per request; it commits once when the handler returns and rolls back when it raises. `scope="function"` makes the commit happen before the response is sent, so a failed commit is a 500, not a lost write. Side effects that need durable data (e.g. limit-alert evaluation) go through `uow.after_commit(callback)`: best-effort, logged, never undo the write.
+- Write routes use `get_transaction_service` (unit of work); read-only routes use `get_transaction_reader` / `get_dashboard_service` (plain session, nothing to commit).
+- Repos used by other flows may keep an opt-in `commit: bool = True` (see `CategoriaRepository.create(..., commit=False)`); pass `commit=False` when called from a service.
+- Tests: services are tested directly with an `async_session` + `UnitOfWork` (`tests/test_transaction_service.py`); the unit of work itself in `tests/test_unit_of_work.py`.
+
+## Pagination (lists)
+
+List endpoints return a page DTO written by hand with `items`, `total`, `limit`, `has_more`, `next_cursor`. Ordering must be total and stable (e.g. `transaction_date desc, id desc`) and the page size capped by a named constant (`TRANSACTIONS_MAX_PAGE_SIZE`). Reference: `GET /transacoes/paginated` (keyset cursor).
 
 ## Development Rules
 

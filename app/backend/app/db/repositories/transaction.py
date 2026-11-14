@@ -1,12 +1,16 @@
 # app/db/repositories/transacao.py
 
+import base64
+import binascii
 import calendar
+from dataclasses import dataclass
 from datetime import date, datetime, time
+from typing import Self
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from fastapi import Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,6 +23,62 @@ from app.logger import log_database_operation
 from app.schemas.categories import CategoriaCreate
 from app.schemas.subcategory import SubcategoriaCreate
 from app.schemas.transaction import TransacaoCreate, TransacaoUpdate
+
+# Escape character for LIKE patterns built from user-supplied search text
+LIKE_ESCAPE = "\\"
+
+
+class InvalidCursorError(ValueError):
+    """Raised when a pagination cursor cannot be decoded."""
+
+
+@dataclass(frozen=True)
+class TransactionCursor:
+    """Keyset position: the last row of the previous page (date desc, id desc)."""
+
+    transaction_date: datetime
+    id: int
+
+    def encode(self) -> str:
+        """Returns an opaque URL-safe token for this position."""
+        raw = f"{self.transaction_date.isoformat()}|{self.id}"
+        return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+
+    @classmethod
+    def decode(cls, token: str) -> Self:
+        """Parses a token produced by :meth:`encode`.
+
+        Raises:
+            InvalidCursorError: when the token is malformed.
+        """
+        try:
+            padded = token + "=" * (-len(token) % 4)
+            raw = base64.urlsafe_b64decode(padded.encode()).decode()
+            date_part, id_part = raw.split("|")
+            return cls(datetime.fromisoformat(date_part), int(id_part))
+        except (ValueError, binascii.Error, UnicodeDecodeError) as exc:
+            raise InvalidCursorError("Cursor inválido") from exc
+
+
+@dataclass(frozen=True)
+class TransactionFilters:
+    """Optional filters of the paginated listing (all combined with AND)."""
+
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+    entity_type: str | None = None
+    type: str | None = None
+    category_id: int | None = None
+    search: str | None = None
+
+
+@dataclass(frozen=True)
+class TransactionPage:
+    """One page of rows plus the total count for the same filters."""
+
+    items: list[TransactionORM]
+    total: int
+    next_cursor: TransactionCursor | None
 
 
 class TransacaoRepository:
@@ -130,7 +190,7 @@ class TransacaoRepository:
 
         self._adjust_last_installment(created_transactions, obj_in.amount)
 
-        await self.db.commit()
+        await self.db.flush()
 
         for transacao in created_transactions:
             await self.db.refresh(transacao)
@@ -164,6 +224,7 @@ class TransacaoRepository:
                         type=obj_in.type.value,
                         subcategories=[],
                     ),
+                    commit=False,
                 )
 
         # 2) Subcategoria: se id não informado, busca ou cria por nome sob a categoria
@@ -180,6 +241,7 @@ class TransacaoRepository:
                     categoria_id=categoria.id,
                     user_id=user_id,
                     obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name),
+                    commit=False,
                 )
 
         # 3) Cria a transação usando os IDs resolvidos
@@ -209,19 +271,13 @@ class TransacaoRepository:
                 )
 
             self.db.add(inst)
-            await self.db.commit()
-            try:
-                await self.db.refresh(inst)
-            except Exception as refresh_err:
-                log.error(f"Erro ao refresh transação: {refresh_err}")
-                inst = await self.get_by_id(inst.id, user_id) or inst
+            await self.db.flush()
+            await self.db.refresh(inst)
             log.info(f"Transação {inst.id} criada")
             return inst
         except IntegrityError:
-            await self.db.rollback()
             raise HTTPException(status_code=400, detail="Erro ao criar transação (integridade)")
         except Exception as e:
-            await self.db.rollback()
             log.error(f"Erro inesperado ao criar transação: {type(e).__name__}: {e}", exc_info=True)
             raise
 
@@ -243,9 +299,78 @@ class TransacaoRepository:
             data_final_completo = datetime.combine(end_date.date(), time.max)
             stmt = stmt.where(TransactionORM.transaction_date <= data_final_completo)
 
-        stmt = stmt.order_by(TransactionORM.transaction_date.desc()).limit(limit).offset(offset)
+        stmt = (
+            stmt.order_by(TransactionORM.transaction_date.desc(), TransactionORM.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         result = await self.db.execute(stmt)
         return result.unique().scalars().all()
+
+    @staticmethod
+    def _apply_filters(stmt: Select, user_id: int, filters: TransactionFilters) -> Select:
+        """Applies the user scope and every optional filter to a transactions statement."""
+        stmt = stmt.where(TransactionORM.user_id == user_id)
+        if filters.start_date is not None:
+            stmt = stmt.where(TransactionORM.transaction_date >= filters.start_date)
+        if filters.end_date is not None:
+            end_of_day = datetime.combine(filters.end_date.date(), time.max)
+            stmt = stmt.where(TransactionORM.transaction_date <= end_of_day)
+        if filters.entity_type is not None:
+            stmt = stmt.where(TransactionORM.entity_type == filters.entity_type)
+        if filters.type is not None:
+            stmt = stmt.where(TransactionORM.type == filters.type)
+        if filters.category_id is not None:
+            stmt = stmt.where(TransactionORM.category_id == filters.category_id)
+        if filters.search:
+            escaped = (
+                filters.search.replace(LIKE_ESCAPE, LIKE_ESCAPE * 2)
+                .replace("%", f"{LIKE_ESCAPE}%")
+                .replace("_", f"{LIKE_ESCAPE}_")
+            )
+            stmt = stmt.where(TransactionORM.description.ilike(f"%{escaped}%", escape=LIKE_ESCAPE))
+        return stmt
+
+    async def list_page(
+        self,
+        user_id: int,
+        filters: TransactionFilters,
+        limit: int,
+        cursor: TransactionCursor | None = None,
+    ) -> TransactionPage:
+        """Returns one keyset page (date desc, id desc) plus the total for the filters.
+
+        Fetches ``limit + 1`` rows to know whether another page exists without a second query.
+        """
+        total_stmt = self._apply_filters(
+            select(func.count()).select_from(TransactionORM), user_id, filters
+        )
+        total = (await self.db.execute(total_stmt)).scalar_one()
+
+        stmt = self._apply_filters(
+            select(TransactionORM).options(selectinload(TransactionORM.recurring_account)),
+            user_id,
+            filters,
+        )
+        if cursor is not None:
+            stmt = stmt.where(
+                or_(
+                    TransactionORM.transaction_date < cursor.transaction_date,
+                    and_(
+                        TransactionORM.transaction_date == cursor.transaction_date,
+                        TransactionORM.id < cursor.id,
+                    ),
+                )
+            )
+        stmt = stmt.order_by(TransactionORM.transaction_date.desc(), TransactionORM.id.desc())
+        rows = list((await self.db.execute(stmt.limit(limit + 1))).unique().scalars().all())
+
+        has_more = len(rows) > limit
+        items = rows[:limit]
+        next_cursor = (
+            TransactionCursor(items[-1].transaction_date, items[-1].id) if has_more else None
+        )
+        return TransactionPage(items=items, total=total, next_cursor=next_cursor)
 
     async def get_by_id(self, id: int, user_id: int) -> TransactionORM | None:
         stmt = (
@@ -281,6 +406,7 @@ class TransacaoRepository:
                             type=obj_in.type.value if obj_in.type else None,
                             subcategories=[],
                         ),
+                        commit=False,
                     )
             resolved_category_id = categoria.id
 
@@ -300,6 +426,7 @@ class TransacaoRepository:
                         categoria_id=cat_id_for_sub,
                         user_id=user_id,
                         obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name),
+                        commit=False,
                     )
             trans.subcategory_id = sub.id
 
@@ -328,19 +455,19 @@ class TransacaoRepository:
             setattr(trans, orm_field, val)
 
         try:
-            await self.db.commit()
+            await self.db.flush()
             await self.db.refresh(trans)
             return trans
         except IntegrityError:
-            await self.db.rollback()
             raise HTTPException(status_code=400, detail="Erro ao atualizar transação")
 
     async def delete(self, id: int, user_id: int) -> TransactionORM | None:
+        """Deletes the user's transaction (flush only; the unit of work commits)."""
         trans = await self.get_by_id(id, user_id)
         if not trans:
             return None
         await self.db.delete(trans)
-        await self.db.commit()
+        await self.db.flush()
         return trans
 
     async def check_duplicates(

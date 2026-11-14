@@ -60,6 +60,13 @@ class CategoriaRepository:
         )
         return result.scalars().first()
 
+    async def _persist(self, commit: bool) -> None:
+        """Commits, or only flushes when the caller's unit of work owns the commit."""
+        if commit:
+            await self.db.commit()
+        else:
+            await self.db.flush()
+
     async def get_by_tipo(self, tipo: str, user_id: int) -> CategoryORM | None:
         """Busca a primeira categoria com o tipo informado (ex: 'income', 'investment')."""
         result = await self.db.execute(
@@ -67,10 +74,14 @@ class CategoriaRepository:
         )
         return result.scalars().first()
 
-    async def create(self, user_id: int, obj_in: CategoriaCreate) -> CategoryORM:
+    async def create(
+        self, user_id: int, obj_in: CategoriaCreate, *, commit: bool = True
+    ) -> CategoryORM:
         """
         Insere uma nova categoria e suas subcategorias (se houver).
         Lança HTTPException em caso de erro de unicidade.
+
+        Com ``commit=False`` só faz flush: o commit fica com a unit of work do request.
         """
         log = log_database_operation(
             operation="create",
@@ -94,11 +105,13 @@ class CategoriaRepository:
 
             instance = self.model(user_id=user_id, **orm_data)
             self.db.add(instance)
-            await self.db.commit()
+            await self._persist(commit)
             await self.db.refresh(instance)
 
             if obj_in.subcategories:
-                await self.sub_repo.create_many(instance.id, user_id, obj_in.subcategories)
+                await self.sub_repo.create_many(
+                    instance.id, user_id, obj_in.subcategories, commit=commit
+                )
 
             log.info(f"Categoria {instance.id} criada")
             _invalidate_opcoes_categorias_cache()

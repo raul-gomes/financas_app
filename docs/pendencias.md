@@ -35,7 +35,7 @@ consolidados no fim.
 ## Qualidade
 - [~] **Q1** (alta) PARCIAL: job de backend no CI (ruff, pytest, pip-audit bloqueante), actions por SHA, `permissions` mínimas, concurrency e CI em todos os PRs FEITOS. pip-audit agora bloqueante (backend com 0 vulnerabilidades após upgrade). Falta: SAST, `alembic check`; frontend (prod) ainda com zod 3 e react-router 6 (correção só em major novo) e glob/minimatch via tailwind/sucrase.
 - [x] **Q2** (média) FEITO: ruff configurado no `pyproject.toml` (format + lint zerados). Regras adiadas em `extend-ignore` com TODO: B904, UP042, S314, S112, B017 (testes); E501 ignorado (formatter cuida).
-- [ ] **Q3** (média) Extrair serviços dos repositórios e das rotas; unit of work por request.
+- [~] **Q3** (média) PARCIAL (transações e overview/dashboard FEITOS): camada `rota -> serviço -> repositório` com `UnitOfWork` por request (1 commit/rollback em `app/core/unit_of_work.py`, `scope="function"`), autorização pelo usuário autenticado e padrão documentado no `AGENTS.md` ("Layers and unit of work"). Faltam os outros domínios (categorias, limites, metas, compras, recorrentes, extrato/Pluggy, settings), que ainda usam repositório com `commit` próprio; migrar ao tocar. O serviço levanta `HTTPException` (trocar por exceções de domínio quando o Q4 entrar).
 - [ ] **Q4** (média) PARCIAL (extrato FEITO: parsers CSV/OFX capturam exceções específicas e registram aviso com nº da linha, sem valores). Trocar `except Exception` silenciosos por exceções específicas.
 - [x] **Q5** (média) Zod nos services do frontend; remover `any`. Feito: `src/schemas/*` + `lib/parse.ts`; todo `res.json()` dos services é parseado uma vez na borda; sem `any` em src (fora de `ui/`). Follow-up FEITO: `strict: true` ligado no `tsconfig.app.json`; o helper `Infer<>` foi removido e os tipos usam `z.infer`.
 - [ ] **Q6** (média) Quebrar `BankExtract.tsx`, `ExtratoDialog.tsx`, `AddTransactionDialog.tsx`; unificar Add/Edit (ao tocar).
@@ -47,8 +47,8 @@ consolidados no fim.
 
 ## Performance
 - [x] **P1** (média) FEITO: export filtra `user_id` no SQL (teste captura o SQL). Era: Export filtrar `user_id` no SQL (`repositories/export.py:48`).
-- [ ] **P2** (média) Overview agregando no SQL.
-- [ ] **P3** (média) Paginação de transações no backend; cache no frontend.
+- [x] **P2** (média) FEITO: overview/dashboard agregam no SQL (SUM condicional/GROUP BY filtrando usuário, período e PF/PJ): totais, progresso do mês e cartão do overview numa única query (13 -> 7 queries no total), totais do extrato em SQL, gastos/entradas por categoria em 1 query, `period-income` por faixa de datas (usa índice). Contrato idêntico (`tests/test_dashboard_sql_parity.py` compara com a implementação em Python, PF/PJ e 2 usuários; teto de queries não cresce com o volume). Resta: a lista `transactions[]` do `/dashboard/statement` ainda traz as linhas do período (contrato usado pelos gráficos).
+- [~] **P3** (média) PARCIAL: backend FEITO — `GET /transacoes/paginated` (cursor keyset `data desc, id desc`, `total`, `has_more`, filtros período/PF-PJ/tipo/categoria/texto, teto `TRANSACTIONS_MAX_PAGE_SIZE`=100); `GET /transacoes/` segue como legado (limit/offset). Falta o cache/lista paginada no frontend.
 - [x] **P4** (baixa) Lazy nas páginas de auth; importar só os módulos do D3 usados. Feito: Login/SignUp/ForgotPassword/UpdatePassword lazy; `d3` trocado por submódulos via `src/lib/d3.ts`; chunk principal 658,09 -> 648,77 kB (gzip 191,44 -> 189,83). Fase 2: todas as rotas já eram lazy; `manualChunks` (react-vendor, d3, supabase, zod, radix) e fallback acessível (`role="status"`, texto pt-BR). Maior chunk: 684 kB -> 223 kB (supabase), gzip 202 -> 58 kB; orçamento do CI apertado de 500 kB para 64 kB gzip por chunk.
 - [ ] **P5** (baixa) Lock no job de alertas; evitar `selectin` de bancos em toda request.
 
