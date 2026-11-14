@@ -18,9 +18,21 @@ TEST_AUTH_URL = "http://localhost:9999"
 TEST_ISSUER = f"{TEST_AUTH_URL}/auth/v1"
 
 
+P256_COORDINATE_BYTES = 32
+
+
 def _b64u(n: int) -> str:
-    raw = n.to_bytes((n.bit_length() + 7) // 8 or 1, "big")
+    """Encode a P-256 coordinate as base64url, left-padded to the fixed 32-byte JWK width."""
+    raw = n.to_bytes(P256_COORDINATE_BYTES, "big")
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def test_jwk_coordinates_keep_leading_zero_bytes():
+    # Regression: ~1 in 128 random keys has a coordinate with a leading zero byte, which the
+    # old unpadded encoding shortened, making the ES256 test fail intermittently.
+    decoded = base64.urlsafe_b64decode(_b64u(1) + "==")
+
+    assert len(decoded) == P256_COORDINATE_BYTES
 
 
 def _make_es256_jwk() -> dict:
