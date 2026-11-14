@@ -13,6 +13,22 @@ comando? Atualize este arquivo no mesmo commit. Segredos ficam no EnvVault: use
 | `docker compose down` | Parar tudo (o volume `postgres-data` continua). |
 | `docker exec financas-web sh -c "cd /app && npm run test"` | Testes do frontend dentro do container. |
 
+## Produção, backup e nginx
+
+| Comando | Quando usar |
+| --- | --- |
+| `docker compose -f docker-compose-prod.yml up -d --build` | Subir a stack de produção. Exige no `.env`: `POSTGRES_*`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_AUTH_URL`, `SUPABASE_JWT_SECRET`, `CORS_ORIGINS`, `DOMAIN`. Certificados em `infra/certbot/conf` (certbot, webroot `infra/certbot/www`) antes do primeiro `up`. |
+| `docker compose -f docker-compose-prod.yml down` | Parar a stack de produção (volumes `postgres-data` e `backend-logs` continuam). |
+| `docker compose -f docker-compose-prod.yml logs -f backend` | Logs dos containers; arquivos do loguru ficam no volume `backend-logs` (`/app/logs`). |
+| `docker compose -f docker-compose-prod.yml ps` | Estado e saúde (healthcheck) de cada serviço. |
+| `docker compose exec nginx nginx -t` | Validar a config do nginx com a stack no ar (`nginx -s reload` aplica). |
+| `docker run --rm -v $PWD/infra/nginx.conf:/etc/nginx/conf.d/default.conf:ro -v $PWD/infra/snippets:/etc/nginx/snippets:ro --add-host frontend:127.0.0.1 --add-host backend:127.0.0.1 nginx:1.27-alpine nginx -t` | Validar o nginx de dev sem subir a stack (o de prod é igual, com o template renderizado e um certificado). |
+| `scripts/backup-db.sh <pasta> [manter=14]` | `pg_dump -Fc` do container `financas-db` para `<pasta>/financas-<UTC>.dump` (modo 600) e mantém só os N mais recentes. |
+| `scripts/restore-db.sh <arquivo.dump>` | Restaura um dump (destrutivo, pede confirmação digitando `restore`). Teste o backup num ambiente descartável antes de depender dele. |
+| `0 3 * * * cd /caminho/financas_app && scripts/backup-db.sh /var/backups/financas 14 >> /var/log/financas-backup.log 2>&1` | Exemplo de cron diário às 03:00 (`crontab -e`). |
+
+Observação: as migrations (`alembic upgrade head`) rodam no start do backend e assumem **uma única réplica** do backend; para escalar horizontalmente, mova a migration para um passo de deploy separado.
+
 ## Backend (`app/backend`)
 
 | Comando | Quando usar |
