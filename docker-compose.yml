@@ -33,6 +33,7 @@ services:
       SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      PLUGGY_KEY_ENCRYPTION_KEYS: ${PLUGGY_KEY_ENCRYPTION_KEYS:?set in .env (see .env.example)}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class MetaCreate(BaseModel):
@@ -31,8 +31,7 @@ class MetaResponse(BaseModel):
     completed: bool = Field(False, description="Se a meta foi concluída")
     completed_at: date | None = Field(None, description="Data de conclusão")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode="before")
     @classmethod
@@ -56,8 +55,7 @@ class MetaProgresso(BaseModel):
         default="individual", description="Tipo de entidade: individual ou business"
     )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode="before")
     @classmethod

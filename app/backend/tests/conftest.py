@@ -1,11 +1,19 @@
 import asyncio
+import os
 from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
+from cryptography.fernet import Fernet
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
+
+# TEST-ONLY throwaway key (generated per test run, never a real secret). It is set before the
+# app is imported because the app refuses to start without PLUGGY_KEY_ENCRYPTION_KEYS, and it
+# deliberately overrides any real key present in the developer's environment.
+TEST_ONLY_ENCRYPTION_KEY = Fernet.generate_key().decode()
+os.environ["PLUGGY_KEY_ENCRYPTION_KEYS"] = TEST_ONLY_ENCRYPTION_KEY
 
 from app.core.database import get_session
 from app.core.security import get_current_user
@@ -66,7 +74,6 @@ async def client():
             id=1,
             name="Teste",
             email="teste@teste.com",
-            password_hash="",
             role="admin",
             created_at=now,
             updated_at=now,
@@ -129,7 +136,6 @@ async def client_user2():
             id=2,
             name="Teste2",
             email="teste2@teste.com",
-            password_hash="",
             role="user",
             created_at=now,
             updated_at=now,
@@ -174,7 +180,6 @@ async def clients_ctrl():
                 id=1,
                 name="Admin1",
                 email="admin1@teste.com",
-                password_hash="",
                 role="admin",
                 created_at=now,
                 updated_at=now,
@@ -183,7 +188,6 @@ async def clients_ctrl():
                 id=2,
                 name="Admin2",
                 email="admin2@teste.com",
-                password_hash="",
                 role="admin",
                 created_at=now,
                 updated_at=now,
@@ -192,7 +196,6 @@ async def clients_ctrl():
                 id=3,
                 name="Comum3",
                 email="comum3@teste.com",
-                password_hash="",
                 role="user",
                 created_at=now,
                 updated_at=now,

@@ -83,8 +83,10 @@ async def get_current_user(
 
     try:
         payload = _decode_token(token)
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        ) from exc
 
     sub = payload.get("sub")
     email = payload.get("email")

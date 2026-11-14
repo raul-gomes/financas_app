@@ -1,6 +1,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.security import get_current_user, require_admin
 from app.db.models.user import UserORM
@@ -39,11 +40,11 @@ async def list_shopping(
         items = await repo.list_by_month(month, entity_type=entity_type, user_id=current_user.id)
         log.info(f"{len(items)} itens encontrados")
         return items
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao listar itens: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao listar itens"
-        )
+        ) from e
 
 
 @router.post(
@@ -64,11 +65,11 @@ async def create_shopping_item(
         item = await repo.create(payload, current_user.id)
         log.info(f"Item {item.id} criado")
         return item
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao criar item: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao criar item"
-        )
+        ) from e
 
 
 @router.put(
@@ -93,12 +94,12 @@ async def update_shopping_item(
         return item
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao atualizar item {item_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao atualizar item",
-        )
+        ) from e
 
 
 @router.delete(
@@ -122,11 +123,11 @@ async def delete_shopping_item(
         return item
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao excluir item {item_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao excluir item"
-        )
+        ) from e
 
 
 @router.post(
@@ -145,6 +146,8 @@ async def generate_recurring_shopping(
         gerados = await repo.generate_recurring_items(payload, current_user.id)
         log.info(f"{gerados} itens recorrentes de compras gerados")
         return {"generated": gerados, "message": f"{gerados} itens recorrentes gerados"}
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao gerar itens recorrentes: {type(e).__name__}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno: {e!s}")
+        raise HTTPException(
+            status_code=500, detail="Erro interno ao gerar itens recorrentes"
+        ) from e

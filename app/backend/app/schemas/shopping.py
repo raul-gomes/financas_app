@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ShoppingItemCreate(BaseModel):
@@ -47,8 +47,7 @@ class ShoppingItemResponse(BaseModel):
     recurrence_group_id: UUID | None = None
     recurrence_end_date: date | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GenerateRecurringShoppingRequest(BaseModel):
