@@ -31,6 +31,49 @@ interface Category {
     isModified?: boolean
 }
 
+/** Subcategory as returned by the backend (name may come as subcategory_name). */
+interface RawSubcategory {
+    id: number | string
+    name?: string
+    subcategory_name?: string
+}
+
+/** Category as returned by the backend (name may come as category_name). */
+interface RawCategory {
+    id: number | string
+    name?: string
+    category_name?: string
+    entity_type: string
+    limit: number
+    type?: string | null
+    subcategories?: RawSubcategory[]
+}
+
+/** Body sent to save the limits; items follow the backend contract. */
+interface LimitsSaveBody {
+    new: Record<string, unknown>[]
+    modified: Record<string, unknown>[]
+    deleted: number[]
+}
+
+// Map backend entity_type to local: 'individual'->'pf', 'business'->'pj'
+const mapEntityType = (et: string): 'pf' | 'pj' | 'mensal' => {
+    if (et === 'individual') return 'pf'
+    if (et === 'business') return 'pj'
+    return 'mensal'
+}
+
+// Transform backend response to local Category type
+const transformCategory = (c: RawCategory): Category => ({
+    ...c,
+    name: c.name ?? c.category_name ?? '',
+    entity_type: mapEntityType(c.entity_type),
+    subcategories: (c.subcategories || []).map((s: RawSubcategory) => ({
+        ...s,
+        name: s.name ?? s.subcategory_name ?? '',
+    })),
+})
+
 // ===== Limits Tab =====
 interface LimitsTabProps {
     entityTypeFilter?: 'pf' | 'pj' | 'all'
@@ -41,24 +84,6 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
     const [loading, setLoading] = useState(false)
     const [spending, setSpending] = useState<Record<string, number>>({})
     const { toast } = useToast()
-
-    // Map backend entity_type to local: 'individual'->'pf', 'business'->'pj'
-    const mapEntityType = (et: string): 'pf' | 'pj' | 'mensal' => {
-        if (et === 'individual') return 'pf'
-        if (et === 'business') return 'pj'
-        return 'mensal'
-    }
-
-    // Transform backend response to local Category type
-    const transformCategory = (c: any): Category => ({
-        ...c,
-        name: c.name ?? c.category_name ?? '',
-        entity_type: mapEntityType(c.entity_type),
-        subcategories: (c.subcategories || []).map((s: any) => ({
-            ...s,
-            name: s.name ?? s.subcategory_name ?? '',
-        })),
-    })
 
     const data = rawData.filter(cat => {
         if (entityTypeFilter === 'all') return true
@@ -125,7 +150,7 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
         return { severity, percent, spent }
     }
 
-    const updateCategoryField = (catId: number | string, key: keyof Category, value: any) => {
+    const updateCategoryField = (catId: number | string, key: keyof Category, value: Category[keyof Category]) => {
         setRawData(prev => prev.map(cat => cat.id === catId ? { ...{ ...cat, [key]: value }, isModified: !cat.isNew && cat.isModified !== false ? true : cat.isModified } : cat))
     }
 
@@ -184,7 +209,7 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
         const existingKeys = new Set(
             data.filter(c => !c.isNew).map(c => `${c.name.trim().toLowerCase()}|${c.entity_type}`)
         )
-        const payload: any = { new: [], modified: [], deleted: deletedCategoryIds }
+        const payload: LimitsSaveBody = { new: [], modified: [], deleted: deletedCategoryIds }
         data.forEach(cat => {
             if (cat.isNew) {
                 const key = `${cat.name.trim().toLowerCase()}|${cat.entity_type}`

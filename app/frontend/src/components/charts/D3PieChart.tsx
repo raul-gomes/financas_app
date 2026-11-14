@@ -78,7 +78,7 @@ function D3PieChartBase({ data, width = 400, height = 300 }: D3PieChartProps) {
       .style('opacity', 0.8)
       .style('cursor', 'pointer')
       // Initial state: radius 0
-      .attr('d', d3.arc<d3.PieArcDatum<PieChartData>>().innerRadius(0).outerRadius(0) as any);
+      .attr('d', d3.arc<d3.PieArcDatum<PieChartData>>().innerRadius(0).outerRadius(0));
 
     // Animate arcs growing out
     paths.transition()
@@ -95,7 +95,7 @@ function D3PieChartBase({ data, width = 400, height = 300 }: D3PieChartProps) {
       });
 
     // Event handlers (on paths selection, not transition)
-    paths.on('mouseover', function(event, d: any) {
+    paths.on('mouseover', function(event, d) {
         d3.select(this)
           .transition()
           .duration(200)

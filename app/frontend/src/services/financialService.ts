@@ -1,5 +1,6 @@
 import { apiFetch } from '@/lib/api';
 import {
+  TransactionCreatePayload,
   FinancialSummary, YearlyPerformance, CategoryBreakdown,
   IncomeBySubcategoria, Transaction, LimitsPayload,
   CategorySubcategories, Category, LimitsUpdateResponse,
@@ -97,7 +98,7 @@ export class FinancialService {
     return res.json();
   }
 
-  static async addTransaction(transaction: Omit<Transaction, 'id'>): Promise<void> {
+  static async addTransaction(transaction: TransactionCreatePayload): Promise<void> {
     const res = await apiFetch(`/transacoes/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -129,7 +130,7 @@ export class FinancialService {
     return res.json();
   }
 
-  static async saveLimits(payload: { new: Category[], modified: Category[], deleted?: number[] }): Promise<LimitsUpdateResponse> {
+  static async saveLimits(payload: { new: Record<string, unknown>[], modified: Record<string, unknown>[], deleted?: number[] }): Promise<LimitsUpdateResponse> {
     const res = await apiFetch(`/limits/`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
