@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, escapeHtml } from '@/lib/format';
 import * as d3 from 'd3';
 
 interface PieChartData {
@@ -120,8 +120,8 @@ function D3PieChartBase({ data, width = 400, height = 300 }: D3PieChartProps) {
           .style('visibility', 'visible')
           .html(`
             <div class="space-y-1">
-              <div class="font-bold border-b pb-1 mb-1">${d.data.category}</div>
-              <div>Gasto: ${formatCurrency(totalSpent)} (${percentage}%)</div>
+              <div class="font-bold border-b pb-1 mb-1">${escapeHtml(d.data.category)}</div>
+              <div>Gasto: ${formatCurrency(totalSpent)} (${escapeHtml(percentage)}%)</div>
               ${limit > 0 ? `<div class="text-muted-foreground">Limite: ${formatCurrency(limit)}</div>` : ''}
               ${statusHtml}
             </div>

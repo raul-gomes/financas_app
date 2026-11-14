@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, escapeHtml } from '@/lib/format';
 import * as d3 from 'd3';
 import { DailyData } from '@/types/financial';
 
@@ -217,8 +217,8 @@ function D3DailyChartBase({
           .style('visibility', 'visible')
           .html(`
             <div>
-              <strong>Dia ${d.day}/${selectedMonth?.split(' ')[0] || ''}</strong><br/>
-              ${type}: ${formatCurrency(value)}
+              <strong>Dia ${escapeHtml(d.day)}/${escapeHtml(selectedMonth?.split(' ')[0])}</strong><br/>
+              ${escapeHtml(type)}: ${formatCurrency(value)}
             </div>
           `);
       })
