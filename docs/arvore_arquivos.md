@@ -168,9 +168,10 @@ financas_app/
 │       │   │   │
 │       │   │   ├── dialogs/                    # Componentes de modal/diálogo
 │       │   │   ├── dialogs/                    # Componentes de modal/diálogo
-│       │   │   │   ├── AddTransactionDialog.tsx      # Modal "Nova Transação" (pt-BR): máscara de moeda, data dd/mm/yyyy, banco novo em linha inteira (ícone via BankLogo CDN GitHub + fallback de iniciais coloridas, igual ao Settings) + aviso de % projetada do limite com cores 80/90/100 ao digitar valor + categoria, via /limits/risk-check?amount=
+│       │   │   │   ├── AddTransactionDialog.tsx      # Modal "Nova Transação" (bottom sheet no mobile): fluxo de criar (validação, checagem de duplicidade, API); os campos vêm do formulário compartilhado (components/transactions)
 │       │   │   │   ├── AddTransactionDialog.test.tsx # Testes do aviso de limite estourado, tradução pt-BR, máscara de data dd/mm/yyyy, payload ISO e banco em linha inteira
-│       │   │   │   ├── EditTransactionDialog.tsx     # Modal para editar transação existente
+│       │   │   │   ├── TransactionDialogsMobile.test.tsx # Testes do formulário no celular (segmentado, chips, Salvar em largura total) e do Editar
+│       │   │   │   ├── EditTransactionDialog.tsx     # Modal "Editar Transação": mesmo formulário do Add, começando pelos valores da transação
 │       │   │   │   ├── DuplicateDialog.tsx           # Modal de detecção/resolução de duplicatas
 │       │   │   │   ├── AddInvestmentDialog.tsx       # Modal para adicionar investimento
 │       │   │   │   ├── EditInvestmentDialog.tsx      # Modal para editar investimento
@@ -242,12 +243,21 @@ financas_app/
 │       │   │   │
 │       │   │   ├── TransactionList.tsx          # Extrato paginado no servidor (useInfiniteQuery + "Carregar mais", busca com debounce, filtros período/PF-PJ); virtualizado (useVirtualizer); estados vazio/erro/carregando
 │       │   │   ├── TransactionList.test.tsx     # Testes do extrato paginado (carregar mais, filtros no servidor, busca debounced, vazio, erro/tentar de novo)
+
 │       │   │   ├── TransactionListMobile.tsx    # Lançamentos no mobile: Extrato (admin), busca + PF/PJ, linhas por dia, folha de detalhe (Editar/Excluir com confirmação)
 │       │   │   ├── TransactionListMobile.test.tsx # Testes da lista mobile (agrupamento, valor com sinal, sem lixeira na linha, confirmação de exclusão)
 │       │   │   ├── transactions/               # Peças da lista de lançamentos
 │       │   │   │   ├── TransactionRowMobile.tsx   # Linha: ícone, descrição (2 linhas), categoria · pagamento, valor com sinal e cor
 │       │   │   │   ├── TransactionDetailSheet.tsx # Folha de detalhe com Editar/Excluir (confirma antes de excluir)
 │       │   │   │   └── transactionTone.ts         # Tokens de cor por tipo (income/expense/investment)
+│       │   │   │   ├── transactionFormModel.ts    # Valores do formulário, máscara de data, valores iniciais (vazio/da transação), valor da parcela — funções puras
+│       │   │   │   ├── transactionFormModel.test.ts # Testes do modelo do formulário
+│       │   │   │   ├── useTransactionForm.ts      # Estado e carga de dados do formulário (categorias por PF/PJ e tipo, bancos, risco de limite) para criar e editar
+│       │   │   │   ├── TransactionFormFields.tsx  # Escolhe o layout: folha mobile ou diálogo desktop
+│       │   │   │   ├── TransactionFieldsDesktop.tsx # Layout do desktop (radios + switch PF/PJ, grids de 2 colunas)
+│       │   │   │   ├── TransactionFieldsMobile.tsx  # Layout do mobile: Saída/Entrada/Investimento segmentado, valor grande, categoria + data lado a lado, chips de pagamento e PF/PJ
+│       │   │   │   ├── TransactionSelects.tsx     # Campos de categoria, subcategoria e banco (com "Outra"/novo banco), usados pelos dois layouts
+│       │   │   │   └── CategoryRiskBanner.tsx     # Aviso não bloqueante de % projetada do limite (80/90/100)
 │       │   │   ├── CategoryBreakdownSection.tsx # Seção de breakdown de gastos por categoria
 │       │   │   ├── ComprasList.tsx              # Lista de compras do mês com checkbox e CRUD (useShoppingItems + invalidação)
 │       │   │   ├── MetasList.tsx                # Lista de metas com progresso e ações (useGoalsProgress + invalidação)

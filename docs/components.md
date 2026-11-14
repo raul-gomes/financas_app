@@ -491,3 +491,11 @@ Na aba Categorias, `LimitsCards` mostra um card por limite (mensal, cartão e ca
 os números vêm do backend (`/limits/with-spending`), sem recalcular no cliente. Tocar no card abre `LimitEditSheet` (nome em largura total, valor com `inputMode="decimal"`,
 subcategorias, excluir com confirmação); o "+" da barra superior cria uma categoria. Salvar grava só aquela categoria. O estado editável e o salvar ficam em `useLimitsDraft`
 (compartilhado com a tabela do desktop); a lógica pura está em `limitsModel.ts`.
+
+### 8.9 Formulário de transação (criar e editar unificados)
+
+`AddTransactionDialog` e `EditTransactionDialog` deixaram de duplicar campos (Q6): ambos usam `useTransactionForm` (estado, categorias por PF/PJ + tipo, bancos via `useBanks`, risco de limite)
+e `TransactionFormFields`, que escolhe o layout por largura. O **desktop** manteve o visual de antes (radios + switch PF/PJ, grids de 2 colunas). No **mobile** (bottom sheet) o formulário segue o mock:
+tipo em `SegmentedControl` (Saída/Entrada/Investimento), valor grande e centralizado com `inputMode="decimal"`, campos de 48 px, categoria e data lado a lado, chips (`ChipGroup`) para forma de pagamento e PF/PJ,
+"Parcelado" como linha com switch e botão **Salvar** em largura total no rodapé. O Editar agora tem os mesmos campos mascarados do Add (valor com `CurrencyInput`, data `dd/mm/aaaa`) e os textos em português.
+Lógica pura e testada em `transactions/transactionFormModel.ts`.
