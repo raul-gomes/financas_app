@@ -49,7 +49,7 @@ describe('NotificationService', () => {
 
   it('busca risco da categoria com query string', async () => {
     mockApiFetch.mockResolvedValue(
-      new FakeResponse({ category_id: 7, category_name: 'X', limit: 10, spent: 11, percent_used: 110, is_over_limit: true }),
+      new FakeResponse({ category_id: 7, category_name: 'X', limit: 10, spent: 11, amount: 0, projected_spent: 11, percent_used: 110, projected_percent_used: 110, is_over_limit: true, severity: 'destructive', thresholds_hit: [80, 90, 100] }),
     );
     const risk = await NotificationService.checkCategoryRisk(7);
     expect(risk.is_over_limit).toBe(true);

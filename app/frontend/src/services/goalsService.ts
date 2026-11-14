@@ -1,4 +1,6 @@
 import { apiFetch } from '@/lib/api';
+import { parseResponse } from '@/lib/parse';
+import { metaSchema, metaListSchema, metaProgressoListSchema } from '@/schemas/goals';
 import type { Meta, MetaCreate, MetaUpdate, MetaProgresso } from '@/types/goals';
 
 export const MetasService = {
@@ -7,7 +9,7 @@ export const MetasService = {
     if (entityType) url += `?entity_type=${entityType}`;
     const res = await apiFetch(url);
     if (!res.ok) throw new Error(`Erro ${res.status} ao listar metas`);
-    return res.json();
+    return parseResponse(res, metaListSchema, 'listar metas');
   },
 
   async create(payload: MetaCreate): Promise<Meta> {
@@ -17,7 +19,7 @@ export const MetasService = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao criar meta`);
-    return res.json();
+    return parseResponse(res, metaSchema, 'criar meta');
   },
 
   async update(id: number, payload: MetaUpdate): Promise<Meta> {
@@ -27,13 +29,13 @@ export const MetasService = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao atualizar meta`);
-    return res.json();
+    return parseResponse(res, metaSchema, 'atualizar meta');
   },
 
   async delete(id: number): Promise<Meta> {
     const res = await apiFetch(`/goals/${id}`, { method: 'DELETE' });
     if (!res.ok) throw new Error(`Erro ${res.status} ao excluir meta`);
-    return res.json();
+    return parseResponse(res, metaSchema, 'excluir meta');
   },
 
   async progresso(year: number, month: number, completed?: boolean, entityType?: string): Promise<MetaProgresso[]> {
@@ -42,18 +44,18 @@ export const MetasService = {
     if (entityType) url += `&entity_type=${entityType}`;
     const res = await apiFetch(url);
     if (!res.ok) throw new Error(`Erro ${res.status} ao calcular progresso`);
-    return res.json();
+    return parseResponse(res, metaProgressoListSchema, 'calcular progresso');
   },
 
   async concluir(id: number): Promise<Meta> {
     const res = await apiFetch(`/goals/${id}/complete`, { method: 'PUT' });
     if (!res.ok) throw new Error(`Erro ${res.status} ao concluir meta`);
-    return res.json();
+    return parseResponse(res, metaSchema, 'concluir meta');
   },
 
   async reativar(id: number): Promise<Meta> {
     const res = await apiFetch(`/goals/${id}/reactivate`, { method: 'PUT' });
     if (!res.ok) throw new Error(`Erro ${res.status} ao reativar meta`);
-    return res.json();
+    return parseResponse(res, metaSchema, 'reativar meta');
   },
 };

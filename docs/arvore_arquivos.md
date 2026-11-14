@@ -224,9 +224,20 @@ financas_app/
 │       │   │   ├── extractService.ts            # Upload e confirmação de extratos
 │       │   │   ├── settingsService.ts           # Perfil do usuário e bancos
 │       │   │   ├── notificationService.ts       # Alertas de limites: GET /notifications, PUT read/read-all, GET /limits/risk-check (+ teste ao lado)
-│       │   │   └── notificationService.test.ts  # Testes do NotificationService (list, markRead, markAllRead, checkCategoryRisk)
+│       │   │   ├── notificationService.test.ts  # Testes do NotificationService (list, markRead, markAllRead, checkCategoryRisk)
+│       │   │   └── boundary.test.ts             # Todos os services: payload válido parseia, malformado rejeita com ApiSchemaError (sem vazar payload)
 │       │   │
-│       │   ├── types/                          # Interfaces TypeScript
+│       │   ├── schemas/                        # Schemas Zod do contrato da API (espelham app/backend/app/schemas/); fonte dos tipos de resposta
+│       │   │   ├── financial.ts                # Transações, extrato, rendimento anual, categorias, duplicatas, limites
+│       │   │   ├── overview.ts                 # OverviewResponse
+│       │   │   ├── recurringAccount.ts         # ContaRecorrenteResponse, GenerateResponse
+│       │   │   ├── goals.ts                    # MetaResponse, MetaProgresso
+│       │   │   ├── shopping.ts                 # ShoppingItemResponse
+│       │   │   ├── extract.ts                  # UploadResponse, ConfirmResponse
+│       │   │   ├── notifications.ts            # NotificationItem, NotificationsResponse, MarkReadResponse, CategoryRiskResponse
+│       │   │   └── settings.ts                 # Perfil, bancos, BrasilAPI, Meu Pluggy
+│       │   │
+│       │   ├── types/                          # Tipos TypeScript (respostas da API derivadas dos schemas via Infer<>; payloads de envio escritos à mão)
 │       │   │   ├── financial.ts                # Transaction, YearlyData, FinancialSummary, CategoryBreakdown, etc.
 │       │   │   ├── overview.ts                 # OverviewResponse + sub-tipos do dashboard geral
 │       │   │   ├── recurringAccount.ts         # ContaRecorrente, ContaRecorrenteCreate/Update

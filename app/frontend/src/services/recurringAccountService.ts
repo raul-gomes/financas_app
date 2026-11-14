@@ -1,4 +1,8 @@
 import { apiFetch } from '@/lib/api';
+import { parseResponse } from '@/lib/parse';
+import {
+  contaRecorrenteSchema, contaRecorrenteListSchema, generateResponseSchema,
+} from '@/schemas/recurringAccount';
 import {
   ContaRecorrente, ContaRecorrenteCreate,
   ContaRecorrenteUpdate, GenerateResponse,
@@ -10,13 +14,13 @@ export class ContaRecorrenteService {
     if (entityType) url += `?entity_type=${entityType}`;
     const res = await apiFetch(url);
     if (!res.ok) throw new Error(`Erro ${res.status} ao listar contas recorrentes`);
-    return res.json();
+    return parseResponse(res, contaRecorrenteListSchema, 'listar contas recorrentes');
   }
 
   static async getById(id: number): Promise<ContaRecorrente> {
     const res = await apiFetch(`/recurring-accounts/${id}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar conta recorrente`);
-    return res.json();
+    return parseResponse(res, contaRecorrenteSchema, 'buscar conta recorrente');
   }
 
   static async create(payload: ContaRecorrenteCreate): Promise<ContaRecorrente> {
@@ -26,7 +30,7 @@ export class ContaRecorrenteService {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao criar conta recorrente`);
-    return res.json();
+    return parseResponse(res, contaRecorrenteSchema, 'criar conta recorrente');
   }
 
   static async update(id: number, payload: ContaRecorrenteUpdate): Promise<ContaRecorrente> {
@@ -36,19 +40,19 @@ export class ContaRecorrenteService {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao atualizar conta recorrente`);
-    return res.json();
+    return parseResponse(res, contaRecorrenteSchema, 'atualizar conta recorrente');
   }
 
   static async delete(id: number): Promise<ContaRecorrente> {
     const res = await apiFetch(`/recurring-accounts/${id}`, { method: 'DELETE' });
     if (!res.ok) throw new Error(`Erro ${res.status} ao deletar conta recorrente`);
-    return res.json();
+    return parseResponse(res, contaRecorrenteSchema, 'deletar conta recorrente');
   }
 
   static async renew(id: number): Promise<ContaRecorrente> {
     const res = await apiFetch(`/recurring-accounts/${id}/renew`, { method: 'POST' });
     if (!res.ok) throw new Error(`Erro ${res.status} ao renovar conta recorrente`);
-    return res.json();
+    return parseResponse(res, contaRecorrenteSchema, 'renovar conta recorrente');
   }
 
   static async generate(startDate: Date, endDate: Date): Promise<GenerateResponse> {
@@ -62,6 +66,6 @@ export class ContaRecorrenteService {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao gerar contas recorrentes`);
-    return res.json();
+    return parseResponse(res, generateResponseSchema, 'gerar contas recorrentes');
   }
 }

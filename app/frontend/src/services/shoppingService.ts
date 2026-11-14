@@ -1,4 +1,6 @@
 import { apiFetch } from '@/lib/api';
+import { parseResponse } from '@/lib/parse';
+import { shoppingItemSchema, shoppingItemListSchema } from '@/schemas/shopping';
 import type { ShoppingItem, ShoppingItemCreate, ShoppingItemUpdate } from '@/types/shopping';
 
 export const ShoppingService = {
@@ -7,7 +9,7 @@ export const ShoppingService = {
     if (entityType) params.set('entity_type', entityType);
     const res = await apiFetch(`/shopping/?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao listar itens`);
-    return res.json();
+    return parseResponse(res, shoppingItemListSchema, 'listar itens');
   },
 
   async create(payload: ShoppingItemCreate): Promise<ShoppingItem> {
@@ -16,7 +18,7 @@ export const ShoppingService = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao criar item`);
-    return res.json();
+    return parseResponse(res, shoppingItemSchema, 'criar item');
   },
 
   async update(id: number, payload: ShoppingItemUpdate): Promise<ShoppingItem> {
@@ -25,12 +27,12 @@ export const ShoppingService = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Erro ${res.status} ao atualizar item`);
-    return res.json();
+    return parseResponse(res, shoppingItemSchema, 'atualizar item');
   },
 
   async delete(id: number): Promise<ShoppingItem> {
     const res = await apiFetch(`/shopping/${id}`, { method: 'DELETE' });
     if (!res.ok) throw new Error(`Erro ${res.status} ao excluir item`);
-    return res.json();
+    return parseResponse(res, shoppingItemSchema, 'excluir item');
   },
 };

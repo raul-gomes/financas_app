@@ -1,11 +1,8 @@
-export interface Meta {
-  id: number;
-  subcategory_name: string;
-  target_amount: number;
-  category_id: number;
-  completed: boolean;
-  completed_at: string | null;
-}
+import type { Infer } from '@/lib/parse';
+import type { metaSchema, metaProgressoSchema } from '@/schemas/goals';
+
+export type Meta = Infer<typeof metaSchema>;
+export type MetaProgresso = Infer<typeof metaProgressoSchema>;
 
 export interface MetaCreate {
   subcategory_name: string;
@@ -18,13 +15,3 @@ export interface MetaUpdate {
   target_amount?: number;
 }
 
-export interface MetaProgresso {
-  subcategory_id: number;
-  subcategory_name: string;
-  target_amount: number;
-  current_amount: number;
-  progress: number;
-  completed: boolean;
-  completed_at: string | null;
-  entity_type: string;
-}

@@ -1,12 +1,7 @@
-export interface ShoppingItem {
-  id: number;
-  name: string;
-  reference_month: string;
-  checked: boolean;
-  completed_at: string | null;
-  created_at?: string;
-  entity_type: string;
-}
+import type { Infer } from '@/lib/parse';
+import type { shoppingItemSchema } from '@/schemas/shopping';
+
+export type ShoppingItem = Infer<typeof shoppingItemSchema>;
 
 export interface ShoppingItemCreate {
   name: string;

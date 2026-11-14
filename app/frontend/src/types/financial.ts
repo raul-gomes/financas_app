@@ -1,65 +1,21 @@
+import type { Infer } from '@/lib/parse';
+import type {
+  transactionSchema, financialSummarySchema, yearlyPerformanceSchema,
+  categoryBreakdownSchema, incomeBySubcategorySchema, categorySubcategoriesSchema,
+  limitsUpdateResponseSchema, limitsWithSpendingSchema, duplicateCheckResponseSchema,
+  limitsPayloadSchema,
+} from '@/schemas/financial';
+
 // ============= Tipos baseados nos novos payloads =============
 
 // Interfaces de categorias e subcategorias
-export interface SubcategoriaOpcao {
-  id: number
-  name: string
-}
-
-export interface CategoriaOpcao {
-  id: number
-  name: string
-  type?: string | null
-  subcategories: SubcategoriaOpcao[]
-}
-
-export interface CategorySubcategories {
-  options: CategoriaOpcao[]
-}
-
-export interface Transaction {
-  id: number;
-  type: 'income' | 'expense' | 'investment';
-  amount: number;
-  description: string;
-  category_id: number;
-  subcategory_id: number;
-  category_name: string;
-  subcategory_name: string;
-  payment_method: string;  // Any string — custom values via "Outros" allowed
-  installment_number: number | null;
-  total_installments: number | null;
-  is_installment: boolean;
-  bank_code: string | null;
-  entity_type: 'business' | 'individual';
-  transaction_date: string;
-  recurring_account_id?: number | null;
-}
 
 /** Body sent when creating a transaction (category given by id or by name). */
 export type TransactionCreatePayload = Partial<Omit<Transaction, 'id'>>;
 
-export interface FinancialSummary {
-  total_income: number;
-  total_expenses: number;
-  start_date: string;
-  end_date: string;
-  monthly_goal: number;
-  total_invested: number;
-  transactions: Transaction[];
-  credit_card_limit: number;
-  fixed_expenses: number;
-  variable_expenses: number;
-}
-
 export interface MonthData {
   income: number;
   expense: number;
-}
-
-export interface YearlyPerformance {
-  limit: number;
-  months: Record<string, MonthData>;
 }
 
 export interface CategoryPeriodData {
@@ -88,21 +44,9 @@ export interface CategoriaGasto {
 /** @deprecated Use CategoriaGasto instead */
 export type CategoriaGastoOld = CategoriaGasto;
 
-export interface CategoryBreakdown {
-  start_date: string
-  end_date: string
-  categories: CategoriaGasto[]
-}
-
 export interface IncomeSubcategoriaItem {
   name: string;
   total: number;
-}
-
-export interface IncomeBySubcategoria {
-  start_date: string;
-  end_date: string;
-  subcategories: IncomeSubcategoriaItem[];
 }
 
 export interface CategoryExpense {
@@ -157,8 +101,6 @@ export interface Category {
   subcategories: Subcategory[]
 }
 
-export type LimitsPayload = Category[]
-
 export interface CategoriaLimiteUpdate {
   id?: number
   name: string
@@ -175,60 +117,7 @@ export interface LimitsUpdatePayload {
   modified: CategoriaLimiteUpdate[]
 }
 
-export interface LimitsUpdateResponse {
-  success: boolean
-  message: string
-  created_categories: number
-  updated_categories: number
-  deleted_categories: number
-  created_subcategories: number
-  updated_subcategories: number
-  errors: string[]
-}
-
-export interface LimitsCategorySpending {
-  id: number
-  category_name: string
-  entity_type: 'individual' | 'business' | 'all'
-  limit: number
-  spent: number
-  remaining: number
-  percent_used: number
-  subcategories: { id: number; subcategory_name: string }[]
-}
-
-export interface LimitsWithSpending {
-  month: string
-  categories: LimitsCategorySpending[]
-  total_limit: number
-  total_spent: number
-  total_remaining: number
-}
-
 // ===== Duplicate Checking Types =====
-
-export interface DuplicateInfo {
-  id: number;
-  description: string;
-  amount: number;
-  transaction_date: string;
-  type: string;
-  entity_type: string;
-  category_name?: string | null;
-  subcategory_name?: string | null;
-  payment_method?: string | null;
-  created_at?: string | null;
-}
-
-export interface SingleDuplicateCheckResult {
-  index: number;
-  has_duplicate: boolean;
-  duplicates: DuplicateInfo[];
-}
-
-export interface DuplicateCheckResponse {
-  results: SingleDuplicateCheckResult[];
-}
 
 export type DuplicateAction = 'keep' | 'replace' | 'edit';
 
@@ -308,3 +197,21 @@ export const INVESTMENT_CATEGORIES = {
   variavel: ['Ações', 'FIIs', 'ETFs', 'Criptomoedas'],
   fixa: ['CDB', 'LCI', 'LCA', 'Tesouro Direto', 'Debêntures']
 } as const;
+
+// ===== API response types, derived from the Zod schemas in src/schemas/financial.ts =====
+export type Transaction = Infer<typeof transactionSchema>;
+export type FinancialSummary = Infer<typeof financialSummarySchema>;
+export type YearlyPerformance = Infer<typeof yearlyPerformanceSchema>;
+export type CategoryBreakdown = Infer<typeof categoryBreakdownSchema>;
+export type IncomeBySubcategoria = Infer<typeof incomeBySubcategorySchema>;
+export type CategorySubcategories = Infer<typeof categorySubcategoriesSchema>;
+export type CategoriaOpcao = CategorySubcategories['options'][number];
+export type SubcategoriaOpcao = CategoriaOpcao['subcategories'][number];
+export type LimitsUpdateResponse = Infer<typeof limitsUpdateResponseSchema>;
+export type LimitsWithSpending = Infer<typeof limitsWithSpendingSchema>;
+export type LimitsCategorySpending = LimitsWithSpending['categories'][number];
+export type DuplicateCheckResponse = Infer<typeof duplicateCheckResponseSchema>;
+export type SingleDuplicateCheckResult = DuplicateCheckResponse['results'][number];
+export type DuplicateInfo = SingleDuplicateCheckResult['duplicates'][number];
+/** Raw `GET /categories/` payload (names come as `category_name` / `subcategory_name`). */
+export type LimitsPayload = Infer<typeof limitsPayloadSchema>;

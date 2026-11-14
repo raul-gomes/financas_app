@@ -1,3 +1,10 @@
+import type { Infer } from '@/lib/parse';
+import type { uploadResponseSchema, confirmResponseSchema } from '@/schemas/extract';
+
+/** Raw upload response; `SessionData` holds the normalised transactions. */
+export type UploadResponse = Infer<typeof uploadResponseSchema>;
+export type ConfirmResponse = Infer<typeof confirmResponseSchema>;
+
 export interface ParsedTransaction {
   date: string;
   description: string;
@@ -7,15 +14,6 @@ export interface ParsedTransaction {
   subcategory_id?: number;
   payment_method: string;
   entity_type: string;
-}
-
-export interface UploadResponse {
-  total: number;
-  total_income: number;
-  total_expenses: number;
-  total_income_amount: number;
-  total_expenses_amount: number;
-  transactions: ParsedTransaction[];
 }
 
 export interface ConfirmTransaction {
@@ -36,11 +34,6 @@ export interface ConfirmTransaction {
 
 export interface ConfirmPayload {
   transactions: ConfirmTransaction[];
-}
-
-export interface ConfirmResponse {
-  created: number;
-  errors: string[];
 }
 
 export interface SessionData {
