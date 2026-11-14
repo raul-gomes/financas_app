@@ -16,6 +16,7 @@ from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.recurring_account import RecurringAccountORM
 from app.db.models.transaction import TransactionORM
 from app.db.models.user import UserORM
+from app.db.models.user_bank import UserBankORM
 from app.db.repositories.dashboard import DashboardRepository
 from app.db.repositories.overview import DashboardOverviewRepository
 from app.schemas.dashboard import TipoTrans
@@ -352,7 +353,7 @@ class _QueryCounter:
 
 # Upper bounds of statements per call; the data volume must not change them.
 OVERVIEW_MAX_QUERIES = 7  # was 13 before the SQL aggregation
-STATEMENT_MAX_QUERIES = 3  # rows + totals + limits
+STATEMENT_MAX_QUERIES = 5  # rows + totals + limits + chart aggregates + bank names
 BREAKDOWN_MAX_QUERIES = 1
 
 
@@ -401,5 +402,170 @@ async def test_query_count_does_not_grow_with_the_number_of_transactions(seeded)
 
     with _QueryCounter(seeded) as after:
         await repo.overview_geral(YEAR, MONTH, "all", USER, is_admin=False, today=TODAY)
+
+    assert len(after.statements) == len(before.statements)
+
+
+async def _with_banks(session) -> None:
+    """Adds bank codes/installments to the seeded month and registers the user's banks."""
+    categories = await session.execute(select(CategoryORM).where(CategoryORM.user_id == USER))
+    food = next(c for c in categories.unique().scalars() if c.name == "Food")
+    market = food.subcategories[0]
+    session.add_all(
+        [
+            UserBankORM(user_id=USER, bank_code="341", bank_name="Itau"),
+            UserBankORM(user_id=OTHER_USER, bank_code="237", bank_name="Other user's bank"),
+            _tx(USER, food, market, 10.0, "expense", 2, method="pix", bank_code="341"),
+            _tx(USER, food, market, 5.5, "expense", 2, method="pix", bank_code="237"),
+            _tx(USER, food, market, 7.0, "expense", 12, method="credit", bank_code="341"),
+            _tx(
+                USER,
+                food,
+                market,
+                60.0,
+                "expense",
+                20,
+                method="credit",
+                bank_code="341",
+                is_installment=True,
+                installment_number=2,
+                total_installments=5,
+            ),
+            _tx(USER, food, market, 1.0, "income", 12, method="pix", bank_code="341"),
+        ]
+    )
+    await session.commit()
+
+
+async def _statement(session, scope: str):
+    return await DashboardRepository(session).extrato_financeiro(
+        MONTH_START,
+        datetime(YEAR, MONTH, 31, 23, 59, 59, 999999),
+        scope,
+        "01/05/2026",
+        "31/05/2026",
+        USER,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scope", SCOPES)
+async def test_statement_daily_totals_match_reference(seeded, scope):
+    await _with_banks(seeded)
+    rows = _in_scope(await _user_rows(seeded), scope)
+
+    statement = await _statement(seeded, scope)
+
+    expected: dict[str, dict[str, float]] = defaultdict(
+        lambda: {"income": 0.0, "expenses": 0.0, "investment": 0.0}
+    )
+    keys = {"income": "income", "expense": "expenses", "investment": "investment"}
+    for t in rows:
+        expected[t.transaction_date.date().isoformat()][keys[t.type]] += t.amount
+    got = {
+        d.date: {"income": d.income, "expenses": d.expenses, "investment": d.investment}
+        for d in statement.daily_totals
+    }
+    assert sorted(got) == sorted(expected)
+    for day, totals in expected.items():
+        for key, value in totals.items():
+            assert got[day][key] == pytest.approx(round(value, 2))
+    assert [d.date for d in statement.daily_totals] == sorted(got)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scope", SCOPES)
+async def test_statement_payment_method_and_bank_totals_match_reference(seeded, scope):
+    await _with_banks(seeded)
+    rows = [t for t in _in_scope(await _user_rows(seeded), scope) if t.type == "expense"]
+
+    statement = await _statement(seeded, scope)
+
+    by_method: dict[str, float] = defaultdict(float)
+    by_bank: dict[tuple[str, str], float] = defaultdict(float)
+    for t in rows:
+        by_method[t.payment_method] += t.amount
+        if t.bank_code:
+            by_bank[(t.payment_method, t.bank_code)] += t.amount
+    assert {
+        m.payment_method: m.total for m in statement.expenses_by_payment_method
+    } == pytest.approx({k: round(v, 2) for k, v in by_method.items()})
+    assert {
+        (b.payment_method, b.bank_code): b.total for b in statement.expenses_by_bank
+    } == pytest.approx({k: round(v, 2) for k, v in by_bank.items()})
+
+
+@pytest.mark.asyncio
+async def test_statement_bank_names_come_from_the_users_own_banks_only(seeded):
+    await _with_banks(seeded)
+
+    statement = await _statement(seeded, "all")
+
+    names = {b.bank_code: b.bank_name for b in statement.expenses_by_bank}
+    assert names["341"] == "Itau"
+    assert names["237"] == "237"  # the other user's bank name is never used; falls back to the code
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scope", SCOPES)
+async def test_statement_installments_due_match_reference(seeded, scope):
+    await _with_banks(seeded)
+    rows = [
+        t
+        for t in _in_scope(await _user_rows(seeded), scope)
+        if t.type == "expense" and t.is_installment
+    ]
+
+    statement = await _statement(seeded, scope)
+
+    def left(t):
+        return (t.total_installments or 1) - (t.installment_number or 1)
+
+    due = statement.installments_due
+    assert due.transactions == len(rows)
+    assert due.remaining_installments == sum(left(t) for t in rows)
+    assert due.remaining_amount == pytest.approx(round(sum(left(t) * t.amount for t in rows), 2))
+    by_bank: dict[str | None, float] = defaultdict(float)
+    for t in rows:
+        by_bank[t.bank_code] += left(t) * t.amount
+    assert {b.bank_code: b.remaining_amount for b in due.by_bank} == pytest.approx(
+        {k: round(v, 2) for k, v in by_bank.items()}
+    )
+    unbanked = [b for b in due.by_bank if b.bank_code is None]
+    assert all(b.bank_name == "Sem banco" for b in unbanked)
+
+
+@pytest.mark.asyncio
+async def test_statement_aggregates_are_empty_for_a_period_without_rows(seeded):
+    statement = await DashboardRepository(seeded).extrato_financeiro(
+        datetime(2020, 1, 1), datetime(2020, 1, 31), "all", "01/01/2020", "31/01/2020", USER
+    )
+
+    assert statement.daily_totals == []
+    assert statement.expenses_by_payment_method == []
+    assert statement.expenses_by_bank == []
+    assert statement.installments_due.transactions == 0
+    assert statement.installments_due.remaining_amount == 0
+    assert statement.installments_due.by_bank == []
+
+
+@pytest.mark.asyncio
+async def test_statement_aggregate_queries_do_not_grow_with_the_rows(seeded):
+    await _with_banks(seeded)
+    repo = DashboardRepository(seeded)
+    with _QueryCounter(seeded) as before:
+        await _statement(seeded, "all")
+    categories = await seeded.execute(select(CategoryORM).where(CategoryORM.user_id == USER))
+    food = next(c for c in categories.unique().scalars() if c.name == "Food")
+    seeded.add_all(
+        _tx(USER, food, food.subcategories[0], 1.0 + n, "expense", 1 + n % 28, bank_code="341")
+        for n in range(60)
+    )
+    await seeded.commit()
+
+    with _QueryCounter(seeded) as after:
+        await repo.extrato_financeiro(
+            MONTH_START, MONTH_END, "all", "01/05/2026", "31/05/2026", USER
+        )
 
     assert len(after.statements) == len(before.statements)

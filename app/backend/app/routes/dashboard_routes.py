@@ -53,7 +53,10 @@ async def overview_geral(
     "/statement",
     response_model=ExtratoResponse,
     summary="Extrato financeiro completo",
-    description="Retorna entradas, saídas, meta e lista de transações no período",
+    description=(
+        "Retorna entradas, saídas, meta, agregados dos gráficos (por dia, forma de pagamento, "
+        "banco e parcelas a pagar) e, DEPRECADA, a lista de transações do período"
+    ),
     status_code=status.HTTP_200_OK,
 )
 async def extrato_financeiro(
