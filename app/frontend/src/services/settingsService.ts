@@ -4,16 +4,17 @@ export interface Profile {
   id: number;
   name: string;
   email: string;
-  pluggy_api_key?: string;
+  /** The key itself never leaves the backend. */
+  has_pluggy_key: boolean;
   role?: string;
   created_at: string;
   updated_at: string;
 }
 
+/** E-mail and password are changed through Supabase Auth, not this API. */
 export interface ProfileUpdate {
   name?: string;
-  email?: string;
-  password?: string;
+  /** Empty string removes the stored key. */
   pluggy_api_key?: string;
 }
 
