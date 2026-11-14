@@ -1,9 +1,20 @@
 import csv
+import html
 import io
 import re
-import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Any
+from xml.etree.ElementTree import Element
+from xml.sax.saxutils import escape as xml_escape
+
+from defusedxml import ElementTree as SafeET
+from defusedxml.common import DefusedXmlException
+
+from app.logger import logger
+
+
+class UnsafeOfxError(ValueError):
+    """Raised when an OFX document uses forbidden XML constructs (entities, DTD tricks)."""
 
 
 def parse_csv(content: str, delimiter: str | None = None) -> list[dict[str, Any]]:
@@ -20,7 +31,7 @@ def parse_csv(content: str, delimiter: str | None = None) -> list[dict[str, Any]
     col_map = _map_csv_columns(rows[0] if rows else {})
 
     transactions = []
-    for row in rows:
+    for line_number, row in enumerate(rows, start=2):  # line 1 is the header
         try:
             date_str = row.get(col_map["date"], "")
             amount_str = row.get(col_map["amount"], "")
@@ -41,29 +52,40 @@ def parse_csv(content: str, delimiter: str | None = None) -> list[dict[str, Any]
                     "type": trans_type,
                 }
             )
-        except Exception:
-            continue
+        except (KeyError, ValueError, TypeError) as exc:
+            logger.warning(f"CSV line {line_number} skipped: {type(exc).__name__}")
 
     return transactions
 
 
 def parse_ofx(content: str) -> list[dict[str, Any]]:
+    """Parse OFX content with defusedxml.
+
+    Raises:
+        UnsafeOfxError: the document declares entities or other forbidden XML constructs.
+    """
     transactions = []
 
+    if _FORBIDDEN_XML.search(content):
+        raise UnsafeOfxError("OFX com construções XML não permitidas")
     cleaned = _clean_ofx_tags(content)
 
     try:
-        root = ET.fromstring(cleaned)
-    except ET.ParseError:
+        root = SafeET.fromstring(cleaned)
+    except DefusedXmlException as exc:
+        raise UnsafeOfxError("OFX com construções XML não permitidas") from exc
+    except SafeET.ParseError:
         try:
             wrapped = f"<OFX>{cleaned}</OFX>"
-            root = ET.fromstring(wrapped)
-        except ET.ParseError:
+            root = SafeET.fromstring(wrapped)
+        except DefusedXmlException as exc:
+            raise UnsafeOfxError("OFX com construções XML não permitidas") from exc
+        except SafeET.ParseError:
             return []
 
     stmt_trns = root.findall(".//STMTTRN")
 
-    for stmt_trn in stmt_trns:
+    for position, stmt_trn in enumerate(stmt_trns, start=1):
         try:
             dtposted = _get_text(stmt_trn, "DTPOSTED")
             trnamt = _get_text(stmt_trn, "TRNAMT")
@@ -73,8 +95,8 @@ def parse_ofx(content: str) -> list[dict[str, Any]]:
             if not dtposted or not trnamt:
                 continue
 
-            date = datetime.strptime(dtposted, "%Y%m%d")
-            amount = float(trnamt)
+            date = datetime.strptime(dtposted[:OFX_DATE_LENGTH], "%Y%m%d")
+            amount = float(trnamt.replace(",", "."))
             trans_type = "expense" if amount < 0 else "income"
             description = memo or name or "Sem descricao"
 
@@ -86,8 +108,8 @@ def parse_ofx(content: str) -> list[dict[str, Any]]:
                     "type": trans_type,
                 }
             )
-        except Exception:
-            continue
+        except (ValueError, TypeError) as exc:
+            logger.warning(f"OFX transaction #{position} skipped: {type(exc).__name__}")
 
     return transactions
 
@@ -180,13 +202,31 @@ def _parse_amount(amount_str: str) -> float:
     return float(amount_str)
 
 
+# DTD and entity declarations are never part of a bank OFX (entity-expansion attacks).
+_FORBIDDEN_XML = re.compile(r"<!(DOCTYPE|ENTITY)", re.IGNORECASE)
+OFX_DATE_LENGTH = 8  # DTPOSTED starts with YYYYMMDD; time and [tz] may follow
+# A leaf element whose value is not followed by its own closing tag (SGML OFX 1.x).
+_UNCLOSED_LEAF = re.compile(r"<(\w+)>([^<\s][^<]*?)\s*(?=<(?!/\1>))")
+
+
 def _clean_ofx_tags(content: str) -> str:
-    content = re.sub(r"(\w+)>", r"\1></\1>", content)
-    content = re.sub(r"</(\w+)><\1>", "", content)
-    return content
+    """Turn OFX 1.x (SGML) or 2.x (XML) into well-formed XML.
+
+    Drops the header block and any ``<?...?>`` declarations, then closes leaf
+    elements that SGML leaves open (``<TRNAMT>-50.00`` → ``<TRNAMT>-50.00</TRNAMT>``),
+    escaping their text. Elements that are already closed are left untouched.
+    """
+    start = content.find("<OFX>")
+    body = content[start:] if start >= 0 else content
+
+    def close_leaf(match: re.Match[str]) -> str:
+        tag, value = match.group(1), html.unescape(match.group(2).strip())
+        return f"<{tag}>{xml_escape(value)}</{tag}>"
+
+    return _UNCLOSED_LEAF.sub(close_leaf, body)
 
 
-def _get_text(element: ET.Element, tag: str, default: str = "") -> str:
+def _get_text(element: Element, tag: str, default: str = "") -> str:
     child = element.find(tag)
     if child is not None and child.text:
         return child.text.strip()

@@ -39,10 +39,10 @@ def _invalidate_opcoes_categorias_cache():
 
 
 def _get_cached_opcoes_categorias(
-    entity_type: str, tipo: str | None, user_id: int | None
+    entity_type: str, tipo: str | None, user_id: int
 ) -> OpcoesCategoriaResponse | None:
     """Gets cached opcoes_categorias if not expired."""
-    key = (entity_type, tipo or "", user_id or 0)
+    key = (entity_type, tipo or "", user_id)
     if key in _opcoes_categorias_cache:
         timestamp, data = _opcoes_categorias_cache[key]
         if time.time() - timestamp < _CACHE_TTL_SECONDS:
@@ -53,10 +53,10 @@ def _get_cached_opcoes_categorias(
 
 
 def _set_cached_opcoes_categorias(
-    entity_type: str, tipo: str | None, user_id: int | None, data: OpcoesCategoriaResponse
+    entity_type: str, tipo: str | None, user_id: int, data: OpcoesCategoriaResponse
 ):
     """Sets opcoes_categorias in cache with current timestamp."""
-    key = (entity_type, tipo or "", user_id or 0)
+    key = (entity_type, tipo or "", user_id)
     _opcoes_categorias_cache[key] = (time.time(), data)
 
 
@@ -70,7 +70,7 @@ class DashboardRepository:
         end_date: datetime,
         entity_type: str,
         type: TipoTrans,
-        user_id: int | None = None,
+        user_id: int,
     ) -> list[dict[str, Any]]:
         stmt = (
             select(TransactionORM)
@@ -80,8 +80,7 @@ class DashboardRepository:
         if entity_type != "all":
             stmt = stmt.where(TransactionORM.entity_type == NaturezaTransacao(entity_type))
         stmt = stmt.where(TransactionORM.type == type.value)
-        if user_id is not None:
-            stmt = stmt.where(TransactionORM.user_id == user_id)
+        stmt = stmt.where(TransactionORM.user_id == user_id)
 
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
@@ -289,7 +288,7 @@ class DashboardRepository:
         )
 
     async def opcoes_categorias(
-        self, entity_type: str = "all", tipo: str | None = None, user_id: int | None = None
+        self, entity_type: str = "all", tipo: str | None = None, *, user_id: int
     ) -> OpcoesCategoriaResponse:
         # Check cache first
         cached = _get_cached_opcoes_categorias(entity_type, tipo, user_id)
@@ -326,7 +325,7 @@ class DashboardRepository:
         entity_type: str,
         start_date_str: str,
         end_date_str: str,
-        user_id: int | None = None,
+        user_id: int,
     ) -> EntradasPorCategoriaResponse:
 
         # Buscar transações de entrada com subcategoria carregada
@@ -338,8 +337,7 @@ class DashboardRepository:
         )
         if entity_type != "all":
             stmt = stmt.where(TransactionORM.entity_type == entity_type)
-        if user_id is not None:
-            stmt = stmt.where(TransactionORM.user_id == user_id)
+        stmt = stmt.where(TransactionORM.user_id == user_id)
 
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()

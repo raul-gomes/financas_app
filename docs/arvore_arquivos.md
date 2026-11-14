@@ -11,7 +11,7 @@ financas_app/
 │   │   │   ├── logger.py                       # Loguru (console, arquivo, JSON, rotação); redact()/log_api_request() mascaram credenciais
 │   │   │   │
 │   │   │   ├── core/
-│   │   │   │   ├── config.py                   # Classe Config: carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL do .env
+│   │   │   │   ├── config.py                   # Classe Config + require_database_url (falha na partida sem DATABASE_URL): carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL do .env
 │   │   │   │   ├── database.py                 # Engine async SQLAlchemy, AsyncSessionLocal, get_session() dependency
 │   │   │   │   └── security.py                 # get_current_user() — decodifica JWT Supabase via JWKS (ES256/RS256) ou HS256 (SUPABASE_JWT_SECRET), bearer_scheme (HTTPBearer auto_error=False → 401 sem token); require_role(*roles) + require_admin (403)
 │   │   │   │
@@ -53,7 +53,7 @@ financas_app/
 │   │   │   │   ├── dashboard_routes.py         # /dashboard — extrato, overview, rendimento, gastos por categoria
 │   │   │   │   ├── limits_routes.py            # /limits — listar e atualizar limites em lote; /limits/risk-check projeta o valor digitado (gasto atual + amount → thresholds 80/90/100)
 │   │   │   │   ├── recurring_accounts_routes.py # /recurring-accounts — CRUD + renovação + geração
-│   │   │   │   ├── extract_routes.py           # /extracts — upload de extrato CSV/OFX + confirmação
+│   │   │   │   ├── extract_routes.py           # /extracts — upload de extrato CSV/OFX (leitura em blocos, limite 10 MB) + confirmação
 │   │   │   │   ├── settings_routes.py          # /settings — perfil + bancos + atribuição aleatória
 │   │   │   │   ├── goals_routes.py             # /goals — CRUD metas + progresso
 │   │   │   │   ├── shopping_routes.py          # /shopping — CRUD lista de compras + migração
@@ -77,7 +77,7 @@ financas_app/
 │   │   │   │
 │   │   │   └── services/                       # Lógica de negócio e integrações externas
 │   │   │       ├── pluggy_service.py           # Cliente HTTP para API Meu Pluggy (Open Finance)
-│   │   │       ├── extract_parsers.py          # Parsers de extrato bancário (CSV e OFX)
+│   │   │       ├── extract_parsers.py          # Parsers de extrato bancário (CSV e OFX via defusedxml; UnsafeOfxError)
 │   │   │       ├── limit_alert_service.py      # LimitAlertService: avalia limites (evaluate_limits, _evaluate_credit_card), envia emails, trigger_limit_evaluation e evaluate_all_users_current_month (disparos pós-mutação)
 │   │   │       ├── email_service.py            # Envio de e-mails via Resend API (opt-in EMAIL_ALERTS_ENABLED; best-effort, nunca levanta)
 │   │   │       └── limit_alert_job.py          # Job periódico de avaliação de limites (run_evaluation_once, _job_loop, start/stop) — roda no lifespan
@@ -86,10 +86,13 @@ financas_app/
 │   │   │   ├── conftest.py                     # Fixtures: SQLite in-memory, httpx.AsyncClient, factories de payload
 │   │   │   ├── test_security.py                # Testes de autenticação JWT (HS256/ES256, aud, iss, alg none, sem segredo → 401) + require_role/require_admin (403)
 │   │   │   ├── test_logger_redaction.py        # Credenciais nunca chegam ao log (redact, log_api_request)
+│   │   │   ├── test_ofx_parser.py              # OFX 1.x (SGML) e 2.x (XML) reais
+│   │   │   ├── test_batch_from_extract.py      # Lote por nome de categoria/subcategoria (sync Pluggy)
 │   │   │   ├── test_admin_guard.py             # Etapa 9: rotas admin-only → 403 para role='user' (pluggy, export, shopping, goals, extract) + acesso user a recurring-accounts (generate segue 403)
 │   │   │   ├── test_auth_required.py           # Etapa 4: cada rota sem token → 401 (client_no_auth)
 │   │   │   ├── test_category_isolation.py      # Etapa 5: isolamento por usuário de categorias/subcategorias (via client_user2 + clients_ctrl)
 │   │   │   ├── test_transaction_isolation.py   # Etapa 6: isolamento de transações por usuário (list, get, update, delete, duplicatas, extrato, export)
+│   │   │   ├── test_user_scoped_repositories.py # S5/P1: export e dashboard só retornam dados do usuário (filtro no SQL)
 │   │   │   ├── test_users_repository.py        # Testes de upsert de usuário (criação, retorno existente, não duplica)
 │   │   │   ├── test_root.py                    # Testa endpoints / e /health
 │   │   │   ├── test_transactions.py            # CRUD transações + filtro por data + 404
@@ -100,6 +103,9 @@ financas_app/
 │   │   │   ├── test_recurring_account_isolation.py # Etapa 7: isolamento de contas recorrentes por usuário (list, get, update, delete, renew) + geração de parcelas com user_id
 │   │   │   ├── test_extract.py                 # Upload e confirmação de extratos CSV
 │   │   │   ├── test_extract_parsers.py         # Unit tests do parser CSV (delimitadores, datas, valores)
+│   │   │   ├── test_extract_upload_safety.py   # S6: OFX com entidades recusado (400), upload > 10 MB (413) lido em blocos
+│   │   │   ├── test_extract_skipped_rows.py    # Q4: linhas CSV ignoradas viram aviso com número da linha
+│   │   │   ├── test_startup_config.py          # B4: DATABASE_URL obrigatório (falha na partida) e descrição padrão do sync Pluggy
 │   │   │   ├── test_goals.py                   # CRUD metas + progresso + duplicatas
 │   │   │   ├── test_overview.py                # Dashboard geral (/dashboard/overview): totais, progresso mês, cartão, status limites, parcelas, recorrentes, metas/compras só admin
 │   │   │   ├── test_shopping.py                # CRUD lista de compras + rollover (não-comprados p/ mês seguinte) + ordenação

@@ -17,8 +17,8 @@ consolidados no fim.
 - [ ] **S2** (alta) ~~Não devolver `pluggy_api_key`~~ FEITO (API devolve `has_pluggy_key`; string vazia remove a chave). **Falta:** cifrar em repouso (precisa de uma chave nova no EnvVault — decisão do dono).
 - [x] **S3** (média) FEITO: algoritmo pela config (HS256 só com segredo; ES256/RS256 só via JWKS; `none` recusado), `aud=authenticated`, `iss` do projeto, claims obrigatórias. Era: JWT: algoritmo fixo, `audience` e `issuer` (`core/security.py:26-45`).
 - [x] **S4** (média) FEITO: coluna `users.supabase_id` (migration `a7b8c9d0e1f2`), busca pelo `sub`, e-mail local segue o Supabase, e-mail de outra conta → 409. Perfil não aceita mais e-mail/senha (422): a tela troca pelo Supabase (antes a senha de login não mudava). Era: Identidade pelo `sub` do Supabase (`supabase_id`); não deixar o perfil trocar e-mail.
-- [ ] **S5** (média) `user_id` obrigatório em todos os repositórios.
-- [ ] **S6** (média) Extrato: `defusedxml` e limite de tamanho antes de ler o arquivo.
+- [x] **S5** (média) FEITO: `user_id: int` obrigatório (sem `None` = sem filtro) em transaction, recurring_account, shopping, dashboard e export; todas as consultas filtram por ele; testes em `test_user_scoped_repositories.py`. Era: `user_id` obrigatório em todos os repositórios.
+- [x] **S6** (média) FEITO: OFX parseado com `defusedxml` (entidades/DTD malicioso → 400) e upload lido em blocos de 64 KB com 413 assim que passa de 10 MB; `S314`/`S112` saíram do `extend-ignore`. Era: Extrato: `defusedxml` e limite de tamanho antes de ler o arquivo.
 - [ ] **S7** (média) CORS por variável de ambiente, rate limit, headers de segurança no nginx, containers sem root.
 - [ ] **S8** (baixa) passlib removido e `password_hash` não é mais escrito; falta a migration que apaga a coluna. Era: Remover `password_hash`/passlib se o login é só Supabase.
 - [ ] **S9** (baixa) Não devolver `str(e)` ao cliente; `console.error` sem o objeto inteiro.
@@ -28,13 +28,15 @@ consolidados no fim.
 - [x] **B1** (média) FEITO: 4 testes dependiam da data (fixtures de setembro/2026 vs `now()`); agora o relógio é congelado com `time-machine` (fixture autouse em `test_limit_alert_job.py` e `test_notifications_routes.py`).
 - [ ] **B2** (média) Confirmar 413 em extrato > 1 MB; definir `client_max_body_size 10m`.
 - [ ] **B3** (média) Nginx de prod: upstream `frontend:8080` × imagem na 80; 443 sem TLS. Versionar o compose de prod sem segredos.
-- [ ] **B4** (baixa) `database.py:9` sem `DATABASE_URL`; `sync_engine` morto; `"Sin cronizar"` e `datetime.now()` sem fuso em `pluggy_routes.py`.
+- [x] **B4** (baixa) FEITO: `DATABASE_URL` ausente falha na partida com `RuntimeError` citando a variável (`require_database_url`); `sync_engine` removido (sem uso); texto padrão do Pluggy virou "Sincronizado" (a busca ainda reconhece o texto antigo) e `datetime.now(UTC)` em `pluggy_routes.py`.
+- [x] **B5** (alta) Import de OFX voltava vazio para qualquer arquivo (`_clean_ofx_tags` quebrava o XML; `DTPOSTED` com hora e fuso era descartado; decimal com vírgula falhava). FEITO: SGML 1.x e XML 2.x testados.
+- [x] **B6** (alta) Lote por nome (sync Pluggy) estourava `UnboundLocalError` ou gravava a subcategoria errada (chaves de cache diferentes entre os passos). FEITO.
 
 ## Qualidade
 - [~] **Q1** (alta) PARCIAL: job de backend no CI (ruff, pytest, pip-audit informativo), actions por SHA, `permissions` mínimas, concurrency e CI em todos os PRs FEITOS. Falta: SAST, `alembic check`, e tornar o pip-audit bloqueante (hoje reporta 43 vulnerabilidades em anyio, certifi, idna, mako, pyjwt, python-dotenv, python-multipart, starlette; atualizar dependências).
 - [x] **Q2** (média) FEITO: ruff configurado no `pyproject.toml` (format + lint zerados). Regras adiadas em `extend-ignore` com TODO: B904, UP042, S314, S112, B017 (testes); E501 ignorado (formatter cuida).
 - [ ] **Q3** (média) Extrair serviços dos repositórios e das rotas; unit of work por request.
-- [ ] **Q4** (média) Trocar `except Exception` silenciosos por exceções específicas.
+- [ ] **Q4** (média) PARCIAL (extrato FEITO: parsers CSV/OFX capturam exceções específicas e registram aviso com nº da linha, sem valores). Trocar `except Exception` silenciosos por exceções específicas.
 - [x] **Q5** (média) Zod nos services do frontend; remover `any`. Feito: `src/schemas/*` + `lib/parse.ts`; todo `res.json()` dos services é parseado uma vez na borda; sem `any` em src (fora de `ui/`). Follow-up: ligar `strictNullChecks` (hoje `Infer<>` compensa o `z.infer` no modo não estrito).
 - [ ] **Q6** (média) Quebrar `BankExtract.tsx`, `ExtratoDialog.tsx`, `AddTransactionDialog.tsx`; unificar Add/Edit (ao tocar).
 - [x] **Q7** (média) Trocar cores fixas por tokens. Feito em todo `src/`: novos tokens `critical` e `chart-1..12` (light+dark); só restam overlays `bg-black/80` do shadcn.
@@ -44,7 +46,7 @@ consolidados no fim.
 - [ ] **Q10** (baixa) Commits em inglês daqui em diante.
 
 ## Performance
-- [ ] **P1** (média) Export filtrar `user_id` no SQL (`repositories/export.py:48`).
+- [x] **P1** (média) FEITO: export filtra `user_id` no SQL (teste captura o SQL). Era: Export filtrar `user_id` no SQL (`repositories/export.py:48`).
 - [ ] **P2** (média) Overview agregando no SQL.
 - [ ] **P3** (média) Paginação de transações no backend; cache no frontend.
 - [x] **P4** (baixa) Lazy nas páginas de auth; importar só os módulos do D3 usados. Feito: Login/SignUp/ForgotPassword/UpdatePassword lazy; `d3` trocado por submódulos via `src/lib/d3.ts`; chunk principal 658,09 -> 648,77 kB (gzip 191,44 -> 189,83).

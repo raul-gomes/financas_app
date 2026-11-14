@@ -27,6 +27,15 @@ class TransacaoRepository:
         self.categoria_repo = CategoriaRepository(db)
         self.subcategoria_repo = SubcategoriaRepository(db)
 
+    @staticmethod
+    def _category_cache_key(row: dict) -> tuple | None:
+        """Cache key for a row's category: by id, else by (name, entity type)."""
+        if row.get("category_id"):
+            return ("id", row["category_id"])
+        if row.get("category_name"):
+            return ("name", row["category_name"], row["entity_type"])
+        return None
+
     def _calculate_installment_amount(self, total_amount: float, total_installments: int) -> float:
         return round(total_amount / total_installments, 2)
 
@@ -58,7 +67,8 @@ class TransacaoRepository:
         transaction_date: datetime,
         category_id=int,
         sub_id=int,
-        user_id: int | None = None,
+        *,
+        user_id: int,
     ) -> TransactionORM:
         return TransactionORM(
             group_id=group_id,
@@ -93,7 +103,7 @@ class TransacaoRepository:
         group_id: str,
         category_id: int,
         sub_id: int,
-        user_id: int | None = None,
+        user_id: int,
     ):
         total_installments = obj_in.total_installments
         amount = self._calculate_installment_amount(obj_in.amount, total_installments)
@@ -221,11 +231,11 @@ class TransacaoRepository:
         end_date: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
-        user_id: int | None = None,
+        *,
+        user_id: int,
     ) -> list[TransactionORM]:
         stmt = select(TransactionORM).options(selectinload(TransactionORM.recurring_account))
-        if user_id is not None:
-            stmt = stmt.where(TransactionORM.user_id == user_id)
+        stmt = stmt.where(TransactionORM.user_id == user_id)
         if start_date:
             stmt = stmt.where(TransactionORM.transaction_date >= start_date)
         if end_date:
@@ -237,14 +247,13 @@ class TransacaoRepository:
         result = await self.db.execute(stmt)
         return result.unique().scalars().all()
 
-    async def get_by_id(self, id: int, user_id: int | None = None) -> TransactionORM | None:
+    async def get_by_id(self, id: int, user_id: int) -> TransactionORM | None:
         stmt = (
             select(TransactionORM)
             .options(selectinload(TransactionORM.recurring_account))
             .where(TransactionORM.id == id)
         )
-        if user_id is not None:
-            stmt = stmt.where(TransactionORM.user_id == user_id)
+        stmt = stmt.where(TransactionORM.user_id == user_id)
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
@@ -326,7 +335,7 @@ class TransacaoRepository:
             await self.db.rollback()
             raise HTTPException(status_code=400, detail="Erro ao atualizar transação")
 
-    async def delete(self, id: int, user_id: int | None = None) -> TransactionORM | None:
+    async def delete(self, id: int, user_id: int) -> TransactionORM | None:
         trans = await self.get_by_id(id, user_id)
         if not trans:
             return None
@@ -335,7 +344,7 @@ class TransacaoRepository:
         return trans
 
     async def check_duplicates(
-        self, transaction_date: date, amount: float, user_id: int | None = None
+        self, transaction_date: date, amount: float, user_id: int
     ) -> list[TransactionORM]:
         """Retorna transações existentes com a mesma data (ignorando hora) e valor."""
 
@@ -346,12 +355,11 @@ class TransacaoRepository:
             TransactionORM.transaction_date <= end,
             TransactionORM.amount == amount,
         )
-        if user_id is not None:
-            stmt = stmt.where(TransactionORM.user_id == user_id)
+        stmt = stmt.where(TransactionORM.user_id == user_id)
         result = await self.db.execute(stmt)
         return list(result.unique().scalars().all())
 
-    async def assign_random_banks(self, bank_codes: list[str], user_id: int | None = None) -> int:
+    async def assign_random_banks(self, bank_codes: list[str], user_id: int) -> int:
         """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto."""
         from sqlalchemy import text
 
@@ -359,7 +367,7 @@ class TransacaoRepository:
             return 0
 
         # Single SQL statement using CTE + row_number() for random assignment
-        user_filter = "AND user_id = :user_id" if user_id is not None else ""
+        user_filter = "AND user_id = :user_id"
         stmt = text(f"""
             WITH banks AS (
                 SELECT bank_code, row_number() OVER (ORDER BY random()) AS rn
@@ -376,9 +384,7 @@ class TransacaoRepository:
             WHERE t.id = txs.id
         """)  # noqa: S608  # only a constant filter fragment is interpolated; values are bound
 
-        params = {"bank_codes": bank_codes}
-        if user_id is not None:
-            params["user_id"] = user_id
+        params = {"bank_codes": bank_codes, "user_id": user_id}
         result = await self.db.execute(stmt, params)
         await self.db.commit()
         return result.rowcount
@@ -400,17 +406,17 @@ class TransacaoRepository:
         )
 
         # 1) Collect all unique category/subcategory resolutions needed
+        # Subcategory-by-name keys embed the category cache key, so steps 3 and 4
+        # look up exactly the same tuple.
         cat_keys = set()
         sub_keys = set()
         for t in transactions:
-            if t.get("category_id"):
-                cat_keys.add(("id", t["category_id"]))
-            elif t.get("category_name"):
-                cat_keys.add(("name", t["category_name"], t["entity_type"]))
+            cat_key = self._category_cache_key(t)
+            if cat_key:
+                cat_keys.add(cat_key)
             if t.get("subcategory_id"):
                 sub_keys.add(("id", t["subcategory_id"]))
-            elif t.get("subcategory_name") and (t.get("category_id") or t.get("category_name")):
-                cat_key = t.get("category_id") or t.get("category_name")
+            elif t.get("subcategory_name") and cat_key:
                 sub_keys.add(("name", t["subcategory_name"], cat_key))
 
         # 2) Resolve all categories
@@ -436,10 +442,11 @@ class TransacaoRepository:
         # 3) Resolve all subcategories
         sub_cache: dict[tuple, any] = {}
         for key in sub_keys:
+            sub = None
             if key[0] == "id":
                 sub = await self.subcategoria_repo.get_by_id(key[1], user_id)
             else:  # name
-                cat = cat_cache.get(("id", key[2])) or cat_cache.get(("name", key[2], None))
+                cat = cat_cache.get(key[2])
                 if cat:
                     sub = await self.subcategoria_repo.get_by_nome_and_categoria(
                         key[1], cat.id, user_id
@@ -459,11 +466,7 @@ class TransacaoRepository:
         for t in transactions:
             try:
                 group_id = str(uuid4())
-                cat_key = (
-                    ("id", t["category_id"])
-                    if t.get("category_id")
-                    else ("name", t["category_name"], t["entity_type"])
-                )
+                cat_key = self._category_cache_key(t)
                 cat = cat_cache[cat_key]
 
                 sub_key = None

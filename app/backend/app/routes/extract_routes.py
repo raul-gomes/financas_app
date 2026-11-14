@@ -12,13 +12,29 @@ from app.schemas.extract import (
     ParsedTransaction,
     UploadResponse,
 )
-from app.services.extract_parsers import parse_csv, parse_ofx
+from app.services.extract_parsers import UnsafeOfxError, parse_csv, parse_ofx
 from app.services.limit_alert_service import trigger_limit_evaluation
 
 router = APIRouter(prefix="/extracts", tags=["Bank Extract"], dependencies=[Depends(require_admin)])
 
 
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+UPLOAD_READ_CHUNK_SIZE = 64 * 1024  # 64 KB
+
+
+async def _read_limited(file: UploadFile, max_size: int = MAX_UPLOAD_SIZE) -> bytes:
+    """Read the upload in chunks, raising 413 as soon as ``max_size`` is exceeded."""
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(UPLOAD_READ_CHUNK_SIZE):
+        total += len(chunk)
+        if total > max_size:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"Arquivo muito grande. Tamanho máximo: {max_size // (1024 * 1024)} MB",
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -29,25 +45,23 @@ async def upload_extracto(
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), filename=file.filename)
 
-    content = await file.read()
-    if len(content) > MAX_UPLOAD_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Arquivo muito grande. Tamanho máximo: {MAX_UPLOAD_SIZE // (1024 * 1024)} MB",
-        )
+    content = await _read_limited(file)
     text = content.decode("utf-8", errors="replace")
 
     filename_lower = (file.filename or "").lower()
 
-    if filename_lower.endswith(".ofx") or filename_lower.endswith(".qfx"):
-        transactions = parse_ofx(text)
-    elif filename_lower.endswith(".csv"):
-        transactions = parse_csv(text)
-    else:
-        if "<OFX" in text.upper() or "<STMTTRN" in text.upper():
+    try:
+        if filename_lower.endswith(".ofx") or filename_lower.endswith(".qfx"):
             transactions = parse_ofx(text)
-        else:
+        elif filename_lower.endswith(".csv"):
             transactions = parse_csv(text)
+        else:
+            if "<OFX" in text.upper() or "<STMTTRN" in text.upper():
+                transactions = parse_ofx(text)
+            else:
+                transactions = parse_csv(text)
+    except UnsafeOfxError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     income_transactions = [t for t in transactions if t["type"] == "income"]
     expense_transactions = [t for t in transactions if t["type"] == "expense"]
