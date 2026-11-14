@@ -8,7 +8,18 @@ repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 load_dotenv(repo_root / ".env", override=False)
 
 
+DEFAULT_CORS_ORIGINS = ("http://localhost:8087", "http://localhost:8080", "http://localhost:8005")
+
+
+def parse_cors_origins(raw: str | None) -> list[str]:
+    """Parse a comma-separated origin list; fall back to the localhost dev defaults."""
+    origins = [o.strip() for o in (raw or "").split(",") if o.strip()]
+    return origins or list(DEFAULT_CORS_ORIGINS)
+
+
 class Config:
+    ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
+    CORS_ORIGINS = parse_cors_origins(os.getenv("CORS_ORIGINS"))
     DATABASE_URL = os.getenv("DATABASE_URL")
     DB_ECHO = os.getenv("DB_ECHO", "false").lower() == "true"
     DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "10"))

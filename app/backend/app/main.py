@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # from .core.database import connect_to_mongo, close_mongo_connection
+from .core.config import Config
 from .logger import logger
 from .routes.categories_routes import router as categories_router
 from .routes.dashboard_routes import router as dashboard_router
@@ -33,37 +34,43 @@ async def lifespan(app: FastAPI):
     await stop_limit_alert_job(job_task)
 
 
-app = FastAPI(
-    title="API Financeira",
-    description="API para gerenciamento de transações financeiras",
-    version="1.0.0",
-    lifespan=lifespan,
-)
+def create_app(environment: str | None = None, cors_origins: list[str] | None = None) -> FastAPI:
+    """Build the FastAPI app; API docs are disabled when environment is production."""
+    env = (environment if environment is not None else Config.ENVIRONMENT).lower()
+    origins = cors_origins if cors_origins is not None else Config.CORS_ORIGINS
+    is_production = env == "production"
+    application = FastAPI(
+        title="API Financeira",
+        description="API para gerenciamento de transações financeiras",
+        version="1.0.0",
+        lifespan=lifespan,
+        docs_url=None if is_production else "/docs",
+        redoc_url=None if is_production else "/redoc",
+        openapi_url=None if is_production else "/openapi.json",
+    )
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    application.include_router(transactions_router)
+    application.include_router(categories_router)
+    application.include_router(dashboard_router)
+    application.include_router(limits_router)
+    application.include_router(recurring_accounts_router)
+    application.include_router(extract_router)
+    application.include_router(settings_router)
+    application.include_router(goals_router)
+    application.include_router(shopping_router)
+    application.include_router(pluggy_router)
+    application.include_router(export_router)
+    application.include_router(notifications_router)
+    return application
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8087",
-        "http://localhost:8080",
-        "http://localhost:8005",
-    ],  # Em producao, especificar dominios
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-app.include_router(transactions_router)
-app.include_router(categories_router)
-app.include_router(dashboard_router)
-app.include_router(limits_router)
-app.include_router(recurring_accounts_router)
-app.include_router(extract_router)
-app.include_router(settings_router)
-app.include_router(goals_router)
-app.include_router(shopping_router)
-app.include_router(pluggy_router)
-app.include_router(export_router)
-app.include_router(notifications_router)
+app = create_app()
 
 
 @app.get("/", tags=["Root"])
