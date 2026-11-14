@@ -29,11 +29,31 @@ Todos os tokens têm variante **light** e **dark** — nunca hardcode cores.
 | `success` | Receitas/income, estados positivos |
 | `warning` | Investimentos, alertas (ex.: tag "Acabando") |
 | `destructive` | Despesas/expense, ações destrutivas |
+| `critical` / `critical-foreground` | Severidade intermediária (90% do limite), entre `warning` e `destructive` |
+| `chart-1` … `chart-12` | Paleta categórica sem significado semântico (avatares de banco, séries) — `bg-chart-N`, `hsl(var(--chart-N))` |
 | `muted` / `muted-foreground` | Texto secundário, fundos suaves |
 | `card` / `border` / `background` | Superfícies |
 
 Convenção por tipo de transação: **income → `text-success`**, **expense → `text-destructive`**,
 **investment → `text-warning`**.
+
+**Mapeamento ao trocar cor fixa por token** (nunca `text-red-500`, `bg-green-50`, `#hex`):
+
+| Intenção | Token | Exemplo |
+|---|---|---|
+| Positivo / income / sucesso | `success` | `text-success`, `bg-success/10 border-success/30` |
+| Negativo / erro / expense | `destructive` | `text-destructive`, `bg-destructive/15` |
+| Alerta / pendente | `warning` | `text-warning`, `bg-warning/10` |
+| Link / info / recorrente | `primary` | `text-primary`, `bg-primary/10` |
+| Cinza neutro | `muted`, `muted-foreground`, `input` | `bg-muted`, `border-input` |
+| Texto sobre cor sólida | `<token>-foreground` | `bg-success text-success-foreground` |
+
+Variantes claras = opacidade do token (`/5`, `/10`, `/15`, `/30`); não use `dark:` para
+cores de token (o token já muda no dark). Overlays de modal (`bg-black/80` do shadcn) são a
+única cor literal aceita.
+
+**D3:** nunca literais em `.attr('fill'|'stroke', ...)`/`.style(...)`; use `hsl(var(--token))`
+(ex.: `hsl(var(--destructive))`, tooltip `hsl(var(--foreground) / 0.9)`) e sombra `var(--shadow-elegant)`.
 
 ### 2.2 Gradientes e sombras
 

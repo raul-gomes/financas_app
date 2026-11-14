@@ -171,7 +171,7 @@ function D3DailyChartBase({
         .attr('x2', innerWidth)
         .attr('y1', goalY)
         .attr('y2', goalY)
-        .attr('stroke', '#ef4444')
+        .attr('stroke', 'hsl(var(--destructive))')
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '5,5');
 
@@ -195,7 +195,7 @@ function D3DailyChartBase({
       .style('border-radius', '8px')
       .style('padding', '10px')
       .style('font-size', '13px')
-      .style('box-shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1)')
+      .style('box-shadow', 'var(--shadow-elegant)')
       .style('z-index', '1000')
       .style('pointer-events', 'none')
       .style('max-width', '90vw');

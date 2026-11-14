@@ -61,7 +61,7 @@ function D3PieChartBase({ data, width = 400, height = 300 }: D3PieChartProps) {
       .style('border-radius', '8px')
       .style('padding', '8px')
       .style('font-size', '12px')
-      .style('box-shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1)')
+      .style('box-shadow', 'var(--shadow-elegant)')
       .style('z-index', '1000')
       .style('pointer-events', 'none');
 
@@ -73,7 +73,7 @@ function D3PieChartBase({ data, width = 400, height = 300 }: D3PieChartProps) {
 
     const paths = arcs.append('path')
       .attr('fill', d => d.data.color)
-      .attr('stroke', 'white')
+      .attr('stroke', 'hsl(var(--card))')
       .attr('stroke-width', 2)
       .style('opacity', 0.8)
       .style('cursor', 'pointer')
@@ -146,7 +146,7 @@ function D3PieChartBase({ data, width = 400, height = 300 }: D3PieChartProps) {
       .attr('text-anchor', 'middle')
       .attr('font-size', '12px')
       .attr('font-weight', 'bold')
-      .attr('fill', 'white') // Texto branco sobre as cores
+      .attr('fill', 'hsl(var(--primary-foreground))') // Light text over the slice colors
       .style('pointer-events', 'none')
       .text(d => {
         const percentage = ((d.data.value / d3.sum(data, d => d.value)) * 100).toFixed(1);

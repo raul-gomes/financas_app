@@ -180,7 +180,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                                                     type="checkbox"
                                                     checked={item.checked}
                                                     onChange={() => handleToggle(item)}
-                                                    className="h-4 w-4 rounded border-gray-300"
+                                                    className="h-4 w-4 rounded border-input"
                                                 />
                                                 <span className="font-medium">{item.name}</span>
                                             </div>
@@ -206,7 +206,7 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
-                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            <CheckCircle2 className="h-5 w-5 text-success" />
                             Concluídos ({concluidos.length})
                         </CardTitle>
                     </CardHeader>
@@ -225,16 +225,16 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
                                 <p className="text-muted-foreground text-center py-4 text-sm">Nenhum item encontrado.</p>
                             ) : (
                                 concluidosFiltrados.map(item => (
-                                    <div key={item.id} className="border border-green-200 rounded-lg p-3 bg-green-50/30 flex items-center justify-between">
+                                    <div key={item.id} className="border border-success/30 rounded-lg p-3 bg-success/5 flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <input
                                                 type="checkbox"
                                                 checked={item.checked}
                                                 onChange={() => handleToggle(item)}
-                                                className="h-4 w-4 rounded border-gray-300"
+                                                className="h-4 w-4 rounded border-input"
                                             />
                                             <div>
-                                                <span className="font-medium text-green-700 line-through">{item.name}</span>
+                                                <span className="font-medium text-success line-through">{item.name}</span>
                                                 {item.completed_at && (
                                                     <p className="text-xs text-muted-foreground">
                                                         Concluído em {new Date(item.completed_at + 'T12:00:00').toLocaleDateString('en-US')}

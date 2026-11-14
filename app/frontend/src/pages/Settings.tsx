@@ -429,7 +429,7 @@ const Settings = () => {
                 </Button>
               </div>
               {pluggyStatus && (
-                <p className={`text-xs ${pluggyStatus.ok ? 'text-green-500' : 'text-red-500'}`}>
+                <p className={`text-xs ${pluggyStatus.ok ? 'text-success' : 'text-destructive'}`}>
                   {pluggyStatus.message}
                 </p>
               )}
@@ -451,7 +451,7 @@ const Settings = () => {
 
             {syncResult && (
               <div className={`p-3 rounded-lg text-sm ${
-                syncResult.imported > 0 ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-muted text-muted-foreground'
+                syncResult.imported > 0 ? 'bg-success/10 text-success border border-success/30' : 'bg-muted text-muted-foreground'
               }`}>
                 {syncResult.message}
               </div>

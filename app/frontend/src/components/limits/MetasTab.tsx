@@ -221,7 +221,7 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                                                 </p>
                                             </div>
                                             <div className="flex gap-1">
-                                                <Button variant="ghost" size="sm" onClick={() => handleConcluir(meta.id)} className="text-green-600 hover:text-green-700">
+                                                <Button variant="ghost" size="sm" onClick={() => handleConcluir(meta.id)} className="text-success hover:text-success/80">
                                                     <CheckCircle2 className="h-4 w-4" />
                                                 </Button>
                                                 <Button variant="ghost" size="sm" onClick={() => startEdit(meta)}>
@@ -245,7 +245,7 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
-                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            <CheckCircle2 className="h-5 w-5 text-success" />
                             Concluídas ({concluidas.length})
                         </CardTitle>
                     </CardHeader>
@@ -264,11 +264,11 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                                 <p className="text-muted-foreground text-center py-4 text-sm">Nenhuma meta encontrada.</p>
                             ) : (
                                 concluidasFiltradas.map(meta => (
-                                    <div key={meta.id} className="border border-green-200 rounded-lg p-4 bg-green-50/30">
+                                    <div key={meta.id} className="border border-success/30 rounded-lg p-4 bg-success/5">
                                         <div className="flex items-center justify-between">
                                             <div>
-                                                <p className="font-medium text-green-700">{meta.subcategory_name}</p>
-                                                <p className="text-sm text-green-600">
+                                                <p className="font-medium text-success">{meta.subcategory_name}</p>
+                                                <p className="text-sm text-success">
                                                     R$ {meta.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                 </p>
                                                 {meta.completed_at && (
@@ -278,7 +278,7 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                                                 )}
                                             </div>
                                             <div className="flex gap-1">
-                                                <Button variant="ghost" size="sm" onClick={() => handleReativar(meta.id)} className="text-amber-600 hover:text-amber-700">
+                                                <Button variant="ghost" size="sm" onClick={() => handleReativar(meta.id)} className="text-warning hover:text-warning/80">
                                                     <RotateCcw className="h-4 w-4" />
                                                 </Button>
                                                 <Button variant="ghost" size="sm" onClick={() => handleDelete(meta.id)}>

@@ -525,8 +525,8 @@ export function AddTransactionDialog({
               const severity = categoryRisk.severity ?? (categoryRisk.is_over_limit ? 'destructive' : null);
               if (!severity) return null;
               const bannerStyles = {
-                warning: 'border-amber-500/30 bg-amber-500/15 text-amber-600',
-                critical: 'border-orange-500/30 bg-orange-500/15 text-orange-600',
+                warning: 'border-warning/30 bg-warning/15 text-warning',
+                critical: 'border-critical/30 bg-critical/15 text-critical',
                 destructive: 'border-destructive/40 bg-destructive/10 text-destructive',
               }[severity];
               return (

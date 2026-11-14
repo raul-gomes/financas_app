@@ -161,7 +161,7 @@ function D3BarChartBase({
         .attr('x2', innerWidth)
         .attr('y1', yScale(monthlyGoal))
         .attr('y2', yScale(monthlyGoal))
-        .attr('stroke', '#ef4444')
+        .attr('stroke', 'hsl(var(--destructive))')
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '5,5');
 
@@ -230,7 +230,7 @@ function D3BarChartBase({
       .style('border-radius', '8px')
       .style('padding', '10px')
       .style('font-size', '13px')
-      .style('box-shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1)')
+      .style('box-shadow', 'var(--shadow-elegant)')
       .style('z-index', '1000')
       .style('pointer-events', 'none')
       .style('max-width', '90vw');

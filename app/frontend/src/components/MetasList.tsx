@@ -173,7 +173,7 @@ export function MetasList({ sidebarOpen, entityType, refreshKey }: MetasListProp
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-xs text-muted-foreground hover:text-green-600"
+                        className="h-6 px-1.5 text-xs text-muted-foreground hover:text-success"
                         onClick={async () => {
                           try {
                             await MetasService.concluir(meta.subcategory_id);
@@ -191,10 +191,10 @@ export function MetasList({ sidebarOpen, entityType, refreshKey }: MetasListProp
                       <div
                         className={`h-full rounded-full transition-all ${
                           meta.progress >= 100
-                            ? 'bg-green-500'
+                            ? 'bg-success'
                             : meta.progress >= 50
-                              ? 'bg-emerald-400'
-                              : 'bg-amber-400'
+                              ? 'bg-success/80'
+                              : 'bg-warning/80'
                         }`}
                         style={{ width: `${Math.min(meta.progress, 100)}%` }}
                       />
@@ -219,14 +219,14 @@ export function MetasList({ sidebarOpen, entityType, refreshKey }: MetasListProp
                 {metas.filter(m => m.completed).map((meta) => (
                   <div
                     key={meta.subcategory_id}
-                    className="rounded-lg border border-green-200/50 bg-green-50/30 p-3"
+                    className="rounded-lg border border-success/30 bg-success/5 p-3"
                   >
                     <div className="mb-1 flex items-center justify-between">
-                      <span className="text-sm font-medium text-green-700">{meta.subcategory_name}</span>
+                      <span className="text-sm font-medium text-success">{meta.subcategory_name}</span>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-xs text-muted-foreground hover:text-amber-600"
+                        className="h-6 px-1.5 text-xs text-muted-foreground hover:text-warning"
                         onClick={async () => {
                           try {
                             await MetasService.reativar(meta.subcategory_id);
@@ -241,10 +241,10 @@ export function MetasList({ sidebarOpen, entityType, refreshKey }: MetasListProp
                       </Button>
                     </div>
                     <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full w-full rounded-full bg-green-500" />
+                      <div className="h-full w-full rounded-full bg-success" />
                     </div>
                     <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                      <span className="text-green-600">Completa</span>
+                      <span className="text-success">Completa</span>
                       <span>R$ {meta.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                     {meta.completed_at && (

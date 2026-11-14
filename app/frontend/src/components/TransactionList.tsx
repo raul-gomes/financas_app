@@ -226,14 +226,14 @@ export function TransactionList({
               >
                 <div
                   className={`bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors ${
-                    t.recurring_account_id ? 'bg-blue-50/60 border-blue-200 hover:bg-blue-50' : ''
+                    t.recurring_account_id ? 'bg-primary/5 border-primary/30 hover:bg-primary/10' : ''
                   }`}
                 >
                   {/* Top row: icon + description + value + delete */}
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "p-2 rounded-lg shrink-0",
-                      t.recurring_account_id ? 'bg-blue-100 text-blue-600' :
+                      t.recurring_account_id ? 'bg-primary/15 text-primary' :
                       t.type === 'income' ? 'bg-success/10 text-success' : 
                       t.type === 'investment' ? 'bg-warning/10 text-warning' : 
                       'bg-destructive/10 text-destructive'
@@ -249,7 +249,7 @@ export function TransactionList({
                         <p className="font-medium text-foreground truncate">{t.description}</p>
                         <div className="flex items-center gap-2 shrink-0">
                           <p className={cn("font-semibold text-lg", 
-                            t.recurring_account_id ? 'text-blue-600' :
+                            t.recurring_account_id ? 'text-primary' :
                             t.type === 'income' ? 'text-success' : 
                             t.type === 'investment' ? 'text-warning' : 
                             'text-destructive')}>
@@ -273,7 +273,7 @@ export function TransactionList({
                       {/* Bottom row: badges */}
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
                         {t.recurring_account_id ? (
-                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary/15 text-primary">
                             Recorrente
                           </span>
                         ) : (
@@ -292,10 +292,10 @@ export function TransactionList({
                           </span>
                         )}
                         {!t.recurring_account_id && (
-                          <span className="text-slate-400 truncate">• {t.category_name}</span>
+                          <span className="text-muted-foreground truncate">• {t.category_name}</span>
                         )}
                         {t.recurring_account_id && (
-                          <span className="text-blue-400 truncate">• {t.category_name}</span>
+                          <span className="text-primary/80 truncate">• {t.category_name}</span>
                         )}
                       </div>
                     </div>
