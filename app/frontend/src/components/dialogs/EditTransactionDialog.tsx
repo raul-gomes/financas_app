@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FinancialService } from '@/services/financialService';
 import { SettingsService, UserBank } from '@/services/settingsService';
 import { BankLogo } from '@/components/ui/bank-logo';
+import { formatCurrency } from '@/lib/format';
 
 const KNOWN_PAYMENT_METHODS = ['cash', 'pix', 'debit', 'credit', 'transfer'];
 
@@ -73,7 +74,7 @@ export function EditTransactionDialog({
         if (!existsSub) setNewSubcategoryName(subcategoryName);
       })
       .catch(() => {
-        toast({ title: 'Error', description: 'Failed to load categories', variant: 'destructive' });
+        toast({ title: 'Erro', description: 'Falha ao carregar categorias', variant: 'destructive' });
       });
   }, [isOpen, transaction.category_name, transaction.subcategory_name, formData.entity_type, formData.type, toast]);
 
@@ -107,7 +108,7 @@ export function EditTransactionDialog({
     if (!isInstallment || !formData.total_installments || !formData.amount) return null;
     const num = formData.total_installments;
     if (num <= 0) return null;
-    return (formData.amount / num).toFixed(2);
+    return formData.amount / num;
   };
 
   const handleClose = () => {
@@ -126,7 +127,7 @@ export function EditTransactionDialog({
       !formData.transaction_date ||
       (isInstallment && !formData.total_installments)
     ) {
-      toast({ title: 'Error', description: 'Please fill in all required fields', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Preencha todos os campos obrigatórios', variant: 'destructive' });
       return;
     }
 
@@ -147,10 +148,10 @@ export function EditTransactionDialog({
 
     try {
       await onEditTransaction(payload);
-      toast({ title: 'Success', description: 'Transaction edited successfully!' });
+      toast({ title: 'Sucesso', description: 'Transação editada!' });
       onClose();
     } catch {
-      toast({ title: 'Error', description: 'Failed to edit transaction.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Falha ao editar transação.', variant: 'destructive' });
     }
   };
 
@@ -163,20 +164,20 @@ export function EditTransactionDialog({
     <ResponsiveModal
       open={isOpen}
       onOpenChange={(open) => !open && handleClose()}
-      title="Edit Transaction"
+      title="Editar Transação"
       footer={
         <>
           <Button type="button" variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="submit" form="edit-transaction-form">Save</Button>
+          <Button type="submit" form="edit-transaction-form">Salvar</Button>
         </>
       }
     >
         <form id="edit-transaction-form" onSubmit={handleSubmit} className="space-y-4">
           {/* Type + Entity Type (inline) */}
           <div className="space-y-2">
-            <Label>Type</Label>
+            <Label>Tipo</Label>
             <div className="flex items-center justify-between">
               <RadioGroup
                 value={formData.type!}
@@ -193,27 +194,27 @@ export function EditTransactionDialog({
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="expense" id="expense" />
-                  <Label htmlFor="expense" className="text-destructive">Expense</Label>
+                  <Label htmlFor="expense" className="text-destructive">Despesa</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="income" id="income" />
-                  <Label htmlFor="income" className="text-success">Income</Label>
+                  <Label htmlFor="income" className="text-success">Receita</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="investment" id="investment" />
-                  <Label htmlFor="investment" className="text-warning">Investment</Label>
+                  <Label htmlFor="investment" className="text-warning">Investimento</Label>
                 </div>
               </RadioGroup>
               {/* Individual/Business Switch */}
               <div className="flex items-center gap-2 shrink-0">
-                <span className={`text-xs font-medium ${formData.entity_type === 'individual' ? 'text-foreground' : 'text-muted-foreground'}`}>Individual</span>
+                <span className={`text-xs font-medium ${formData.entity_type === 'individual' ? 'text-foreground' : 'text-muted-foreground'}`}>Pessoa Física</span>
                 <Switch
                   checked={formData.entity_type === 'business'}
                   onCheckedChange={checked =>
                     setFormData(prev => ({ ...prev, entity_type: checked ? 'business' : 'individual' }))
                   }
                 />
-                <span className={`text-xs font-medium ${formData.entity_type === 'business' ? 'text-foreground' : 'text-muted-foreground'}`}>Business</span>
+                <span className={`text-xs font-medium ${formData.entity_type === 'business' ? 'text-foreground' : 'text-muted-foreground'}`}>Pessoa Jurídica</span>
               </div>
             </div>
           </div>
@@ -221,7 +222,7 @@ export function EditTransactionDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Amount */}
             <div className="space-y-2">
-              <Label htmlFor="amount">Amount *</Label>
+              <Label htmlFor="amount">Valor *</Label>
               <Input
                 id="amount"
                 type="number"
@@ -234,7 +235,7 @@ export function EditTransactionDialog({
 
             {/* Date */}
             <div className="space-y-2">
-              <Label htmlFor="transaction_date">Date *</Label>
+              <Label htmlFor="transaction_date">Data *</Label>
               <Input
                 id="transaction_date"
                 type="date"
@@ -247,7 +248,7 @@ export function EditTransactionDialog({
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
+            <Label htmlFor="description">Descrição *</Label>
             <Input
               id="description"
               value={formData.description!}
@@ -258,7 +259,7 @@ export function EditTransactionDialog({
 
           {/* Category */}
           <div className="space-y-2">
-            <Label htmlFor="category_name">Category *</Label>
+            <Label htmlFor="category_name">Categoria *</Label>
 
             {/* When income/investment: disabled input with fixed value */}
             {formData.type === 'income' || formData.type === 'investment' ? (
@@ -284,7 +285,7 @@ export function EditTransactionDialog({
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
+                    <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
                     {categoryOptions.options.map(c => (
@@ -292,15 +293,15 @@ export function EditTransactionDialog({
                         {c.name}
                       </SelectItem>
                     ))}
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="other">Outros</SelectItem>
                   </SelectContent>
                 </Select>
                 {showNewCategoryInput && (
                   <div className="mt-2">
-                    <Label>New Category</Label>
+                    <Label>Nova categoria</Label>
                     <div className="flex gap-2">
                       <Input
-                        placeholder="New category"
+                        placeholder="Nova categoria"
                         value={newCategoryName}
                         onChange={e => {
                           setNewCategoryName(e.target.value);
@@ -327,7 +328,7 @@ export function EditTransactionDialog({
 
           {/* Subcategory */}
           <div className="space-y-2">
-            <Label htmlFor="subcategory_name">Subcategory *</Label>
+            <Label htmlFor="subcategory_name">Subcategoria *</Label>
             <Select
               value={showNewSubcategoryInput ? 'other' : formData.subcategory_name!}
               onValueChange={value => {
@@ -343,7 +344,7 @@ export function EditTransactionDialog({
               disabled={!formData.category_name}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a subcategory" />
+                <SelectValue placeholder="Selecione uma subcategoria" />
               </SelectTrigger>
               <SelectContent>
                 {selectedSubs.map(s => (
@@ -351,15 +352,15 @@ export function EditTransactionDialog({
                     {s}
                   </SelectItem>
                 ))}
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="other">Outros</SelectItem>
               </SelectContent>
             </Select>
             {showNewSubcategoryInput && (
               <div className="mt-2">
-                <Label>New Subcategory</Label>
+                <Label>Nova subcategoria</Label>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="New subcategory"
+                    placeholder="Nova subcategoria"
                     value={newSubcategoryName}
                     onChange={e => {
                       setNewSubcategoryName(e.target.value);
@@ -384,7 +385,7 @@ export function EditTransactionDialog({
 
           {/* Bank */}
           <div className="space-y-2">
-            <Label htmlFor="bank">Bank</Label>
+            <Label htmlFor="bank">Banco</Label>
             <Select
               value={addingNewBank ? '+add' : bankCode}
               onValueChange={(value) => {
@@ -399,7 +400,7 @@ export function EditTransactionDialog({
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a bank" />
+                <SelectValue placeholder="Selecione um banco" />
               </SelectTrigger>
               <SelectContent>
                 {banks.map((bank) => {
@@ -416,7 +417,7 @@ export function EditTransactionDialog({
                 <SelectItem value="+add">
                   <div className="flex items-center gap-2 text-primary font-medium">
                     <Plus className="w-4 h-4" />
-                    <span>Add new bank</span>
+                    <span>Adicionar novo banco</span>
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -424,7 +425,7 @@ export function EditTransactionDialog({
             {addingNewBank && (
               <div className="mt-2 flex items-end gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Code</Label>
+                  <Label className="text-xs">Código</Label>
                   <Input
                     placeholder="Ex: 260"
                     value={newBankCode}
@@ -433,7 +434,7 @@ export function EditTransactionDialog({
                   />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Name</Label>
+                  <Label className="text-xs">Nome</Label>
                   <Input
                     placeholder="Ex: Nubank"
                     value={newBankName}
@@ -446,7 +447,7 @@ export function EditTransactionDialog({
                 </Button>
                 <Button size="sm" onClick={async () => {
                   if (!newBankCode.trim() || !newBankName.trim()) {
-                    toast({ title: 'Error', description: 'Please fill in bank code and name.', variant: 'destructive' });
+                    toast({ title: 'Erro', description: 'Preencha código e nome do banco.', variant: 'destructive' });
                     return;
                   }
                   try {
@@ -457,9 +458,9 @@ export function EditTransactionDialog({
                     setBanks(prev => [...prev, created]);
                     setBankCode(created.bank_code);
                     setAddingNewBank(false);
-                    toast({ title: 'Bank added', description: `${created.bank_name} (${created.bank_code})` });
+                    toast({ title: 'Banco adicionado', description: `${created.bank_name} (${created.bank_code})` });
                   } catch {
-                    toast({ title: 'Error', description: 'Failed to add bank.', variant: 'destructive' });
+                    toast({ title: 'Erro', description: 'Falha ao adicionar banco.', variant: 'destructive' });
                   }
                 }}>
                   <Plus className="w-4 h-4 mr-1" /> Add
@@ -470,7 +471,7 @@ export function EditTransactionDialog({
 
           {/* Payment Method + Installment Switch */}
           <div className="space-y-2">
-            <Label htmlFor="payment_method">Payment Method *</Label>
+            <Label htmlFor="payment_method">Forma de pagamento</Label>
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 <Select
@@ -488,20 +489,20 @@ export function EditTransactionDialog({
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="cash">Dinheiro</SelectItem>
                     <SelectItem value="pix">PIX</SelectItem>
-                    <SelectItem value="debit">Debit</SelectItem>
-                    <SelectItem value="credit">Credit</SelectItem>
-                    <SelectItem value="transfer">Transfer</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="debit">Débito</SelectItem>
+                    <SelectItem value="credit">Crédito</SelectItem>
+                    <SelectItem value="transfer">Transferência</SelectItem>
+                    <SelectItem value="other">Outros</SelectItem>
                   </SelectContent>
                 </Select>
                 {showNewPaymentMethodInput && (
                   <div className="mt-2">
-                    <Label>New Payment Method</Label>
+                    <Label>Nova forma de pagamento</Label>
                     <div className="flex gap-2">
                       <Input
-                        placeholder="Enter new payment method"
+                        placeholder="Digite a nova forma de pagamento"
                         value={newPaymentMethodName}
                         onChange={e => {
                           setNewPaymentMethodName(e.target.value);
@@ -529,7 +530,7 @@ export function EditTransactionDialog({
                   checked={isInstallment}
                   onCheckedChange={setIsInstallment}
                 />
-                <Label htmlFor="isInstallment-edit" className="text-sm font-medium cursor-pointer">Installment</Label>
+                <Label htmlFor="isInstallment-edit" className="text-sm font-medium cursor-pointer">Parcelado</Label>
               </div>
             </div>
           </div>
@@ -539,7 +540,7 @@ export function EditTransactionDialog({
             <div className="border border-dashed border-primary/40 rounded-lg p-4 bg-primary/5 space-y-3">
               <div className="flex items-end gap-4">
                 <div className="flex-1 space-y-2">
-                  <Label htmlFor="total_installments">Total Installments *</Label>
+                  <Label htmlFor="total_installments">Número de parcelas</Label>
                   <Input
                     id="total_installments"
                     type="number"
@@ -553,8 +554,8 @@ export function EditTransactionDialog({
                 </div>
                 {installmentAmount && (
                   <div className="pb-1">
-                    <p className="text-xs text-muted-foreground mb-0.5">Each installment value</p>
-                    <p className="text-lg font-bold text-primary">R$ {installmentAmount}</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">Valor de cada parcela</p>
+                    <p className="text-lg font-bold text-primary">{formatCurrency(installmentAmount)}</p>
                   </div>
                 )}
               </div>

@@ -63,8 +63,13 @@ export function TransactionList({
 
   // Load banks once on mount (banks change rarely)
   useEffect(() => {
-    SettingsService.listBanks().then(setBanks).catch(() => {});
-  }, []);
+    SettingsService.listBanks()
+      .then(setBanks)
+      .catch((error: unknown) => {
+        console.error('Error loading banks:', error);
+        toast({ title: 'Erro', description: 'Falha ao carregar os bancos.', variant: 'destructive' });
+      });
+  }, [toast]);
 
   const getBankName = (bankCode: string | null | undefined): string | null => {
     if (!bankCode) return null;
@@ -117,7 +122,7 @@ export function TransactionList({
             <div className="flex items-center gap-3">
               <ArrowUpRight className="h-5 w-5 text-success" />
               <div>
-                <p className="text-sm text-muted-foreground">Income</p>
+                <p className="text-sm text-muted-foreground">Entradas</p>
                 <p className="text-lg font-semibold text-success">
                   <AnimatedNumber value={monthlyBalance.income} withDelay={100} />
                 </p>
@@ -128,7 +133,7 @@ export function TransactionList({
             <div className="flex items-center gap-3">
               <ArrowDownRight className="h-5 w-5 text-destructive" />
               <div>
-                <p className="text-sm text-muted-foreground">Expenses</p>
+                <p className="text-sm text-muted-foreground">Saídas</p>
                 <p className="text-lg font-semibold text-destructive">
                   <AnimatedNumber value={monthlyBalance.expenses} withDelay={250} />
                 </p>

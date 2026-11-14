@@ -94,7 +94,7 @@ const BankExtract = () => {
         if (dupItems.length > 0) {
           toast({
             title: `${dupItems.length} duplicata${dupItems.length > 1 ? 's' : ''} encontrada${dupItems.length > 1 ? 's' : ''}`,
-            description: 'Revise e resolva as duplicatas no topo da pÃ¡gina antes de confirmar.',
+            description: 'Revise e resolva as duplicatas no topo da página antes de confirmar.',
           })
         }
       }).catch(err => {
@@ -127,7 +127,7 @@ const BankExtract = () => {
     const checkResult = await FinancialService.checkDuplicates(checkPayload)
 
     if (!checkResult?.results) {
-      throw new Error('Resposta invÃ¡lida do servidor')
+      throw new Error('Resposta inválida do servidor')
     }
 
     const dupItems: DuplicateItem[] = []
@@ -175,7 +175,7 @@ const BankExtract = () => {
         if (found.length > 0) {
           toast({
             title: `${found.length} duplicata${found.length > 1 ? 's' : ''} encontrada${found.length > 1 ? 's' : ''}`,
-            description: 'Revise e resolva as duplicatas no topo da pÃ¡gina antes de confirmar.',
+            description: 'Revise e resolva as duplicatas no topo da página antes de confirmar.',
           })
         }
       } catch (err) {
@@ -223,7 +223,7 @@ const BankExtract = () => {
 
   // ---- Duplicate resolution (post-upload) ----
   const skipDuplicate = (key: string) => {
-    // Mark as "skip" â€” transaction won't be imported
+    // Mark as "skip" — transaction won't be imported
     setDuplicateItems(prev => prev.map(d => d.key === key ? { ...d, resolved: 'skip' } : d))
   }
 
@@ -238,9 +238,9 @@ const BankExtract = () => {
           ? { ...s, transactions: [...s.transactions, item.transaction] }
           : s
       ))
-      toast({ title: 'SubstituÃ­do', description: 'TransaÃ§Ã£o existente removida. A nova serÃ¡ importada.' })
+      toast({ title: 'Substituído', description: 'Transação existente removida. A nova será importada.' })
     } catch {
-      toast({ title: 'Erro', description: 'Falha ao remover transaÃ§Ã£o existente.', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Falha ao remover transação existente.', variant: 'destructive' })
     }
   }
 
@@ -305,7 +305,7 @@ const BankExtract = () => {
 
   const handleAddBank = async (sIdx: number) => {
     if (!newBankCode.trim() || !newBankName.trim()) {
-      toast({ title: 'Erro', description: 'Preencha cÃ³digo e nome do banco.', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Preencha código e nome do banco.', variant: 'destructive' })
       return
     }
     try {
@@ -549,8 +549,8 @@ setTransactionErrors(allErrors)
               <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Extrato BancÃ¡rio</h1>
-              <p className="text-muted-foreground mt-1">Importe seu extrato bancÃ¡rio em CSV ou OFX</p>
+              <h1 className="text-2xl font-bold text-foreground">Extrato Bancário</h1>
+              <p className="text-muted-foreground mt-1">Importe seu extrato bancário em CSV ou OFX</p>
             </div>
           </div>
 
@@ -580,7 +580,7 @@ setTransactionErrors(allErrors)
               <div className="flex flex-col items-center gap-4">
                 <Upload className="w-12 h-12 text-muted-foreground" />
                 <p className="text-lg text-muted-foreground">Arraste os arquivos aqui ou clique para selecionar</p>
-                <p className="text-sm text-muted-foreground">Formatos aceitos: CSV, OFX, QFX (mÃºltiplos arquivos)</p>
+                <p className="text-sm text-muted-foreground">Formatos aceitos: CSV, OFX, QFX (múltiplos arquivos)</p>
               </div>
             )}
           </div>
@@ -596,7 +596,7 @@ setTransactionErrors(allErrors)
     <div className="min-h-screen bg-gradient-subtle">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" onClick={handleCancel}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
@@ -604,11 +604,11 @@ setTransactionErrors(allErrors)
             <div>
               <h1 className="text-2xl font-bold">Revisar Extrato</h1>
               <p className="text-muted-foreground text-sm mt-1">
-                {sessions.length} arquivo{sessions.length > 1 ? 's' : ''} â€” {totals.total} transaÃ§Ãµes
+                {sessions.length} arquivo{sessions.length > 1 ? 's' : ''} — {totals.total} transações
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button variant="outline" size="sm" onClick={handleCancel} disabled={isConfirming}>
               <X className="w-4 h-4 mr-2" />Cancelar
             </Button>
@@ -641,13 +641,13 @@ setTransactionErrors(allErrors)
             <p className="text-2xl font-bold text-success">{totals.income}</p>
           </div>
           <div className="bg-card rounded-lg p-4 border border-border">
-            <p className="text-sm text-muted-foreground">SaÃ­das</p>
+            <p className="text-sm text-muted-foreground">Saídas</p>
             <p className="text-2xl font-bold text-destructive">{totals.expense}</p>
           </div>
           <div className="bg-card rounded-lg p-4 border border-border">
             <p className="text-sm text-success">Total Entradas</p>
             <p className="text-lg font-bold text-success">{formatCurrency(totals.totalIncome)}</p>
-            <p className="text-sm text-destructive">Total SaÃ­das</p>
+            <p className="text-sm text-destructive">Total Saídas</p>
             <p className="text-lg font-bold text-destructive">{formatCurrency(totals.totalExpense)}</p>
           </div>
         </div>
@@ -657,7 +657,7 @@ setTransactionErrors(allErrors)
           <div className="flex items-center gap-2">
             <AlertCircle className={`w-5 h-5 ${duplicateItems.length > 0 ? 'text-warning' : 'text-muted-foreground'}`} />
             <h2 className="text-lg font-semibold">
-              {duplicateItems.length > 0 ? 'TransaÃ§Ãµes Duplicadas Detectadas' : 'VerificaÃ§Ã£o de Duplicatas'}
+              {duplicateItems.length > 0 ? 'Transações Duplicadas Detectadas' : 'Verificação de Duplicatas'}
             </h2>
             {duplicateItems.length > 0 && (
               <span className="text-sm text-muted-foreground">
@@ -669,7 +669,7 @@ setTransactionErrors(allErrors)
           {duplicateItems.length === 0 ? (
             <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
               <CheckCircle className="w-8 h-8 mx-auto mb-2 text-success" />
-              <p className="text-sm">Nenhuma duplicata encontrada. Todas as transaÃ§Ãµes sÃ£o inÃ©ditas.</p>
+              <p className="text-sm">Nenhuma duplicata encontrada. Todas as transações são inéditas.</p>
             </div>
           ) : (
             <div className="rounded-lg border-2 border-warning/40 overflow-hidden">
@@ -678,11 +678,11 @@ setTransactionErrors(allErrors)
                   <thead className="bg-warning/10 border-b border-warning/30">
                     <tr>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Data</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">DescriÃ§Ã£o</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Descrição</th>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Valor</th>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tipo</th>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Existente</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">AÃ§Ã£o</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Ação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -701,22 +701,22 @@ setTransactionErrors(allErrors)
                             <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                               item.transaction.type === 'income' ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'
                             }`}>
-                              {item.transaction.type === 'income' ? 'Entrada' : 'SaÃ­da'}
+                              {item.transaction.type === 'income' ? 'Entrada' : 'Saída'}
                             </span>
                           </td>
                           <td className="px-3 py-2 text-xs">
                             <div className="space-y-0.5">
                               <span className="font-medium">{item.existing.description}</span>
                               <div className="text-muted-foreground">
-                                {item.existing.transaction_date} â€” {formatCurrency(item.existing.amount)}
-                                {item.existing.category_name && <span> Â· {item.existing.category_name}</span>}
+                                {item.existing.transaction_date} — {formatCurrency(item.existing.amount)}
+                                {item.existing.category_name && <span> · {item.existing.category_name}</span>}
                               </div>
                             </div>
                           </td>
                           <td className="px-3 py-2">
                             {isResolved ? (
                               <span className="text-xs text-success font-medium">
-                                {item.resolved === 'skip' ? 'âœ“ Ignorado' : 'âœ“ SubstituÃ­do'}
+                                {item.resolved === 'skip' ? '✓ Ignorado' : '✓ Substituído'}
                               </span>
                             ) : (
                               <div className="flex gap-1">
@@ -774,11 +774,11 @@ setTransactionErrors(allErrors)
                     <span className="font-semibold text-sm truncate">{session.filename}</span>
                     {session.isConfirmed && (
                       <span className="bg-success text-success-foreground text-xs px-2 py-0.5 rounded-full shrink-0">
-                        Confirmado âœ“
+                        Confirmado ✓
                       </span>
                     )}
                     <span className="text-xs text-muted-foreground shrink-0">
-                      {session.transactions.length} transaÃ§Ã£o{session.transactions.length > 1 ? 'Ãµes' : ''}
+                      {session.transactions.length} transação{session.transactions.length > 1 ? 'ões' : ''}
                     </span>
                   </div>
 
@@ -833,7 +833,7 @@ setTransactionErrors(allErrors)
                   <div className="px-4 py-3 bg-white border-b border-border">
                     <div className="flex items-end gap-3 max-w-lg flex-wrap">
                       <div className="space-y-1">
-                        <Label className="text-xs">CÃ³digo</Label>
+                        <Label className="text-xs">Código</Label>
                         <Input
                           placeholder="Ex: 260"
                           value={newBankCode}
@@ -867,7 +867,7 @@ setTransactionErrors(allErrors)
                       <thead className="bg-muted/50 border-b border-border">
                         <tr>
                           <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Data</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">DescriÃ§Ã£o</th>
+                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Descrição</th>
                           <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Valor</th>
                           <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tipo</th>
                           <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Parcelas</th>
@@ -909,7 +909,7 @@ setTransactionErrors(allErrors)
                                     ? 'bg-success/15 text-success'
                                     : 'bg-destructive/15 text-destructive'
                                 }`}>
-                                  {trans.type === 'income' ? 'Entrada' : 'SaÃ­da'}
+                                  {trans.type === 'income' ? 'Entrada' : 'Saída'}
                                 </span>
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap">
@@ -947,9 +947,9 @@ setTransactionErrors(allErrors)
                                   <SelectContent>
                                     <SelectItem value="dinheiro">Dinheiro</SelectItem>
                                     <SelectItem value="pix">PIX</SelectItem>
-                                    <SelectItem value="debito">DÃ©bito</SelectItem>
-                                    <SelectItem value="credito">CrÃ©dito</SelectItem>
-                                    <SelectItem value="transferencia">TransferÃªncia</SelectItem>
+                                    <SelectItem value="debito">Débito</SelectItem>
+                                    <SelectItem value="credito">Crédito</SelectItem>
+                                    <SelectItem value="transferencia">Transferência</SelectItem>
                                     <SelectItem value="boleto">Boleto</SelectItem>
                                     <SelectItem value="outros">Outros...</SelectItem>
                                   </SelectContent>
@@ -1047,7 +1047,7 @@ setTransactionErrors(allErrors)
                                   size="sm"
                                   className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                                   onClick={() => deleteTransaction(sIdx, rIdx)}
-                                  title="Remover transaÃ§Ã£o"
+                                  title="Remover transação"
                                   aria-label="Remover transação"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -1066,7 +1066,7 @@ setTransactionErrors(allErrors)
                   <div className="px-4 py-2 flex items-center gap-2 text-warning bg-warning/5 border-t border-border">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span className="text-xs">
-                      {session.transactions.filter(t => !t.category_id).length} transaÃ§Ã£o(Ãµes) sem categoria
+                      {session.transactions.filter(t => !t.category_id).length} transação(ões) sem categoria
                     </span>
                   </div>
                 )}
@@ -1079,7 +1079,7 @@ setTransactionErrors(allErrors)
         {pendingCount > 0 && (
           <div className="sticky bottom-0 mt-6 bg-card border border-border rounded-lg p-4 flex justify-between items-center shadow-lg">
             <span className="text-sm text-muted-foreground">
-              {pendingCount} sessÃ£o(Ãµes) pendente(s) â€” {totals.total - sessions.filter(s => s.isConfirmed).reduce((sum, s) => sum + s.transactions.length, 0)} transaÃ§Ãµes
+              {pendingCount} sessão(ões) pendente(s) — {totals.total - sessions.filter(s => s.isConfirmed).reduce((sum, s) => sum + s.transactions.length, 0)} transações
             </span>
             <Button
               onClick={confirmAll}

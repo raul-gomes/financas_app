@@ -183,8 +183,17 @@ financas_app/
 │       │   │   ├── investments/                # Componentes de investimentos
 │       │   │   │   └── InvestmentTable.tsx       # Tabela de investimentos com CRUD (add/edit/delete)
 │       │   │   │
+│       │   │   ├── brand/                      # Marca
+│       │   │   │   ├── Logo.tsx                  # Logo Placo (marca "P" + barras, cores só por tokens; props size, showWordmark; aria-label)
+│       │   │   │   └── Logo.test.tsx             # Testes do logo (wordmark, aria, tamanhos, sem cor fixa)
+│       │   │   │
 │       │   │   ├── layout/                     # Componentes de layout
-│   │   │               │   ├── AppLayout.tsx             # Layout principal: sidebar + conteúdo + redirecionamento
+│   │   │               │   ├── AppLayout.tsx             # Layout principal: header desktop (md+), barra superior e de abas mobile, `+` global (AddTransactionDialog), conteúdo com padding para a barra
+│   │   │               │   ├── MobileTabBar.tsx          # Barra de abas inferior (Início, Financeiro, +, Limites, Mais): ≥44px, safe-area, aria-current
+│   │   │               │   ├── MobileTabBar.test.tsx     # Testes da barra de abas
+│   │   │               │   ├── MobileTopBar.tsx          # Barra superior mobile (logo/título, slot de mês `MobileTopBarSlot`, sino)
+│   │   │               │   ├── navigation.ts             # Abas, grupo "Mais", títulos por rota, isTabActive/getRouteTitle
+│   │   │               │   ├── navigation.test.ts        # Testes de navigation.ts
 │   │   │               │   ├── SidebarPanel.tsx          # Sidebar colapsável: tabs de metas, compras, resumo
 │   │   │               │   ├── PageSkeleton.tsx          # Fallback de <Suspense> acessível (role=status, pt-BR) para rotas lazy
 │   │   │               │   └── PageSkeleton.test.tsx     # Teste do fallback de carregamento
@@ -215,7 +224,9 @@ financas_app/
 │       │   │   └── AnimatedNumber.tsx           # Componente de número com animação de contagem
 │       │   │
 │       │   ├── pages/                          # Páginas (rotas da aplicação)
-│       │   │   ├── Index.tsx                   # Página inicial: Visão Geral (OverviewDashboard) + links de navegação
+│       │   │   ├── Index.tsx                   # Página inicial: Visão Geral (OverviewDashboard)
+│       │   │   ├── More.tsx                    # Página "Mais" (mobile): menu admin (recorrentes, extrato, investimentos), configurações, notificações, sair
+│       │   │   ├── More.test.tsx               # Testes do menu Mais (admin vs usuário, sair)
 │       │   │   ├── Financial.tsx               # Página financeira: dashboard + transações + sidebar
 │       │   │   ├── Financial.test.tsx          # Testes de altura da tela (inicia 100vh, cresce até max 130vh)
 │       │   │   ├── Investments.tsx             # Página de investimentos (placeholder)

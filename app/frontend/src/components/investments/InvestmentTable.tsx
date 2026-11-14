@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, TrendingUp, TrendingDown, Search } from 'lucide-react';
 import { AddInvestmentDialog } from '@/components/dialogs/AddInvestmentDialog';
 import { EditInvestmentDialog } from '@/components/dialogs/EditInvestmentDialog';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatPercent } from '@/lib/format';
 import { EmptyState } from '@/components/ui/empty-state';
 
 interface InvestmentTableProps {
@@ -30,7 +30,7 @@ export const InvestmentTable = ({
 
   const formatPercentage = (percentage: number) => {
     const sign = percentage >= 0 ? '+' : '';
-    return `${sign}${percentage.toFixed(2)}%`;
+    return `${sign}${formatPercent(percentage)}`;
   };
 
   // Filtrar investimentos por busca

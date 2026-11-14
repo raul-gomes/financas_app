@@ -11,7 +11,10 @@ const RoleContext = createContext<RoleContextType | null>(null);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
-  const [roleLoading, setRoleLoading] = useState(true);
+  // Id of the user whose profile has already been resolved (success or failure).
+  // `loading` is derived from it so there is no render where a user id is known
+  // but its role is not yet loading (that gap redirected admins on page reload).
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
   const { user, loading: authLoading } = useSession();
   const userId = user?.id ?? null;
 
@@ -20,28 +23,29 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
     if (!userId) {
       setIsAdmin(false);
-      setRoleLoading(false);
+      setResolvedUserId(null);
       return () => {
         active = false;
       };
     }
 
-    setRoleLoading(true);
     SettingsService.getProfile()
       .then((profile: Profile) => {
         if (active) setIsAdmin(profile.role === 'admin');
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.error('Failed to load profile role; treating user as non-admin:', error);
         if (active) setIsAdmin(false);
       })
       .finally(() => {
-        if (active) setRoleLoading(false);
+        if (active) setResolvedUserId(userId);
       });
     return () => {
       active = false;
     };
   }, [userId]);
 
+  const roleLoading = userId !== null && resolvedUserId !== userId;
   const loading = authLoading || roleLoading;
 
   return (

@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useRef, useState } from 'react';
-import { formatCurrency, escapeHtml } from '@/lib/format';
+import { formatCurrency, escapeHtml, formatCompactNumber } from '@/lib/format';
 import * as d3 from '@/lib/d3';
 import { YearlyData } from '@/types/financial';
 
@@ -173,7 +173,7 @@ function D3BarChartBase({
         .attr('fill', 'hsl(var(--destructive))')
         .style('font-size', '13px')
         .style('font-weight', 'bold')
-        .text(`Limite: R$ ${monthlyGoal.toLocaleString('en-US')}`);
+        .text(`Limite: ${formatCurrency(monthlyGoal)}`);
 
       // Add hover effect to goal line
       goalLine
@@ -209,7 +209,7 @@ function D3BarChartBase({
     g.append('g')
       .call(d3.axisLeft(yScale).ticks(6).tickFormat(d => {
         const value = Number(d);
-        if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+        if (value >= 1000) return formatCompactNumber(value);
         return value.toString();
       }))
       .selectAll('text')

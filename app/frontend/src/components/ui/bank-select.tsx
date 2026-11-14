@@ -93,7 +93,7 @@ export function BankSelect({ value, onValueChange, disabled, className }: BankSe
           <SelectItem value="+add">
             <div className="flex items-center gap-2 text-primary font-medium">
               <Plus className="w-4 h-4" />
-              <span>Add new bank</span>
+              <span>Adicionar novo banco</span>
             </div>
           </SelectItem>
         </SelectContent>

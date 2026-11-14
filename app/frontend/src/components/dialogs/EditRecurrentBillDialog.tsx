@@ -120,7 +120,7 @@ export function EditRecurrentBillDialog({
     >
         <form id="edit-recurrent-bill-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="descricao">Descricao *</Label>
+            <Label htmlFor="descricao">Descrição *</Label>
             <Input
               id="descricao"
               value={formData.description}

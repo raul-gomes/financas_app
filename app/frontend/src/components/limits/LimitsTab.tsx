@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { DollarSign, Save, BarChart3, Trash2, PlusCircle, CreditCard } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { FinancialService } from '@/services/financialService'
+import { formatCurrency } from '@/lib/format';
 
 // ===== Types =====
 interface Subcategory {
@@ -324,7 +325,7 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
                                         className={`rounded-md border px-3 py-2 text-sm font-medium ${styles}`}
                                     >
                                         Este limite deixará "{cat.name}" com {alert.percent}% de uso neste mês
-                                        (R$ {alert.spent.toLocaleString('pt-BR')} gastos){suffix}.
+                                        ({formatCurrency(alert.spent)} gastos){suffix}.
                                     </div>
                                 )
                             })()}

@@ -94,7 +94,7 @@ Padrões próprios construídos sobre as bases. São a referência de **como** m
 
 ### 4.1 `ResponsiveModal` (`ui/responsive-modal.tsx`)
 
-Modal responsivo **mobile-first**. Estrutura em 3 camadas:
+Modal responsivo **mobile-first**: abaixo de `md` vira **bottom sheet** (ancorado embaixo, cantos superiores arredondados, alça, `92dvh`, respeita a safe-area); de `md` em diante é uma caixa centralizada com largura por `size`. Estrutura em 3 camadas:
 header fixo → corpo com scroll contido (`flex-1 min-h-0 overflow-y-auto`) → footer fixo.
 O scroll **nunca** acontece no box inteiro.
 
@@ -102,12 +102,12 @@ O scroll **nunca** acontece no box inteiro.
 <ResponsiveModal
   open={isOpen}
   onOpenChange={(open) => !open && handleClose()}
-  title="New Transaction"
+  title="Nova Transação"
   size="md"                       // sm | md (default) | lg | xl
   footer={
     <>
-      <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
-      <Button type="submit" form="meu-form-id">Save</Button>
+      <Button type="button" variant="outline" onClick={handleClose}>Cancelar</Button>
+      <Button type="submit" form="meu-form-id">Salvar</Button>
     </>
   }
 >
@@ -147,7 +147,8 @@ este padrão (D3 + wrapper React, consumindo tokens de cor do tema).
 ### 4.3 Domínios (`components/<domínio>/`)
 
 - `dialogs/` — modais de negócio (todos sobre `ResponsiveModal`)
-- `dashboards/`, `investments/`, `limits/`, `layout/` (`AppLayout`, `SidebarPanel`)
+- `dashboards/`, `investments/`, `limits/`, `layout/` (`AppLayout`, `SidebarPanel`, `MobileTabBar`, `MobileTopBar`; `MobileTopBarSlot` injeta um controle, ex. seletor de mês, na barra superior mobile)
+- `brand/` — `Logo` (marca Placo; cores só por tokens `primary`/`primary-foreground`)
 
 ### 4.4 `ConfirmDialog` (`ui/confirm-dialog.tsx`)
 
@@ -229,9 +230,13 @@ Fonte única para formatação — **não crie `Intl.NumberFormat` inline**:
 - `formatCurrency(value, currency?)` — Intl cacheado por moeda; default
   `DEFAULT_CURRENCY` (`'BRL'`). O parâmetro existe para a futura multi-moeda
   (ver `docs/backlog.md`, MULTI-01) — call sites não precisam passar nada hoje.
-- `formatDate(dateStr)` — aceita `'YYYY-MM-DD'` ou ISO completo; anexa `T12:00:00`
+  Tudo em **pt-BR**: `R$ 5.865,00` (espaço sem quebra entre o símbolo e o valor).
+- `formatDate(dateStr)` — `dd/mm/aaaa`; aceita `'YYYY-MM-DD'` ou ISO completo; anexa `T12:00:00`
   quando é só data (evita deslocamento de fuso)
-- `formatPercent(value, digits?)`
+- `formatPercent(value, digits?)` — vírgula decimal (`12,35%`)
+- `formatNumber(value, options?)` — número pt-BR sem símbolo
+- `formatCompactNumber(value)` — abreviado para eixos de gráfico (`5 mil`)
+- Proibido `toFixed`/`toLocaleString('en-US')`/`R$ ` + número em texto de UI.
 
 ## 4.9 `CurrencyInput` (`ui/currency-input.tsx`)
 
@@ -335,7 +340,7 @@ e renderiza tudo sem joins/agregações no cliente:
 - **Cartão de crédito:** StatCard "Cartão" com `tone` por % usado — `>=100`
   `destructive` com badge **"Estourando"**, `>=80` `warning`, abaixo `success`
   (mesma escala 80/90/100 das notificações de limite).
-- **Valores:** `formatCurrency` (en-US, `R$3,200.00`) e percentuais via `Math.round`.
+- **Valores:** `formatCurrency` (pt-BR, `R$ 3.200,00`) e percentuais via `Math.round`.
 
 ---
 
