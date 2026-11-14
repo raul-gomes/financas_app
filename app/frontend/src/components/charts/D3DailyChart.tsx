@@ -201,9 +201,9 @@ function D3DailyChartBase({
       .style('max-width', '90vw');
 
     // Hover effects
-    g.selectAll('.income-bar, .expense-bar, .investment-bar')
+    g.selectAll<SVGRectElement, DailyData>('.income-bar, .expense-bar, .investment-bar')
       .style('cursor', 'default')
-      .on('mouseover', function (event, d: any) {
+      .on('mouseover', function (event, d) {
         const isIncome = d3.select(this).classed('income-bar');
         const isExpense = d3.select(this).classed('expense-bar');
         const isInvestment = d3.select(this).classed('investment-bar');

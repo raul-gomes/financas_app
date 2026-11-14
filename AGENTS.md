@@ -12,6 +12,11 @@
 >
 > **IMPORTANT**: Whenever there is ANY database change — new/changed ORM model (`app/db/models/`), new Alembic migration (`app/db/migrations/versions/`), or a repository/route/service that starts reading/writing different tables — update `docs/lineage_data.md` in the same change (tables catalog, route→table matrix, flow graph, migration history, and its "Última atualização" date).
 
+## Operational Docs
+
+> - `docs/comandos.md`: every useful command to run the project (update it whenever you use, create or change a command, in the same commit).
+> - `docs/pendencias.md`: open pending items and technical debt (add newly found items, mark the ones you finish).
+
 ## Design System & Componentes
 
 > For the component catalog and design tokens, see: `docs/components.md`
@@ -69,16 +74,16 @@ DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas ale
 
 ## Key Backend Structure
 
-- Entry: `app/backend/app/main.py` — FastAPI app with 11 route modules
-- Routes: `transactions`, `categories`, `dashboard`, `limits`, `recurring_accounts`, `extract`, `settings`, `goals`, `shopping`, `pluggy`, `export`
+- Entry: `app/backend/app/main.py` — FastAPI app with 12 route modules
+- Routes: `transactions`, `categories`, `dashboard`, `limits`, `recurring_accounts`, `extract`, `settings`, `goals`, `shopping`, `pluggy`, `export`, `notifications`
 - DB layer: `app/db/` — SQLAlchemy async (PostgreSQL)
 - Models: `app/db/models/` — 7 ORM models
-- Repositories: `app/db/repositories/` — 9 data access classes
+- Repositories: `app/db/repositories/` — 13 data access classes
 - Schemas: `app/schemas/` — Pydantic DTOs
 - Services: `app/services/` — Pluggy API client, extract parsers
 - Config: `app/core/config.py` — loads env via `python-dotenv`
-- Migrations: `app/db/migrations/versions/` — 14 Alembic migrations
-- Tests: `tests/` — 12 test files (pytest + pytest-asyncio)
+- Migrations: `app/db/migrations/versions/` — 24 Alembic migrations
+- Tests: `tests/` — 28 test files (pytest + pytest-asyncio)
 
 ## Key Frontend Structure
 
@@ -98,6 +103,8 @@ DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas ale
 - Contexts: `src/contexts/` — SidebarContext
 
 ## Development Rules
+
+- **Commit messages are written in English** (Conventional Commits, e.g. `fix(frontend): ...`).
 
 ### TDD (Test-Driven Development) — MANDATORY
 

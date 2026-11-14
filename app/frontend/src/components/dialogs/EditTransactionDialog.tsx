@@ -21,6 +21,8 @@ import { FinancialService } from '@/services/financialService';
 import { SettingsService, UserBank } from '@/services/settingsService';
 import { BankLogo } from '@/components/ui/bank-logo';
 
+const KNOWN_PAYMENT_METHODS = ['cash', 'pix', 'debit', 'credit', 'transfer'];
+
 interface EditTransactionDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -50,7 +52,6 @@ export function EditTransactionDialog({
   const [newBankCode, setNewBankCode] = useState('');
   const [newBankName, setNewBankName] = useState('');
 
-  const KNOWN_PAYMENT_METHODS = ['cash', 'pix', 'debit', 'credit', 'transfer'];
   const { toast } = useToast();
 
   // Load categories/subcategories
@@ -178,7 +179,7 @@ export function EditTransactionDialog({
               <RadioGroup
                 value={formData.type!}
                 onValueChange={value => {
-                  const type = value as any;
+                  const type = value as Transaction['type'];
                   if (type === 'income' || type === 'investment') {
                     const autoCategory = type === 'income' ? 'Income' : 'Investments';
                     setFormData(prev => ({ ...prev, type, category_name: autoCategory, subcategory_name: '' }));
