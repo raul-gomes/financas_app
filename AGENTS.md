@@ -27,14 +27,14 @@
 - **Monorepo**: `app/backend/` (FastAPI, Python 3.12) + `app/frontend/` (Vite, React 18, TypeScript)
 - **Database**: PostgreSQL (relational: categorias, transacoes)
 - **Infra**: `infra/nginx.conf` (reverse proxy — only public-facing service)
-- **Docker**: root `docker-compose.yml` runs all services.
+- **Docker**: root `docker-compose.yml` runs all services (dev); `docker-compose-prod.yml` is the production stack (TLS via `infra/nginx.prod.conf.template`, frontend image `nginx-unprivileged` on 8080).
 
 ## Services & Ports
 
 | Service | Port | Access | Notes |
 |---------|------|--------|-------|
 | Nginx | 8087 | **External** | Only public entry point |
-| PostgreSQL | 5432 | Internal | user: `postgres`, db: `financas` |
+| PostgreSQL | 5436 (host) → 5432 | Loopback only (`127.0.0.1`) | credentials from `.env` (no defaults), db: `financas` |
 | Backend API | 8000 | Internal | FastAPI, proxied via nginx `/api/` |
 | Frontend | 8080 | Internal | Vite dev server, proxied via nginx `/` |
 

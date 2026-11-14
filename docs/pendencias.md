@@ -19,15 +19,15 @@ consolidados no fim.
 - [x] **S4** (média) FEITO: coluna `users.supabase_id` (migration `a7b8c9d0e1f2`), busca pelo `sub`, e-mail local segue o Supabase, e-mail de outra conta → 409. Perfil não aceita mais e-mail/senha (422): a tela troca pelo Supabase (antes a senha de login não mudava). Era: Identidade pelo `sub` do Supabase (`supabase_id`); não deixar o perfil trocar e-mail.
 - [ ] **S5** (média) `user_id` obrigatório em todos os repositórios.
 - [ ] **S6** (média) Extrato: `defusedxml` e limite de tamanho antes de ler o arquivo.
-- [ ] **S7** (média) CORS por variável de ambiente, rate limit, headers de segurança no nginx, containers sem root.
+- [~] **S7** (média) CORS por variável de ambiente, rate limit, headers de segurança no nginx, containers sem root. _Feito: `CORS_ORIGINS`, `ENVIRONMENT=production` (sem /docs), `limit_req`, headers/CSP/HSTS, backend e frontend sem root (nginx de borda ainda root, precisa das portas 80/443)._
 - [ ] **S8** (baixa) passlib removido e `password_hash` não é mais escrito; falta a migration que apaga a coluna. Era: Remover `password_hash`/passlib se o login é só Supabase.
 - [ ] **S9** (baixa) Não devolver `str(e)` ao cliente; `console.error` sem o objeto inteiro.
 - [x] **S10** (média) Tooltips D3 montavam HTML com o nome da categoria (dado do usuário). FEITO: `escapeHtml` (`lib/format.ts`) em todo texto interpolado.
 
 ## Bugs
 - [x] **B1** (média) FEITO: 4 testes dependiam da data (fixtures de setembro/2026 vs `now()`); agora o relógio é congelado com `time-machine` (fixture autouse em `test_limit_alert_job.py` e `test_notifications_routes.py`).
-- [ ] **B2** (média) Confirmar 413 em extrato > 1 MB; definir `client_max_body_size 10m`.
-- [ ] **B3** (média) Nginx de prod: upstream `frontend:8080` × imagem na 80; 443 sem TLS. Versionar o compose de prod sem segredos.
+- [x] **B2** (média) Confirmar 413 em extrato > 1 MB; definir `client_max_body_size 10m`. _Feito: `client_max_body_size 10m` nos dois nginx._
+- [x] **B3** (média) Nginx de prod: upstream `frontend:8080` × imagem na 80; 443 sem TLS. Versionar o compose de prod sem segredos. _Feito: frontend de prod na 8080 (nginx-unprivileged), `infra/nginx.prod.conf.template` com TLS, compose de prod versionado._
 - [ ] **B4** (baixa) `database.py:9` sem `DATABASE_URL`; `sync_engine` morto; `"Sin cronizar"` e `datetime.now()` sem fuso em `pluggy_routes.py`.
 
 ## Qualidade
@@ -50,10 +50,10 @@ consolidados no fim.
 - [ ] **P5** (baixa) Lock no job de alertas; evitar `selectin` de bancos em toda request.
 
 ## Infra e operação
-- [ ] **I1** (alta) Backup do Postgres (`pg_dump` agendado + teste de restauração).
-- [ ] **I2** (média) Não publicar o Postgres no host (ou só em `127.0.0.1`); sem senha padrão no compose.
-- [ ] **I3** (média) Logs num volume (rotação já existe no loguru); health check nos containers.
-- [ ] **I4** (baixa) Migração fora do start do container (ou com lock); `set -e` no `setup-docker.sh`.
+- [~] **I1** (alta) Backup do Postgres (`pg_dump` agendado + teste de restauração). _Scripts `scripts/backup-db.sh`/`restore-db.sh` e cron documentados; falta agendar no servidor e testar a restauração._
+- [x] **I2** (média) Não publicar o Postgres no host (ou só em `127.0.0.1`); sem senha padrão no compose. _Feito: `127.0.0.1:5436`, credenciais obrigatórias (`:?`)._
+- [x] **I3** (média) Logs num volume (rotação já existe no loguru); health check nos containers. _Feito: volume `backend-logs` no prod, healthchecks em todos os serviços._
+- [~] **I4** (baixa) Migração fora do start do container (ou com lock); `set -e` no `setup-docker.sh`. _`set -euo pipefail` feito; migration segue no start (premissa de réplica única documentada em `docs/comandos.md`)._
 
 ## Documentação e higiene
 - [x] **D1** (alta) `senhas.txt`, `acessos.md` e `ssh_key` movidos para `.private/` (ignorada, `0700`); `docs/` versionado (e-mail pessoal e URL de banco redigidos). FEITO. Falta o dono passar esses segredos para o EnvVault.

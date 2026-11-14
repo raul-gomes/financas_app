@@ -271,7 +271,15 @@ financas_app/
 │
 ├── infra/                                      # Infraestrutura
 │   └── nginx.conf                              # Reverse proxy: / → frontend, /api/ → backend (único exposed)
+│   ├── nginx.prod.conf.template                # Proxy de produção (80→443, TLS, CSP, HSTS; ${DOMAIN} via envsubst)
+│   └── snippets/                               # Trechos compartilhados (dev e prod)
+│       ├── api-locations.conf                  # /api/: bloqueio de docs, rate limit, timeouts
+│       └── proxy-api.conf                      # proxy_pass para o backend sem o prefixo /api
 │
+├── docker-compose-prod.yml                     # Stack de produção (db + backend + frontend + nginx TLS; sem segredos)
+├── scripts/
+│   ├── backup-db.sh                            # pg_dump -Fc com retenção
+│   └── restore-db.sh                           # Restauração com confirmação
 ├── docker-compose.yml                          # Orquestração: db + backend + frontend + nginx
 ├── .env.example                                # Variáveis de ambiente (POSTGRES_* + SUPABASE_*)
 ├── .gitignore                                  # Ignorados: node_modules, .venv, __pycache__, docs/, etc.
