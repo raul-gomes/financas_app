@@ -8,6 +8,16 @@ repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 load_dotenv(repo_root / ".env", override=False)
 
 
+def require_database_url(value: str | None) -> str:
+    """Return the database URL or fail fast, naming the missing environment variable."""
+    if value is None or not value.strip():
+        raise RuntimeError(
+            "DATABASE_URL environment variable is not set; "
+            "configure it before starting the application."
+        )
+    return value
+
+
 class Config:
     DATABASE_URL = os.getenv("DATABASE_URL")
     DB_ECHO = os.getenv("DB_ECHO", "false").lower() == "true"
