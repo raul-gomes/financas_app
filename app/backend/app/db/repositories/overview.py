@@ -1,11 +1,13 @@
 # app/db/repositories/overview.py
 
 import calendar
+from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import lazyload
 
 from app.db.models.category import CategoryORM
 from app.db.models.transaction import TransactionORM
@@ -23,10 +25,26 @@ from app.schemas.overview import (
     TotaisOverview,
 )
 
-SPECIAL_CATEGORIAS = {"mensal pf", "mensal pj", "limite cartao credito", "metas"}
+# Categoria cujo limite é o limite do cartão de crédito
+CREDIT_CARD_CATEGORY = "limite cartao credito"
+
+SPECIAL_CATEGORIAS = {"mensal pf", "mensal pj", CREDIT_CARD_CATEGORY, "metas"}
 
 # Só exibe no dashboard categorias estouradas ou quase chegando no limite (>=80%)
 THRESHOLD_EXIBICAO_CATEGORIA = 80.0
+
+
+@dataclass(frozen=True)
+class MonthAggregates:
+    """Month sums computed by a single SQL statement (scope: user + PF/PJ)."""
+
+    income: float
+    expenses: float
+    invested: float
+    income_to_date: float
+    expenses_to_date: float
+    credit_used: float
+    credit_limit: float
 
 
 class DashboardOverviewRepository:
@@ -46,13 +64,25 @@ class DashboardOverviewRepository:
         entity_type: str,
         user_id: int,
         is_admin: bool = True,
+        today: date | None = None,
     ) -> OverviewResponse:
+        today = today or date.today()
         mes_start = datetime(year, month, 1)
         mes_end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
 
-        totals = await self._totals(mes_start, mes_end, entity_type, user_id)
-        month_progress = await self._month_progress(year, month, entity_type, user_id)
-        credit_card = await self._credit_card(mes_start, mes_end, entity_type, user_id)
+        days_in_month = calendar.monthrange(year, month)[1]
+        # "Até o dia atual no mês" (se o mês consultado é o corrente) senão mês inteiro
+        day = today.day if today.year == year and today.month == month else days_in_month
+        aggregates = await self._month_aggregates(
+            mes_start,
+            mes_end,
+            datetime(year, month, day, 23, 59, 59),
+            entity_type,
+            user_id,
+        )
+        totals = self._totals(aggregates)
+        month_progress = self._month_progress(aggregates, day, days_in_month)
+        credit_card = self._credit_card(aggregates)
         categories_status = await self._categories_status(year, month, entity_type, user_id)
         installments = await self._installments(mes_start, mes_end, entity_type, user_id)
         recurring_accounts = await self._recurring_accounts(
@@ -100,109 +130,92 @@ class DashboardOverviewRepository:
             shopping=shopping,
         )
 
-    async def _totals(
-        self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int
-    ) -> TotaisOverview:
-        stmt_income = select(func.coalesce(func.sum(TransactionORM.amount), 0)).where(
-            TransactionORM.user_id == user_id,
-            TransactionORM.transaction_date >= mes_start,
-            TransactionORM.transaction_date < mes_end,
-            TransactionORM.type == "income",
+    async def _month_aggregates(
+        self,
+        mes_start: datetime,
+        mes_end: datetime,
+        cutoff: datetime,
+        entity_type: str,
+        user_id: int,
+    ) -> MonthAggregates:
+        """Every month sum the screen needs, aggregated in SQL in a single statement.
+
+        Conditional SUMs (full month, up to ``cutoff``, credit-card usage) plus the card
+        limit as a scalar subquery replace what used to be seven separate queries.
+        """
+
+        def amount_where(*conditions) -> object:
+            return func.coalesce(
+                func.sum(case((and_(*conditions), TransactionORM.amount), else_=0.0)), 0.0
+            )
+
+        until_cutoff = TransactionORM.transaction_date <= cutoff
+        is_income = TransactionORM.type == "income"
+        is_expense = TransactionORM.type == "expense"
+
+        limit_subquery = select(func.coalesce(func.sum(CategoryORM.limit), 0.0)).where(
+            CategoryORM.user_id == user_id,
+            func.lower(CategoryORM.name) == CREDIT_CARD_CATEGORY,
         )
-        stmt_expense = select(func.coalesce(func.sum(TransactionORM.amount), 0)).where(
+        stmt = select(
+            amount_where(is_income).label("income"),
+            amount_where(is_expense).label("expenses"),
+            amount_where(TransactionORM.type == "investment").label("invested"),
+            amount_where(is_income, until_cutoff).label("income_to_date"),
+            amount_where(is_expense, until_cutoff).label("expenses_to_date"),
+            amount_where(is_expense, TransactionORM.payment_method == "credit").label(
+                "credit_used"
+            ),
+        ).where(
             TransactionORM.user_id == user_id,
             TransactionORM.transaction_date >= mes_start,
             TransactionORM.transaction_date < mes_end,
-            TransactionORM.type == "expense",
-        )
-        stmt_invested = select(func.coalesce(func.sum(TransactionORM.amount), 0)).where(
-            TransactionORM.user_id == user_id,
-            TransactionORM.transaction_date >= mes_start,
-            TransactionORM.transaction_date < mes_end,
-            TransactionORM.type == "investment",
         )
         if entity_type != "all":
-            stmt_income = stmt_income.where(TransactionORM.entity_type == entity_type)
-            stmt_expense = stmt_expense.where(TransactionORM.entity_type == entity_type)
-            stmt_invested = stmt_invested.where(TransactionORM.entity_type == entity_type)
+            stmt = stmt.where(TransactionORM.entity_type == entity_type)
+            limit_subquery = limit_subquery.where(CategoryORM.entity_type == entity_type)
+        stmt = stmt.add_columns(limit_subquery.scalar_subquery().label("credit_limit"))
 
-        total_income = float((await self.db.execute(stmt_income)).scalar() or 0)
-        total_expenses = float((await self.db.execute(stmt_expense)).scalar() or 0)
-        total_invested = float((await self.db.execute(stmt_invested)).scalar() or 0)
+        row = (await self.db.execute(stmt)).one()
+        return MonthAggregates(
+            income=float(row.income),
+            expenses=float(row.expenses),
+            invested=float(row.invested),
+            income_to_date=float(row.income_to_date),
+            expenses_to_date=float(row.expenses_to_date),
+            credit_used=float(row.credit_used),
+            credit_limit=float(row.credit_limit or 0),
+        )
 
+    @staticmethod
+    def _totals(agg: MonthAggregates) -> TotaisOverview:
+        """Month totals (income, expenses, invested, balance) from the SQL aggregates."""
         return TotaisOverview(
-            total_income=round(total_income, 2),
-            total_expenses=round(total_expenses, 2),
-            total_invested=round(total_invested, 2),
-            balance=round(total_income - total_expenses, 2),
+            total_income=round(agg.income, 2),
+            total_expenses=round(agg.expenses, 2),
+            total_invested=round(agg.invested, 2),
+            balance=round(agg.income - agg.expenses, 2),
         )
 
-    async def _month_progress(
-        self, year: int, month: int, entity_type: str, user_id: int
+    @staticmethod
+    def _month_progress(
+        agg: MonthAggregates, day: int, days_in_month: int
     ) -> MonthProgressOverview:
-        days_in_month = calendar.monthrange(year, month)[1]
-        today = date.today()
-
-        # "Até o dia atual no mês" (se o mês consultado é o corrente) senão mês inteiro
-        day = today.day if today.year == year and today.month == month else days_in_month
-
-        cutoff = datetime(year, month, day, 23, 59, 59)
-        mes_start = datetime(year, month, 1)
-
-        stmt_income = select(func.coalesce(func.sum(TransactionORM.amount), 0)).where(
-            TransactionORM.user_id == user_id,
-            TransactionORM.transaction_date >= mes_start,
-            TransactionORM.transaction_date <= cutoff,
-            TransactionORM.type == "income",
-        )
-        stmt_expense = select(func.coalesce(func.sum(TransactionORM.amount), 0)).where(
-            TransactionORM.user_id == user_id,
-            TransactionORM.transaction_date >= mes_start,
-            TransactionORM.transaction_date <= cutoff,
-            TransactionORM.type == "expense",
-        )
-        if entity_type != "all":
-            stmt_income = stmt_income.where(TransactionORM.entity_type == entity_type)
-            stmt_expense = stmt_expense.where(TransactionORM.entity_type == entity_type)
-
-        income = float((await self.db.execute(stmt_income)).scalar() or 0)
-        expenses = float((await self.db.execute(stmt_expense)).scalar() or 0)
-
+        """Progress of the month up to ``day`` from the SQL aggregates."""
         return MonthProgressOverview(
             day=day,
             days_in_month=days_in_month,
             percent=round(day / days_in_month, 2),
-            income_up_to_today=round(income, 2),
-            expenses_up_to_today=round(expenses, 2),
-            balance=round(income - expenses, 2),
+            income_up_to_today=round(agg.income_to_date, 2),
+            expenses_up_to_today=round(agg.expenses_to_date, 2),
+            balance=round(agg.income_to_date - agg.expenses_to_date, 2),
         )
 
-    async def _credit_card(
-        self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int
-    ) -> CreditCardOverview:
-        # Limite total das categorias "Limite Cartao Credito" no escopo
-        lim_stmt = select(func.coalesce(func.sum(CategoryORM.limit), 0)).where(
-            CategoryORM.user_id == user_id,
-            func.lower(CategoryORM.name) == "limite cartao credito",
-        )
-        if entity_type != "all":
-            lim_stmt = lim_stmt.where(CategoryORM.entity_type == entity_type)
-        limit = float((await self.db.execute(lim_stmt)).scalar() or 0)
-
-        # Usado = soma de despesas pagas via crédito no mês
-        used_stmt = select(func.coalesce(func.sum(TransactionORM.amount), 0)).where(
-            TransactionORM.user_id == user_id,
-            TransactionORM.transaction_date >= mes_start,
-            TransactionORM.transaction_date < mes_end,
-            TransactionORM.type == "expense",
-            TransactionORM.payment_method == "credit",
-        )
-        if entity_type != "all":
-            used_stmt = used_stmt.where(TransactionORM.entity_type == entity_type)
-        used = float((await self.db.execute(used_stmt)).scalar() or 0)
-
+    @staticmethod
+    def _credit_card(agg: MonthAggregates) -> CreditCardOverview:
+        """Credit-card usage: limit of the "Limite Cartao Credito" categories vs credit spending."""
+        limit, used = agg.credit_limit, agg.credit_used
         percent_used = round((used / limit) * 100, 1) if limit > 0 else 0.0
-
         return CreditCardOverview(
             limit=round(limit, 2),
             used=round(used, 2),
@@ -255,7 +268,8 @@ class DashboardOverviewRepository:
                 TransactionORM.type == "expense",
                 TransactionORM.is_installment.is_(True),
             )
-            .order_by(TransactionORM.transaction_date)
+            .options(lazyload(TransactionORM.recurring_account))
+            .order_by(TransactionORM.transaction_date, TransactionORM.id)
         )
         if entity_type != "all":
             stmt = stmt.where(TransactionORM.entity_type == entity_type)
