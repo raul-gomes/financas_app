@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ContaRecorrenteBase(BaseModel):
@@ -73,8 +73,7 @@ class ContaRecorrenteResponse(ContaRecorrenteBase):
     current_installment: int = 0
     is_ending_soon: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode="before")
     @classmethod

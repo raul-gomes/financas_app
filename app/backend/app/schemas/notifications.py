@@ -25,7 +25,7 @@ class NotificationItem(BaseModel):
     message: str = Field(..., description="Mensagem pronta para o frontend exibir")
 
     @classmethod
-    def from_orm(cls, alerta) -> "NotificationItem":
+    def from_alert(cls, alerta) -> "NotificationItem":
         percent = alerta.percent_used
         # Cor por threshold (cores separadas): 80%=âmbar, 90%=laranja, 100%=vermelho
         severity = {80: "warning", 90: "critical", 100: "destructive"}.get(
