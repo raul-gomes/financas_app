@@ -46,7 +46,7 @@ consolidados no fim.
 - [ ] **P1** (média) Export filtrar `user_id` no SQL (`repositories/export.py:48`).
 - [ ] **P2** (média) Overview agregando no SQL.
 - [ ] **P3** (média) Paginação de transações no backend; cache no frontend.
-- [ ] **P4** (baixa) Lazy nas páginas de auth; importar só os módulos do D3 usados.
+- [x] **P4** (baixa) Lazy nas páginas de auth; importar só os módulos do D3 usados. Feito: Login/SignUp/ForgotPassword/UpdatePassword lazy; `d3` trocado por submódulos via `src/lib/d3.ts`; chunk principal 658,09 -> 648,77 kB (gzip 191,44 -> 189,83).
 - [ ] **P5** (baixa) Lock no job de alertas; evitar `selectin` de bancos em toda request.
 
 ## Infra e operação

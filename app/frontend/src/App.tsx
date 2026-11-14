@@ -11,12 +11,12 @@ import { PageSkeleton } from "@/components/layout/PageSkeleton";
 import { RoleProvider, useRole } from "@/contexts/RoleContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import Login from "./pages/Login";
-import SignUp from "./pages/SignUp";
-import ForgotPassword from "./pages/ForgotPassword";
-import UpdatePassword from "./pages/UpdatePassword";
 
-// Code-splitting por rota: cada página vira um chunk separado no build
+// Code-splitting por rota: cada página (inclusive as de autenticação) vira um chunk separado no build
+const Login = lazy(() => import("./pages/Login"));
+const SignUp = lazy(() => import("./pages/SignUp"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const Index = lazy(() => import("./pages/Index"));
 const Financial = lazy(() => import("./pages/Financial"));
 const Investments = lazy(() => import("./pages/Investments"));

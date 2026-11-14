@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from 'react';
 import { formatCurrency, escapeHtml } from '@/lib/format';
-import * as d3 from 'd3';
+import * as d3 from '@/lib/d3';
 
 interface D3HorizontalBarChartProps {
   data: Array<{category: string, value: number, color: string}>;
