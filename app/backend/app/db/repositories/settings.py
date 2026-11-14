@@ -1,5 +1,4 @@
 from fastapi import Depends
-from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,8 +6,6 @@ from app.core.database import get_session
 from app.db.models.user import UserORM
 from app.db.models.user_bank import UserBankORM
 from app.schemas.settings import BankCreate, ProfileUpdate
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class SettingsRepository:
@@ -24,12 +21,8 @@ class SettingsRepository:
             raise ValueError("Usuário não encontrado")
         if payload.name is not None:
             user.name = payload.name
-        if payload.email is not None:
-            user.email = payload.email
-        if payload.password:
-            user.password_hash = pwd_context.hash(payload.password)
         if payload.pluggy_api_key is not None:
-            user.pluggy_api_key = payload.pluggy_api_key
+            user.pluggy_api_key = payload.pluggy_api_key or None
         await self.db.commit()
         await self.db.refresh(user)
         return user

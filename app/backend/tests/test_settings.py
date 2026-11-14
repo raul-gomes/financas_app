@@ -90,3 +90,40 @@ async def test_profile_includes_role(client):
     # Usuário padrão (seed single-user) deve ser admin por padrão
     assert "role" in body
     assert body["role"] == "admin"
+
+
+# ── Perfil: segredos e identidade (pendencias S2, S4) ───────────────
+
+
+@pytest.mark.asyncio
+async def test_profile_never_returns_the_pluggy_key(client):
+    saved = await client.put("/settings/profile", json={"pluggy_api_key": "pluggy-secret-123456"})
+    assert saved.status_code == 200
+    assert "pluggy_api_key" not in saved.json()
+    assert saved.json()["has_pluggy_key"] is True
+
+    body = (await client.get("/settings/profile")).json()
+    assert "pluggy_api_key" not in body
+    assert body["has_pluggy_key"] is True
+    assert "pluggy-secret-123456" not in str(body)
+
+
+@pytest.mark.asyncio
+async def test_profile_reports_missing_pluggy_key(client):
+    body = (await client.get("/settings/profile")).json()
+    assert body["has_pluggy_key"] is False
+
+
+@pytest.mark.asyncio
+async def test_pluggy_key_can_be_removed_with_empty_string(client):
+    await client.put("/settings/profile", json={"pluggy_api_key": "pluggy-secret-123456"})
+    removed = await client.put("/settings/profile", json={"pluggy_api_key": ""})
+    assert removed.json()["has_pluggy_key"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field", ["email", "password"])
+async def test_profile_rejects_email_and_password_changes(client, field):
+    """E-mail e senha pertencem ao Supabase; o app não guarda cópia."""
+    response = await client.put("/settings/profile", json={field: "x@example.com"})
+    assert response.status_code == 422
