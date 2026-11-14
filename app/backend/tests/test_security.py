@@ -14,6 +14,8 @@ from app.core.security import get_current_user, require_admin, require_role
 # ── Fixtures ────────────────────────────────────────────────────────
 
 TEST_SECRET = "test-supabase-jwt-secret-for-testing-only"
+TEST_AUTH_URL = "http://localhost:9999"
+TEST_ISSUER = f"{TEST_AUTH_URL}/auth/v1"
 
 
 def _b64u(n: int) -> str:
@@ -41,7 +43,13 @@ def _make_es256_token(
     sub: str = "es256-user", email: str = "es256@example.com", signing_jwk: dict | None = None
 ):
     jwk = signing_jwk or _make_es256_jwk()
-    payload = {"sub": sub, "email": email, "exp": int(time.time()) + 3600, "aud": "authenticated"}
+    payload = {
+        "sub": sub,
+        "email": email,
+        "exp": int(time.time()) + 3600,
+        "aud": "authenticated",
+        "iss": TEST_ISSUER,
+    }
     return jwt.encode(payload, jwt.PyJWK(jwk).key, algorithm="ES256", headers={"kid": jwk["kid"]})
 
 
@@ -61,7 +69,7 @@ class _FakeJwksClient:
 def _make_token(
     sub: str = "user-uuid-123", email: str = "test@example.com", exp: int | None = None
 ):
-    payload = {"sub": sub, "email": email}
+    payload = {"sub": sub, "email": email, "aud": "authenticated", "iss": TEST_ISSUER}
     if exp is not None:
         payload["exp"] = exp
     else:
@@ -73,7 +81,7 @@ def _make_token(
 def patch_secret():
     with (
         patch.object(Config, "SUPABASE_JWT_SECRET", TEST_SECRET),
-        patch.object(Config, "SUPABASE_AUTH_URL", "http://localhost:9999"),
+        patch.object(Config, "SUPABASE_AUTH_URL", TEST_AUTH_URL),
     ):
         yield
 
@@ -281,3 +289,61 @@ async def test_es256_token_sem_jwks_raises_401(mock_db_session):
     ):
         await get_current_user(credentials=credentials, session=MagicMock())
     assert exc_info.value.status_code == 401
+
+
+# ── Testes: claims e algoritmo (pendencias S3) ───────────────────────
+
+
+async def _assert_401(token: str) -> None:
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+    with pytest.raises(HTTPException) as exc_info:
+        await get_current_user(credentials=credentials, session=MagicMock())
+    assert exc_info.value.status_code == 401
+
+
+def _hs256(**claims: object) -> str:
+    payload = {
+        "sub": "claims-user",
+        "email": "claims@example.com",
+        "exp": int(time.time()) + 3600,
+        "aud": "authenticated",
+        "iss": TEST_ISSUER,
+    }
+    payload.update(claims)
+    return jwt.encode({k: v for k, v in payload.items() if v is not None}, TEST_SECRET, "HS256")
+
+
+@pytest.mark.asyncio
+async def test_token_without_audience_raises_401(mock_db_session):
+    await _assert_401(_hs256(aud=None))
+
+
+@pytest.mark.asyncio
+async def test_token_with_wrong_audience_raises_401(mock_db_session):
+    await _assert_401(_hs256(aud="anon"))
+
+
+@pytest.mark.asyncio
+async def test_token_from_another_issuer_raises_401(mock_db_session):
+    await _assert_401(_hs256(iss="https://evil.example.com/auth/v1"))
+
+
+@pytest.mark.asyncio
+async def test_token_without_issuer_raises_401(mock_db_session):
+    await _assert_401(_hs256(iss=None))
+
+
+@pytest.mark.asyncio
+async def test_unsigned_token_raises_401(mock_db_session):
+    token = jwt.encode(
+        {"sub": "x", "email": "x@x.com", "aud": "authenticated", "iss": TEST_ISSUER},
+        key=None,
+        algorithm="none",
+    )
+    await _assert_401(token)
+
+
+@pytest.mark.asyncio
+async def test_hs256_token_without_configured_secret_raises_401(mock_db_session):
+    with patch.object(Config, "SUPABASE_JWT_SECRET", ""):
+        await _assert_401(_hs256())
