@@ -66,7 +66,7 @@ export function TransactionList({
     SettingsService.listBanks().then(setBanks).catch(() => {});
   }, []);
 
-  const getBankName = (bankCode: string | null): string | null => {
+  const getBankName = (bankCode: string | null | undefined): string | null => {
     if (!bankCode) return null;
     const bank = banks.find(b => b.bank_code === bankCode);
     return bank?.bank_name || null;

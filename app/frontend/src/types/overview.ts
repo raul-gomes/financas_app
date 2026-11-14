@@ -1,7 +1,7 @@
-import type { Infer } from '@/lib/parse';
+import type { z } from 'zod';
 import type { overviewResponseSchema } from '@/schemas/overview';
 
-export type OverviewResponse = Infer<typeof overviewResponseSchema>;
+export type OverviewResponse = z.infer<typeof overviewResponseSchema>;
 export type TotaisOverview = OverviewResponse['totals'];
 export type MonthProgressOverview = OverviewResponse['month_progress'];
 export type CreditCardOverview = OverviewResponse['credit_card'];

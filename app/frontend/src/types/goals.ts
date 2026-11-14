@@ -1,8 +1,8 @@
-import type { Infer } from '@/lib/parse';
+import type { z } from 'zod';
 import type { metaSchema, metaProgressoSchema } from '@/schemas/goals';
 
-export type Meta = Infer<typeof metaSchema>;
-export type MetaProgresso = Infer<typeof metaProgressoSchema>;
+export type Meta = z.infer<typeof metaSchema>;
+export type MetaProgresso = z.infer<typeof metaProgressoSchema>;
 
 export interface MetaCreate {
   subcategory_name: string;
