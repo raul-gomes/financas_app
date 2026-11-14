@@ -477,3 +477,9 @@ Fileira de chips que **rola na horizontal** (nunca quebra nem estoura a tela): f
 (lançamentos agrupados por dia; tocar na linha abre `TransactionDetailSheet` com Editar/Excluir; a lixeira não aparece na linha), depois `FixedVariableCard` e as categorias.
 O desktop segue com `FinancialDashboard` + `TransactionList` (os dois usam `PaymentKpiCards`, `FixedVariableCard` e o hook `useTransactionList`).
 `useRecentMonths` (em `useFinancialQueries`) lê o ano do mês final e, se a janela cruza o ano, o anterior.
+
+### 8.7 Início (`/`) no mobile
+
+`OverviewDashboard` escolhe `OverviewMobile` abaixo de `md` (o desktop não muda): controle segmentado Ambos/PF/PJ, cartão de destaque "Saldo do mês" com entradas e saídas,
+progresso do mês com o uso do cartão, "Perto do limite" (3 piores categorias, link "Ver limites" para `/limits`), "A pagar este mês", "Parcelas do mês" e, para admin, "Metas" e "Compras".
+Listas longas mostram 3 itens e o botão "Ver tudo"/"Ver menos". O seletor de mês (`MonthStepper`) vai para o `MobileTopBarSlot`; o `h1` da página some no mobile (a barra superior já tem o título).

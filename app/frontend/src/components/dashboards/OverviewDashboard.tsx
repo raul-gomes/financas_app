@@ -8,6 +8,10 @@ import { ArrowDownCircle, ArrowUpCircle, Coins, CreditCard, Target, ShoppingCart
 import { useOverviewQuery, type OverviewEntityType } from '@/hooks/queries/useOverviewQuery';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileTopBarSlot } from '@/components/layout/MobileTopBar';
+import { MonthStepper } from '@/components/layout/MonthStepper';
+import { OverviewMobile } from '@/components/dashboards/OverviewMobile';
 
 type EntityTypeFilter = 'pf' | 'pj' | 'all';
 
@@ -21,6 +25,7 @@ const ENTITY_LABEL: Record<string, string> = {
 };
 
 export function OverviewDashboard({ isAdmin = false }: OverviewDashboardProps) {
+  const isMobile = useIsMobile();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -37,9 +42,24 @@ export function OverviewDashboard({ isAdmin = false }: OverviewDashboardProps) {
 
   const monthName = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
+  // Mobile: the month stepper lives in the top bar; the body is the card layout of the mock
+  const mobileMonthStepper = (
+    <MobileTopBarSlot>
+      <MonthStepper
+        year={year}
+        month={month}
+        onChange={(next) => {
+          setYear(next.year);
+          setMonth(next.month);
+        }}
+      />
+    </MobileTopBarSlot>
+  );
+
   if (isPending) {
     return (
       <div className="space-y-4">
+        {isMobile && mobileMonthStepper}
         {[1, 2, 3].map((i) => (
           <div key={i} className="animate-pulse rounded-lg border bg-card p-4">
             <div className="h-4 w-1/3 rounded bg-muted" />
@@ -51,6 +71,15 @@ export function OverviewDashboard({ isAdmin = false }: OverviewDashboardProps) {
 
   if (!data) {
     return <EmptyState title="Erro ao carregar o dashboard" description="Não foi possível carregar os dados gerais." />;
+  }
+
+  if (isMobile) {
+    return (
+      <>
+        {mobileMonthStepper}
+        <OverviewMobile data={data} entityType={entityType} onEntityTypeChange={setEntityType} isAdmin={isAdmin} />
+      </>
+    );
   }
 
   const { totals, month_progress: mp, credit_card, categories_status, installments, recurring_accounts, goals, shopping } = data;

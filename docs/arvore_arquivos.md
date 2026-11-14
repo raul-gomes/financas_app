@@ -191,6 +191,8 @@ financas_app/
 │       │   │   │   ├── FinancialMobile.tsx      # /financial abaixo de md: mês no topo, chips de seção, KPIs, gráfico de 6 meses, lançamentos por dia, categorias
 │       │   │   │   ├── OverviewDashboard.tsx    # Dashboard geral da página inicial: indicadores, progresso mês, cartão (badge "Estourando" e tone 80/100), status limites, parcelas, recorrentes, metas/compras (admin); dados via useOverviewQuery (react-query)
 │       │   │   │   ├── OverviewDashboard.test.tsx # Testes do dashboard geral (render, refetch por entidade, cache ao voltar de filtro, esqueleto/erro, isAdmin, badge cartão estourando)
+│       │   │   │   ├── OverviewMobile.tsx       # Início no mobile (cards do mock): Ambos/PF/PJ, saldo do mês, progresso + cartão, perto do limite, a pagar, parcelas, metas/compras (admin) com "Ver tudo"
+│       │   │   │   ├── OverviewMobile.test.tsx  # Testes do layout mobile (hero, perto do limite, listas limitadas a 3, admin, segmentado)
 │       │   │   │   └── FinancialDashboard.test.tsx # Testes de rolagem dos boxes (100vh→130vh; Entradas/Gastos rolam quando estouram o teto) + badge "Estourando" do cartão
 │       │   │   │
 │       │   │   ├── investments/                # Componentes de investimentos
