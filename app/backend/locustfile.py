@@ -15,13 +15,14 @@ Execução (fora do container, contra o nginx exposto):
 Ou dentro da rede docker (alvo interno, sem nginx):
   locust -f locustfile.py --headless -u 50 -r 10 -t 60s -H http://financas-api:8000
 """
+
 import random
 from datetime import datetime
 
 from locust import HttpUser, task, between
 
 # IDs válidos presentes no banco de demonstração (evita 400 por FK/unique)
-CATEGORY_ID = 5        # Alimentação
+CATEGORY_ID = 5  # Alimentação
 SUBCATEGORY_ID = 15
 
 

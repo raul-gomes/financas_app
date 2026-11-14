@@ -18,8 +18,7 @@ from app.logger import log_api_request
 from uuid import uuid4
 from datetime import datetime
 
-router = APIRouter(prefix="/extracts", tags=["Bank Extract"],
-                   dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/extracts", tags=["Bank Extract"], dependencies=[Depends(require_admin)])
 
 
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -39,25 +38,25 @@ async def upload_extracto(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"Arquivo muito grande. Tamanho máximo: {MAX_UPLOAD_SIZE // (1024 * 1024)} MB",
         )
-    text = content.decode('utf-8', errors='replace')
+    text = content.decode("utf-8", errors="replace")
 
-    filename_lower = (file.filename or '').lower()
+    filename_lower = (file.filename or "").lower()
 
-    if filename_lower.endswith('.ofx') or filename_lower.endswith('.qfx'):
+    if filename_lower.endswith(".ofx") or filename_lower.endswith(".qfx"):
         transactions = parse_ofx(text)
-    elif filename_lower.endswith('.csv'):
+    elif filename_lower.endswith(".csv"):
         transactions = parse_csv(text)
     else:
-        if '<OFX' in text.upper() or '<STMTTRN' in text.upper():
+        if "<OFX" in text.upper() or "<STMTTRN" in text.upper():
             transactions = parse_ofx(text)
         else:
             transactions = parse_csv(text)
 
-    income_transactions = [t for t in transactions if t['type'] == 'income']
-    expense_transactions = [t for t in transactions if t['type'] == 'expense']
+    income_transactions = [t for t in transactions if t["type"] == "income"]
+    expense_transactions = [t for t in transactions if t["type"] == "expense"]
 
-    total_income_amount = sum(t['amount'] for t in income_transactions)
-    total_expenses_amount = sum(t['amount'] for t in expense_transactions)
+    total_income_amount = sum(t["amount"] for t in income_transactions)
+    total_expenses_amount = sum(t["amount"] for t in expense_transactions)
 
     parsed = [ParsedTransaction(**t) for t in transactions]
 
@@ -86,29 +85,34 @@ async def confirm_extracto(
     # Convert ParsedTransaction to dict for batch processing
     transactions_data = []
     for trans in payload.transactions:
-        transactions_data.append({
-            'date': trans.date,
-            'description': trans.description,
-            'amount': trans.amount,
-            'type': trans.type,
-            'entity_type': trans.entity_type,
-            'payment_method': trans.payment_method,
-            'category_id': trans.category_id,
-            'subcategory_id': trans.subcategory_id,
-            'category_name': trans.category_name,
-            'subcategory_name': trans.subcategory_name,
-            'bank_code': trans.bank_code,
-            'total_installments': trans.total_installments,
-            'is_installment': trans.is_installment or False,
-        })
+        transactions_data.append(
+            {
+                "date": trans.date,
+                "description": trans.description,
+                "amount": trans.amount,
+                "type": trans.type,
+                "entity_type": trans.entity_type,
+                "payment_method": trans.payment_method,
+                "category_id": trans.category_id,
+                "subcategory_id": trans.subcategory_id,
+                "category_name": trans.category_name,
+                "subcategory_name": trans.subcategory_name,
+                "bank_code": trans.bank_code,
+                "total_installments": trans.total_installments,
+                "is_installment": trans.is_installment or False,
+            }
+        )
 
     criadas, erros = await repo.create_batch_from_extract(transactions_data, current_user.id)
 
     try:
         from datetime import datetime as _dt
+
         if payload.transactions:
             primeira = min(t.date for t in payload.transactions)
-            await trigger_limit_evaluation(db, current_user.id, year=primeira.year, month=primeira.month)
+            await trigger_limit_evaluation(
+                db, current_user.id, year=primeira.year, month=primeira.month
+            )
     except Exception as e:
         log.warning(f"Falha ao avaliar limites pós-extrato: {e}")
 

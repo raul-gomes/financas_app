@@ -47,16 +47,22 @@ class LimitAlertRepository:
         )
         self.db.add(alerta)
         await self.db.flush()
-        log.info(f"Alerta criado: user={user_id} cat={category_id} month={month} threshold={threshold}")
+        log.info(
+            f"Alerta criado: user={user_id} cat={category_id} month={month} threshold={threshold}"
+        )
         return alerta
 
     async def exists(self, user_id: int, category_id: int, month: str, threshold: int) -> bool:
-        stmt = select(LimitAlertORM.id).where(
-            LimitAlertORM.user_id == user_id,
-            LimitAlertORM.category_id == category_id,
-            LimitAlertORM.month == month,
-            LimitAlertORM.threshold == threshold,
-        ).limit(1)
+        stmt = (
+            select(LimitAlertORM.id)
+            .where(
+                LimitAlertORM.user_id == user_id,
+                LimitAlertORM.category_id == category_id,
+                LimitAlertORM.month == month,
+                LimitAlertORM.threshold == threshold,
+            )
+            .limit(1)
+        )
         return (await self.db.execute(stmt)).scalar() is not None
 
     async def list_by_user(self, user_id: int) -> List[LimitAlertORM]:
@@ -69,9 +75,13 @@ class LimitAlertRepository:
         return list(result.unique().scalars().all())
 
     async def unread_count(self, user_id: int) -> int:
-        stmt = select(func.count()).select_from(LimitAlertORM).where(
-            LimitAlertORM.user_id == user_id,
-            LimitAlertORM.read_at.is_(None),
+        stmt = (
+            select(func.count())
+            .select_from(LimitAlertORM)
+            .where(
+                LimitAlertORM.user_id == user_id,
+                LimitAlertORM.read_at.is_(None),
+            )
         )
         return int((await self.db.execute(stmt)).scalar() or 0)
 

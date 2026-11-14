@@ -58,14 +58,17 @@ class DashboardOverviewRepository:
         credit_card = await self._credit_card(mes_start, mes_end, entity_type, user_id)
         categories_status = await self._categories_status(year, month, entity_type, user_id)
         installments = await self._installments(mes_start, mes_end, entity_type, user_id)
-        recurring_accounts = await self._recurring_accounts(mes_start, mes_end, entity_type, user_id)
+        recurring_accounts = await self._recurring_accounts(
+            mes_start, mes_end, entity_type, user_id
+        )
 
         goals: List[Dict[str, Any]] = []
         shopping: List[Dict[str, Any]] = []
         if is_admin:
             meta_repo = MetaRepository(self.db)
             goals = await meta_repo.calcular_progresso_todas(
-                year, month,
+                year,
+                month,
                 entity_type=(None if entity_type == "all" else entity_type),
                 user_id=user_id,
             )
@@ -100,7 +103,9 @@ class DashboardOverviewRepository:
             shopping=shopping,
         )
 
-    async def _totals(self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int) -> TotaisOverview:
+    async def _totals(
+        self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int
+    ) -> TotaisOverview:
         stmt_income = select(func.coalesce(func.sum(TransactionORM.amount), 0)).where(
             TransactionORM.user_id == user_id,
             TransactionORM.transaction_date >= mes_start,
@@ -135,7 +140,9 @@ class DashboardOverviewRepository:
             balance=round(total_income - total_expenses, 2),
         )
 
-    async def _month_progress(self, year: int, month: int, entity_type: str, user_id: int) -> MonthProgressOverview:
+    async def _month_progress(
+        self, year: int, month: int, entity_type: str, user_id: int
+    ) -> MonthProgressOverview:
         days_in_month = calendar.monthrange(year, month)[1]
         today = date.today()
 
@@ -176,7 +183,9 @@ class DashboardOverviewRepository:
             balance=round(income - expenses, 2),
         )
 
-    async def _credit_card(self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int) -> CreditCardOverview:
+    async def _credit_card(
+        self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int
+    ) -> CreditCardOverview:
         # Limite total das categorias "Limite Cartao Credito" no escopo
         lim_stmt = select(func.coalesce(func.sum(CategoryORM.limit), 0)).where(
             CategoryORM.user_id == user_id,
@@ -207,7 +216,9 @@ class DashboardOverviewRepository:
             percent_used=percent_used,
         )
 
-    async def _categories_status(self, year: int, month: int, entity_type: str, user_id: int) -> List[CategoriaStatusOverview]:
+    async def _categories_status(
+        self, year: int, month: int, entity_type: str, user_id: int
+    ) -> List[CategoriaStatusOverview]:
         limits_repo = LimitsRepository(self.db)
         data = await limits_repo.get_limits_with_spending(
             year, month, user_id, entity_type=(None if entity_type == "all" else entity_type)
@@ -238,7 +249,9 @@ class DashboardOverviewRepository:
             )
         return result
 
-    async def _installments(self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int) -> List[ParcelaMesOverview]:
+    async def _installments(
+        self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int
+    ) -> List[ParcelaMesOverview]:
         stmt = (
             select(TransactionORM)
             .where(
@@ -271,7 +284,9 @@ class DashboardOverviewRepository:
             for t in txs
         ]
 
-    async def _recurring_accounts(self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int) -> List[RecorrentePagarOverview]:
+    async def _recurring_accounts(
+        self, mes_start: datetime, mes_end: datetime, entity_type: str, user_id: int
+    ) -> List[RecorrentePagarOverview]:
         repo = ContaRecorrenteRepository(self.db)
         contas = await repo.get_all(
             entity_type=(None if entity_type == "all" else entity_type),

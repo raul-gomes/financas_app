@@ -37,9 +37,7 @@ class SettingsRepository:
     # ── Banks ─────────────────────────────────────────────────
 
     async def list_banks(self, user_id: int) -> list[UserBankORM]:
-        result = await self.db.execute(
-            select(UserBankORM).where(UserBankORM.user_id == user_id)
-        )
+        result = await self.db.execute(select(UserBankORM).where(UserBankORM.user_id == user_id))
         return list(result.unique().scalars().all())
 
     async def add_bank(self, user_id: int, payload: BankCreate) -> UserBankORM:

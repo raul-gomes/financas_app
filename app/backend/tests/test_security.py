@@ -41,7 +41,9 @@ def _make_es256_jwk() -> dict:
     }
 
 
-def _make_es256_token(sub: str = "es256-user", email: str = "es256@example.com", signing_jwk: dict | None = None):
+def _make_es256_token(
+    sub: str = "es256-user", email: str = "es256@example.com", signing_jwk: dict | None = None
+):
     jwk = signing_jwk or _make_es256_jwk()
     payload = {"sub": sub, "email": email, "exp": int(time.time()) + 3600, "aud": "authenticated"}
     return jwt.encode(payload, jwt.PyJWK(jwk).key, algorithm="ES256", headers={"kid": jwk["kid"]})
@@ -60,7 +62,9 @@ class _FakeJwksClient:
         return _FakeSigningKey(jwt.PyJWK(self._jwk).key)
 
 
-def _make_token(sub: str = "user-uuid-123", email: str = "test@example.com", exp: int | None = None):
+def _make_token(
+    sub: str = "user-uuid-123", email: str = "test@example.com", exp: int | None = None
+):
     payload = {"sub": sub, "email": email}
     if exp is not None:
         payload["exp"] = exp
@@ -71,8 +75,9 @@ def _make_token(sub: str = "user-uuid-123", email: str = "test@example.com", exp
 
 @pytest.fixture(autouse=True)
 def patch_secret():
-    with patch.object(Config, "SUPABASE_JWT_SECRET", TEST_SECRET), patch.object(
-        Config, "SUPABASE_AUTH_URL", "http://localhost:9999"
+    with (
+        patch.object(Config, "SUPABASE_JWT_SECRET", TEST_SECRET),
+        patch.object(Config, "SUPABASE_AUTH_URL", "http://localhost:9999"),
     ):
         yield
 
@@ -80,7 +85,9 @@ def patch_secret():
 @pytest.fixture(autouse=True)
 def mock_db_session():
     mock_session = MagicMock()
-    with patch("app.core.security.get_or_create_user_from_supabase", new_callable=AsyncMock) as mock_upsert:
+    with patch(
+        "app.core.security.get_or_create_user_from_supabase", new_callable=AsyncMock
+    ) as mock_upsert:
         mock_user = MagicMock()
         mock_user.id = 1
         mock_user.email = "test@example.com"
@@ -90,6 +97,7 @@ def mock_db_session():
 
 
 # ── Testes: require_role / require_admin ─────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_require_admin_allows_admin():
@@ -127,6 +135,7 @@ async def test_require_role_multiple_roles():
 
 # ── Testes: token válido ─────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_valid_token_returns_user(mock_db_session):
     token = _make_token(sub="auth-user-001", email="alice@example.com")
@@ -152,6 +161,7 @@ async def test_valid_token_calls_upsert_with_correct_args(mock_db_session):
 
 
 # ── Testes: token inválido ──────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_invalid_token_raises_401(mock_db_session):
@@ -204,6 +214,7 @@ async def test_none_credentials_raises_401(mock_db_session):
 
 # ── Testes: token sem campos obrigatórios ────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_token_without_sub_raises_401(mock_db_session):
     payload = {"email": "no-sub@example.com", "exp": int(time.time()) + 3600}
@@ -227,6 +238,7 @@ async def test_token_without_email_raises_401(mock_db_session):
 
 
 # ── Testes: token ES256 validado via JWKS (Supabase local/novos projetos) ────
+
 
 @pytest.mark.asyncio
 async def test_es256_token_validado_via_jwks(mock_db_session):

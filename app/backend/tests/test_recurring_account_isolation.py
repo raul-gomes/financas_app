@@ -1,34 +1,41 @@
 import pytest
 
 
-async def _criar_categoria_e_conta(clients_ctrl, user_id: int, descricao: str,
-                                   amount: float = 100.0) -> int:
+async def _criar_categoria_e_conta(
+    clients_ctrl, user_id: int, descricao: str, amount: float = 100.0
+) -> int:
     """Cria categoria+subcategoria e uma conta recorrente para o usuário."""
     clients_ctrl.switch(user_id)
     # Cria categoria (e subcategoria) para o usuário
-    cat_resp = await clients_ctrl.post("/categories/", json={
-        "category_name": f"Cat_{descricao}",
-        "entity_type": "individual",
-        "limit": 0,
-        "subcategories": [{"subcategory_name": "Sub1"}],
-    })
+    cat_resp = await clients_ctrl.post(
+        "/categories/",
+        json={
+            "category_name": f"Cat_{descricao}",
+            "entity_type": "individual",
+            "limit": 0,
+            "subcategories": [{"subcategory_name": "Sub1"}],
+        },
+    )
     assert cat_resp.status_code == 201, cat_resp.text
     # Busca subcategoria via category-options
     opts = await clients_ctrl.get("/dashboard/category-options")
     opt = next((c for c in opts.json()["options"] if c["name"] == f"Cat_{descricao}"), None)
     sub_id = opt["subcategories"][0]["id"] if opt and opt["subcategories"] else None
 
-    resp = await clients_ctrl.post("/recurring-accounts/", json={
-        "description": descricao,
-        "amount": amount,
-        "due_day": 10,
-        "category_id": cat_resp.json()["id"],
-        "subcategory_id": sub_id,
-        "entity_type": "individual",
-        "payment_method": "pix",
-        "start_date": "2026-01-01T00:00:00",
-        "active": True,
-    })
+    resp = await clients_ctrl.post(
+        "/recurring-accounts/",
+        json={
+            "description": descricao,
+            "amount": amount,
+            "due_day": 10,
+            "category_id": cat_resp.json()["id"],
+            "subcategory_id": sub_id,
+            "entity_type": "individual",
+            "payment_method": "pix",
+            "start_date": "2026-01-01T00:00:00",
+            "active": True,
+        },
+    )
     assert resp.status_code == 201, resp.text
     return resp.json()["id"]
 

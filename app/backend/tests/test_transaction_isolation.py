@@ -2,20 +2,24 @@ import pytest
 from httpx import AsyncClient
 
 
-async def _criar_transacao(clients_ctrl, user_id: int, nome: str, descricao: str = "Compras",
-                           amount: float = 50.0) -> int:
+async def _criar_transacao(
+    clients_ctrl, user_id: int, nome: str, descricao: str = "Compras", amount: float = 50.0
+) -> int:
     """Cria uma transação via category_name (auto-cria categoria+subcategoria)."""
     clients_ctrl.switch(user_id)
-    resp = await clients_ctrl.post("/transacoes/", json={
-        "amount": amount,
-        "description": descricao,
-        "transaction_date": "2026-01-15T10:00:00",
-        "type": "expense",
-        "entity_type": "individual",
-        "payment_method": "pix",
-        "category_name": nome,
-        "subcategory_name": "Sub1",
-    })
+    resp = await clients_ctrl.post(
+        "/transacoes/",
+        json={
+            "amount": amount,
+            "description": descricao,
+            "transaction_date": "2026-01-15T10:00:00",
+            "type": "expense",
+            "entity_type": "individual",
+            "payment_method": "pix",
+            "category_name": nome,
+            "subcategory_name": "Sub1",
+        },
+    )
     assert resp.status_code == 201, resp.text
     return resp.json()["id"]
 
@@ -64,7 +68,9 @@ class TestTransacaoIsolamento:
     async def test_user2_nao_ve_transacao_no_extrato(self, clients_ctrl):
         tx1_id = await _criar_transacao(clients_ctrl, 1, "CategoriaUser1f")
         clients_ctrl.switch(2)
-        resp = await clients_ctrl.get("/dashboard/statement?start_date=01/01/2026&end_date=31/01/2026&entity_type=individual")
+        resp = await clients_ctrl.get(
+            "/dashboard/statement?start_date=01/01/2026&end_date=31/01/2026&entity_type=individual"
+        )
         assert resp.status_code == 200
         assert all(t["id"] != tx1_id for t in resp.json()["transactions"])
 

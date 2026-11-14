@@ -41,27 +41,36 @@ async def _resolve_categoria_subcategoria(
         if existing_cat:
             categoria_id = existing_cat.id
         else:
-            new_cat = await categoria_repo.create(user_id, CategoriaCreate(
-                category_name=payload.category_name,
-                entity_type=payload.entity_type,
-                limit=0,
-                type='expense',
-            ))
+            new_cat = await categoria_repo.create(
+                user_id,
+                CategoriaCreate(
+                    category_name=payload.category_name,
+                    entity_type=payload.entity_type,
+                    limit=0,
+                    type="expense",
+                ),
+            )
             categoria_id = new_cat.id
 
     # Resolve subcategoria
     if subcategoria_id is None:
         if not payload.subcategory_name:
-            raise HTTPException(status_code=422, detail="subcategory_id or subcategory_name is required")
+            raise HTTPException(
+                status_code=422, detail="subcategory_id or subcategory_name is required"
+            )
         existing_sub = await subcategoria_repo.get_by_nome_and_categoria(
             payload.subcategory_name, categoria_id, user_id
         )
         if existing_sub:
             subcategoria_id = existing_sub.id
         else:
-            new_sub = await subcategoria_repo.create(categoria_id, user_id, SubcategoriaCreate(
-                subcategory_name=payload.subcategory_name,
-            ))
+            new_sub = await subcategoria_repo.create(
+                categoria_id,
+                user_id,
+                SubcategoriaCreate(
+                    subcategory_name=payload.subcategory_name,
+                ),
+            )
             subcategoria_id = new_sub.id
 
     return categoria_id, subcategoria_id
@@ -78,7 +87,9 @@ async def create_conta_recorrente(
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
     try:
-        cat_id, sub_id = await _resolve_categoria_subcategoria(current_user.id, payload, categoria_repo, subcategoria_repo)
+        cat_id, sub_id = await _resolve_categoria_subcategoria(
+            current_user.id, payload, categoria_repo, subcategoria_repo
+        )
         payload.category_id = cat_id
         payload.subcategory_id = sub_id
         result = await repo.create(payload, current_user.id)
@@ -95,14 +106,20 @@ async def create_conta_recorrente(
 async def list_contas_recorrentes(
     request: Request,
     current_user: UserORM = Depends(get_current_user),
-    entity_type: Optional[str] = Query(None, description="Filtrar por tipo de entidade: individual, business"),
+    entity_type: Optional[str] = Query(
+        None, description="Filtrar por tipo de entidade: individual, business"
+    ),
     limit: int = Query(100, ge=1, le=500, description="Limite de itens por página"),
     offset: int = Query(0, ge=0, description="Offset para paginação"),
     repo: ContaRecorrenteRepository = Depends(),
 ):
-    log = log_api_request(method="GET", endpoint=str(request.url), entity_type=entity_type, limit=limit, offset=offset)
+    log = log_api_request(
+        method="GET", endpoint=str(request.url), entity_type=entity_type, limit=limit, offset=offset
+    )
     try:
-        contas = await repo.get_all(entity_type=entity_type, limit=limit, offset=offset, user_id=current_user.id)
+        contas = await repo.get_all(
+            entity_type=entity_type, limit=limit, offset=offset, user_id=current_user.id
+        )
         log.info(f"{len(contas)} contas recorrentes listadas")
         return contas
     except Exception as e:
@@ -145,7 +162,10 @@ async def update_conta_recorrente(
     # Resolve categoria/subcategoria from names if provided
     if payload.category_name or payload.subcategory_name:
         cat_id, sub_id = await _resolve_categoria_subcategoria(
-            current_user.id, payload, categoria_repo, subcategoria_repo  # type: ignore
+            current_user.id,
+            payload,
+            categoria_repo,
+            subcategoria_repo,  # type: ignore
         )
         payload.category_id = cat_id
         payload.subcategory_id = sub_id
@@ -195,8 +215,7 @@ async def renew_conta_recorrente(
     return conta
 
 
-@router.post("/generate", response_model=GenerateResponse,
-             dependencies=[Depends(require_admin)])
+@router.post("/generate", response_model=GenerateResponse, dependencies=[Depends(require_admin)])
 async def generate_recurrent_transactions(
     request: Request,
     payload: GenerateRequest,
@@ -208,9 +227,9 @@ async def generate_recurrent_transactions(
     try:
         geradas, detalhes = await repo.generate_pending_transactions(payload, current_user.id)
         try:
-            await trigger_limit_evaluation(db, current_user.id,
-                                           year=payload.start_date.year,
-                                           month=payload.start_date.month)
+            await trigger_limit_evaluation(
+                db, current_user.id, year=payload.start_date.year, month=payload.start_date.month
+            )
         except Exception as e:
             log.warning(f"Falha ao avaliar limites pós-recorrentes: {e}")
         log.info(f"{geradas} transacoes recorrentes geradas")
@@ -219,4 +238,6 @@ async def generate_recurrent_transactions(
         raise
     except Exception as e:
         log.error(f"Erro ao gerar transacoes recorrentes: {type(e).__name__}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno ao gerar transacoes recorrentes: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro interno ao gerar transacoes recorrentes: {str(e)}"
+        )

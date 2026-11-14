@@ -22,9 +22,7 @@ engine = create_async_engine(
     echo=False,
 )
 
-TestSessionLocal = async_sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False
-)
+TestSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -52,6 +50,7 @@ async def async_session():
 @pytest_asyncio.fixture
 async def client():
     async with TestSessionLocal() as session:
+
         async def override_get_session():
             yield session
 
@@ -96,6 +95,7 @@ async def client_no_auth():
     credenciais válidas.
     """
     async with TestSessionLocal() as session:
+
         async def override_get_session():
             yield session
 
@@ -118,6 +118,7 @@ async def client_user2():
     testes que precisam alternar entre usuários, use `clients_ctrl`.
     """
     async with TestSessionLocal() as session:
+
         async def override_get_session():
             yield session
 
@@ -161,6 +162,7 @@ async def clients_ctrl():
     testar isolamento de dados por usuário via HTTP sem conflito de overrides globais.
     """
     async with TestSessionLocal() as session:
+
         async def override_get_session():
             yield session
 
@@ -168,9 +170,33 @@ async def clients_ctrl():
 
         now = datetime.now(timezone.utc)
         users = {
-            1: UserORM(id=1, name="Admin1", email="admin1@teste.com", password_hash="", role="admin", created_at=now, updated_at=now),
-            2: UserORM(id=2, name="Admin2", email="admin2@teste.com", password_hash="", role="admin", created_at=now, updated_at=now),
-            3: UserORM(id=3, name="Comum3", email="comum3@teste.com", password_hash="", role="user", created_at=now, updated_at=now),
+            1: UserORM(
+                id=1,
+                name="Admin1",
+                email="admin1@teste.com",
+                password_hash="",
+                role="admin",
+                created_at=now,
+                updated_at=now,
+            ),
+            2: UserORM(
+                id=2,
+                name="Admin2",
+                email="admin2@teste.com",
+                password_hash="",
+                role="admin",
+                created_at=now,
+                updated_at=now,
+            ),
+            3: UserORM(
+                id=3,
+                name="Comum3",
+                email="comum3@teste.com",
+                password_hash="",
+                role="user",
+                created_at=now,
+                updated_at=now,
+            ),
         }
         for u in users.values():
             session.add(u)

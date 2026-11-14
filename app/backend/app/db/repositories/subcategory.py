@@ -28,7 +28,9 @@ class SubcategoriaRepository:
         )
         return result.scalars().first()
 
-    async def get_by_nome_and_categoria(self, nome: str, categoria_id: int, user_id: int) -> Optional[SubcategoryORM]:
+    async def get_by_nome_and_categoria(
+        self, nome: str, categoria_id: int, user_id: int
+    ) -> Optional[SubcategoryORM]:
         """Busca subcategoria por nome sob uma categoria que pertença ao usuário."""
         result = await self.db.execute(
             select(self.model).where(
@@ -38,9 +40,13 @@ class SubcategoriaRepository:
             )
         )
         return result.scalars().first()
-    
-    async def create(self, categoria_id: int, user_id: int, obj_in: SubcategoriaCreate) -> SubcategoryORM:
-        log = log_database_operation(operation="create", collection="subcategorias", payload=obj_in.dict(), user_id=user_id)
+
+    async def create(
+        self, categoria_id: int, user_id: int, obj_in: SubcategoriaCreate
+    ) -> SubcategoryORM:
+        log = log_database_operation(
+            operation="create", collection="subcategorias", payload=obj_in.dict(), user_id=user_id
+        )
         try:
             # Garante que a categoria pertence ao usuário
             categoria = await self.db.get(CategoryORM, categoria_id)
@@ -57,10 +63,7 @@ class SubcategoriaRepository:
             raise HTTPException(status_code=400, detail="Erro ao criar subcategoria")
 
     async def create_many(self, categoria_id: int, user_id: int, subs: List[SubcategoriaCreate]):
-        sub_objs = [
-            self.model(name=s.subcategory_name, category_id=categoria_id)
-            for s in subs
-        ]
+        sub_objs = [self.model(name=s.subcategory_name, category_id=categoria_id) for s in subs]
         self.db.add_all(sub_objs)
         await self.db.commit()
 
@@ -74,20 +77,22 @@ class SubcategoriaRepository:
         )
         return result.scalars().all()
 
-    async def update(self, id: int, user_id: int, obj_in: SubcategoriaUpdate) -> Optional[SubcategoryORM]:
+    async def update(
+        self, id: int, user_id: int, obj_in: SubcategoriaUpdate
+    ) -> Optional[SubcategoryORM]:
         """Atualiza uma subcategoria, garantindo que pertença a uma categoria do usuário."""
         sub = await self.get_by_id(id, user_id)
         if not sub:
             return None
-        
+
         update_data = obj_in.model_dump(exclude_unset=True, exclude={"id"})
         field_map = {
-            'subcategory_name': 'name',
+            "subcategory_name": "name",
         }
         for field, value in update_data.items():
             orm_field = field_map.get(field, field)
             setattr(sub, orm_field, value)
-        
+
         await self.db.commit()
         await self.db.refresh(sub)
         return sub
@@ -97,7 +102,7 @@ class SubcategoriaRepository:
         sub = await self.get_by_id(id, user_id)
         if not sub:
             return None
-        
+
         await self.db.delete(sub)
         await self.db.commit()
         return sub
@@ -105,8 +110,7 @@ class SubcategoriaRepository:
     async def delete_by_categoria(self, categoria_id: int, user_id: int) -> None:
         """Deleta todas as subcategorias de uma categoria do usuário"""
         await self.db.execute(
-            delete(self.model)
-            .where(
+            delete(self.model).where(
                 self.model.category_id == categoria_id,
                 self.model.category.has(CategoryORM.user_id == user_id),
             )

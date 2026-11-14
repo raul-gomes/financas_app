@@ -6,6 +6,7 @@ from enum import Enum
 
 from app.schemas.transaction import NaturezaTransacao, TipoTransacao
 
+
 class TransacaoExtrato(BaseModel):
     id: int
     type: TipoTransacao
@@ -37,7 +38,9 @@ class ExtratoResponse(BaseModel):
     total_invested: float = Field(..., description="Total investido (igual às entradas)")
     transactions: List[TransacaoExtrato] = Field(..., description="Lista de transações filtradas")
     credit_card_limit: float = Field(default=0, description="Limite do cartão de crédito")
-    fixed_expenses: float = Field(default=0, description="Total de gastos fixos (contas recorrentes)")
+    fixed_expenses: float = Field(
+        default=0, description="Total de gastos fixos (contas recorrentes)"
+    )
     variable_expenses: float = Field(default=0, description="Total de gastos variáveis")
 
     class Config:
@@ -51,16 +54,21 @@ class MesRendimento(BaseModel):
 
 class RendimentoPeriodoResponse(BaseModel):
     limit: float = Field(..., description="Limite/metas financeiras")
-    months: Dict[str, MesRendimento] = Field(..., description="Dados de entrada e saída por mês em minúsculo")
+    months: Dict[str, MesRendimento] = Field(
+        ..., description="Dados de entrada e saída por mês em minúsculo"
+    )
 
     class Config:
         from_attributes = True
 
+
 # app/schemas/dashboard.py
+
 
 class TipoTrans(Enum):
     income = "income"
     expense = "expense"
+
 
 class SubcategoriaGasto(BaseModel):
     name: str = Field(..., description="Nome da subcategoria")
@@ -71,39 +79,45 @@ class CategoriaGasto(BaseModel):
     name: str = Field(..., description="Nome da categoria")
     total: float = Field(..., description="Total agregado na categoria")
     limit: float = Field(..., description="Limite configurado na categoria")
-    subcategories: List[SubcategoriaGasto] = Field(
-        ..., description="Detalhamento por subcategoria"
-    )
+    subcategories: List[SubcategoriaGasto] = Field(..., description="Detalhamento por subcategoria")
 
 
 class GastosPorCategoriaResponse(BaseModel):
     start_date: str = Field(..., description="Data inicial do filtro (DD/MM/YYYY)")
     end_date: str = Field(..., description="Data final do filtro (DD/MM/YYYY)")
-    categories: List[CategoriaGasto] = Field(
-        ..., description="Categorias com valores agregados"
-    )
+    categories: List[CategoriaGasto] = Field(..., description="Categorias com valores agregados")
 
     class Config:
         from_attributes = True
+
 
 class SubcategoriaOpcao(BaseModel):
     id: int = Field(..., description="ID da subcategoria")
     name: str = Field(..., description="Nome da subcategoria")
 
+
 class CategoriaOpcao(BaseModel):
     id: int = Field(..., description="ID da categoria")
     name: str = Field(..., description="Nome da categoria")
-    type: Optional[str] = Field(default=None, description="Tipo de transação: income, expense, investment, ou null")
+    type: Optional[str] = Field(
+        default=None, description="Tipo de transação: income, expense, investment, ou null"
+    )
     subcategories: List[SubcategoriaOpcao] = Field(..., description="Lista de subcategorias")
 
+
 class OpcoesCategoriaResponse(BaseModel):
-    options: List[CategoriaOpcao] = Field(..., description="Lista de categorias com suas subcategorias")
+    options: List[CategoriaOpcao] = Field(
+        ..., description="Lista de categorias com suas subcategorias"
+    )
+
     class Config:
         from_attributes = True
+
 
 class EntradaSubcategoriaItem(BaseModel):
     name: str = Field(..., description="Nome da subcategoria")
     total: float = Field(..., description="Total agregado na subcategoria")
+
 
 class EntradasPorCategoriaResponse(BaseModel):
     start_date: str = Field(..., description="Data inicial do filtro (DD/MM/YYYY)")
@@ -111,6 +125,6 @@ class EntradasPorCategoriaResponse(BaseModel):
     subcategories: List[EntradaSubcategoriaItem] = Field(
         ..., description="Lista de subcategorias com entradas agregadas"
     )
-    
+
     class Config:
         from_attributes = True

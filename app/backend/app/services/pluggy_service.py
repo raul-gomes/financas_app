@@ -4,6 +4,7 @@ Service for interacting with Meu Pluggy API (meu.pluggy.ai).
 Each user has their own API key from meu.pluggy.ai.
 This service uses that key to fetch accounts and transactions.
 """
+
 import httpx
 from typing import List, Optional
 from datetime import date, datetime
@@ -16,6 +17,7 @@ PLUGGY_API_BASE = "https://api.pluggy.ai"
 
 class PluggyAccount:
     """Represents a bank account from Pluggy."""
+
     id: str
     type: str  # BANK, CREDIT, INVESTMENT
     subtype: str
@@ -28,6 +30,7 @@ class PluggyAccount:
 
 class PluggyTransaction:
     """Represents a financial transaction from Pluggy."""
+
     id: str
     description: str
     amount: float
@@ -40,6 +43,7 @@ class PluggyTransaction:
 
 class PluggyItem:
     """Represents a connected bank item."""
+
     id: str
     status: str
     institution_name: str
@@ -85,18 +89,18 @@ class PluggyService:
             if e.response.status_code == 401:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="API Key inválida. Verifique sua chave no Meu Pluggy."
+                    detail="API Key inválida. Verifique sua chave no Meu Pluggy.",
                 )
             logger.error(f"Pluggy API error: {e.response.text}")
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Erro ao conectar com Meu Pluggy: {e.response.status_code}"
+                detail=f"Erro ao conectar com Meu Pluggy: {e.response.status_code}",
             )
         except httpx.RequestError as e:
             logger.error(f"Pluggy request error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Não foi possível conectar ao Meu Pluggy. Verifique sua conexão."
+                detail="Não foi possível conectar ao Meu Pluggy. Verifique sua conexão.",
             )
 
     async def fetch_items(self) -> List[PluggyItem]:

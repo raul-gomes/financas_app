@@ -63,7 +63,9 @@ async def get_current_user(
     sub = payload.get("sub")
     email = payload.get("email")
     if not sub or not email:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
+        )
 
     user = await get_or_create_user_from_supabase(session, sub=sub, email=email)
     return user
@@ -73,11 +75,10 @@ def require_role(*roles: str):
     """Dependency factory: garante que o usuário possui ao menos uma das roles,
     senão retorna 403. Reutilizável para múltiplas roles (Etapa 9).
     """
+
     async def _require_role(current_user: UserORM = Depends(get_current_user)) -> UserORM:
         if current_user.role not in roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado")
         return current_user
 
     return _require_role

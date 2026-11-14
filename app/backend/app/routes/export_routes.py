@@ -11,14 +11,13 @@ from app.core.security import get_current_user, require_admin
 from app.db.repositories.export import ExportRepository
 from app.logger import log_api_request
 
-router = APIRouter(prefix="/export", tags=["Exportação"],
-                   dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/export", tags=["Exportação"], dependencies=[Depends(require_admin)])
 
 
 @router.get(
     "/csv",
     summary="Exportar transações em CSV",
-    description="Baixa um arquivo CSV com todas as transações no período."
+    description="Baixa um arquivo CSV com todas as transações no período.",
 )
 async def export_csv(
     request: Request,
@@ -31,33 +30,47 @@ async def export_csv(
     if not end_date:
         end_date = datetime.now().strftime("%d/%m/%Y")
 
-    transactions = await ExportRepository(db).get_transactions_for_export(start_date, end_date, current_user.id)
+    transactions = await ExportRepository(db).get_transactions_for_export(
+        start_date, end_date, current_user.id
+    )
     log.info(f"Exportando {len(transactions)} transações para CSV")
 
     output = io.StringIO()
     writer = csv.writer(output)
 
     # Header
-    writer.writerow([
-        "Data", "Descrição", "Valor", "Tipo", "Natureza",
-        "Forma Pagamento", "Categoria", "Subcategoria", "Banco",
-        "Parcela", "Total Parcelas"
-    ])
+    writer.writerow(
+        [
+            "Data",
+            "Descrição",
+            "Valor",
+            "Tipo",
+            "Natureza",
+            "Forma Pagamento",
+            "Categoria",
+            "Subcategoria",
+            "Banco",
+            "Parcela",
+            "Total Parcelas",
+        ]
+    )
 
     for t in transactions:
-        writer.writerow([
-            t.transaction_date.strftime("%d/%m/%Y") if t.transaction_date else "",
-            t.description,
-            f"{t.amount:.2f}",
-            t.type,
-            t.entity_type,
-            t.payment_method,
-            t.category.name if t.category else "",
-            t.subcategory.name if t.subcategory else "",
-            t.bank_code or "",
-            t.installment_number or "",
-            t.total_installments or "",
-        ])
+        writer.writerow(
+            [
+                t.transaction_date.strftime("%d/%m/%Y") if t.transaction_date else "",
+                t.description,
+                f"{t.amount:.2f}",
+                t.type,
+                t.entity_type,
+                t.payment_method,
+                t.category.name if t.category else "",
+                t.subcategory.name if t.subcategory else "",
+                t.bank_code or "",
+                t.installment_number or "",
+                t.total_installments or "",
+            ]
+        )
 
     output.seek(0)
     return StreamingResponse(
@@ -72,7 +85,7 @@ async def export_csv(
 @router.get(
     "/ofx",
     summary="Exportar transações em OFX/QIF",
-    description="Baixa um arquivo OFX (Open Financial Exchange) com as transações no período."
+    description="Baixa um arquivo OFX (Open Financial Exchange) com as transações no período.",
 )
 async def export_ofx(
     request: Request,
@@ -85,7 +98,9 @@ async def export_ofx(
     if not end_date:
         end_date = datetime.now().strftime("%d/%m/%Y")
 
-    transactions = await ExportRepository(db).get_transactions_for_export(start_date, end_date, current_user.id)
+    transactions = await ExportRepository(db).get_transactions_for_export(
+        start_date, end_date, current_user.id
+    )
     log.info(f"Exportando {len(transactions)} transações para OFX")
 
     # Generate OFX (OFX 1.0 / QFX format)
