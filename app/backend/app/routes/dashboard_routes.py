@@ -1,15 +1,13 @@
+"""Dashboard routes: HTTP concerns only. Aggregations live in repositories (SQL), rules in
+DashboardService, and the user always comes from the verified token."""
+
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, Query, status
 
-from app.core.database import get_session
-from app.core.security import get_current_user
-from app.db.models.user import UserORM
-from app.db.repositories.dashboard import DashboardRepository
-from app.db.repositories.overview import DashboardOverviewRepository
 from app.logger import log_api_request
+from app.routes.dependencies import get_dashboard_service, parse_date
 from app.schemas.dashboard import (
     EntradasPorCategoriaResponse,
     ExtratoResponse,
@@ -19,8 +17,14 @@ from app.schemas.dashboard import (
     TipoTrans,
 )
 from app.schemas.overview import OverviewResponse
+from app.services.dashboard_service import DashboardService
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+
+
+def _end_of_day(day: datetime) -> datetime:
+    """Extends a parsed date to the last instant of that day (inclusive range end)."""
+    return datetime.combine(day.date(), datetime.max.time())
 
 
 @router.get(
@@ -31,31 +35,18 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
     status_code=status.HTTP_200_OK,
 )
 async def overview_geral(
-    current_user: UserORM = Depends(get_current_user),
     year: int = Query(..., description="Ano (YYYY)"),
     month: int = Query(..., ge=1, le=12, description="Mês (1-12)"),
     entity_type: str = Query(default="all", description="Entity type: individual, business ou all"),
-    db: AsyncSession = Depends(get_session),
+    service: DashboardService = Depends(get_dashboard_service),
 ):
     api_logger = log_api_request(
         "GET", "/dashboard/overview", year=year, month=month, entity_type=entity_type
     )
-    is_admin = getattr(current_user, "role", "") == "admin"
-
-    repo = DashboardOverviewRepository(db)
-    overview = await repo.overview_geral(year, month, entity_type, current_user.id, is_admin)
+    overview = await service.overview(year, month, entity_type)
 
     api_logger.success("Overview gerado", reference_month=overview.reference_month)
     return overview
-
-
-def parse_date(date_str: str, field_name: str) -> datetime:
-    try:
-        return datetime.strptime(date_str, "%d/%m/%Y")
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400, detail=f"Formato inválido para {field_name}. Use DD/MM/YYYY."
-        ) from exc
 
 
 @router.get(
@@ -66,24 +57,19 @@ def parse_date(date_str: str, field_name: str) -> datetime:
     status_code=status.HTTP_200_OK,
 )
 async def extrato_financeiro(
-    current_user: UserORM = Depends(get_current_user),
     start_date: str = Query(..., description="Data inicial DD/MM/YYYY"),
     end_date: str = Query(..., description="Data final DD/MM/YYYY"),
     entity_type: str = Query(
         default="individual", description="Entity type: individual, business ou all"
     ),
-    db: AsyncSession = Depends(get_session),
+    service: DashboardService = Depends(get_dashboard_service),
 ):
     api_logger = log_api_request("GET", "/dashboard/statement")
 
     dt_i = parse_date(start_date, "start_date")
-    dt_f = parse_date(end_date, "end_date")
-    dt_f = datetime.combine(dt_f.date(), datetime.max.time())
+    dt_f = _end_of_day(parse_date(end_date, "end_date"))
 
-    dashboard_repo = DashboardRepository(db)
-    extrato = await dashboard_repo.extrato_financeiro(
-        dt_i, dt_f, entity_type, start_date, end_date, current_user.id
-    )
+    extrato = await service.statement(dt_i, dt_f, entity_type, start_date, end_date)
 
     api_logger.success(
         "Extrato gerado",
@@ -102,17 +88,15 @@ async def extrato_financeiro(
     description="Retorna entradas/saídas agregadas por mês no ano",
 )
 async def rendimento_periodo(
-    current_user: UserORM = Depends(get_current_user),
     year: int = Query(..., description="Ano para agregação (YYYY)"),
     entity_type: str = Query(
         default="individual", description="Entity type: individual, business ou all"
     ),
-    db: AsyncSession = Depends(get_session),
+    service: DashboardService = Depends(get_dashboard_service),
 ):
     api_logger = log_api_request("GET", "/dashboard/period-income")
 
-    dashboard_repo = DashboardRepository(db)
-    rendimento_ano = await dashboard_repo.rendimento_por_periodo(year, entity_type, current_user.id)
+    rendimento_ano = await service.period_income(year, entity_type)
 
     api_logger.success("Rendimento por período gerado", year=year)
 
@@ -127,23 +111,18 @@ async def rendimento_periodo(
     status_code=status.HTTP_200_OK,
 )
 async def gastos_por_categoria(
-    current_user: UserORM = Depends(get_current_user),
     start_date: str = Query(..., description="Data inicial DD/MM/YYYY"),
     end_date: str = Query(..., description="Data final DD/MM/YYYY"),
     entity_type: str = Query(
         default="individual", description="Entity type: individual, business ou all"
     ),
     type: Literal["income", "expense"] = Query(..., description="Tipo de transação"),
-    db: AsyncSession = Depends(get_session),
+    service: DashboardService = Depends(get_dashboard_service),
 ):
-    dt_i = datetime.strptime(start_date, "%d/%m/%Y")
-    dt_f = datetime.strptime(end_date, "%d/%m/%Y")
-    dt_f = datetime.combine(dt_f.date(), datetime.max.time())
+    dt_i = parse_date(start_date, "start_date")
+    dt_f = _end_of_day(parse_date(end_date, "end_date"))
 
-    repo = DashboardRepository(db)
-    categorias = await repo.gastos_por_categoria(
-        dt_i, dt_f, entity_type, TipoTrans(type), current_user.id
-    )
+    categorias = await service.breakdown_by_category(dt_i, dt_f, entity_type, TipoTrans(type))
 
     return GastosPorCategoriaResponse(
         start_date=start_date,
@@ -159,12 +138,11 @@ async def gastos_por_categoria(
     description="Retorna lista de categorias com suas respectivas subcategorias.",
 )
 async def opcoes_categorias(
-    current_user: UserORM = Depends(get_current_user),
     entity_type: Literal["individual", "business", "all"] = Query("all"),
     type: str | None = Query(
         None, description="Filtrar por tipo de transacao: income, expense, investment"
     ),
-    db: AsyncSession = Depends(get_session),
+    service: DashboardService = Depends(get_dashboard_service),
 ) -> OpcoesCategoriaResponse:
 
     api_logger = log_api_request(
@@ -172,8 +150,7 @@ async def opcoes_categorias(
     )
     api_logger.info("Gerando opções de categorias", entity_type=entity_type, type=type)
 
-    dashboard_repo = DashboardRepository(db)
-    opcoes = await dashboard_repo.opcoes_categorias(entity_type, type, user_id=current_user.id)
+    opcoes = await service.category_options(entity_type, type)
 
     api_logger.success("Opções de categorias retornadas", count=len(opcoes.options))
     return opcoes
@@ -186,24 +163,19 @@ async def opcoes_categorias(
     description="Retorna valores de entradas por subcategoria agrupados por categoria",
 )
 async def entradas_por_categoria(
-    current_user: UserORM = Depends(get_current_user),
     start_date: str = Query(..., description="Data inicial DD/MM/YYYY"),
     end_date: str = Query(..., description="Data final DD/MM/YYYY"),
     entity_type: str = Query(
         default="individual", description="Entity type: individual, business ou all"
     ),
-    db: AsyncSession = Depends(get_session),
+    service: DashboardService = Depends(get_dashboard_service),
 ):
     api_logger = log_api_request("GET", "/dashboard/income-by-category")
 
     dt_i = parse_date(start_date, "start_date")
-    dt_f = parse_date(end_date, "end_date")
-    dt_f = datetime.combine(dt_f.date(), datetime.max.time())
+    dt_f = _end_of_day(parse_date(end_date, "end_date"))
 
-    dashboard_repo = DashboardRepository(db)
-    resultado = await dashboard_repo.entradas_por_categoria(
-        dt_i, dt_f, entity_type, start_date, end_date, current_user.id
-    )
+    resultado = await service.income_by_subcategory(dt_i, dt_f, entity_type, start_date, end_date)
 
     api_logger.success("Entradas por categoria geradas", count=len(resultado.subcategories))
     return resultado

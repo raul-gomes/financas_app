@@ -1,4 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useErrorToast } from '@/hooks/queries/useErrorToast'
+import { invalidateDomain, useLimitCategories, useLimitsWithSpending } from '@/hooks/queries/useLimitsQueries'
 import {
     Card,
     CardHeader,
@@ -81,64 +84,60 @@ interface LimitsTabProps {
 }
 
 export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
+    const queryClient = useQueryClient()
+    // Server data is cached; `rawData` is the editable draft built from it
     const [rawData, setRawData] = useState<Category[]>([])
-    const [loading, setLoading] = useState(false)
-    const [spending, setSpending] = useState<Record<string, number>>({})
+    const [saving, setSaving] = useState(false)
     const { toast } = useToast()
+    const { data: fetchedLimits, isPending: loadingLimits, isError: limitsError } = useLimitCategories()
+    const now = new Date()
+    const { data: spendingData } = useLimitsWithSpending(now.getFullYear(), now.getMonth() + 1)
+    const loading = loadingLimits || saving
+    useErrorToast(limitsError, 'Nao foi possivel carregar limites')
 
     const data = rawData.filter(cat => {
         if (entityTypeFilter === 'all') return true
         return cat.entity_type === entityTypeFilter || cat.entity_type === 'mensal'
     })
 
+    // (Re)build the draft whenever the server data arrives or is refreshed (e.g. after saving)
     useEffect(() => {
-        setLoading(true)
-        FinancialService.getLimits()
-            .then(fetched => {
-                const mapped = fetched.map(transformCategory)
-                const ensureCategory = (name: string, entity_type: 'pf' | 'pj', defaultLimit: number): Category => {
-                    const existing = mapped.find(c => c.name.trim().toLowerCase() === name.toLowerCase())
-                    if (existing) return existing
-                    return {
-                        id: `new_${name.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`,
-                        name,
-                        entity_type,
-                        limit: defaultLimit,
-                        subcategories: [],
-                        isNew: true,
-                    }
-                }
+        if (!fetchedLimits) return
+        const mapped = fetchedLimits.map(transformCategory)
+        const ensureCategory = (name: string, entity_type: 'pf' | 'pj', defaultLimit: number): Category => {
+            const existing = mapped.find(c => c.name.trim().toLowerCase() === name.toLowerCase())
+            if (existing) return existing
+            return {
+                id: `new_${name.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`,
+                name,
+                entity_type,
+                limit: defaultLimit,
+                subcategories: [],
+                isNew: true,
+            }
+        }
 
-                const mensalPF = ensureCategory('Mensal PF', 'pf', 1000)
-                const mensalPJ = ensureCategory('Mensal PJ', 'pj', 1000)
-                const limiteCartao = ensureCategory('Limite Cartao Credito', 'pf', 5000)
+        const mensalPF = ensureCategory('Mensal PF', 'pf', 1000)
+        const mensalPJ = ensureCategory('Mensal PJ', 'pj', 1000)
+        const limiteCartao = ensureCategory('Limite Cartao Credito', 'pf', 5000)
 
-                const specialNames = ['mensal pf', 'mensal pj', 'limite cartao credito', 'mensal']
-                const rest = mapped.filter(c => !specialNames.includes(c.name.trim().toLowerCase()))
+        const specialNames = ['mensal pf', 'mensal pj', 'limite cartao credito', 'mensal']
+        const rest = mapped.filter(c => !specialNames.includes(c.name.trim().toLowerCase()))
 
-                setRawData([mensalPF, mensalPJ, limiteCartao, ...rest])
-            })
-            .catch(err => {
-                console.error(err)
-                toast({ title: 'Erro', description: 'Nao foi possivel carregar limites', variant: 'destructive' })
-            })
-            .finally(() => setLoading(false))
-    }, [toast])
+        setRawData([mensalPF, mensalPJ, limiteCartao, ...rest])
+        setDeletedCategoryIds([])
+    }, [fetchedLimits])
 
     // Gasto real do mês por categoria (key: nome|pf/pj) para o aviso de % pré-save
-    useEffect(() => {
-        const now = new Date()
-        FinancialService.getLimitsWithSpending(now.getFullYear(), now.getMonth() + 1)
-            .then(res => {
-                const map: Record<string, number> = {}
-                for (const cat of res.categories) {
-                    const entity = cat.entity_type === 'individual' ? 'pf' : cat.entity_type === 'business' ? 'pj' : cat.entity_type
-                    map[`${cat.category_name.trim().toLowerCase()}|${entity}`] = cat.spent
-                }
-                setSpending(map)
-            })
-            .catch(() => { /* sem gastos disponíveis o aviso simplesmente não aparece */ })
-    }, [])
+    // (sem gastos disponíveis o aviso simplesmente não aparece)
+    const spending = useMemo(() => {
+        const map: Record<string, number> = {}
+        for (const cat of spendingData?.categories ?? []) {
+            const entity = cat.entity_type === 'individual' ? 'pf' : cat.entity_type === 'business' ? 'pj' : cat.entity_type
+            map[`${cat.category_name.trim().toLowerCase()}|${entity}`] = cat.spent
+        }
+        return map
+    }, [spendingData])
 
     // % de uso pré-save: gato real do mês ÷ limite digitado (antes de persistir)
     const limitAlert = (cat: Category): { severity: 'warning' | 'critical' | 'destructive'; percent: number; spent: number } | null => {
@@ -251,17 +250,16 @@ export const LimitsTab = ({ entityTypeFilter = 'all' }: LimitsTabProps) => {
             })
         }
 
-        setLoading(true)
+        setSaving(true)
         try {
             const res = await FinancialService.saveLimits(preparePayloadForSave())
             toast({ title: 'Sucesso', description: res.message })
-            const refreshed = await FinancialService.getLimits()
-            setRawData(refreshed.map(transformCategory))
-            setDeletedCategoryIds([])
+            // Refetch the limits (rebuilds the draft) and the spending they are compared with
+            await invalidateDomain(queryClient, 'limits')
         } catch {
             toast({ title: 'Erro', description: 'Falha ao salvar limites.', variant: 'destructive' })
         } finally {
-            setLoading(false)
+            setSaving(false)
         }
     }
 

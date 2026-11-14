@@ -18,19 +18,24 @@ import {
   Search,
 } from 'lucide-react';
 import { Transaction, MonthlyBalance } from '@/types/financial';
+import { EmptyState } from '@/components/ui/empty-state';
 import { BankLogo } from '@/components/ui/bank-logo';
 import { AnimatedNumber } from './AnimatedNumber';
 import { AddTransactionDialog } from '@/components/dialogs/AddTransactionDialog';
 import { EditTransactionDialog } from '@/components/dialogs/EditTransactionDialog';
 import { ExtratoUploadModal } from '@/components/dialogs/ExtratoUploadModal';
-import { SettingsService, UserBank } from '@/services/settingsService';
+import { useBanks } from '@/hooks/queries/useSettingsQueries';
+import { useTransactionsInfinite } from '@/hooks/queries/useTransactionQueries';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useToast } from '@/hooks/use-toast';
 import { useRole } from '@/contexts/RoleContext';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
+/** Wait after the last keystroke before searching on the server. */
+const SEARCH_DEBOUNCE_MS = 300;
+
 interface TransactionListProps {
-  transactions: Transaction[];
   monthlyBalance: MonthlyBalance;
   onAddTransaction: (transaction: Transaction) => void;
   onEditTransaction: (id: number, transaction: Partial<Transaction>) => void;
@@ -38,11 +43,9 @@ interface TransactionListProps {
   dateRange: { from: Date; to: Date };
   selectedEntityType: 'all' | 'pf' | 'pj';
   onEntityTypeChange: (type: 'all' | 'pf' | 'pj') => void;
-  onReload?: () => void;
 }
 
 export function TransactionList({
-  transactions,
   monthlyBalance,
   onAddTransaction,
   onEditTransaction,
@@ -50,26 +53,40 @@ export function TransactionList({
   dateRange,
   selectedEntityType,
   onEntityTypeChange,
-  onReload,
 }: TransactionListProps) {
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [banks, setBanks] = useState<UserBank[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   const { isAdmin } = useRole();
 
-  // Load banks once on mount (banks change rarely)
+  // Banks change rarely: cached and shared with the Settings screen
+  const { data: banks = [], isError: isBanksError, error: banksError } = useBanks();
   useEffect(() => {
-    SettingsService.listBanks()
-      .then(setBanks)
-      .catch((error: unknown) => {
-        console.error('Error loading banks:', error);
-        toast({ title: 'Erro', description: 'Falha ao carregar os bancos.', variant: 'destructive' });
-      });
-  }, [toast]);
+    if (!isBanksError) return;
+    console.error('Error loading banks:', banksError);
+    toast({ title: 'Erro', description: 'Falha ao carregar os bancos.', variant: 'destructive' });
+  }, [isBanksError, banksError, toast]);
+  const debouncedSearch = useDebouncedValue(searchQuery.trim(), SEARCH_DEBOUNCE_MS);
+
+  // The list is paged by the server (filters: period, PF/PJ and text); "Carregar mais" fetches the next page
+  const {
+    data,
+    isPending,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTransactionsInfinite({
+    dateRange,
+    entityType: selectedEntityType,
+    search: debouncedSearch,
+  });
+  const transactions = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
+  const total = data?.pages[0]?.total ?? 0;
 
   const getBankName = (bankCode: string | null | undefined): string | null => {
     if (!bankCode) return null;
@@ -77,26 +94,10 @@ export function TransactionList({
     return bank?.bank_name || null;
   };
 
-  // Filtro memoizado — só recalcula quando transações, busca ou bancos mudam
-  const filteredTransactions = useMemo(() => {
-    if (!searchQuery.trim()) return transactions;
-    const q = searchQuery.toLowerCase();
-    return transactions.filter(t => (
-      t.description.toLowerCase().includes(q) ||
-      (t.category_name ?? '').toLowerCase().includes(q) ||
-      (t.subcategory_name ?? '').toLowerCase().includes(q) ||
-      t.payment_method.toLowerCase().includes(q) ||
-      t.amount.toString().includes(q) ||
-      (t.bank_code || '').toLowerCase().includes(q) ||
-      (getBankName(t.bank_code) || '').toLowerCase().includes(q)
-    ));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transactions, searchQuery, banks]);
-
   // Virtualização: apenas linhas visíveis (+ overscan) são montadas no DOM
   const listRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
-    count: filteredTransactions.length,
+    count: transactions.length,
     getScrollElement: () => listRef.current,
     estimateSize: () => 96,
     overscan: 6,
@@ -214,11 +215,23 @@ export function TransactionList({
         />
       </div>
 
+      {isPending && (
+        <p role="status" className="mt-3 text-sm text-muted-foreground">Carregando transações...</p>
+      )}
+      {isError && (
+        <EmptyState title="Erro ao carregar as transações" description="Não foi possível buscar o extrato.">
+          <Button variant="outline" size="sm" onClick={() => refetch()}>Tentar novamente</Button>
+        </EmptyState>
+      )}
+      {!isPending && !isError && transactions.length === 0 && (
+        <EmptyState title="Nenhuma transação encontrada" />
+      )}
+
       {/* Lista de Transações (virtualizada) */}
       <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto mt-3">
         <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-            const t = filteredTransactions[virtualRow.index];
+            const t = transactions[virtualRow.index];
             const bankName = getBankName(t.bank_code);
             return (
               <div
@@ -312,6 +325,22 @@ export function TransactionList({
           })}
         </div>
       </div>
+
+      {transactions.length > 0 && (
+        <div className="flex items-center justify-center gap-3 pt-2 text-xs text-muted-foreground">
+          <span>Mostrando {transactions.length} de {total}</span>
+          {hasNextPage && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+            >
+              {isFetchingNextPage ? 'Carregando...' : 'Carregar mais'}
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Modais */}
       {editingTransaction && (

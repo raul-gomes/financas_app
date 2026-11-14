@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { renderWithQuery } from '@/test/queryWrapper';
 import { OverviewDashboard } from './OverviewDashboard';
 import { OverviewResponse } from '@/types/overview';
 
@@ -69,7 +70,7 @@ beforeEach(() => {
 
 describe('OverviewDashboard', () => {
   it('renderiza indicadores principais, progresso do mês e cartão', async () => {
-    render(<OverviewDashboard />);
+    renderWithQuery(<OverviewDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("Entradas")).toBeTruthy();
@@ -80,7 +81,7 @@ describe('OverviewDashboard', () => {
   });
 
   it('destaca categorias com limite estourado ou para estourar', async () => {
-    render(<OverviewDashboard />);
+    renderWithQuery(<OverviewDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText('Compras')).toBeTruthy();
@@ -90,7 +91,7 @@ describe('OverviewDashboard', () => {
   });
 
   it('lista parcelas do mês e contas recorrentes a pagar', async () => {
-    render(<OverviewDashboard />);
+    renderWithQuery(<OverviewDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText(/Notebook - parcela 1\/10/)).toBeTruthy();
@@ -100,7 +101,7 @@ describe('OverviewDashboard', () => {
   });
 
   it('mostra metas e compras quando admin', async () => {
-    render(<OverviewDashboard isAdmin />);
+    renderWithQuery(<OverviewDashboard isAdmin />);
 
     await waitFor(() => {
       expect(screen.getByText('Eurotrip')).toBeTruthy();
@@ -109,7 +110,7 @@ describe('OverviewDashboard', () => {
   });
 
   it('esconde metas e compras quando não-admin', async () => {
-    render(<OverviewDashboard isAdmin={false} />);
+    renderWithQuery(<OverviewDashboard isAdmin={false} />);
 
     await waitFor(() => {
       expect(screen.getByText("Entradas")).toBeTruthy();
@@ -119,7 +120,7 @@ describe('OverviewDashboard', () => {
   });
 
   it('refaz o fetch ao trocar o entity_type', async () => {
-    const { getByRole } = render(<OverviewDashboard />);
+    const { getByRole } = renderWithQuery(<OverviewDashboard />);
 
     await waitFor(() => {
       expect(mockGetOverview.mock.calls.length).toBeGreaterThan(0);
@@ -139,7 +140,7 @@ describe('OverviewDashboard', () => {
       credit_card: { limit: 10000, used: 11500, remaining: -1500, percent_used: 115 },
     });
 
-    render(<OverviewDashboard />);
+    renderWithQuery(<OverviewDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText('Estourando')).toBeTruthy();
@@ -153,11 +154,55 @@ describe('OverviewDashboard', () => {
       credit_card: { limit: 10000, used: 8500, remaining: 1500, percent_used: 85 },
     });
 
-    render(<OverviewDashboard />);
+    renderWithQuery(<OverviewDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText('85%')).toBeTruthy();
     });
     expect(screen.queryByText('Estourando')).toBeNull();
+  });
+
+  it('mostra o estado de erro quando a busca falha', async () => {
+    mockGetOverview.mockRejectedValue(new Error('falhou'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    renderWithQuery(<OverviewDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Erro ao carregar o dashboard')).toBeTruthy();
+    });
+  });
+
+  it('mostra o esqueleto enquanto carrega, sem texto de erro', () => {
+    mockGetOverview.mockReturnValue(new Promise(() => {}));
+
+    const { container } = renderWithQuery(<OverviewDashboard />);
+
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Erro ao carregar o dashboard')).toBeNull();
+  });
+
+  it('reaproveita o cache ao voltar para um filtro já carregado', async () => {
+    const { getByRole } = renderWithQuery(<OverviewDashboard />);
+    await waitFor(() => expect(screen.getByText('Entradas')).toBeTruthy());
+
+    fireEvent.click(getByRole('button', { name: 'PJ' }));
+    await waitFor(() => expect(mockGetOverview).toHaveBeenCalledTimes(2));
+    fireEvent.click(getByRole('button', { name: 'Ambos' }));
+
+    await waitFor(() => expect(screen.getByText('Entradas')).toBeTruthy());
+    expect(mockGetOverview).toHaveBeenCalledTimes(2);
+  });
+
+  it('busca o mês anterior ao navegar', async () => {
+    const { getByRole } = renderWithQuery(<OverviewDashboard />);
+    await waitFor(() => expect(screen.getByText('Entradas')).toBeTruthy());
+    const [firstYear, firstMonth] = mockGetOverview.mock.calls[0] as [number, number];
+
+    fireEvent.click(getByRole('button', { name: 'Mês anterior' }));
+
+    await waitFor(() => expect(mockGetOverview).toHaveBeenCalledTimes(2));
+    const [year, month] = mockGetOverview.mock.calls[1] as [number, number];
+    expect(year * 12 + month).toBe(firstYear * 12 + firstMonth - 1);
   });
 });

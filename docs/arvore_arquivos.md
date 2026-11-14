@@ -15,6 +15,7 @@ financas_app/
 │   │   │   │   ├── config.py                   # Classe Config + require_database_url (falha na partida sem DATABASE_URL): carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL do .env
 │   │   │   │   ├── crypto.py                   # Cifra em repouso da chave Pluggy (Fernet/MultiFernet): encrypt_secret/decrypt_secret, validate_encryption_keys (falha na partida), SecretDecryptionError, helpers idempotentes p/ migration
 │   │   │   │   ├── database.py                 # Engine async SQLAlchemy, AsyncSessionLocal, get_session() dependency
+│   │   │   │   ├── unit_of_work.py             # UnitOfWork (commit/rollback único por request, after_commit para efeitos colaterais) + get_unit_of_work (usar com scope="function")
 │   │   │   │   └── security.py                 # get_current_user() — decodifica JWT Supabase via JWKS (ES256/RS256) ou HS256 (SUPABASE_JWT_SECRET), bearer_scheme (HTTPBearer auto_error=False → 401 sem token); require_role(*roles) + require_admin (403)
 │   │   │   │
 │   │   │   ├── db/
@@ -33,9 +34,9 @@ financas_app/
 │   │   │   │   ├── repositories/               # Camada de acesso a dados (queries SQL)
 │   │   │   │   │   ├── category.py             # CategoriaRepository: CRUD categorias + sincronização de subcategorias
 │   │   │   │   │   ├── subcategory.py          # SubcategoriaRepository: CRUD subcategorias, criação em lote
-│   │   │   │   │   ├── transaction.py          # TransacaoRepository: CRUD + parcelas + detecção de duplicatas + importação de extrato
+│   │   │   │   │   ├── transaction.py          # TransacaoRepository: CRUD (flush, sem commit) + parcelas + detecção de duplicatas + listagem paginada por cursor (list_page, TransactionCursor/Filters/Page) + importação de extrato
 │   │   │   │   │   ├── dashboard.py            # DashboardRepository: queries agregadas (gastos, rendimento, extrato)
-│   │   │   │   │   ├── overview.py             # DashboardOverviewRepository: dashboard geral (totais, progresso mês, cartão, status limites, parcelas, recorrentes; metas/compras só admin)
+│   │   │   │   │   ├── overview.py             # DashboardOverviewRepository: dashboard geral (totais, progresso mês e cartão numa única agregação SQL — MonthAggregates; status limites, parcelas, recorrentes; metas/compras só admin)
 │   │   │   │   │   ├── limits.py               # LimitsRepository: atualização em lote de limites de categorias
 │   │   │   │   │   ├── recurring_account.py    # ContaRecorrenteRepository: CRUD + geração de parcelas + renovação
 │   │   │   │   │   ├── goal.py                 # MetaRepository: CRUD metas + cálculo de progresso baseado em transações
@@ -50,9 +51,10 @@ financas_app/
 │   │   │   │       └── versions/               # 15 migrações (desde criar_tabelas até create limit_alerts)
 │   │   │   │
 │   │   │   ├── routes/                         # Rotas FastAPI (API REST)
-│   │   │   │   ├── transactions_routes.py      # /transacoes — CRUD + detecção/resolução de duplicatas
+│   │   │   │   ├── transactions_routes.py      # /transacoes — CRUD, GET /paginated (cursor + total + filtros) e detecção/resolução de duplicatas; só HTTP, regras no TransactionService
+│   │   │   │   ├── dependencies.py             # Providers FastAPI: get_transaction_service (unit of work), get_transaction_reader/get_dashboard_service (leitura) e parse_date (DD/MM/YYYY → 400)
 │   │   │   │   ├── categories_routes.py        # /categories — CRUD categorias
-│   │   │   │   ├── dashboard_routes.py         # /dashboard — extrato, overview, rendimento, gastos por categoria
+│   │   │   │   ├── dashboard_routes.py         # /dashboard — extrato, overview, rendimento, gastos por categoria (só HTTP; usa DashboardService)
 │   │   │   │   ├── limits_routes.py            # /limits — listar e atualizar limites em lote; /limits/risk-check projeta o valor digitado (gasto atual + amount → thresholds 80/90/100)
 │   │   │   │   ├── recurring_accounts_routes.py # /recurring-accounts — CRUD + renovação + geração
 │   │   │   │   ├── extract_routes.py           # /extracts — upload de extrato CSV/OFX (leitura em blocos, limite 10 MB) + confirmação
@@ -64,7 +66,7 @@ financas_app/
 │   │   │   │   └── export_routes.py            # /export — exportação CSV e OFX
 │   │   │   │
 │   │   │   ├── schemas/                        # DTOs Pydantic (validação de request/response)
-│   │   │   │   ├── transaction.py              # TransacaoCreate/Response/Update + schemas de duplicatas
+│   │   │   │   ├── transaction.py              # TransacaoCreate/Response/Update, TransacaoPageResponse (paginação) + constantes TRANSACTIONS_*_PAGE_SIZE + schemas de duplicatas
 │   │   │   │   ├── categories.py               # CategoriaBase/Create/Update/Response
 │   │   │   │   ├── subcategory.py              # SubcategoriaBase/Create/Update/Response
 │   │   │   │   ├── dashboard.py                # Schemas de resposta do dashboard (extrato, rendimento, gastos)
@@ -78,6 +80,8 @@ financas_app/
 │   │   │   │   └── notifications.py            # NotificationItem (severity/message computados por threshold 80/90/100), NotificationsResponse, MarkReadResponse, CategoryRiskResponse (projeção gasto atual + valor digitado)
 │   │   │   │
 │   │   │   └── services/                       # Lógica de negócio e integrações externas
+│   │   │       ├── transaction_service.py      # TransactionService: casos de uso de transações (create/get/update/delete, list_page, duplicatas); autorização pelo usuário autenticado; avalia limites após o commit
+│   │   │       ├── dashboard_service.py        # DashboardService: overview e dashboard financeiro (leitura); metas/compras só para admin decididas pelo role do token
 │   │   │       ├── pluggy_service.py           # Cliente HTTP para API Meu Pluggy (Open Finance)
 │   │   │       ├── extract_parsers.py          # Parsers de extrato bancário (CSV e OFX via defusedxml; UnsafeOfxError)
 │   │   │       ├── limit_alert_service.py      # LimitAlertService: avalia limites (evaluate_limits, _evaluate_credit_card), envia emails, trigger_limit_evaluation e evaluate_all_users_current_month (disparos pós-mutação)
@@ -116,6 +120,10 @@ financas_app/
 │   │   │   ├── test_migration_graph.py         # Revisões Alembic únicas e um único head
 │   │   │   ├── test_startup_config.py          # B4: DATABASE_URL e PLUGGY_KEY_ENCRYPTION_KEYS obrigatórios (falha na partida) e descrição padrão do sync Pluggy
 │   │   │   ├── test_goals.py                   # CRUD metas + progresso + duplicatas
+│   │   │   ├── test_unit_of_work.py            # UnitOfWork: commit/rollback únicos, callbacks pós-commit (falha não desfaz o commit), dependência com scope="function"
+│   │   │   ├── test_transaction_service.py     # TransactionService: nada comitado antes do UoW, rollback desfaz categoria auto-criada, limites avaliados após commit, isolamento entre usuários
+│   │   │   ├── test_transactions_pagination.py # GET /transacoes/paginated: ordem estável (data desc, id desc), cursor, total, filtros, teto de página, isolamento
+│   │   │   ├── test_dashboard_sql_parity.py    # Agregações SQL do dashboard/overview x referência em Python (PF/PJ, 2 usuários) + teto de queries
 │   │   │   ├── test_overview.py                # Dashboard geral (/dashboard/overview): totais, progresso mês, cartão, status limites, parcelas, recorrentes, metas/compras só admin
 │   │   │   ├── test_shopping.py                # CRUD lista de compras + rollover (não-comprados p/ mês seguinte) + ordenação
 │   │   │   ├── test_shopping_isolation.py      # Etapa 8: isolamento de itens de compra por usuário (list, update, delete)
@@ -176,8 +184,8 @@ financas_app/
 │       │   │   │   ├── FinancialDashboard.tsx   # Dashboard financeiro: orçamento, gráfico flip, categorias; cartão com barra de % (>=80 warning, estourado destructive + badge "Estourando")
 │       │   │   │   ├── ChartAnchors.tsx         # Âncoras de navegação que rolam até cada gráfico/seção do dashboard
 │       │   │   │   ├── ChartAnchors.test.tsx    # Testes das âncoras (render, scrollIntoView, seção inexistente)
-│       │   │   │   ├── OverviewDashboard.tsx    # Dashboard geral da página inicial: indicadores, progresso mês, cartão (badge "Estourando" e tone 80/100), status limites, parcelas, recorrentes, metas/compras (admin)
-│       │   │   │   ├── OverviewDashboard.test.tsx # Testes do dashboard geral (render, refetch por entidade, isAdmin, badge cartão estourando)
+│       │   │   │   ├── OverviewDashboard.tsx    # Dashboard geral da página inicial: indicadores, progresso mês, cartão (badge "Estourando" e tone 80/100), status limites, parcelas, recorrentes, metas/compras (admin); dados via useOverviewQuery (react-query)
+│       │   │   │   ├── OverviewDashboard.test.tsx # Testes do dashboard geral (render, refetch por entidade, cache ao voltar de filtro, esqueleto/erro, isAdmin, badge cartão estourando)
 │       │   │   │   └── FinancialDashboard.test.tsx # Testes de rolagem dos boxes (100vh→130vh; Entradas/Gastos rolam quando estouram o teto) + badge "Estourando" do cartão
 │       │   │   │
 │       │   │   ├── investments/                # Componentes de investimentos
@@ -217,10 +225,11 @@ financas_app/
 │       │   │   ├── recorrentes/                  # Feature compartilhada de contas recorrentes
 │       │   │   │   └── RecurringBillsTable.tsx    # Tabela única usada por /recorrentes e aba Limites (helpers currentInstallment/isEndingSoon exportados); virtualizada (useVirtualizer, sticky header)
 │       │   │   │
-│       │   │   ├── TransactionList.tsx          # Lista de transações com filtros (memoizado), paginação e ações; virtualizada (useVirtualizer)
+│       │   │   ├── TransactionList.tsx          # Extrato paginado no servidor (useInfiniteQuery + "Carregar mais", busca com debounce, filtros período/PF-PJ); virtualizado (useVirtualizer); estados vazio/erro/carregando
+│       │   │   ├── TransactionList.test.tsx     # Testes do extrato paginado (carregar mais, filtros no servidor, busca debounced, vazio, erro/tentar de novo)
 │       │   │   ├── CategoryBreakdownSection.tsx # Seção de breakdown de gastos por categoria
-│       │   │   ├── ComprasList.tsx              # Lista de compras do mês com checkbox e CRUD
-│       │   │   ├── MetasList.tsx                # Lista de metas com progresso e ações
+│       │   │   ├── ComprasList.tsx              # Lista de compras do mês com checkbox e CRUD (useShoppingItems + invalidação)
+│       │   │   ├── MetasList.tsx                # Lista de metas com progresso e ações (useGoalsProgress + invalidação)
 │       │   │   └── AnimatedNumber.tsx           # Componente de número com animação de contagem
 │       │   │
 │       │   ├── pages/                          # Páginas (rotas da aplicação)
@@ -228,7 +237,8 @@ financas_app/
 │       │   │   ├── More.tsx                    # Página "Mais" (mobile): menu admin (recorrentes, extrato, investimentos), configurações, notificações, sair
 │       │   │   ├── More.test.tsx               # Testes do menu Mais (admin vs usuário, sair)
 │       │   │   ├── Financial.tsx               # Página financeira: dashboard + transações + sidebar
-│       │   │   ├── Financial.test.tsx          # Testes de altura da tela (inicia 100vh, cresce até max 130vh)
+│       │   │   ├── Financial.test.tsx          # Testes da página (altura, queries por bloco, PF/PJ, geração de recorrentes antes dos dados, virada de mês, exclusão recarrega)
+│       │   │   ├── Settings.test.tsx           # Testes das Configurações (perfil/bancos em cache, remover banco, salvar nome, toast de erro)
 │       │   │   ├── Investments.tsx             # Página de investimentos (placeholder)
 │       │   │   ├── Limits.tsx                  # Página de limites: tabs por role (admin: Limites/Recorrentes/Metas/Compras; user: Limites/Recorrentes)
 │       │   │   ├── Limits.test.tsx             # Testes das abas por role (user: sem Metas/Compras)
@@ -276,7 +286,15 @@ financas_app/
 │       │   ├── hooks/                          # Custom React hooks
 │       │   │   ├── use-mobile.tsx              # useIsMobile() — detecção de viewport mobile
 │       │   │   ├── use-toast.ts                # useToast() — sistema de notificações toast
-│       │   │   └── useLimitAlerts.ts           # useLimitAlerts() — poll de /notifications a cada 30s (+ listagem inicial)
+│       │   │   ├── useLimitAlerts.ts           # useLimitAlerts() — poll de /notifications a cada 30s (+ listagem inicial)
+│       │   │   ├── useDebouncedValue.ts        # useDebouncedValue(value, ms) — usado na busca do extrato (+ teste ao lado)
+│       │   │   └── queries/                    # Hooks react-query (um por domínio); a chave vem de lib/queryKeys
+│       │   │       ├── useTransactionQueries.ts # useTransactionsInfinite (cursor), useYearInvestments, useTransactionMutations, invalidateTransactionData (+ teste)
+│       │   │       ├── useFinancialQueries.ts   # Extrato do período, rendimento anual, categorias, geração de recorrentes (admin)
+│       │   │       ├── useOverviewQuery.ts      # Overview do mês (GET /dashboard/overview)
+│       │   │       ├── useLimitsQueries.ts      # Limites, gastos do mês, recorrentes, metas, compras + invalidateDomain
+│       │   │       ├── useSettingsQueries.ts    # Perfil e bancos (compartilhados com o extrato)
+│       │   │       └── useErrorToast.ts         # Toast pt-BR quando uma query falha
 │       │   │
 │       │   ├── contexts/                       # React contexts
 │       │   │   ├── SidebarContext.tsx           # SidebarContext — estado open/toggle da sidebar
@@ -286,7 +304,8 @@ financas_app/
 │       │   │   └── RoleContext.test.tsx         # Testes do RoleContext (refetch ao trocar de conta; admin/user paths)
 │       │   │
 │       │   ├── test/                            # Infra de testes frontend (Vitest + jsdom + RTL)
-│       │   │   └── setup.ts                     # cleanup RTL + mocks matchMedia/ResizeObserver
+│       │   │   ├── setup.ts                     # cleanup RTL + mocks matchMedia/ResizeObserver
+│       │   │   └── queryWrapper.tsx             # QueryClient de teste (retry off) + renderWithQuery/createQueryWrapper
 │       │   │
 │       │   └── lib/                            # Utilitários
 │       │       ├── utils.ts                    # cn() — merge de classes Tailwind (shadcn)
@@ -294,6 +313,8 @@ financas_app/
 │       │       ├── format.test.ts              # Testes unitários da formatação (BRL/USD, datas, %)
 │       │       ├── format.escape.test.ts       # escapeHtml() para tooltips D3
 │       │       ├── supabase.ts                 # Cliente @supabase/supabase-js (VITE_SUPABASE_URL/ANON_KEY)
+│       │       ├── queryClient.ts              # createQueryClient(): defaults (stale 5 min, gc 30 min, retry 1) e log único de erros de query
+│       │       ├── queryKeys.ts                # Fábrica de chaves de cache (transactions, financial, overview, limits, recurring, goals, shopping, settings)
 │       │       ├── api.ts                      # apiFetch() — injeta Authorization: Bearer em chamadas /api/* + teste
 │       │       └── api.test.ts                 # Testes do apiFetch (header auth, base URL, headers)
 │       │

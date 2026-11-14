@@ -3,18 +3,15 @@ import { TransactionList } from '@/components/TransactionList';
 import { FinancialDashboard } from '@/components/dashboards/FinancialDashboard';
 import { ChartAnchors } from '@/components/dashboards/ChartAnchors';
 import { SidebarPanel } from '@/components/layout/SidebarPanel';
+import { Transaction, MonthlyBalance, YearlyData, SelectedMonth } from '@/types/financial';
 import {
-  Transaction,
-  MonthlyBalance,
-  YearlyData,
-  FinancialSummary,
-  YearlyPerformance,
-  CategoryBreakdown,
-  IncomeBySubcategoria,
-  SelectedMonth,
-} from '@/types/financial';
-import { FinancialService } from '@/services/financialService';
-import { ContaRecorrenteService } from '@/services/recurringAccountService';
+  useCategoryBreakdown,
+  useCategoryIncome,
+  useFinancialSummary,
+  useRecurringGeneration,
+  useYearlyPerformance,
+} from '@/hooks/queries/useFinancialQueries';
+import { useTransactionMutations, useYearInvestments } from '@/hooks/queries/useTransactionQueries';
 import { BarChart3, ChevronDown, Calendar as CalendarIcon, Settings, TrendingUp, DollarSign, PanelRightOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -28,15 +25,10 @@ import { useRole } from '@/contexts/RoleContext';
 const Financial = () => {
   const isMobile = useIsMobile();
   const { isAdmin } = useRole();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
-  const [yearlyPerformance, setYearlyPerformance] = useState<YearlyPerformance | null>(null);
-  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown | null>(null);
   const [selectedDateRange, setSelectedDateRange] = useState<{ from: Date; to: Date }>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date())
   });
-  const [incomeBreakdown, setIncomeBreakdown] = useState<IncomeBySubcategoria | null>(null);
   const [selectedEntityType, setSelectedEntityType] = useState<'all' | 'pf' | 'pj'>('pf');
   const [selectedMonth, setSelectedMonth] = useState<SelectedMonth | null>(null);
   const getCurrentMonth = (): SelectedMonth => {
@@ -50,74 +42,41 @@ const Financial = () => {
   };
   // Persists the last clicked month so the annual chart stays highlighted
   const [highlightedMonth, setHighlightedMonth] = useState<SelectedMonth | null>(getCurrentMonth());
-  const [yearTransactions, setYearTransactions] = useState<Transaction[]>([]);
-  const fetchGeneration = useRef(0);
   const requestedMonthRef = useRef<SelectedMonth | null>(null);
-  const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
+  const currentYear = new Date().getFullYear();
 
 
-  // Fetch financial data
-  const loadData = useCallback(async () => {
-    const gen = ++fetchGeneration.current;
-    try {
-      const naturezaFilter = selectedEntityType;
+  // Server data: one cached query per block. Admins first generate the period's recurring
+  // bills, then the dashboards load (the transactions list pages itself in TransactionList).
+  const { isSettled: recurringReady } = useRecurringGeneration(selectedDateRange, isAdmin);
+  const summaryQuery = useFinancialSummary(selectedDateRange, selectedEntityType, recurringReady);
+  const yearlyQuery = useYearlyPerformance(currentYear, selectedEntityType, recurringReady);
+  const categoriesQuery = useCategoryBreakdown(
+    selectedDateRange,
+    selectedEntityType,
+    'expense',
+    recurringReady,
+  );
+  const incomesQuery = useCategoryIncome(selectedDateRange, selectedEntityType, recurringReady);
+  // Always fetch full-year investments for the yearly chart
+  const yearInvestmentsQuery = useYearInvestments(currentYear, selectedEntityType, recurringReady);
+  const { updateTransaction, deleteTransaction, onTransactionCreated } = useTransactionMutations();
 
-      if (isAdmin) {
-        await ContaRecorrenteService.generate(selectedDateRange.from, selectedDateRange.to)
-          .catch((err) => console.error('Erro ao gerar faturas recorrentes:', err));
-      }
+  const financialSummary = summaryQuery.data ?? null;
+  const yearlyPerformance = yearlyQuery.data ?? null;
+  const categoryBreakdown = categoriesQuery.data ?? null;
+  const incomeBreakdown = incomesQuery.data ?? null;
+  const yearTransactions = useMemo(() => yearInvestmentsQuery.data ?? [], [yearInvestmentsQuery.data]);
+  const transactions = useMemo(() => financialSummary?.transactions ?? [], [financialSummary]);
 
-      const [summary, yearly, categories, incomes, yearTx] = await Promise.all([
-        FinancialService.getFinancialSummary(
-          selectedDateRange,
-          naturezaFilter
-        ),
-        FinancialService.getYearlyPerformance(
-          new Date().getFullYear(),
-          naturezaFilter
-        ),
-        FinancialService.getCategoryBreakdown(
-          selectedDateRange,
-          naturezaFilter,
-          'expense'
-        ),
-        FinancialService.getCategoryIncome(
-          selectedDateRange,
-          naturezaFilter,
-        ),
-        // Always fetch full-year transactions for yearly chart investment
-        FinancialService.getYearTransactions(
-          new Date().getFullYear(),
-          naturezaFilter === 'all' ? undefined : naturezaFilter
-        ),
-      ]);
-
-      // Only apply state if this is still the latest fetch generation
-      if (gen !== fetchGeneration.current) return;
-
-      setFinancialSummary(summary);
-      setYearlyPerformance(yearly);
-      setCategoryBreakdown(categories);
-      setIncomeBreakdown(incomes);
-      setTransactions(summary.transactions);
-      setYearTransactions(yearTx);
-      setSidebarRefreshKey(k => k + 1);
-
-      // If a month was requested, activate the flip now that fresh data is loaded
-      if (requestedMonthRef.current) {
-        setSelectedMonth(requestedMonthRef.current);
-        requestedMonthRef.current = null;
-      }
-    } catch (error) {
-      if (gen === fetchGeneration.current) {
-        console.error('Erro ao carregar dados:', error);
-      }
-    }
-  }, [selectedDateRange, selectedEntityType, isAdmin]);
-
+  // If a month was requested, activate the flip once that month's data (not the previous
+  // period's placeholder) has loaded
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (summaryQuery.isSuccess && !summaryQuery.isPlaceholderData && requestedMonthRef.current) {
+      setSelectedMonth(requestedMonthRef.current);
+      requestedMonthRef.current = null;
+    }
+  }, [summaryQuery.isSuccess, summaryQuery.isPlaceholderData, summaryQuery.data]);
 
   // Reset highlighted month when entity type changes
   useEffect(() => {
@@ -173,18 +132,16 @@ const Financial = () => {
       );
     }, [yearlyPerformance, yearTransactions, selectedEntityType]);
 
-  // Handlers that reload data
+  // Mutations refresh every derived query (list, dashboards, overview, limits, goals)
   const handleAddTransaction = async (_newTransaction: Transaction) => {
-    // Dialog already called addTransaction API — just reload data
-    await loadData();
+    // The dialog already called the add API: just refresh the data
+    await onTransactionCreated();
   };
   const handleEditTransaction = async (id: number, updated: Partial<Transaction>) => {
-    await FinancialService.updateTransaction(id, updated);
-    await loadData();
+    await updateTransaction(id, updated);
   };
   const handleDeleteTransaction = async (id: number) => {
-    await FinancialService.deleteTransaction(id);
-    await loadData();
+    await deleteTransaction(id);
   };
 
   const handleMonthSelect = useCallback((monthIndex: number, year: number) => {
@@ -200,7 +157,7 @@ const Financial = () => {
     };
     setHighlightedMonth(sel);
     // Reset current flip and store the month in a ref
-    // The flip will be activated inside loadData when fresh data arrives
+    // The flip will be activated by the effect above when fresh data arrives
     setSelectedMonth(null);
     requestedMonthRef.current = sel;
   }, []);
@@ -268,7 +225,7 @@ const Financial = () => {
     <div className="min-h-screen bg-gradient-subtle">
       <div className="flex">
         {isAdmin && (
-          <SidebarPanel open={sidebar.open} onClose={() => sidebar.toggle()} entityType={selectedEntityType} refreshKey={sidebarRefreshKey} />
+          <SidebarPanel open={sidebar.open} onClose={() => sidebar.toggle()} entityType={selectedEntityType} />
         )}
         <div className="flex-1 min-w-0">
           <main className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -365,7 +322,6 @@ const Financial = () => {
               <div className="lg:col-span-2 animate-slide-up flex flex-col lg:min-h-[calc(100vh-200px)] lg:max-h-[calc(130vh-200px)]">
                 <div className="bg-card rounded-lg shadow-card border border-border h-full flex flex-col min-h-0">
                   <TransactionList
-                    transactions={sortedTransactions}
                     monthlyBalance={monthlyBalance}
                     onAddTransaction={handleAddTransaction}
                     onEditTransaction={handleEditTransaction}
@@ -373,7 +329,6 @@ const Financial = () => {
                     dateRange={selectedDateRange}
                     selectedEntityType={selectedEntityType}
                     onEntityTypeChange={setSelectedEntityType}
-                    onReload={loadData}
                   />
                 </div>
               </div>

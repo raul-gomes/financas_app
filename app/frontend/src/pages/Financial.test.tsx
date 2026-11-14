@@ -1,45 +1,78 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { renderWithQuery } from '@/test/queryWrapper';
 import Financial from './Financial';
 
+const mockIsAdmin = vi.fn(() => false);
+
 vi.mock('@/contexts/RoleContext', () => ({
-  useRole: () => ({ isAdmin: false }),
+  useRole: () => ({ isAdmin: mockIsAdmin() }),
 }));
 
 vi.mock('@/contexts/SidebarContext', () => ({
   useSidebar: () => ({ open: false, toggle: vi.fn(), setOpen: vi.fn() }),
 }));
 
+const mockSummary = vi.fn();
+const mockYearly = vi.fn();
+const mockBreakdown = vi.fn();
+const mockIncome = vi.fn();
+const mockYearInvestments = vi.fn();
+const mockDelete = vi.fn();
+const mockGenerate = vi.fn();
+
 vi.mock('@/services/financialService', () => ({
+  TRANSACTIONS_PAGE_SIZE: 30,
   FinancialService: {
-    getFinancialSummary: vi.fn().mockResolvedValue({
-      transactions: [],
-      total_income: 0,
-      total_expenses: 0,
-      monthly_goal: 0,
-      credit_card_limit: 0,
-      fixed_expenses: 0,
-      variable_expenses: 0,
-    }),
-    getYearlyPerformance: vi.fn().mockResolvedValue({ months: {} }),
-    getCategoryBreakdown: vi.fn().mockResolvedValue(null),
-    getCategoryIncome: vi.fn().mockResolvedValue(null),
-    getYearTransactions: vi.fn().mockResolvedValue([]),
+    getFinancialSummary: (...args: unknown[]) => mockSummary(...args),
+    getYearlyPerformance: (...args: unknown[]) => mockYearly(...args),
+    getCategoryBreakdown: (...args: unknown[]) => mockBreakdown(...args),
+    getCategoryIncome: (...args: unknown[]) => mockIncome(...args),
+    getYearInvestments: (...args: unknown[]) => mockYearInvestments(...args),
+    updateTransaction: vi.fn(),
+    deleteTransaction: (...args: unknown[]) => mockDelete(...args),
   },
 }));
 
 vi.mock('@/services/recurringAccountService', () => ({
   ContaRecorrenteService: {
-    generate: vi.fn().mockResolvedValue(undefined),
+    generate: (...args: unknown[]) => mockGenerate(...args),
   },
 }));
 
+interface TransactionListProps {
+  onDeleteTransaction: (id: number) => Promise<void>;
+  selectedEntityType: string;
+  onEntityTypeChange: (type: 'all' | 'pf' | 'pj') => void;
+}
+
 vi.mock('@/components/TransactionList', () => ({
-  TransactionList: () => <div>Extrato Financeiro</div>,
+  TransactionList: (props: TransactionListProps) => (
+    <div>
+      <span>Extrato Financeiro</span>
+      <span data-testid="entity">{props.selectedEntityType}</span>
+      <button onClick={() => props.onEntityTypeChange('pj')}>pj</button>
+      <button onClick={() => props.onDeleteTransaction(5)}>delete-5</button>
+    </div>
+  ),
 }));
 
+interface DashboardProps {
+  monthlyGoal: number;
+  yearlyData: { month: string; investment: number }[];
+  selectedMonth: { index: number } | null;
+  onMonthSelect: (monthIndex: number, year: number) => void;
+}
+
 vi.mock('@/components/dashboards/FinancialDashboard', () => ({
-  FinancialDashboard: () => <div>financial-dashboard</div>,
+  FinancialDashboard: (props: DashboardProps) => (
+    <div>
+      <span data-testid="goal">{props.monthlyGoal}</span>
+      <span data-testid="investment-jan">{props.yearlyData[0]?.investment ?? 'none'}</span>
+      <span data-testid="selected-month">{props.selectedMonth ? props.selectedMonth.index : 'none'}</span>
+      <button onClick={() => props.onMonthSelect(2, 2026)}>select-march</button>
+    </div>
+  ),
 }));
 
 vi.mock('@/components/dashboards/ChartAnchors', () => ({
@@ -50,12 +83,133 @@ vi.mock('@/components/layout/SidebarPanel', () => ({
   SidebarPanel: () => <div>sidebar-panel</div>,
 }));
 
+function summary(monthlyGoal = 1000) {
+  return {
+    transactions: [],
+    total_income: 0,
+    total_expenses: 0,
+    monthly_goal: monthlyGoal,
+    credit_card_limit: 0,
+    fixed_expenses: 0,
+    variable_expenses: 0,
+  };
+}
+
+const yearly = {
+  months: { janeiro: { income: 10, expense: 5 } },
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockIsAdmin.mockReturnValue(false);
+  mockSummary.mockResolvedValue(summary());
+  mockYearly.mockResolvedValue(yearly);
+  mockBreakdown.mockResolvedValue(null);
+  mockIncome.mockResolvedValue(null);
+  mockYearInvestments.mockResolvedValue([]);
+  mockGenerate.mockResolvedValue(undefined);
+  mockDelete.mockResolvedValue(undefined);
+});
+
 describe('Financial page - altura da tela', () => {
   it('inicia em ~100vh e limita o crescimento em ~130vh no desktop', () => {
-    render(<Financial />);
+    renderWithQuery(<Financial />);
 
     const cell = screen.getByTestId('financial-dashboard-cell');
     expect(cell.className).toContain('lg:min-h-[calc(100vh-200px)]');
     expect(cell.className).toContain('lg:max-h-[calc(130vh-200px)]');
+  });
+});
+
+describe('Financial page - dados com react-query', () => {
+  it('carrega cada bloco uma vez com o escopo PF e entrega a meta ao dashboard', async () => {
+    mockSummary.mockResolvedValue(summary(2500));
+
+    renderWithQuery(<Financial />);
+
+    await waitFor(() => expect(screen.getByTestId('goal').textContent).toBe('2500'));
+    expect(mockSummary).toHaveBeenCalledTimes(1);
+    expect(mockSummary.mock.calls[0][1]).toBe('pf');
+    expect(mockYearly).toHaveBeenCalledTimes(1);
+    expect(mockBreakdown).toHaveBeenCalledTimes(1);
+    expect(mockIncome).toHaveBeenCalledTimes(1);
+    expect(mockYearInvestments).toHaveBeenCalledTimes(1);
+    expect(mockGenerate).not.toHaveBeenCalled();
+  });
+
+  it('soma os investimentos do ano por mês nos dados anuais', async () => {
+    mockYearInvestments.mockResolvedValue([
+      { id: 1, type: 'investment', amount: 100, entity_type: 'individual', transaction_date: '2026-01-10T00:00:00' },
+      { id: 2, type: 'investment', amount: 50, entity_type: 'individual', transaction_date: '2026-01-20T00:00:00' },
+    ]);
+
+    renderWithQuery(<Financial />);
+
+    await waitFor(() => expect(screen.getByTestId('investment-jan').textContent).toBe('150'));
+  });
+
+  it('refaz as buscas com o novo escopo ao trocar PF/PJ', async () => {
+    renderWithQuery(<Financial />);
+    await waitFor(() => expect(mockSummary).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByText('pj'));
+
+    await waitFor(() => expect(mockSummary).toHaveBeenCalledTimes(2));
+    expect(mockSummary.mock.calls[1][1]).toBe('pj');
+    expect(screen.getByTestId('entity').textContent).toBe('pj');
+  });
+
+  it('admin: gera as recorrentes antes de buscar os dashboards', async () => {
+    mockIsAdmin.mockReturnValue(true);
+    let finishGeneration: () => void = () => {};
+    mockGenerate.mockReturnValue(new Promise<void>((resolve) => { finishGeneration = resolve; }));
+
+    renderWithQuery(<Financial />);
+
+    await waitFor(() => expect(mockGenerate).toHaveBeenCalledTimes(1));
+    expect(mockSummary).not.toHaveBeenCalled();
+
+    finishGeneration();
+
+    await waitFor(() => expect(mockSummary).toHaveBeenCalledTimes(1));
+  });
+
+  it('admin: uma falha ao gerar recorrentes é registrada e não bloqueia os dados', async () => {
+    mockIsAdmin.mockReturnValue(true);
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockGenerate.mockRejectedValue(new Error('falhou'));
+
+    renderWithQuery(<Financial />);
+
+    await waitFor(() => expect(mockSummary).toHaveBeenCalledTimes(1));
+    expect(logged).toHaveBeenCalled();
+  });
+
+  it('só ativa a virada do mês depois que os dados do mês chegam', async () => {
+    renderWithQuery(<Financial />);
+    await waitFor(() => expect(mockSummary).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId('goal').textContent).toBe('1000'));
+    let finishMonth: (value: ReturnType<typeof summary>) => void = () => {};
+    mockSummary.mockReturnValueOnce(new Promise((resolve) => { finishMonth = resolve; }));
+
+    fireEvent.click(screen.getByText('select-march'));
+
+    await waitFor(() => expect(mockSummary).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId('selected-month').textContent).toBe('none');
+
+    finishMonth(summary(1));
+
+    await waitFor(() => expect(screen.getByTestId('selected-month').textContent).toBe('2'));
+  });
+
+  it('excluir uma transação chama a API e recarrega os dashboards', async () => {
+    renderWithQuery(<Financial />);
+    await waitFor(() => expect(mockSummary).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByText('delete-5'));
+
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith(5));
+    await waitFor(() => expect(mockSummary).toHaveBeenCalledTimes(2));
+    expect(mockYearly).toHaveBeenCalledTimes(2);
   });
 });

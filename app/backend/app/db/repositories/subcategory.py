@@ -42,7 +42,7 @@ class SubcategoriaRepository:
         return result.scalars().first()
 
     async def create(
-        self, categoria_id: int, user_id: int, obj_in: SubcategoriaCreate
+        self, categoria_id: int, user_id: int, obj_in: SubcategoriaCreate, *, commit: bool = True
     ) -> SubcategoryORM:
         log = log_database_operation(
             operation="create",
@@ -57,7 +57,7 @@ class SubcategoriaRepository:
                 raise HTTPException(status_code=404, detail="Categoria não encontrada")
             inst = self.model(name=obj_in.subcategory_name, category_id=categoria_id)
             self.db.add(inst)
-            await self.db.commit()
+            await self._persist(commit)
             await self.db.refresh(inst)
             log.info(f"Subcategoria {inst.id} criada para categoria {categoria_id}")
             return inst
@@ -65,10 +65,24 @@ class SubcategoriaRepository:
             await self.db.rollback()
             raise HTTPException(status_code=400, detail="Erro ao criar subcategoria") from exc
 
-    async def create_many(self, categoria_id: int, user_id: int, subs: list[SubcategoriaCreate]):
+    async def _persist(self, commit: bool) -> None:
+        """Commits, or only flushes when the caller's unit of work owns the commit."""
+        if commit:
+            await self.db.commit()
+        else:
+            await self.db.flush()
+
+    async def create_many(
+        self,
+        categoria_id: int,
+        user_id: int,
+        subs: list[SubcategoriaCreate],
+        *,
+        commit: bool = True,
+    ):
         sub_objs = [self.model(name=s.subcategory_name, category_id=categoria_id) for s in subs]
         self.db.add_all(sub_objs)
-        await self.db.commit()
+        await self._persist(commit)
 
     async def get_by_categoria(self, categoria_id: int, user_id: int) -> list[SubcategoryORM]:
         """Busca todas as subcategorias de uma categoria do usuário"""

@@ -5,11 +5,11 @@ import time
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import Select, case, extract, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import lazyload
 
-from app.db.models.category import CategoryORM
+from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
 from app.schemas.dashboard import (
     CategoriaOpcao,
@@ -26,6 +26,15 @@ from app.schemas.transaction import NaturezaTransacao
 # Categorias de configuração (orçamento mensal / limite do cartão) que não podem ser
 # selecionadas como categoria de uma transação — só existem para alimentar o dashboard.
 CATEGORIAS_CONFIGURACAO = {"mensal pf", "mensal pj", "limite cartao credito"}
+
+# Label for income whose subcategory is missing
+SEM_SUBCATEGORIA = "Sem subcategoria"
+
+
+def _sum_where(condition):
+    """SUM(amount) of the rows matching ``condition`` (0 when none), as one SQL aggregate."""
+    return func.coalesce(func.sum(case((condition, TransactionORM.amount), else_=0.0)), 0.0)
+
 
 # Simple in-memory cache for opcoes_categorias (key: (entity_type, tipo), value: (timestamp, data))
 _opcoes_categorias_cache: dict[tuple, tuple] = {}
@@ -64,6 +73,24 @@ class DashboardRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    @staticmethod
+    def _scope_transactions(
+        stmt: Select,
+        start_date: datetime,
+        end_date: datetime,
+        entity_type: str,
+        user_id: int,
+    ) -> Select:
+        """Restricts a transactions statement to the user, the date range and PF/PJ scope."""
+        stmt = stmt.where(
+            TransactionORM.user_id == user_id,
+            TransactionORM.transaction_date >= start_date,
+            TransactionORM.transaction_date <= end_date,
+        )
+        if entity_type != "all":
+            stmt = stmt.where(TransactionORM.entity_type == NaturezaTransacao(entity_type).value)
+        return stmt
+
     async def gastos_por_categoria(
         self,
         start_date: datetime,
@@ -72,67 +99,80 @@ class DashboardRepository:
         type: TipoTrans,
         user_id: int,
     ) -> list[dict[str, Any]]:
-        stmt = (
-            select(TransactionORM)
-            .where(TransactionORM.transaction_date >= start_date)
-            .where(TransactionORM.transaction_date <= end_date)
-        )
-        if entity_type != "all":
-            stmt = stmt.where(TransactionORM.entity_type == NaturezaTransacao(entity_type))
-        stmt = stmt.where(TransactionORM.type == type.value)
-        stmt = stmt.where(TransactionORM.user_id == user_id)
+        """Totals per category and subcategory, aggregated in SQL (1 query).
 
-        result = await self.db.execute(stmt)
-        transacoes = result.unique().scalars().all()
+        Categories and subcategories keep the order of their first transaction (lowest id),
+        like the former row-by-row implementation.
+        """
+        stmt = self._scope_transactions(
+            select(
+                CategoryORM.id.label("category_id"),
+                CategoryORM.name.label("category_name"),
+                CategoryORM.limit.label("category_limit"),
+                SubcategoryORM.name.label("subcategory_name"),
+                func.sum(TransactionORM.amount).label("total"),
+                func.min(TransactionORM.id).label("first_id"),
+            )
+            .select_from(TransactionORM)
+            .join(CategoryORM, TransactionORM.category_id == CategoryORM.id)
+            .join(SubcategoryORM, TransactionORM.subcategory_id == SubcategoryORM.id),
+            start_date,
+            end_date,
+            entity_type,
+            user_id,
+        )
+        stmt = (
+            stmt.where(TransactionORM.type == type.value)
+            .group_by(
+                CategoryORM.id,
+                CategoryORM.name,
+                CategoryORM.limit,
+                SubcategoryORM.name,
+            )
+            .order_by(func.min(TransactionORM.id))
+        )
+        rows = (await self.db.execute(stmt)).all()
 
         gastos: dict[int, dict[str, Any]] = {}
-        for t in transacoes:
-            if not t.category or not t.subcategory:
-                continue
-            cid = t.category.id
-            cat_nome = t.category.name
-            sub_nome = t.subcategory.name
-            limite = t.category.limit
-
+        for row in rows:
             cat = gastos.setdefault(
-                cid,
-                {"name": cat_nome, "total": 0.0, "limit": limite, "subcategories": {}},
+                row.category_id,
+                {
+                    "name": row.category_name,
+                    "total": 0.0,
+                    "limit": row.category_limit,
+                    "subcategories": {},
+                },
             )
-            cat["total"] += t.amount
-            cat["subcategories"].setdefault(sub_nome, 0.0)
-            cat["subcategories"][sub_nome] += t.amount
+            cat["total"] += row.total
+            cat["subcategories"][row.subcategory_name] = float(row.total)
 
-        resultado = []
-        for data in gastos.values():
-            if data["total"] > 0:
-                resultado.append(
-                    {
-                        "name": data["name"],
-                        "total": round(data["total"], 2),
-                        "limit": data["limit"],
-                        "subcategories": [
-                            {"name": sn, "amount": f"{round(v, 2):.2f}"}
-                            for sn, v in data["subcategories"].items()
-                        ],
-                    }
-                )
-
-        return resultado
+        return [
+            {
+                "name": data["name"],
+                "total": round(data["total"], 2),
+                "limit": data["limit"],
+                "subcategories": [
+                    {"name": name, "amount": f"{round(value, 2):.2f}"}
+                    for name, value in data["subcategories"].items()
+                ],
+            }
+            for data in gastos.values()
+            if data["total"] > 0
+        ]
 
     async def rendimento_por_periodo(
         self, ano: int, entity_type: str, user_id: int
     ) -> dict[str, dict[str, float]]:
 
-        # Single query with GROUP BY month instead of 12 queries
-        from sqlalchemy import extract
-        from sqlalchemy import func as sa_func
-
+        # Single query with GROUP BY month; a date range (not extract(year)) keeps it index-friendly
         stmt = select(
             extract("month", TransactionORM.transaction_date).label("mes"),
             TransactionORM.type,
-            sa_func.sum(TransactionORM.amount).label("total"),
+            func.sum(TransactionORM.amount).label("total"),
         ).where(
-            extract("year", TransactionORM.transaction_date) == ano,
+            TransactionORM.transaction_date >= datetime(ano, 1, 1),
+            TransactionORM.transaction_date < datetime(ano + 1, 1, 1),
             TransactionORM.user_id == user_id,
         )
         if entity_type != "all":
@@ -190,22 +230,41 @@ class DashboardRepository:
         end_date_str: str,
         user_id: int,
     ) -> ExtratoResponse:
-        stmt = (
-            select(TransactionORM)
-            .where(TransactionORM.transaction_date >= start_date)
-            .where(TransactionORM.transaction_date <= end_date)
+        # Rows for the list (contract: the statement carries the period's transactions) ...
+        stmt = self._scope_transactions(
+            select(TransactionORM), start_date, end_date, entity_type, user_id
         )
-        if entity_type != "all":
-            stmt = stmt.where(TransactionORM.entity_type == entity_type)
-        stmt = stmt.where(TransactionORM.user_id == user_id)
-        stmt = stmt.options(
-            selectinload(TransactionORM.recurring_account),
-        ).order_by(TransactionORM.transaction_date.desc())
+        stmt = stmt.options(lazyload(TransactionORM.recurring_account)).order_by(
+            TransactionORM.transaction_date.desc(), TransactionORM.id.desc()
+        )
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
 
-        total_income = sum(t.amount for t in transacoes if t.type == "income")
-        total_expenses = sum(t.amount for t in transacoes if t.type == "expense")
+        # ... but every total is aggregated in SQL (1 query), not summed over the rows.
+        is_expense = TransactionORM.type == "expense"
+        totals_stmt = self._scope_transactions(
+            select(
+                _sum_where(TransactionORM.type == "income").label("income"),
+                _sum_where(is_expense).label("expenses"),
+                _sum_where(TransactionORM.type == "investment").label("invested"),
+                _sum_where(is_expense & TransactionORM.recurring_account_id.is_not(None)).label(
+                    "fixed"
+                ),
+                _sum_where(is_expense & TransactionORM.recurring_account_id.is_(None)).label(
+                    "variable"
+                ),
+            ),
+            start_date,
+            end_date,
+            entity_type,
+            user_id,
+        )
+        totals = (await self.db.execute(totals_stmt)).one()
+        total_income = float(totals.income)
+        total_expenses = float(totals.expenses)
+        total_invested = float(totals.invested)
+        fixed_expenses = float(totals.fixed)
+        variable_expenses = float(totals.variable)
 
         txs = [
             TransacaoExtrato(
@@ -228,16 +287,6 @@ class DashboardRepository:
             )
             for t in transacoes
         ]
-
-        # Gastos fixos (com recurring_account_id) vs variáveis
-        fixed_expenses = sum(
-            t.amount
-            for t in transacoes
-            if t.type == "expense" and t.recurring_account_id is not None
-        )
-        variable_expenses = sum(
-            t.amount for t in transacoes if t.type == "expense" and t.recurring_account_id is None
-        )
 
         # Single query to fetch all needed category limits (avoids N+1)
         # Busca: Mensal PF, Mensal PJ, Limite Cartao Credito
@@ -271,8 +320,6 @@ class DashboardRepository:
         credit_card_limit = _get_limit(
             "Limite Cartao Credito", entity_type if entity_type != "all" else "", 0
         )
-
-        total_invested = sum(t.amount for t in transacoes if t.type == "investment")
 
         return ExtratoResponse(
             total_income=total_income,
@@ -328,29 +375,34 @@ class DashboardRepository:
         user_id: int,
     ) -> EntradasPorCategoriaResponse:
 
-        # Buscar transações de entrada com subcategoria carregada
-        stmt = (
-            select(TransactionORM)
-            .where(TransactionORM.transaction_date >= start_date)
-            .where(TransactionORM.transaction_date <= end_date)
-            .where(TransactionORM.type == "income")
+        # Aggregated in SQL (1 query, one row per subcategory name), in order of first transaction
+        stmt = self._scope_transactions(
+            select(
+                SubcategoryORM.name.label("name"),
+                func.sum(TransactionORM.amount).label("total"),
+            )
+            .select_from(TransactionORM)
+            .outerjoin(SubcategoryORM, TransactionORM.subcategory_id == SubcategoryORM.id),
+            start_date,
+            end_date,
+            entity_type,
+            user_id,
         )
-        if entity_type != "all":
-            stmt = stmt.where(TransactionORM.entity_type == entity_type)
-        stmt = stmt.where(TransactionORM.user_id == user_id)
+        stmt = (
+            stmt.where(TransactionORM.type == "income")
+            .group_by(SubcategoryORM.name)
+            .order_by(func.min(TransactionORM.id))
+        )
+        rows = (await self.db.execute(stmt)).all()
 
-        result = await self.db.execute(stmt)
-        transacoes = result.unique().scalars().all()
-
-        # Agrupar por subcategoria
-        subs: dict[str, float] = {}
-        for transacao in transacoes:
-            sub_nome = transacao.subcategory.name if transacao.subcategory else "Sem subcategoria"
-            subs[sub_nome] = subs.get(sub_nome, 0.0) + transacao.amount
-
+        totals: dict[str, float] = {}
+        for row in rows:
+            name = row.name or SEM_SUBCATEGORIA
+            totals[name] = totals.get(name, 0.0) + float(row.total)
+        # sorted() is stable: ties keep the order of the first transaction
         output = [
-            {"name": nome, "total": round(valor, 2)}
-            for nome, valor in sorted(subs.items(), key=lambda x: x[1], reverse=True)
+            {"name": name, "total": round(value, 2)}
+            for name, value in sorted(totals.items(), key=lambda item: item[1], reverse=True)
         ]
 
         return EntradasPorCategoriaResponse(

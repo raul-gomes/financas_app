@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,9 @@ import {
   UserBank,
   PluggyAccount,
 } from '@/services/settingsService';
+import { useBanks, useProfile } from '@/hooks/queries/useSettingsQueries';
+import { useErrorToast } from '@/hooks/queries/useErrorToast';
+import { queryKeys } from '@/lib/queryKeys';
 import { BankLogo, BankLogoFallback } from '@/components/ui/bank-logo';
 import { BankSearchInput } from '@/components/ui/bank-search';
 import { PageHeader } from '@/components/ui/page-header';
@@ -36,15 +40,20 @@ const Settings = () => {
   const { isAdmin } = useRole();
 
   // ── Profile state ──
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const queryClient = useQueryClient();
+  const { data: profile = null, isError: profileError } = useProfile();
+  const { data: banks = [], isError: banksError } = useBanks();
+  useErrorToast(profileError || banksError, 'Falha ao carregar configurações.');
+  const setProfile = (update: Profile | ((prev: Profile | null) => Profile | null)) =>
+    queryClient.setQueryData<Profile>(queryKeys.settings.profile(), (prev) =>
+      (typeof update === 'function' ? update(prev ?? null) : update) ?? undefined,
+    );
+  const setBanks = (update: (prev: UserBank[]) => UserBank[]) =>
+    queryClient.setQueryData<UserBank[]>(queryKeys.settings.banks(), (prev) => update(prev ?? []));
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
-
-  // ── Banks state ──
-  const [banks, setBanks] = useState<UserBank[]>([]);
-  const [loadingBanks, setLoadingBanks] = useState(false);
 
   // ── Pluggy state ──
   const [pluggyApiKey, setPluggyApiKey] = useState('');
@@ -65,27 +74,13 @@ const Settings = () => {
 
   // ── Bank logo helper ──
 
-  // ── Load initial data ──
-  const loadData = useCallback(async () => {
-    try {
-      const [profileData, banksData] = await Promise.all([
-        SettingsService.getProfile(),
-        SettingsService.listBanks(),
-      ]);
-      setProfile(profileData);
-      setName(profileData.name);
-      setEmail(profileData.email);
-      setPluggyApiKey('');
-      setBanks(banksData);
-    } catch (err) {
-      console.error('Erro ao carregar configurações:', err);
-      toast({ title: 'Erro', description: 'Falha ao carregar configurações.', variant: 'destructive' });
-    }
-  }, [toast]);
-
+  // ── Fill the form from the server profile (only when the server values change) ──
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!profile) return;
+    setName(profile.name);
+    setEmail(profile.email);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.name, profile?.email]);
 
   // ── Profile handlers ──
   const handleSaveProfile = async () => {

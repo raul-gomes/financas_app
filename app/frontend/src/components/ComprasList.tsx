@@ -1,4 +1,7 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useErrorToast } from '@/hooks/queries/useErrorToast';
+import { currentReferenceMonth, invalidateDomain, useShoppingItems } from '@/hooks/queries/useLimitsQueries';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -6,59 +9,24 @@ import { ShoppingService } from '@/services/shoppingService';
 import type { ShoppingItem } from '@/types/shopping';
 import { Plus, ShoppingCart, Trash2, Search } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
-import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/format';
 
 interface ComprasListProps {
-  sidebarOpen?: boolean;
   entityType?: string;
-  refreshKey?: number;
 }
 
-export function ComprasList({ sidebarOpen, entityType, refreshKey }: ComprasListProps) {
+export function ComprasList({ entityType }: ComprasListProps) {
   const { toast } = useToast();
-  const [items, setItems] = useState<ShoppingItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
-  const [loading, setLoading] = useState(true);
   const [searchPendentes, setSearchPendentes] = useState('');
   const [searchConcluidas, setSearchConcluidas] = useState('');
-  const lastOpenRef = useRef(false);
 
-  const now = new Date();
-  const mesRefStr = format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-01');
-
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
-    try {
-      const now = new Date();
-      const mesRefStr = format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-01');
-      const entityTypeParam = !entityType || entityType === 'all' ? undefined : (entityType === 'pf' ? 'individual' : 'business');
-      const data = await ShoppingService.listByMonth(mesRefStr, entityTypeParam);
-      setItems(data);
-    } catch {
-      toast({ title: 'Erro', description: 'Falha ao carregar compras.', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [entityType, toast]);
-
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
-
-  // Refetch when data changes elsewhere (transaction added/edited/deleted)
-  useEffect(() => {
-    if (refreshKey !== undefined) fetchItems();
-  }, [refreshKey, fetchItems]);
-
-  // Refetch when sidebar transitions from closed to open
-  useEffect(() => {
-    if (sidebarOpen && !lastOpenRef.current) {
-      fetchItems();
-    }
-    lastOpenRef.current = !!sidebarOpen;
-  }, [sidebarOpen, fetchItems]);
+  const queryClient = useQueryClient();
+  const mesRefStr = currentReferenceMonth();
+  const { data: items = [], isPending: loading, isError } = useShoppingItems(entityType);
+  useErrorToast(isError, 'Falha ao carregar compras.');
+  const fetchItems = () => invalidateDomain(queryClient, 'shopping');
 
   const handleAdd = async () => {
     const nome = newItemName.trim();

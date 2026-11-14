@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { renderWithQuery } from '@/test/queryWrapper';
 import { LimitsTab } from './LimitsTab';
 
 const mockGetLimits = vi.fn();
@@ -46,7 +47,7 @@ beforeEach(() => {
 
 describe('LimitsTab', () => {
   it('mostra o % de uso pré-save por categoria e some ao aumentar o limite', async () => {
-    render(<LimitsTab />);
+    renderWithQuery(<LimitsTab />);
 
     await waitFor(() => {
       expect(screen.getByTestId('limit-alert-alimentacao')).toBeTruthy();
@@ -61,7 +62,7 @@ describe('LimitsTab', () => {
   });
 
   it('aplica cor por threshold: 80=alerta, 90=crítico, 120=estourado', async () => {
-    render(<LimitsTab />);
+    renderWithQuery(<LimitsTab />);
 
     await waitFor(() => {
       expect(screen.getByTestId('limit-alert-alimentacao')).toBeTruthy();
@@ -72,7 +73,7 @@ describe('LimitsTab', () => {
   });
 
   it('avisa antes de persistir com toast listando categorias perto/estouradas', async () => {
-    render(<LimitsTab />);
+    renderWithQuery(<LimitsTab />);
 
     await waitFor(() => {
       expect(screen.getByTestId('limit-alert-compras')).toBeTruthy();
@@ -85,5 +86,29 @@ describe('LimitsTab', () => {
     const toastPayloads = mockToast.mock.calls.map(call => JSON.stringify(call[0]));
     expect(toastPayloads.some(t => t.includes('Alimentacao') && t.includes('80'))).toBe(true);
     expect(toastPayloads.some(t => t.includes('Compras') && t.includes('120'))).toBe(true);
+  });
+
+  it('recarrega limites e gastos depois de salvar', async () => {
+    renderWithQuery(<LimitsTab />);
+    await waitFor(() => expect(screen.getByTestId('limit-alert-compras')).toBeTruthy());
+    expect(mockGetLimits).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Alterações/ }));
+
+    await waitFor(() => expect(mockGetLimits).toHaveBeenCalledTimes(2));
+    expect(mockGetLimitsWithSpending).toHaveBeenCalledTimes(2);
+  });
+
+  it('avisa com um toast quando os limites não carregam', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetLimits.mockRejectedValue(new Error('falhou'));
+
+    renderWithQuery(<LimitsTab />);
+
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ description: 'Nao foi possivel carregar limites' }),
+      ),
+    );
   });
 });

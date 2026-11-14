@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateDomain, useGoalsProgress } from '@/hooks/queries/useLimitsQueries';
 import { MetasService } from '@/services/goalsService';
-import type { MetaProgresso } from '@/types/goals';
 import { TrendingUp, Target, Plus, Minus, CheckCircle2, RotateCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,48 +10,19 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/format';
 
 interface MetasListProps {
-  sidebarOpen?: boolean;
   entityType?: string;
-  refreshKey?: number;
 }
 
-export function MetasList({ sidebarOpen, entityType, refreshKey }: MetasListProps) {
+export function MetasList({ entityType }: MetasListProps) {
   const { toast } = useToast();
-  const [metas, setMetas] = useState<MetaProgresso[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: metas = [], isPending: loading } = useGoalsProgress(entityType);
   const [showCreate, setShowCreate] = useState(false);
   const [formNome, setFormNome] = useState('');
   const [formValor, setFormValor] = useState('');
   const [creating, setCreating] = useState(false);
-  const lastOpenRef = useRef(false);
 
-  const fetchMetas = useCallback(() => {
-    setLoading(true);
-    const now = new Date();
-    const entityTypeParam = !entityType || entityType === 'all' ? undefined : (entityType === 'pf' ? 'individual' : 'business');
-    MetasService.progresso(now.getFullYear(), now.getMonth() + 1, undefined, entityTypeParam)
-      .then(setMetas)
-      .catch(() => setMetas([]))
-      .finally(() => setLoading(false));
-  }, [entityType]);
-
-  // Fetch on mount and when sidebar opens
-  useEffect(() => {
-    fetchMetas();
-  }, [fetchMetas]);
-
-  // Refetch when data changes elsewhere (transaction added/edited/deleted)
-  useEffect(() => {
-    if (refreshKey !== undefined) fetchMetas();
-  }, [refreshKey, fetchMetas]);
-
-  // Refetch when sidebar transitions from closed to open
-  useEffect(() => {
-    if (sidebarOpen && !lastOpenRef.current) {
-      fetchMetas();
-    }
-    lastOpenRef.current = !!sidebarOpen;
-  }, [sidebarOpen, fetchMetas]);
+  const fetchMetas = () => invalidateDomain(queryClient, 'goals');
 
   const handleCreate = async () => {
     if (!formNome.trim() || !formValor) return;

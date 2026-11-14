@@ -1,14 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ArrowDownCircle, ArrowUpCircle, Coins, CreditCard, Target, ShoppingCart, Receipt, CalendarClock, TrendingDown, TrendingUp } from 'lucide-react';
-import { OverviewService } from '@/services/overviewService';
+import { useOverviewQuery, type OverviewEntityType } from '@/hooks/queries/useOverviewQuery';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { OverviewResponse } from '@/types/overview';
 
 type EntityTypeFilter = 'pf' | 'pj' | 'all';
 
@@ -26,30 +25,9 @@ export function OverviewDashboard({ isAdmin = false }: OverviewDashboardProps) {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [entityType, setEntityType] = useState<EntityTypeFilter>('all');
-  const [data, setData] = useState<OverviewResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const genRef = useRef(0);
-
-  const loadData = useCallback(() => {
-    const gen = ++genRef.current;
-    setLoading(true);
-    const entityParam: 'individual' | 'business' | 'all' =
-      entityType === 'pf' ? 'individual' : entityType === 'pj' ? 'business' : 'all';
-    OverviewService.getOverview(year, month, entityParam)
-      .then((res) => {
-        if (gen === genRef.current) setData(res);
-      })
-      .catch(() => {
-        if (gen === genRef.current) setData(null);
-      })
-      .finally(() => {
-        if (gen === genRef.current) setLoading(false);
-      });
-  }, [year, month, entityType]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const entityParam: OverviewEntityType =
+    entityType === 'pf' ? 'individual' : entityType === 'pj' ? 'business' : 'all';
+  const { data, isPending } = useOverviewQuery(year, month, entityParam);
 
   const changeMonth = (delta: number) => {
     const d = new Date(year, month - 1 + delta, 1);
@@ -59,7 +37,7 @@ export function OverviewDashboard({ isAdmin = false }: OverviewDashboardProps) {
 
   const monthName = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
-  if (loading && !data) {
+  if (isPending) {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
