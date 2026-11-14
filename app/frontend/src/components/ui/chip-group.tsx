@@ -13,6 +13,8 @@ interface ChipGroupProps<T extends string> {
   "aria-label": string
   /** `radio` (default) is a form choice; `tabs` switches between sections of a page. */
   variant?: "radio" | "tabs"
+  /** Let the row bleed to the screen edges (cancels the page's horizontal padding below `md`). */
+  bleed?: boolean
   className?: string
 }
 
@@ -26,6 +28,7 @@ export function ChipGroup<T extends string>({
   value,
   onChange,
   variant = "radio",
+  bleed = false,
   className,
   "aria-label": ariaLabel,
 }: ChipGroupProps<T>) {
@@ -35,7 +38,8 @@ export function ChipGroup<T extends string>({
       role={isTabs ? "tablist" : "radiogroup"}
       aria-label={ariaLabel}
       className={cn(
-        "-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden",
+        "flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        bleed && "-mx-4 px-4 sm:-mx-6 sm:px-6 md:mx-0 md:px-0",
         className,
       )}
     >

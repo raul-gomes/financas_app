@@ -465,3 +465,15 @@ Fileira de chips que **rola na horizontal** (nunca quebra nem estoura a tela): f
 `groupTransactionsByDay(lista, agora)` (grupos por dia, ordem preservada), `formatDayHeading(data, agora)`
 ("Hoje · 14 nov", "Ontem · 13 nov", "12 nov", ano só se diferente) e `signedAmount(t)` ("+R$ 10,00" / "−R$ 10,00" com sinal de menos real).
 
+### 8.5 Alvos de toque (>= 44 px abaixo de `md`)
+
+`Button` (`default`/`sm`/`icon`) vira `h-11` no mobile; `Input`, `SelectTrigger` e `CurrencyInput` ficam com `h-12` (48 px, campos de formulário);
+`Checkbox`, `Switch` e `RadioGroupItem` ganham uma área de toque estendida (pseudo-elemento) de 44 px. No desktop nada muda.
+
+### 8.6 `/financial` no mobile
+
+`FinancialMobile` (`dashboards/`) monta a página abaixo de `md` na ordem do mock: seletor de mês no `MobileTopBarSlot`, chips de seção (`ChartAnchors`, rolam na horizontal),
+`PaymentKpiCards` (carrossel com snap), `MonthlyBarsChart` (6 meses, legenda embaixo, toque lê o valor) e `TransactionListMobile`
+(lançamentos agrupados por dia; tocar na linha abre `TransactionDetailSheet` com Editar/Excluir; a lixeira não aparece na linha), depois `FixedVariableCard` e as categorias.
+O desktop segue com `FinancialDashboard` + `TransactionList` (os dois usam `PaymentKpiCards`, `FixedVariableCard` e o hook `useTransactionList`).
+`useRecentMonths` (em `useFinancialQueries`) lê o ano do mês final e, se a janela cruza o ano, o anterior.

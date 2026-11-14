@@ -1,14 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MonthStepper, addMonths } from './MonthStepper';
-
-describe('addMonths', () => {
-  it('rolls over year boundaries in both directions', () => {
-    expect(addMonths({ year: 2026, month: 12 }, 1)).toEqual({ year: 2027, month: 1 });
-    expect(addMonths({ year: 2026, month: 1 }, -1)).toEqual({ year: 2025, month: 12 });
-    expect(addMonths({ year: 2026, month: 11 }, 0)).toEqual({ year: 2026, month: 11 });
-  });
-});
+import { MonthStepper } from './MonthStepper';
 
 describe('MonthStepper', () => {
   it('shows the short pt-BR month and year', () => {

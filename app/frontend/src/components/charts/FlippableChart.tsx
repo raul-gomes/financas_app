@@ -31,8 +31,8 @@ function FlippableChartBase({
 }: FlippableChartProps) {
   const isFlipped = selectedMonth !== null;
   const fullMonthNames = [
-    'january', 'february', 'Marco', 'april', 'may', 'june',
-    'july', 'august', 'september', 'october', 'november', 'december',
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
   ];
   const monthLabel = selectedMonth
     ? `${fullMonthNames[selectedMonth.index]} ${selectedMonth.year}`
@@ -88,11 +88,11 @@ function FlippableChartBase({
         >
           <div className="flex flex-col h-full">
             {/* Title + Legend combined in one row */}
-            <div className="flex items-center shrink-0 px-2 pt-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0 px-2 pt-1">
               <h3 className="text-lg font-semibold shrink-0">
                 Rendimento Anual
               </h3>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground ml-auto">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground ml-auto">
                 <span className="flex items-center gap-1.5">
                   <span
                     className="w-2.5 h-2.5 rounded-sm inline-block"
@@ -146,11 +146,11 @@ function FlippableChartBase({
         >
           <div className="flex flex-col h-full">
             {/* Header + Legend combined in one row */}
-            <div className="flex items-center justify-between shrink-0 px-2 pt-1">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 shrink-0 px-2 pt-1">
               <span className="text-sm font-semibold text-foreground">
                 {monthLabel}
               </span>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <span
                     className="w-2.5 h-2.5 rounded-sm inline-block"

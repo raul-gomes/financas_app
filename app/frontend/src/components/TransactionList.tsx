@@ -1,5 +1,5 @@
 // TransactionList.tsx
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { formatCurrency } from '@/lib/format';
 import { useNavigate } from 'react-router';
@@ -10,11 +10,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Plus,
-  MoreVertical,
-  Edit,
   Trash2,
   FileText,
-  Banknote,
   Search,
 } from 'lucide-react';
 import { Transaction, MonthlyBalance } from '@/types/financial';
@@ -24,16 +21,10 @@ import { AnimatedNumber } from './AnimatedNumber';
 import { AddTransactionDialog } from '@/components/dialogs/AddTransactionDialog';
 import { EditTransactionDialog } from '@/components/dialogs/EditTransactionDialog';
 import { ExtratoUploadModal } from '@/components/dialogs/ExtratoUploadModal';
-import { useBanks } from '@/hooks/queries/useSettingsQueries';
-import { useTransactionsInfinite } from '@/hooks/queries/useTransactionQueries';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { useToast } from '@/hooks/use-toast';
+import { useTransactionList } from '@/hooks/useTransactionList';
 import { useRole } from '@/contexts/RoleContext';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-
-/** Wait after the last keystroke before searching on the server. */
-const SEARCH_DEBOUNCE_MS = 300;
 
 interface TransactionListProps {
   monthlyBalance: MonthlyBalance;
@@ -58,41 +49,22 @@ export function TransactionList({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const { toast } = useToast();
   const { isAdmin } = useRole();
 
-  // Banks change rarely: cached and shared with the Settings screen
-  const { data: banks = [], isError: isBanksError, error: banksError } = useBanks();
-  useEffect(() => {
-    if (!isBanksError) return;
-    console.error('Error loading banks:', banksError);
-    toast({ title: 'Erro', description: 'Falha ao carregar os bancos.', variant: 'destructive' });
-  }, [isBanksError, banksError, toast]);
-  const debouncedSearch = useDebouncedValue(searchQuery.trim(), SEARCH_DEBOUNCE_MS);
-
-  // The list is paged by the server (filters: period, PF/PJ and text); "Carregar mais" fetches the next page
+  // Server-paged list (period + PF/PJ + text search) and bank names, shared with the mobile view
   const {
-    data,
+    searchQuery,
+    setSearchQuery,
+    transactions,
+    total,
     isPending,
     isError,
     refetch,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useTransactionsInfinite({
-    dateRange,
-    entityType: selectedEntityType,
-    search: debouncedSearch,
-  });
-  const transactions = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
-  const total = data?.pages[0]?.total ?? 0;
-
-  const getBankName = (bankCode: string | null | undefined): string | null => {
-    if (!bankCode) return null;
-    const bank = banks.find(b => b.bank_code === bankCode);
-    return bank?.bank_name || null;
-  };
+    getBankName,
+  } = useTransactionList(dateRange, selectedEntityType);
 
   // Virtualização: apenas linhas visíveis (+ overscan) são montadas no DOM
   const listRef = useRef<HTMLDivElement>(null);

@@ -1,22 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-/** A calendar month; `month` is 1-12. */
-export interface YearMonth {
-  year: number;
-  month: number;
-}
-
-/** Short pt-BR month names ("nov 2026" in the stepper). */
-const SHORT_MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'] as const;
-
-/** Months in a year, used to roll the year over. */
-const MONTHS_PER_YEAR = 12;
-
-/** The month `delta` months after (or before, if negative) `from`. */
-export function addMonths(from: YearMonth, delta: number): YearMonth {
-  const index = from.year * MONTHS_PER_YEAR + (from.month - 1) + delta;
-  return { year: Math.floor(index / MONTHS_PER_YEAR), month: (index % MONTHS_PER_YEAR) + 1 };
-}
+import { addMonths, SHORT_MONTHS, type YearMonth } from '@/lib/months';
 
 interface MonthStepperProps extends YearMonth {
   onChange: (next: YearMonth) => void;
