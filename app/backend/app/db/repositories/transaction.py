@@ -7,7 +7,7 @@ from uuid import uuid4
 from dateutil.relativedelta import relativedelta
 from fastapi import Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -212,14 +212,16 @@ class TransacaoRepository:
             await self.db.commit()
             try:
                 await self.db.refresh(inst)
-            except Exception as refresh_err:
+            except SQLAlchemyError as refresh_err:
                 log.error(f"Erro ao refresh transação: {refresh_err}")
                 inst = await self.get_by_id(inst.id, user_id) or inst
             log.info(f"Transação {inst.id} criada")
             return inst
-        except IntegrityError:
+        except IntegrityError as exc:
             await self.db.rollback()
-            raise HTTPException(status_code=400, detail="Erro ao criar transação (integridade)")
+            raise HTTPException(
+                status_code=400, detail="Erro ao criar transação (integridade)"
+            ) from exc
         except Exception as e:
             await self.db.rollback()
             log.error(f"Erro inesperado ao criar transação: {type(e).__name__}: {e}", exc_info=True)
@@ -331,9 +333,9 @@ class TransacaoRepository:
             await self.db.commit()
             await self.db.refresh(trans)
             return trans
-        except IntegrityError:
+        except IntegrityError as exc:
             await self.db.rollback()
-            raise HTTPException(status_code=400, detail="Erro ao atualizar transação")
+            raise HTTPException(status_code=400, detail="Erro ao atualizar transação") from exc
 
     async def delete(self, id: int, user_id: int) -> TransactionORM | None:
         trans = await self.get_by_id(id, user_id)
@@ -522,8 +524,9 @@ class TransacaoRepository:
                         user_id=user_id,
                     )
                     all_instances.append(inst)
-            except Exception as e:
-                errors.append(f"Erro ao preparar '{t.get('description', 'N/A')}': {e!s}")
+            except (KeyError, ValueError, TypeError) as e:
+                log.warning(f"Batch item skipped ({type(e).__name__}): {e}")
+                errors.append(f"Erro ao preparar '{t.get('description', 'N/A')}': dados inválidos")
 
         # 5) Batch insert all
         if all_instances:
@@ -533,10 +536,10 @@ class TransacaoRepository:
                 for inst in all_instances:
                     await self.db.refresh(inst)
                 log.info(f"Batch created {len(all_instances)} transactions")
-            except Exception as e:
+            except SQLAlchemyError as e:
                 await self.db.rollback()
                 log.error(f"Batch commit failed: {e}")
-                errors.append(f"Erro no commit em lote: {e!s}")
+                errors.append("Erro no commit em lote")
                 return 0, errors
 
         return len(all_instances), errors

@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 # from .core.database import connect_to_mongo, close_mongo_connection
 from .core.config import Config
@@ -19,6 +20,8 @@ from .routes.settings_routes import router as settings_router
 from .routes.shopping_routes import router as shopping_router
 from .routes.transactions_routes import router as transactions_router
 
+UNHANDLED_ERROR_DETAIL = "Erro interno do servidor"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,7 +31,7 @@ async def lifespan(app: FastAPI):
     job_task = None
     try:
         job_task = await start_limit_alert_job()
-    except Exception as e:
+    except RuntimeError as e:
         logger.warning(f"Job de limites não iniciado: {e}")
     yield
     await stop_limit_alert_job(job_task)
@@ -55,6 +58,15 @@ def create_app(environment: str | None = None, cors_origins: list[str] | None = 
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @application.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        """Log the real error server-side; the client only gets a generic message."""
+        logger.opt(exception=exc).error(
+            f"Unhandled {type(exc).__name__} on {request.method} {request.url.path}"
+        )
+        return JSONResponse(status_code=500, content={"detail": UNHANDLED_ERROR_DETAIL})
+
     application.include_router(transactions_router)
     application.include_router(categories_router)
     application.include_router(dashboard_router)

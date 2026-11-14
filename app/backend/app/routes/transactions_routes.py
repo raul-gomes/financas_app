@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -27,10 +28,10 @@ from app.services.limit_alert_service import trigger_limit_evaluation
 def parse_date(date_str: str, field_name: str) -> datetime:
     try:
         return datetime.strptime(date_str, "%d/%m/%Y")
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400, detail=f"Formato inválido para {field_name}. Use DD/MM/YYYY."
-        )
+        ) from exc
 
 
 router = APIRouter(prefix="/transacoes", tags=["Transações"])
@@ -182,14 +183,14 @@ async def create_transacao(
                 year=transacao.transaction_date.year,
                 month=transacao.transaction_date.month,
             )
-        except Exception as e:
+        except SQLAlchemyError as e:
             log.warning(f"Falha ao avaliar limites pós-create: {e}")
         return transacao
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro interno ao criar transação: {type(e).__name__}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno: {e!s}")
+        raise HTTPException(status_code=500, detail="Erro interno ao criar transação") from e
 
 
 @router.get(
@@ -231,12 +232,12 @@ async def list_transacoes(
         )
         log.info(f"{len(transacoes)} transações listadas")
         return transacoes
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao listar transações: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao listar transações",
-        )
+        ) from e
 
 
 @router.get(
@@ -296,7 +297,7 @@ async def update_transacao(
             year=trans.transaction_date.year,
             month=trans.transaction_date.month,
         )
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.warning(f"Falha ao avaliar limites pós-update: {e}")
     log.info(f"Transação {transacao_id} atualizada")
     return trans
@@ -333,15 +334,15 @@ async def delete_transacao(
                 year=deleted.transaction_date.year,
                 month=deleted.transaction_date.month,
             )
-        except Exception as e:
+        except SQLAlchemyError as e:
             log.warning(f"Falha ao avaliar limites pós-delete: {e}")
         log.info(f"Transação {transacao_id} excluída")
         return deleted
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao excluir transação {transacao_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao excluir transação",
-        )
+        ) from e

@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.limit_alert import LimitAlertORM
@@ -50,7 +51,8 @@ async def evaluate_all_users_current_month(db: AsyncSession) -> int:
         try:
             criados = await trigger_limit_evaluation(db, user_id)
             total += len(criados)
-        except Exception as e:
+        except SQLAlchemyError as e:
+            await db.rollback()
             logger.error(f"[job-limites] Falha ao avaliar user={user_id}: {e}")
     logger.info(f"[job-limites] Avaliação concluída para {len(users)} usuário(s): {total} novo(s)")
     return total

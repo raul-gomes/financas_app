@@ -119,3 +119,22 @@ async def _create_cat(client):
     opt = next((c for c in opts.json()["options"] if c["name"] == "ExtratoCat"), None)
     sub_id = opt["subcategories"][0]["id"] if opt and opt["subcategories"] else None
     return cat, cat["id"], sub_id
+
+
+@pytest.mark.asyncio
+async def test_confirm_evaluates_limits_for_earliest_statement_month(client, monkeypatch):
+    """Regression: the earliest date was compared as a string and raised AttributeError."""
+    calls: list[tuple[int, int]] = []
+
+    async def fake_trigger(_db, _user_id, year=None, month=None):
+        calls.append((year, month))
+        return []
+
+    monkeypatch.setattr("app.routes.extract_routes.trigger_limit_evaluation", fake_trigger)
+    _cat, cat_id, sub_id = await _create_cat(client)
+    base = {"description": "x", "amount": 1.0, "type": "expense"}
+    base |= {"category_id": cat_id, "subcategory_id": sub_id}
+    payload = {"transactions": [{**base, "date": "15/03/2026"}, {**base, "date": "20/12/2025"}]}
+    response = await client.post("/extracts/confirm", json=payload)
+    assert response.status_code == 200
+    assert calls == [(2025, 12)]

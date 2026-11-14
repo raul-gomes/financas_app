@@ -28,11 +28,11 @@ class ExportRepository:
         try:
             dt_i = datetime.strptime(start_date, "%d/%m/%Y") if start_date else datetime(2000, 1, 1)
             dt_f = datetime.strptime(end_date, "%d/%m/%Y") if end_date else datetime.now()
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Formato de data inválido. Use DD/MM/YYYY.",
-            )
+            ) from exc
 
         result = await self.db.execute(
             select(TransactionORM)

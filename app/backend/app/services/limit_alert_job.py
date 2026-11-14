@@ -3,6 +3,8 @@
 import asyncio
 from contextlib import suppress
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.core.config import Config
 from app.core.database import AsyncSessionLocal
 from app.logger import logger
@@ -17,7 +19,7 @@ async def run_evaluation_once() -> int:
     async with AsyncSessionLocal() as session:
         try:
             return await evaluate_all_users_current_month(session)
-        except Exception as e:
+        except SQLAlchemyError as e:
             logger.error(f"[job-limites] Erro na rodada: {e}")
             return 0
         finally:

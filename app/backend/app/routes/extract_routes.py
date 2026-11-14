@@ -1,4 +1,7 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -20,6 +23,7 @@ router = APIRouter(prefix="/extracts", tags=["Bank Extract"], dependencies=[Depe
 
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 UPLOAD_READ_CHUNK_SIZE = 64 * 1024  # 64 KB
+STATEMENT_DATE_FORMAT = "%d/%m/%Y"  # ParsedTransaction.date wire format
 
 
 async def _read_limited(file: UploadFile, max_size: int = MAX_UPLOAD_SIZE) -> bytes:
@@ -118,11 +122,13 @@ async def confirm_extracto(
 
     try:
         if payload.transactions:
-            primeira = min(t.date for t in payload.transactions)
+            primeira = min(
+                datetime.strptime(t.date, STATEMENT_DATE_FORMAT) for t in payload.transactions
+            )
             await trigger_limit_evaluation(
                 db, current_user.id, year=primeira.year, month=primeira.month
             )
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.warning(f"Falha ao avaliar limites pós-extrato: {e}")
 
     log.info(f"{criadas} transacoes criadas do extrato")

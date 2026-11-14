@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.security import get_current_user
 from app.db.models.user import UserORM
@@ -29,12 +30,12 @@ async def list_categories(
         categorias = await repo.get_all(current_user.id)
         log.info("Categorias listadas com sucesso")
         return categorias
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao listar categorias: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao listar categorias",
-        )
+        ) from e
 
 
 @router.get(
@@ -88,12 +89,12 @@ async def create_categoria(
     except HTTPException:
         # já está logado e formatado no repositório
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao criar categoria: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao criar categoria",
-        )
+        ) from e
 
 
 @router.put(
@@ -129,12 +130,12 @@ async def update_categoria(
         return categoria
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao atualizar categoria {categoria_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao atualizar categoria",
-        )
+        ) from e
 
 
 @router.delete(
@@ -164,9 +165,9 @@ async def delete_categoria(
         return categoria
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         log.error(f"Erro ao excluir categoria {categoria_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao excluir categoria",
-        )
+        ) from e

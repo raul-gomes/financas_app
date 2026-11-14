@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -199,7 +200,7 @@ async def sync_pluggy(
         try:
             now = datetime.now(UTC)
             await trigger_limit_evaluation(db, current_user.id, year=now.year, month=now.month)
-        except Exception as e:
+        except SQLAlchemyError as e:
             log.warning(f"Falha ao avaliar limites pós-sync do pluggy: {e}")
         return result
     finally:
