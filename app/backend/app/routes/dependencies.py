@@ -18,6 +18,7 @@ from app.services.category_service import CategoryService
 from app.services.dashboard_service import DashboardService
 from app.services.goal_service import GoalService
 from app.services.limits_service import LimitsService
+from app.services.shopping_service import ShoppingService
 from app.services.transaction_service import TransactionService
 
 BR_DATE_FORMAT = "%d/%m/%Y"
@@ -104,3 +105,19 @@ async def get_goal_reader(
 ) -> GoalService:
     """Goals service for read-only routes (list_goals, progress)."""
     return GoalService(UnitOfWork(session), current_user)
+
+
+async def get_shopping_service(
+    uow: UnitOfWork = Depends(get_unit_of_work, scope="function"),
+    current_user: UserORM = Depends(get_current_user),
+) -> ShoppingService:
+    """Shopping-list service whose writes are committed once by the unit of work."""
+    return ShoppingService(uow, current_user)
+
+
+async def get_shopping_reader(
+    session: AsyncSession = Depends(get_session),
+    current_user: UserORM = Depends(get_current_user),
+) -> ShoppingService:
+    """Shopping-list service for the read-only listing."""
+    return ShoppingService(UnitOfWork(session), current_user)
