@@ -4,7 +4,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.core.config import require_database_url
+from app.core.config import Config, require_database_url
+from app.core.crypto import ENCRYPTION_KEYS_ENV, encrypt_secret
 from app.core.security import get_current_user
 from app.db.models.user import UserORM
 from app.db.repositories.transaction import TransacaoRepository
@@ -19,6 +20,17 @@ def test_missing_database_url_fails_with_clear_message():
 def test_blank_database_url_fails_with_clear_message():
     with pytest.raises(RuntimeError, match="DATABASE_URL"):
         require_database_url("   ")
+
+
+@pytest.mark.parametrize("environment", ["production", "development"])
+@pytest.mark.parametrize("raw", [None, "", "not-a-fernet-key"])
+def test_app_refuses_to_start_without_a_valid_encryption_key(monkeypatch, environment, raw):
+    from app.main import create_app
+
+    monkeypatch.setattr(Config, "PLUGGY_KEY_ENCRYPTION_KEYS", raw)
+
+    with pytest.raises(RuntimeError, match=ENCRYPTION_KEYS_ENV):
+        create_app(environment=environment)
 
 
 def test_database_url_is_returned_when_present():
@@ -49,7 +61,7 @@ async def test_pluggy_sync_uses_correctly_spelled_fallback_description(client, m
         email="teste@teste.com",
         password_hash="",
         role="admin",
-        pluggy_api_key="fake-key",
+        pluggy_api_key=encrypt_secret("fake-key"),
         created_at=now,
         updated_at=now,
     )

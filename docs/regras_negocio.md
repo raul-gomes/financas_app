@@ -177,7 +177,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 #### Perfil
 - Single-user: `GET/PUT /settings/profile` → cria usuário padrão se não existir
 - Senha: **bcrypt** via `passlib`
-- `pluggy_api_key` armazenada (não logada)
+- `pluggy_api_key` armazenada **cifrada** (Fernet), nunca logada nem devolvida (`has_pluggy_key`); string vazia remove
 
 #### Bancos do Usuário
 - CRUD em `user_banks` (código FEBRABAN + nome)
@@ -227,7 +227,7 @@ Aplicado em: criação/edição de transação, extrato, Pluggy, contas recorren
 
 ### 3.5 Segurança
 - Senhas: bcrypt (nunca logadas)
-- `pluggy_api_key`: armazenada, validada no sync, não exposta em logs
+- `pluggy_api_key`: cifrada em repouso (`PLUGGY_KEY_ENCRYPTION_KEYS`, rotação por lista de chaves), decifrada só para chamar a Pluggy, não exposta em logs nem na API
 - Upload: limite 10 MB, decode UTF-8 com replace, parsing defensivo
 - SQL: parameterizado via SQLAlchemy ORM (sem concatenação)
 - Nginx: único ponto de entrada externo (porta 8087)

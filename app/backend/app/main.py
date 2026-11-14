@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # from .core.database import connect_to_mongo, close_mongo_connection
 from .core.config import Config
+from .core.crypto import validate_encryption_keys
 from .logger import logger
 from .routes.categories_routes import router as categories_router
 from .routes.dashboard_routes import router as dashboard_router
@@ -35,7 +36,12 @@ async def lifespan(app: FastAPI):
 
 
 def create_app(environment: str | None = None, cors_origins: list[str] | None = None) -> FastAPI:
-    """Build the FastAPI app; API docs are disabled when environment is production."""
+    """Build the FastAPI app; API docs are disabled when environment is production.
+
+    Raises:
+        RuntimeError: if PLUGGY_KEY_ENCRYPTION_KEYS is missing or invalid (in every environment).
+    """
+    validate_encryption_keys(Config.PLUGGY_KEY_ENCRYPTION_KEYS)
     env = (environment if environment is not None else Config.ENVIRONMENT).lower()
     origins = cors_origins if cors_origins is not None else Config.CORS_ORIGINS
     is_production = env == "production"
