@@ -1,6 +1,6 @@
 """add users.supabase_id (identity by Supabase sub, not by e-mail)
 
-Revision ID: a7b8c9d0e1f2
+Revision ID: c9d0e1f2a3b4
 Revises: f0a1b2c3d4e5
 Create Date: 2026-11-14
 
@@ -10,7 +10,7 @@ Existing rows stay NULL and are linked by e-mail on their next login.
 import sqlalchemy as sa
 from alembic import op
 
-revision = "a7b8c9d0e1f2"
+revision = "c9d0e1f2a3b4"
 down_revision = "f0a1b2c3d4e5"
 branch_labels = None
 depends_on = None

@@ -3,7 +3,7 @@
 > Documento de linhagem (lineage) dos dados: origem, transformações, armazenamento e consumo.
 >
 > **Última atualização:** 2026-11-14
-> **Head do Alembic:** `a7b8c9d0e1f2` (25 migrações)
+> **Head do Alembic:** `c9d0e1f2a3b4` (25 migrações)
 >
 > ⚠️ **Manutenção obrigatória**: qualquer alteração em models (`app/db/models/`), migrações
 > (`app/db/migrations/versions/`), repositories ou rotas que mude o fluxo de dados deve
@@ -352,7 +352,7 @@ Cadeia linear (root → head):
 | 22 | `d2e3f4a5b6c7` | add_user_id_to_shopping_items (Etapa 8) | `shopping_items.user_id` FK NOT NULL + índice `ix_shopping_items_user_id`; backfill p/ user 1 |
 | 23 | `e3f4a5b6c7d8` | replace_is_admin_with_role (Etapa 9) | `users.is_admin` Bool → `role` String(32) default `'user'`; `TRUNCATE`/`UPDATE` admin→'admin' / user→'user'; remove `is_admin` |
 | 24 | `f0a1b2c3d4e5` | create limit_alerts (notificações de limites) | Nova tabela `limit_alerts` (alertas 80/90/100 + exceeded, scope category/credit_card, `read_at`/`email_sent`), FKs CASCADE p/ users/categorias, constr. única `(user_id, category_id, month, threshold)`, índices `ix_limit_alerts_user_id`/`ix_limit_alerts_category_id` |
-| 25 | `a7b8c9d0e1f2` | add users.supabase_id (**HEAD**) | Coluna `supabase_id` String(64) nullable + índice único `ix_users_supabase_id`; identidade pelo `sub` em vez do e-mail (S4) |
+| 25 | `c9d0e1f2a3b4` | add users.supabase_id (**HEAD**) | Coluna `supabase_id` String(64) nullable + índice único `ix_users_supabase_id`; identidade pelo `sub` em vez do e-mail (S4) |
 
 ---
 
