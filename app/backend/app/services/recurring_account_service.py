@@ -113,7 +113,6 @@ class RecurringAccountService:
                         limit=0,
                         type=AUTO_CATEGORY_TYPE,
                     ),
-                    commit=False,
                 )
             category_id = category.id
 
@@ -129,7 +128,6 @@ class RecurringAccountService:
                     category_id,
                     user_id,
                     SubcategoriaCreate(subcategory_name=payload.subcategory_name),
-                    commit=False,
                 )
             subcategory_id = subcategory.id
 

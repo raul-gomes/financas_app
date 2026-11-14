@@ -225,7 +225,6 @@ class TransacaoRepository:
                         type=obj_in.type.value,
                         subcategories=[],
                     ),
-                    commit=False,
                 )
 
         # 2) Subcategoria: se id não informado, busca ou cria por nome sob a categoria
@@ -242,7 +241,6 @@ class TransacaoRepository:
                     categoria_id=categoria.id,
                     user_id=user_id,
                     obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name),
-                    commit=False,
                 )
 
         # 3) Cria a transação usando os IDs resolvidos
@@ -419,7 +417,6 @@ class TransacaoRepository:
                             type=obj_in.type.value if obj_in.type else None,
                             subcategories=[],
                         ),
-                        commit=False,
                     )
             resolved_category_id = categoria.id
 
@@ -439,7 +436,6 @@ class TransacaoRepository:
                         categoria_id=cat_id_for_sub,
                         user_id=user_id,
                         obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name),
-                        commit=False,
                     )
             trans.subcategory_id = sub.id
 
@@ -591,7 +587,6 @@ class TransacaoRepository:
                             type=None,  # will be overridden per transaction
                             subcategories=[],
                         ),
-                        commit=False,
                     )
             cat_cache[key] = cat
 
@@ -612,7 +607,6 @@ class TransacaoRepository:
                             categoria_id=cat.id,
                             user_id=user_id,
                             obj_in=SubcategoriaCreate(subcategory_name=key[1]),
-                            commit=False,
                         )
             sub_cache[key] = sub
 

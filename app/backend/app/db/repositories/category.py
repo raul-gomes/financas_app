@@ -61,13 +61,6 @@ class CategoriaRepository:
         )
         return result.scalars().first()
 
-    async def _persist(self, commit: bool) -> None:
-        """Commits, or only flushes when the caller's unit of work owns the commit."""
-        if commit:
-            await self.db.commit()
-        else:
-            await self.db.flush()
-
     async def get_by_tipo(self, tipo: str, user_id: int) -> CategoryORM | None:
         """Busca a primeira categoria com o tipo informado (ex: 'income', 'investment')."""
         result = await self.db.execute(
@@ -75,14 +68,12 @@ class CategoriaRepository:
         )
         return result.scalars().first()
 
-    async def create(
-        self, user_id: int, obj_in: CategoriaCreate, *, commit: bool = True
-    ) -> CategoryORM:
+    async def create(self, user_id: int, obj_in: CategoriaCreate) -> CategoryORM:
         """
         Insere uma nova categoria e suas subcategorias (se houver).
         Raises ConflictError on a duplicate name and ValidationError on other integrity errors.
 
-        Com ``commit=False`` só faz flush: o commit fica com a unit of work do request.
+        Só faz flush: o commit fica com a unit of work do request.
         """
         log = log_database_operation(
             operation="create",
@@ -106,13 +97,11 @@ class CategoriaRepository:
 
             instance = self.model(user_id=user_id, **orm_data)
             self.db.add(instance)
-            await self._persist(commit)
+            await self.db.flush()
             await self.db.refresh(instance)
 
             if obj_in.subcategories:
-                await self.sub_repo.create_many(
-                    instance.id, user_id, obj_in.subcategories, commit=commit
-                )
+                await self.sub_repo.create_many(instance.id, user_id, obj_in.subcategories)
 
             log.info(f"Categoria {instance.id} criada")
             invalidate_opcoes_categorias_cache()
@@ -126,8 +115,6 @@ class CategoriaRepository:
             return result.scalars().first()
 
         except IntegrityError as e:
-            if commit:
-                await self.db.rollback()
             err = str(e)
             if (
                 "categorias.name" in err
@@ -150,10 +137,8 @@ class CategoriaRepository:
         log.info(f"{len(categorias)} categorias recuperadas")
         return categorias
 
-    async def update(
-        self, id: int, user_id: int, obj_in: CategoriaUpdate, *, commit: bool = True
-    ) -> CategoryORM | None:
-        """Updates a category and syncs its subcategories (flush only with ``commit=False``)."""
+    async def update(self, id: int, user_id: int, obj_in: CategoriaUpdate) -> CategoryORM | None:
+        """Updates a category and syncs its subcategories (flush only)."""
         categoria = await self.get_by_id(id, user_id)
         if not categoria:
             return None
@@ -187,7 +172,7 @@ class CategoriaRepository:
         for field, val in base.items():
             orm_field = field_map.get(field, field)
             setattr(categoria, orm_field, val)
-        await self._persist(commit)
+        await self.db.flush()
 
         # 3) Sincroniza subcategorias sem deletar as existentes
         incoming = obj_in.subcategories or []
@@ -195,12 +180,12 @@ class CategoriaRepository:
         # Mapear IDs existentes para atualização
         for sub in incoming:
             if sub.id is not None:
-                await self.sub_repo.update(sub.id, user_id, sub, commit=commit)
+                await self.sub_repo.update(sub.id, user_id, sub)
 
         # Criar apenas as novas (sem id)
         new_subs = [s for s in incoming if s.id is None]
         if new_subs:
-            await self.sub_repo.create_many(categoria.id, user_id, new_subs, commit=commit)
+            await self.sub_repo.create_many(categoria.id, user_id, new_subs)
 
         # 4) Recarrega e retorna
         result = await self.db.execute(select(self.model).where(self.model.id == id))
@@ -218,7 +203,7 @@ class CategoriaRepository:
         if not categoria:
             return None
         await self.db.delete(categoria)
-        await self._persist(commit)
+        await self.db.flush()
         invalidate_opcoes_categorias_cache()
         log.info(f"Categoria {id} excluída")
         return categoria

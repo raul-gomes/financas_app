@@ -43,7 +43,7 @@ class SubcategoriaRepository:
         return result.scalars().first()
 
     async def create(
-        self, categoria_id: int, user_id: int, obj_in: SubcategoriaCreate, *, commit: bool = True
+        self, categoria_id: int, user_id: int, obj_in: SubcategoriaCreate
     ) -> SubcategoryORM:
         log = log_database_operation(
             operation="create",
@@ -58,33 +58,22 @@ class SubcategoriaRepository:
                 raise NotFoundError("Categoria não encontrada")
             inst = self.model(name=obj_in.subcategory_name, category_id=categoria_id)
             self.db.add(inst)
-            await self._persist(commit)
+            await self.db.flush()
             await self.db.refresh(inst)
             log.info(f"Subcategoria {inst.id} criada para categoria {categoria_id}")
             return inst
         except IntegrityError as exc:
-            if commit:
-                await self.db.rollback()
             raise ValidationError("Erro ao criar subcategoria") from exc
-
-    async def _persist(self, commit: bool) -> None:
-        """Commits, or only flushes when the caller's unit of work owns the commit."""
-        if commit:
-            await self.db.commit()
-        else:
-            await self.db.flush()
 
     async def create_many(
         self,
         categoria_id: int,
         user_id: int,
         subs: list[SubcategoriaCreate],
-        *,
-        commit: bool = True,
     ):
         sub_objs = [self.model(name=s.subcategory_name, category_id=categoria_id) for s in subs]
         self.db.add_all(sub_objs)
-        await self._persist(commit)
+        await self.db.flush()
 
     async def get_by_categoria(self, categoria_id: int, user_id: int) -> list[SubcategoryORM]:
         """Busca todas as subcategorias de uma categoria do usuário"""
@@ -97,7 +86,7 @@ class SubcategoriaRepository:
         return result.scalars().all()
 
     async def update(
-        self, id: int, user_id: int, obj_in: SubcategoriaUpdate, *, commit: bool = True
+        self, id: int, user_id: int, obj_in: SubcategoriaUpdate
     ) -> SubcategoryORM | None:
         """Atualiza uma subcategoria, garantindo que pertença a uma categoria do usuário."""
         sub = await self.get_by_id(id, user_id)
@@ -112,7 +101,7 @@ class SubcategoriaRepository:
             orm_field = field_map.get(field, field)
             setattr(sub, orm_field, value)
 
-        await self._persist(commit)
+        await self.db.flush()
         await self.db.refresh(sub)
         return sub
 
@@ -123,12 +112,10 @@ class SubcategoriaRepository:
             return None
 
         await self.db.delete(sub)
-        await self._persist(commit)
+        await self.db.flush()
         return sub
 
-    async def delete_by_categoria(
-        self, categoria_id: int, user_id: int, *, commit: bool = True
-    ) -> None:
+    async def delete_by_categoria(self, categoria_id: int, user_id: int) -> None:
         """Deleta todas as subcategorias de uma categoria do usuário"""
         await self.db.execute(
             delete(self.model).where(
@@ -136,4 +123,4 @@ class SubcategoriaRepository:
                 self.model.category.has(CategoryORM.user_id == user_id),
             )
         )
-        await self._persist(commit)
+        await self.db.flush()

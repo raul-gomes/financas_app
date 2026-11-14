@@ -118,7 +118,7 @@ only       authorization
 - **Repository** (`app/db/repositories/*.py`): queries only, always filtered by `user_id`. Aggregations (`SUM`/`GROUP BY`, filters on user, date range, PF/PJ) run in SQL, never by looping over ORM rows. It `add`/`flush`/`refresh`es but **never commits**.
 - **Unit of work** (`get_unit_of_work`, declared `Depends(get_unit_of_work, scope="function")`): one `AsyncSession` per request; it commits once when the handler returns and rolls back when it raises. `scope="function"` makes the commit happen before the response is sent, so a failed commit is a 500, not a lost write. Side effects that need durable data (e.g. limit-alert evaluation) go through `uow.after_commit(callback)`: best-effort, logged, never undo the write.
 - Write routes use `get_transaction_service` (unit of work); read-only routes use `get_transaction_reader` / `get_dashboard_service` (plain session, nothing to commit).
-- Repos used by other flows may keep an opt-in `commit: bool = True` (see `CategoriaRepository.create(..., commit=False)`); pass `commit=False` when called from a service.
+- Repositories never take a `commit` flag: they only `add`/`flush`/`refresh`. The only `commit()` calls left outside the unit of work are the identity provisioning of `get_or_create_user_from_supabase` (it runs inside the auth dependency, before any unit of work exists) and `trigger_limit_evaluation` (its own transaction boundary, run after the request commit or by the periodic job).
 - Tests: services are tested directly with an `async_session` + `UnitOfWork` (`tests/test_transaction_service.py`); the unit of work itself in `tests/test_unit_of_work.py`.
 
 ## Frontend data fetching (react-query)

@@ -133,7 +133,7 @@ class LimitsService:
             try:
                 async with self.uow.session.begin_nested():
                     if await self.categories.get_by_id(cat_id, user_id):
-                        await self.categories.delete(cat_id, user_id, commit=False)
+                        await self.categories.delete(cat_id, user_id)
                         response.deleted_categories += 1
             except BULK_ITEM_ERRORS as e:
                 self._restore_counters(response, counters)
@@ -205,7 +205,6 @@ class LimitsService:
                 limit=new_cat.limit,
                 subcategories=[],  # created one by one below
             ),
-            commit=False,
         )
         response.created_categories += 1
 
@@ -215,7 +214,6 @@ class LimitsService:
                     categoria.id,
                     user_id,
                     SubcategoriaCreate(subcategory_name=sub_data.subcategory_name),
-                    commit=False,
                 )
                 response.created_subcategories += 1
 
@@ -239,7 +237,6 @@ class LimitsService:
                 limit=mod_cat.limit,
                 subcategories=[],  # processed one by one below
             ),
-            commit=False,
         )
         response.updated_categories += 1
 
@@ -262,7 +259,6 @@ class LimitsService:
                     sub_data.id,
                     user_id,
                     SubcategoriaUpdate(subcategory_name=sub_data.subcategory_name),
-                    commit=False,
                 )
                 if updated_sub:
                     response.updated_subcategories += 1
@@ -271,6 +267,5 @@ class LimitsService:
                     categoria_id,
                     user_id,
                     SubcategoriaCreate(subcategory_name=sub_data.subcategory_name),
-                    commit=False,
                 )
                 response.created_subcategories += 1

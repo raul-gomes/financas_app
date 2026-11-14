@@ -47,13 +47,13 @@ class CategoryService:
         Raises:
             ConflictError: when the user already has a category with that name and nature.
         """
-        category = await self.repo.create(self.user.id, payload, commit=False)
+        category = await self.repo.create(self.user.id, payload)
         self.uow.after_commit(_invalidate_options_cache)
         return category
 
     async def update(self, category_id: int, payload: CategoriaUpdate) -> CategoryORM:
         """Updates one of the user's categories or raises NotFoundError."""
-        category = await self.repo.update(category_id, self.user.id, payload, commit=False)
+        category = await self.repo.update(category_id, self.user.id, payload)
         if category is None:
             raise NotFoundError(NOT_FOUND_MESSAGE)
         self.uow.after_commit(_invalidate_options_cache)
@@ -61,7 +61,7 @@ class CategoryService:
 
     async def delete(self, category_id: int) -> CategoryORM:
         """Deletes one of the user's categories or raises NotFoundError."""
-        category = await self.repo.delete(category_id, self.user.id, commit=False)
+        category = await self.repo.delete(category_id, self.user.id)
         if category is None:
             raise NotFoundError(NOT_FOUND_MESSAGE)
         self.uow.after_commit(_invalidate_options_cache)
