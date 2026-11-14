@@ -7,7 +7,6 @@ from typing import Any
 
 from sqlalchemy import Select, case, extract, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import lazyload
 
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
@@ -244,9 +243,7 @@ class DashboardRepository:
         stmt = self._scope_transactions(
             select(TransactionORM), start_date, end_date, entity_type, user_id
         )
-        stmt = stmt.options(lazyload(TransactionORM.recurring_account)).order_by(
-            TransactionORM.transaction_date.desc(), TransactionORM.id.desc()
-        )
+        stmt = stmt.order_by(TransactionORM.transaction_date.desc(), TransactionORM.id.desc())
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
 
