@@ -1,22 +1,22 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-# from .core.database import connect_to_mongo, close_mongo_connection
-from .logger import logger, log_with_context
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from .routes.transactions_routes import router as transactions_router
+# from .core.database import connect_to_mongo, close_mongo_connection
+from .logger import logger
 from .routes.categories_routes import router as categories_router
 from .routes.dashboard_routes import router as dashboard_router
-from .routes.limits_routes import router as limits_router
-from .routes.recurring_accounts_routes import router as recurring_accounts_router
-from .routes.extract_routes import router as extract_router
-from .routes.settings_routes import router as settings_router
-from .routes.goals_routes import router as goals_router
-from .routes.shopping_routes import router as shopping_router
-from .routes.pluggy_routes import router as pluggy_router
 from .routes.export_routes import router as export_router
+from .routes.extract_routes import router as extract_router
+from .routes.goals_routes import router as goals_router
+from .routes.limits_routes import router as limits_router
 from .routes.notifications_routes import router as notifications_router
+from .routes.pluggy_routes import router as pluggy_router
+from .routes.recurring_accounts_routes import router as recurring_accounts_router
+from .routes.settings_routes import router as settings_router
+from .routes.shopping_routes import router as shopping_router
+from .routes.transactions_routes import router as transactions_router
 
 
 @asynccontextmanager

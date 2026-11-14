@@ -1,17 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from typing import List, Optional
-from datetime import date, datetime
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.security import get_current_user, require_admin
+from app.db.models.user import UserORM
 from app.db.repositories.settings import SettingsRepository
 from app.db.repositories.transaction import TransacaoRepository
-from app.services.limit_alert_service import trigger_limit_evaluation
-from app.db.models.user import UserORM
-from app.core.security import get_current_user, require_admin
-from app.services.pluggy_service import PluggyService
-from app.schemas.transaction import DuplicateInfo, TransacaoCreate, TipoTransacao, NaturezaTransacao
 from app.logger import log_api_request
+from app.schemas.transaction import NaturezaTransacao, TipoTransacao
+from app.services.limit_alert_service import trigger_limit_evaluation
+from app.services.pluggy_service import PluggyService
 
 router = APIRouter(
     prefix="/pluggy", tags=["Pluggy / Open Finance"], dependencies=[Depends(require_admin)]
@@ -129,7 +129,7 @@ async def sync_pluggy(
                 )
 
         # Batch create all transactions
-        criadas, erros = await transacao_repo.create_batch_from_extract(
+        criadas, _erros = await transacao_repo.create_batch_from_extract(
             all_transactions_data, current_user.id
         )
 
@@ -139,6 +139,7 @@ async def sync_pluggy(
             # Get the newly created transactions (we need their IDs and dates/amounts)
             # We'll fetch them by checking duplicates in bulk
             from sqlalchemy import select
+
             from app.db.models.transaction import TransactionORM
 
             # Get recently created transactions by description pattern
@@ -209,7 +210,7 @@ async def validate_pluggy_key(
     current_user: UserORM = Depends(get_current_user),
     settings_repo: SettingsRepository = Depends(),
 ):
-    log = log_api_request(method="GET", endpoint=str(request.url))
+    log_api_request(method="GET", endpoint=str(request.url))
     user = current_user
     if not user.pluggy_api_key:
         return {"valid": False, "message": "API Key não configurada."}

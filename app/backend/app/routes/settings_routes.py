@@ -1,13 +1,11 @@
-import random
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.core.security import get_current_user
+from app.db.models.user import UserORM
 from app.db.repositories.settings import SettingsRepository
 from app.db.repositories.transaction import TransacaoRepository
-from app.db.models.user import UserORM
-from app.core.security import get_current_user
-from app.schemas.settings import ProfileResponse, ProfileUpdate, BankResponse, BankCreate
 from app.logger import log_api_request
+from app.schemas.settings import BankCreate, BankResponse, ProfileResponse, ProfileUpdate
 
 router = APIRouter(prefix="/settings", tags=["Configurações"])
 
@@ -38,7 +36,7 @@ async def update_profile(
     return user
 
 
-@router.get("/banks", response_model=List[BankResponse])
+@router.get("/banks", response_model=list[BankResponse])
 async def list_banks(
     request: Request,
     current_user: UserORM = Depends(get_current_user),

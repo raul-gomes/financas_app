@@ -1,24 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
-from typing import List, Optional
-from datetime import date, datetime
+from datetime import date
 
-from app.db.repositories.shopping import ShoppingRepository
-from app.db.models.user import UserORM
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+
 from app.core.security import get_current_user, require_admin
-from app.schemas.shopping import (
-    ShoppingItemCreate,
-    ShoppingItemUpdate,
-    ShoppingItemResponse,
-    GenerateRecurringShoppingRequest,
-)
+from app.db.models.user import UserORM
+from app.db.repositories.shopping import ShoppingRepository
 from app.logger import log_api_request
+from app.schemas.shopping import (
+    GenerateRecurringShoppingRequest,
+    ShoppingItemCreate,
+    ShoppingItemResponse,
+    ShoppingItemUpdate,
+)
 
 router = APIRouter(prefix="/shopping", tags=["Shopping"], dependencies=[Depends(require_admin)])
 
 
 @router.get(
     "/",
-    response_model=List[ShoppingItemResponse],
+    response_model=list[ShoppingItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar itens do mês",
     description="Retorna os itens da lista de compras para um determinado mês.",
@@ -27,7 +27,7 @@ async def list_shopping(
     request: Request,
     current_user: UserORM = Depends(get_current_user),
     month: date = Query(..., description="Mês de referência (YYYY-MM-DD, primeiro dia do mês)"),
-    entity_type: Optional[str] = Query(
+    entity_type: str | None = Query(
         None, description="Filtrar por tipo de entidade: individual, business"
     ),
     repo: ShoppingRepository = Depends(ShoppingRepository),
@@ -147,4 +147,4 @@ async def generate_recurring_shopping(
         return {"generated": gerados, "message": f"{gerados} itens recorrentes gerados"}
     except Exception as e:
         log.error(f"Erro ao gerar itens recorrentes: {type(e).__name__}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {e!s}")

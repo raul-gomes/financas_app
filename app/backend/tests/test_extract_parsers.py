@@ -1,5 +1,4 @@
-import pytest
-from app.services.extract_parsers import parse_csv, parse_ofx
+from app.services.extract_parsers import parse_csv
 
 
 def test_parse_csv_valid_data():

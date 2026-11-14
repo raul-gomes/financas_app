@@ -1,18 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from app.db.repositories.category import CategoriaRepository
-from app.db.models.user import UserORM
 from app.core.security import get_current_user
-from app.schemas.categories import Categoria, CategoriaCreate, CategoriaUpdate
+from app.db.models.user import UserORM
+from app.db.repositories.category import CategoriaRepository
 from app.logger import log_api_request
+from app.schemas.categories import Categoria, CategoriaCreate, CategoriaUpdate
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
 
 @router.get(
     "/",
-    response_model=List[Categoria],
+    response_model=list[Categoria],
     status_code=status.HTTP_200_OK,
     summary="Listar todas as categorias",
     description="Retorna todas as categorias com suas subcategorias.",
@@ -81,7 +80,7 @@ async def create_categoria(
     """
     Cria uma categoria a partir dos dados fornecidos.
     """
-    log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.dict())
+    log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
     try:
         categoria = await repo.create(current_user.id, payload)
         log.info(f"Categoria criada com ID {categoria.id}")
@@ -117,7 +116,7 @@ async def update_categoria(
         method="PUT",
         endpoint=str(request.url),
         categoria_id=categoria_id,
-        payload=payload.dict(exclude_unset=True),
+        payload=payload.model_dump(exclude_unset=True),
     )
     try:
         categoria = await repo.update(categoria_id, current_user.id, payload)

@@ -1,28 +1,27 @@
 # app/routes/transacoes.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
-from typing import List, Optional
 from datetime import datetime
 
-from app.core.database import get_session
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.repositories.transaction import TransacaoRepository
-from app.services.limit_alert_service import trigger_limit_evaluation
-from app.db.models.user import UserORM
+
+from app.core.database import get_session
 from app.core.security import get_current_user
+from app.db.models.user import UserORM
+from app.db.repositories.transaction import TransacaoRepository
+from app.logger import log_api_request
 from app.schemas.transaction import (
+    DuplicateCheckRequest,
+    DuplicateCheckResponse,
+    DuplicateInfo,
+    ResolveDuplicatesRequest,
+    ResolveDuplicatesResponse,
+    SingleDuplicateCheckResult,
     TransacaoCreate,
     TransacaoResponse,
     TransacaoUpdate,
-    DuplicateCheckRequest,
-    DuplicateCheckResponse,
-    SingleDuplicateCheckResult,
-    DuplicateInfo,
-    DuplicateResolution,
-    ResolveDuplicatesRequest,
-    ResolveDuplicatesResponse,
 )
-from app.logger import log_api_request
+from app.services.limit_alert_service import trigger_limit_evaluation
 
 
 def parse_date(date_str: str, field_name: str) -> datetime:
@@ -190,12 +189,12 @@ async def create_transacao(
         raise
     except Exception as e:
         log.error(f"Erro interno ao criar transação: {type(e).__name__}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {e!s}")
 
 
 @router.get(
     "/",
-    response_model=List[TransacaoResponse],
+    response_model=list[TransacaoResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar transações",
     description="Lista todas as transações, com filtros opcionais por data e paginação.",
@@ -203,8 +202,8 @@ async def create_transacao(
 async def list_transacoes(
     request: Request,
     current_user: UserORM = Depends(get_current_user),
-    start_date: Optional[str] = Query(None, description="Data inicial DD/MM/YYYY"),
-    end_date: Optional[str] = Query(None, description="Data final DD/MM/YYYY"),
+    start_date: str | None = Query(None, description="Data inicial DD/MM/YYYY"),
+    end_date: str | None = Query(None, description="Data final DD/MM/YYYY"),
     limit: int = Query(100, ge=1, le=500, description="Limite de itens por página"),
     offset: int = Query(0, ge=0, description="Offset para paginação"),
     repo: TransacaoRepository = Depends(TransacaoRepository),
@@ -284,7 +283,7 @@ async def update_transacao(
         method="PUT",
         endpoint=str(request.url),
         transacao_id=transacao_id,
-        payload=payload.dict(exclude_unset=True),
+        payload=payload.model_dump(exclude_unset=True),
     )
     trans = await repo.update(transacao_id, payload, current_user.id)
     if not trans:

@@ -1,13 +1,12 @@
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import app
 from app.core.database import get_session
 from app.core.security import get_current_user
 from app.db.models.user import UserORM
 from app.db.repositories.limit_alert import LimitAlertRepository
+from app.main import app
 
 
 @pytest_asyncio.fixture
@@ -42,7 +41,7 @@ async def notif_client(async_session):
 
 @pytest.mark.asyncio
 async def test_list_notifications_vazio(notif_client):
-    client, session = notif_client
+    client, _session = notif_client
     response = await client.get("/notifications/")
     assert response.status_code == 200
     data = response.json()
@@ -66,7 +65,7 @@ async def test_list_notifications_com_itens_computados(notif_client):
     await session.flush()
 
     repo = LimitAlertRepository(session)
-    a1 = await repo.create(
+    await repo.create(
         user_id=1,
         category_id=10,
         month="2026-09",
@@ -75,7 +74,7 @@ async def test_list_notifications_com_itens_computados(notif_client):
         percent_used=85.0,
         scope="category",
     )
-    a2 = await repo.create(
+    await repo.create(
         user_id=1,
         category_id=10,
         month="2026-09",
@@ -84,7 +83,7 @@ async def test_list_notifications_com_itens_computados(notif_client):
         percent_used=95.0,
         scope="category",
     )
-    a3 = await repo.create(
+    await repo.create(
         user_id=1,
         category_id=10,
         month="2026-09",
@@ -193,7 +192,7 @@ async def test_marcar_todas_como_lidas(notif_client):
 
 @pytest.mark.asyncio
 async def test_risk_check_categoria_estourada(notif_client):
-    client, session = notif_client
+    client, _session = notif_client
     cats = await client.post(
         "/categories/",
         json={
@@ -234,7 +233,7 @@ async def test_risk_check_categoria_estourada(notif_client):
 
 @pytest.mark.asyncio
 async def test_risk_check_categoria_ok(notif_client):
-    client, session = notif_client
+    client, _session = notif_client
     cats = await client.post(
         "/categories/",
         json={
@@ -254,7 +253,7 @@ async def test_risk_check_categoria_ok(notif_client):
 @pytest.mark.asyncio
 async def test_risk_check_projeta_valor_digitado(notif_client):
     """Ao digitar o valor, o risk-check projeta gasto atual + valor e reporta os % atingidos."""
-    client, session = notif_client
+    client, _session = notif_client
     cats = await client.post(
         "/categories/",
         json={
@@ -301,7 +300,7 @@ async def test_risk_check_projeta_valor_digitado(notif_client):
 @pytest.mark.asyncio
 async def test_risk_check_projecao_estoura_limite(notif_client):
     """Projeção > 100% → destructive + todos os thresholds 80/90/100."""
-    client, session = notif_client
+    client, _session = notif_client
     cats = await client.post(
         "/categories/",
         json={
@@ -326,7 +325,7 @@ async def test_risk_check_projecao_estoura_limite(notif_client):
 @pytest.mark.asyncio
 async def test_criar_transacao_estourada_dispara_notificacao(notif_client):
     """Etapa 5: pós-mutação dispara a avaliação automaticamente."""
-    client, session = notif_client
+    client, _session = notif_client
     cats = await client.post(
         "/categories/",
         json={

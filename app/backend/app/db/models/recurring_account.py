@@ -1,7 +1,9 @@
-from sqlalchemy import Column, Integer, Float, String, DateTime, Boolean, ForeignKey, func
-from sqlalchemy.orm import relationship
-from app.db.base import Base
 from uuid import uuid4
+
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+
+from app.db.base import Base
 
 
 class RecurringAccountORM(Base):

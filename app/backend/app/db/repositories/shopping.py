@@ -1,21 +1,21 @@
 # app/db/repositories/shopping.py
 
-from typing import List, Optional
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, case, or_, and_
 from datetime import date
 from uuid import uuid4
+
 from dateutil.relativedelta import relativedelta
+from fastapi import Depends
+from sqlalchemy import and_, case, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.db.models.shopping_item import ShoppingItemORM
+from app.logger import log_database_operation
 from app.schemas.shopping import (
+    GenerateRecurringShoppingRequest,
     ShoppingItemCreate,
     ShoppingItemUpdate,
-    GenerateRecurringShoppingRequest,
 )
-from app.logger import log_database_operation
 
 
 class ShoppingRepository:
@@ -30,9 +30,9 @@ class ShoppingRepository:
     async def list_by_month(
         self,
         reference_month: date,
-        entity_type: Optional[str] = None,
-        user_id: Optional[int] = None,
-    ) -> List[ShoppingItemORM]:
+        entity_type: str | None = None,
+        user_id: int | None = None,
+    ) -> list[ShoppingItemORM]:
         """Lista itens de um mês específico com ROLLOVER: inclui itens não-marcados
         de meses anteriores (que não foram comprados). Ordenados: não-marcados
         primeiro (mais recentes primeiro), depois marcados (mais recentes primeiro)."""
@@ -40,14 +40,14 @@ class ShoppingRepository:
             operation="read_all", collection="shopping_items", mes_ref=str(reference_month)
         )
         # Ordena: não-marcados (checked=false) primeiro, depois por created_at descendente
-        order_expr = case((self.model.checked == False, 0), else_=1)
+        order_expr = case((self.model.checked == False, 0), else_=1)  # noqa: E712  # SQLAlchemy column comparison
         # Rollover: itens do próprio mês + não-marcados (não comprados) de meses anteriores
         query = select(self.model).where(
             or_(
                 self.model.reference_month == reference_month,
                 and_(
                     self.model.reference_month < reference_month,
-                    self.model.checked == False,
+                    self.model.checked == False,  # noqa: E712  # SQLAlchemy column comparison
                 ),
             )
         )
@@ -63,7 +63,7 @@ class ShoppingRepository:
         return items
 
     async def create(
-        self, obj_in: ShoppingItemCreate, user_id: Optional[int] = None
+        self, obj_in: ShoppingItemCreate, user_id: int | None = None
     ) -> ShoppingItemORM:
         """Cria um novo item na lista de compras."""
         log = log_database_operation(
@@ -82,8 +82,8 @@ class ShoppingRepository:
         return item
 
     async def update(
-        self, item_id: int, obj_in: ShoppingItemUpdate, user_id: Optional[int] = None
-    ) -> Optional[ShoppingItemORM]:
+        self, item_id: int, obj_in: ShoppingItemUpdate, user_id: int | None = None
+    ) -> ShoppingItemORM | None:
         """Atualiza um item (nome e/ou checked).
         Quando checked=true, define completed_at automaticamente.
         Quando checked=false, limpa completed_at."""
@@ -114,9 +114,7 @@ class ShoppingRepository:
         )
         return item
 
-    async def delete(
-        self, item_id: int, user_id: Optional[int] = None
-    ) -> Optional[ShoppingItemORM]:
+    async def delete(self, item_id: int, user_id: int | None = None) -> ShoppingItemORM | None:
         """Remove um item da lista."""
         log = log_database_operation(
             operation="delete", collection="shopping_items", item_id=item_id
@@ -131,7 +129,7 @@ class ShoppingRepository:
         log.info(f"Item {item_id} excluído")
         return item
 
-    async def _get_scoped(self, item_id: int, user_id: Optional[int]) -> Optional[ShoppingItemORM]:
+    async def _get_scoped(self, item_id: int, user_id: int | None) -> ShoppingItemORM | None:
         stmt = select(self.model).where(self.model.id == item_id)
         if user_id is not None:
             stmt = stmt.where(self.model.user_id == user_id)
@@ -139,7 +137,7 @@ class ShoppingRepository:
         return result.scalars().first()
 
     async def generate_recurring_items(
-        self, req: GenerateRecurringShoppingRequest, user_id: Optional[int] = None
+        self, req: GenerateRecurringShoppingRequest, user_id: int | None = None
     ) -> int:
         """
         Gera itens de compras recorrentes para os meses no intervalo.
@@ -156,8 +154,8 @@ class ShoppingRepository:
         # Busca itens recorrentes ativos no mês inicial
         stmt = select(self.model).where(
             self.model.reference_month == req.start_month,
-            self.model.is_recurring == True,
-            self.model.checked == False,  # só itens não comprados
+            self.model.is_recurring == True,  # noqa: E712  # SQLAlchemy column comparison
+            self.model.checked == False,  # só itens não comprados  # noqa: E712
         )
         if user_id is not None:
             stmt = stmt.where(self.model.user_id == user_id)

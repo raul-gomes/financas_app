@@ -1,6 +1,6 @@
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from app.services.email_service import (
     build_alert_html,

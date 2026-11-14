@@ -1,5 +1,4 @@
 import pytest
-from httpx import AsyncClient
 
 
 async def create_categoria_with_sub(
@@ -22,7 +21,7 @@ async def create_categoria_with_sub(
 
 @pytest.mark.asyncio
 async def test_create_transacao_with_existing_categoria(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Alimentacao")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Alimentacao")
     payload = {
         "amount": 50.0,
         "description": "Compras",
@@ -73,7 +72,7 @@ async def test_create_transacao_invalid_categoria(client):
 
 @pytest.mark.asyncio
 async def test_list_transacoes(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Transporte")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Transporte")
     await client.post(
         "/transacoes/",
         json={
@@ -94,7 +93,7 @@ async def test_list_transacoes(client):
 
 @pytest.mark.asyncio
 async def test_list_transacoes_with_date_filter(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Alimentacao2")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Alimentacao2")
     await client.post(
         "/transacoes/",
         json={
@@ -115,7 +114,7 @@ async def test_list_transacoes_with_date_filter(client):
 
 @pytest.mark.asyncio
 async def test_get_transacao_by_id(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Lazer")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Lazer")
     create = await client.post(
         "/transacoes/",
         json={
@@ -143,7 +142,7 @@ async def test_get_transacao_not_found(client):
 
 @pytest.mark.asyncio
 async def test_update_transacao(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Saude")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Saude")
     create = await client.post(
         "/transacoes/",
         json={
@@ -177,7 +176,7 @@ async def test_update_transacao_not_found(client):
 
 @pytest.mark.asyncio
 async def test_delete_transacao(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Educacao")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Educacao")
     create = await client.post(
         "/transacoes/",
         json={

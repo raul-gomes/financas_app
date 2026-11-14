@@ -1,9 +1,8 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from .config import Config
-from app.db.base import Base
 
 # SQLite (aiosqlite) não suporta pool_size/max_overflow; aplica só para PostgreSQL
 is_postgres = Config.DATABASE_URL.startswith("postgresql")

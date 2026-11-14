@@ -1,6 +1,6 @@
-import pytest
 from datetime import datetime
-from httpx import AsyncClient
+
+import pytest
 
 
 def _expected_remaining_2026(total: int = 12) -> int:
@@ -27,7 +27,7 @@ async def create_categoria_with_sub(client, nome, entity_type="individual", limi
 
 @pytest.mark.asyncio
 async def test_create_conta_recorrente(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Moradia")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Moradia")
     payload = {
         "description": "Aluguel",
         "amount": 1500.0,
@@ -51,7 +51,7 @@ async def test_create_conta_recorrente(client):
 
 @pytest.mark.asyncio
 async def test_create_conta_recorrente_com_parcelas(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Moradia2")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Moradia2")
     payload = {
         "description": "Condominio",
         "amount": 800.0,
@@ -73,7 +73,7 @@ async def test_create_conta_recorrente_com_parcelas(client):
 
 @pytest.mark.asyncio
 async def test_list_contas_recorrentes(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta1")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta1")
     await client.post(
         "/recurring-accounts/",
         json={
@@ -94,7 +94,7 @@ async def test_list_contas_recorrentes(client):
 
 @pytest.mark.asyncio
 async def test_get_conta_recorrente_by_id(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta2")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta2")
     create = await client.post(
         "/recurring-accounts/",
         json={
@@ -122,7 +122,7 @@ async def test_get_conta_recorrente_not_found(client):
 
 @pytest.mark.asyncio
 async def test_update_conta_recorrente_toggle_ativo(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta3")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta3")
     create = await client.post(
         "/recurring-accounts/",
         json={
@@ -144,7 +144,7 @@ async def test_update_conta_recorrente_toggle_ativo(client):
 
 @pytest.mark.asyncio
 async def test_update_conta_recorrente_valor(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta4")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta4")
     create = await client.post(
         "/recurring-accounts/",
         json={
@@ -166,7 +166,7 @@ async def test_update_conta_recorrente_valor(client):
 
 @pytest.mark.asyncio
 async def test_delete_conta_recorrente(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta5")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta5")
     create = await client.post(
         "/recurring-accounts/",
         json={
@@ -196,7 +196,7 @@ async def test_delete_conta_recorrente_not_found(client):
 
 @pytest.mark.asyncio
 async def test_renew_conta_recorrente(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "ContaRenew")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "ContaRenew")
     create = await client.post(
         "/recurring-accounts/",
         json={
@@ -226,7 +226,7 @@ async def test_renew_conta_recorrente(client):
 
 @pytest.mark.asyncio
 async def test_generate_pending_transactions(client):
-    cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta6")
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta6")
     await client.post(
         "/recurring-accounts/",
         json={

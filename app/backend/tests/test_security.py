@@ -1,19 +1,15 @@
-import time
 import base64
-import json
+import time
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import jwt
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
-import jwt
-
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import serialization
-
-from app.core.security import get_current_user, require_role, require_admin
 from app.core.config import Config
-
+from app.core.security import get_current_user, require_admin, require_role
 
 # ── Fixtures ────────────────────────────────────────────────────────
 
@@ -84,7 +80,6 @@ def patch_secret():
 
 @pytest.fixture(autouse=True)
 def mock_db_session():
-    mock_session = MagicMock()
     with patch(
         "app.core.security.get_or_create_user_from_supabase", new_callable=AsyncMock
     ) as mock_upsert:
@@ -264,9 +259,11 @@ async def test_es256_token_chave_diferente_raises_401(mock_db_session):
     token = _make_es256_token(signing_jwk=signing_jwk)
     credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
-    with pytest.raises(HTTPException) as exc_info:
-        with patch("app.core.security._jwks_client", return_value=_FakeJwksClient(other_jwk)):
-            await get_current_user(credentials=credentials, session=MagicMock())
+    with (
+        pytest.raises(HTTPException) as exc_info,
+        patch("app.core.security._jwks_client", return_value=_FakeJwksClient(other_jwk)),
+    ):
+        await get_current_user(credentials=credentials, session=MagicMock())
     assert exc_info.value.status_code == 401
 
 
@@ -278,7 +275,9 @@ async def test_es256_token_sem_jwks_raises_401(mock_db_session):
     def _no_client():
         raise jwt.InvalidTokenError("JWKS indisponível")
 
-    with pytest.raises(HTTPException) as exc_info:
-        with patch("app.core.security._jwks_client", side_effect=_no_client):
-            await get_current_user(credentials=credentials, session=MagicMock())
+    with (
+        pytest.raises(HTTPException) as exc_info,
+        patch("app.core.security._jwks_client", side_effect=_no_client),
+    ):
+        await get_current_user(credentials=credentials, session=MagicMock())
     assert exc_info.value.status_code == 401

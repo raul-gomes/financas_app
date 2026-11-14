@@ -1,17 +1,17 @@
 import asyncio
+from datetime import UTC, datetime
+
 import pytest
 import pytest_asyncio
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.main import app
-from app.db.base import Base
 from app.core.database import get_session
 from app.core.security import get_current_user
+from app.db.base import Base
 from app.db.models.user import UserORM
+from app.main import app
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -61,7 +61,7 @@ async def client():
         # todas as rotas; este override injeta um usuário fake para que os
         # testes existentes continuem exercendo a lógica de negócio.
         # Testes específicos de auth (401 sem token) usam um client sem override.
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         fake_user = UserORM(
             id=1,
             name="Teste",
@@ -124,7 +124,7 @@ async def client_user2():
 
         app.dependency_overrides[get_session] = override_get_session
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         fake_user2 = UserORM(
             id=2,
             name="Teste2",
@@ -168,7 +168,7 @@ async def clients_ctrl():
 
         app.dependency_overrides[get_session] = override_get_session
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         users = {
             1: UserORM(
                 id=1,

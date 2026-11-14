@@ -1,6 +1,4 @@
 import pytest
-from datetime import date
-
 
 MES_REF = "2026-06-01"
 MES_SEGUINTE = "2026-07-01"

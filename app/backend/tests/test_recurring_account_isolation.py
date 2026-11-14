@@ -1,6 +1,3 @@
-import pytest
-
-
 async def _criar_categoria_e_conta(
     clients_ctrl, user_id: int, descricao: str, amount: float = 100.0
 ) -> int:

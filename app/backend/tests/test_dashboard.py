@@ -2,7 +2,7 @@ import pytest
 
 
 async def _setup_dashboard_data(client):
-    cat, cat_id, sub_id = await _create_cat(client, "DashAlim")
+    _cat, cat_id, sub_id = await _create_cat(client, "DashAlim")
     await client.post(
         "/transacoes/",
         json={

@@ -1,7 +1,5 @@
 import pytest
-
 from httpx import AsyncClient
-
 
 # Etapa 4: todas as rotas protegidas com Depends(get_current_user).
 # Sem token / token inválido → 401. Usamos client_no_auth (SEM override do auth).

@@ -1,23 +1,21 @@
 import calendar
-from typing import List, Optional
-from datetime import datetime, date
+from datetime import datetime
 from uuid import uuid4
 
-from fastapi import Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func, text
-from sqlalchemy.orm import selectinload
+from fastapi import Depends, HTTPException
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.db.models.recurring_account import RecurringAccountORM
 from app.db.models.transaction import TransactionORM
+from app.logger import log_database_operation, logger
 from app.schemas.recurring_account import (
     ContaRecorrenteCreate,
     ContaRecorrenteUpdate,
     GenerateRequest,
 )
-from app.logger import log_database_operation, logger
 
 
 class ContaRecorrenteRepository:
@@ -27,7 +25,7 @@ class ContaRecorrenteRepository:
     # ── CRUD ──────────────────────────────────────────────
 
     async def create(
-        self, obj_in: ContaRecorrenteCreate, user_id: Optional[int] = None
+        self, obj_in: ContaRecorrenteCreate, user_id: int | None = None
     ) -> RecurringAccountORM:
         log = log_database_operation(
             operation="create",
@@ -74,11 +72,11 @@ class ContaRecorrenteRepository:
 
     async def get_all(
         self,
-        entity_type: Optional[str] = None,
+        entity_type: str | None = None,
         limit: int = 100,
         offset: int = 0,
-        user_id: Optional[int] = None,
-    ) -> List[RecurringAccountORM]:
+        user_id: int | None = None,
+    ) -> list[RecurringAccountORM]:
         stmt = (
             select(RecurringAccountORM)
             .order_by(RecurringAccountORM.start_date.desc())
@@ -94,9 +92,7 @@ class ContaRecorrenteRepository:
         await self._set_all_remaining_installments(contas)
         return contas
 
-    async def get_by_id(
-        self, id: int, user_id: Optional[int] = None
-    ) -> Optional[RecurringAccountORM]:
+    async def get_by_id(self, id: int, user_id: int | None = None) -> RecurringAccountORM | None:
         stmt = select(RecurringAccountORM).where(RecurringAccountORM.id == id)
         if user_id is not None:
             stmt = stmt.where(RecurringAccountORM.user_id == user_id)
@@ -107,8 +103,8 @@ class ContaRecorrenteRepository:
         return conta
 
     async def update(
-        self, id: int, obj_in: ContaRecorrenteUpdate, user_id: Optional[int] = None
-    ) -> Optional[RecurringAccountORM]:
+        self, id: int, obj_in: ContaRecorrenteUpdate, user_id: int | None = None
+    ) -> RecurringAccountORM | None:
         conta = await self.get_by_id(id, user_id)
         if not conta:
             return None
@@ -136,7 +132,7 @@ class ContaRecorrenteRepository:
         # If deactivating, cancel future transactions
         if was_active and data.get("active") is False:
             try:
-                removidas = await self._cancel_future_transactions(conta)
+                await self._cancel_future_transactions(conta)
             except Exception as e:
                 await self.db.rollback()
                 raise HTTPException(status_code=500, detail=f"Erro ao cancelar futuras: {e}")
@@ -150,7 +146,7 @@ class ContaRecorrenteRepository:
             await self.db.rollback()
             raise HTTPException(status_code=400, detail="Erro ao atualizar conta recorrente")
 
-    async def delete(self, id: int, user_id: Optional[int] = None) -> Optional[RecurringAccountORM]:
+    async def delete(self, id: int, user_id: int | None = None) -> RecurringAccountORM | None:
         conta = await self.get_by_id(id, user_id)
         if not conta:
             return None
@@ -166,15 +162,13 @@ class ContaRecorrenteRepository:
         await self.db.commit()
         return conta
 
-    # ── 12‑installment generation ─────────────────────────
+    # ── 12-installment generation ─────────────────────────
 
     async def _generate_installments(
-        self, conta: RecurringAccountORM, user_id: Optional[int] = None
+        self, conta: RecurringAccountORM, user_id: int | None = None
     ) -> int:
         """Generate N monthly transaction installments for a recurring account using bulk insert."""
         from dateutil.relativedelta import relativedelta
-        from sqlalchemy import text
-        from sqlalchemy.dialects.postgresql import insert as pg_insert
 
         # Calculate all installment dates first
         dates_to_insert = []
@@ -303,10 +297,8 @@ class ContaRecorrenteRepository:
             await self.db.commit()
         return geradas
 
-    async def renew(
-        self, conta_id: int, user_id: Optional[int] = None
-    ) -> Optional[RecurringAccountORM]:
-        """Re‑activate and generate 12 more installments from current month."""
+    async def renew(self, conta_id: int, user_id: int | None = None) -> RecurringAccountORM | None:
+        """Re-activate and generate 12 more installments from current month."""
         conta = await self.get_by_id(conta_id, user_id)
         if not conta:
             return None
@@ -319,15 +311,12 @@ class ContaRecorrenteRepository:
         # Set start_date to current month (or next if this month already has a tx)
         now = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         has_current = await self._check_transaction_exists(conta.group_id, now.year, now.month)
-        if has_current:
-            new_start = now + relativedelta(months=1)
-        else:
-            new_start = now
+        new_start = now + relativedelta(months=1) if has_current else now
         conta.start_date = new_start
 
         # Generate 12 new installments
         try:
-            geradas = await self._generate_installments(conta, user_id)
+            await self._generate_installments(conta, user_id)
         except Exception as e:
             await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Erro ao renovar: {e}")
@@ -368,7 +357,7 @@ class ContaRecorrenteRepository:
         result = await self.db.execute(stmt)
         conta.remaining_installments = result.scalar() or 0
 
-    async def _set_all_remaining_installments(self, contas: List[RecurringAccountORM]) -> None:
+    async def _set_all_remaining_installments(self, contas: list[RecurringAccountORM]) -> None:
         """Batch-set remaining_installments for a list of contas."""
         if not contas:
             return
@@ -396,7 +385,7 @@ class ContaRecorrenteRepository:
     # ── Legacy generate (kept for Compatibility) ──────────
 
     async def generate_pending_transactions(
-        self, req: GenerateRequest, user_id: Optional[int] = None
+        self, req: GenerateRequest, user_id: int | None = None
     ) -> tuple[int, list[str]]:
         log = log_database_operation(
             operation="generate",
@@ -405,7 +394,7 @@ class ContaRecorrenteRepository:
         )
 
         stmt = select(RecurringAccountORM).where(
-            RecurringAccountORM.active == True,
+            RecurringAccountORM.active == True,  # noqa: E712  # SQLAlchemy column comparison
             RecurringAccountORM.start_date <= req.end_date,
         )
         if user_id is not None:
@@ -498,10 +487,7 @@ class ContaRecorrenteRepository:
         except (ValueError, AttributeError):
             return False
 
-        if month < 12:
-            next_month_start = datetime(year, month + 1, 1)
-        else:
-            next_month_start = datetime(year + 1, 1, 1)
+        next_month_start = datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1)
 
         stmt = select(TransactionORM.id).where(
             and_(

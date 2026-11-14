@@ -1,7 +1,3 @@
-import pytest
-from httpx import AsyncClient
-
-
 async def _criar_transacao(
     clients_ctrl, user_id: int, nome: str, descricao: str = "Compras", amount: float = 50.0
 ) -> int:

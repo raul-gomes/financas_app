@@ -1,5 +1,6 @@
-import pytest
 from io import BytesIO
+
+import pytest
 
 
 @pytest.mark.asyncio
@@ -50,7 +51,7 @@ async def test_upload_auto_detect_csv(client):
 
 @pytest.mark.asyncio
 async def test_confirm_parsed_transactions(client):
-    cat, cat_id, sub_id = await _create_cat(client)
+    _cat, cat_id, sub_id = await _create_cat(client)
     payload = {
         "transactions": [
             {
@@ -70,7 +71,7 @@ async def test_confirm_parsed_transactions(client):
 
 @pytest.mark.asyncio
 async def test_confirm_multiple_transactions(client):
-    cat, cat_id, sub_id = await _create_cat(client)
+    _cat, cat_id, sub_id = await _create_cat(client)
     payload = {
         "transactions": [
             {

@@ -1,27 +1,24 @@
 # app/db/repositories/transacao.py
 
 import calendar
-import random
-from typing import List, Optional, Dict
 from datetime import date, datetime, time
+from uuid import uuid4
 
-from fastapi import Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from dateutil.relativedelta import relativedelta
+from fastapi import Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_session
 from app.db.models.transaction import TransactionORM
 from app.db.repositories.category import CategoriaRepository
 from app.db.repositories.subcategory import SubcategoriaRepository
-from app.schemas.transaction import TipoPagamento, TipoTransacao, TransacaoCreate, TransacaoUpdate
+from app.logger import log_database_operation
 from app.schemas.categories import CategoriaCreate
 from app.schemas.subcategory import SubcategoriaCreate
-from app.logger import log_database_operation
-
-from uuid import uuid4
-from dateutil.relativedelta import relativedelta
+from app.schemas.transaction import TransacaoCreate, TransacaoUpdate
 
 
 class TransacaoRepository:
@@ -35,7 +32,7 @@ class TransacaoRepository:
 
     def _generate_installment_dates(
         self, base_date: datetime, total_installments: int
-    ) -> List[datetime]:
+    ) -> list[datetime]:
         dates = []
 
         for i in range(total_installments):
@@ -61,7 +58,7 @@ class TransacaoRepository:
         transaction_date: datetime,
         category_id=int,
         sub_id=int,
-        user_id: int = None,
+        user_id: int | None = None,
     ) -> TransactionORM:
         return TransactionORM(
             group_id=group_id,
@@ -80,7 +77,7 @@ class TransacaoRepository:
             user_id=user_id,
         )
 
-    def _adjust_last_installment(self, transactions: List, amount: float):
+    def _adjust_last_installment(self, transactions: list, amount: float):
         if not transactions:
             return
 
@@ -96,7 +93,7 @@ class TransacaoRepository:
         group_id: str,
         category_id: int,
         sub_id: int,
-        user_id: int = None,
+        user_id: int | None = None,
     ):
         total_installments = obj_in.total_installments
         amount = self._calculate_installment_amount(obj_in.amount, total_installments)
@@ -220,12 +217,12 @@ class TransacaoRepository:
 
     async def get_all(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
-        user_id: Optional[int] = None,
-    ) -> List[TransactionORM]:
+        user_id: int | None = None,
+    ) -> list[TransactionORM]:
         stmt = select(TransactionORM).options(selectinload(TransactionORM.recurring_account))
         if user_id is not None:
             stmt = stmt.where(TransactionORM.user_id == user_id)
@@ -240,7 +237,7 @@ class TransacaoRepository:
         result = await self.db.execute(stmt)
         return result.unique().scalars().all()
 
-    async def get_by_id(self, id: int, user_id: Optional[int] = None) -> Optional[TransactionORM]:
+    async def get_by_id(self, id: int, user_id: int | None = None) -> TransactionORM | None:
         stmt = (
             select(TransactionORM)
             .options(selectinload(TransactionORM.recurring_account))
@@ -251,9 +248,7 @@ class TransacaoRepository:
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
-    async def update(
-        self, id: int, obj_in: TransacaoUpdate, user_id: int
-    ) -> Optional[TransactionORM]:
+    async def update(self, id: int, obj_in: TransacaoUpdate, user_id: int) -> TransactionORM | None:
         trans = await self.get_by_id(id, user_id)
         if not trans:
             return None
@@ -331,7 +326,7 @@ class TransacaoRepository:
             await self.db.rollback()
             raise HTTPException(status_code=400, detail="Erro ao atualizar transação")
 
-    async def delete(self, id: int, user_id: Optional[int] = None) -> Optional[TransactionORM]:
+    async def delete(self, id: int, user_id: int | None = None) -> TransactionORM | None:
         trans = await self.get_by_id(id, user_id)
         if not trans:
             return None
@@ -340,10 +335,9 @@ class TransacaoRepository:
         return trans
 
     async def check_duplicates(
-        self, transaction_date: date, amount: float, user_id: Optional[int] = None
-    ) -> List[TransactionORM]:
+        self, transaction_date: date, amount: float, user_id: int | None = None
+    ) -> list[TransactionORM]:
         """Retorna transações existentes com a mesma data (ignorando hora) e valor."""
-        from datetime import timedelta
 
         start = datetime.combine(transaction_date, time.min)
         end = datetime.combine(transaction_date, time.max)
@@ -357,9 +351,7 @@ class TransacaoRepository:
         result = await self.db.execute(stmt)
         return list(result.unique().scalars().all())
 
-    async def assign_random_banks(
-        self, bank_codes: List[str], user_id: Optional[int] = None
-    ) -> int:
+    async def assign_random_banks(self, bank_codes: list[str], user_id: int | None = None) -> int:
         """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto."""
         from sqlalchemy import text
 
@@ -382,7 +374,7 @@ class TransacaoRepository:
             FROM txs
             JOIN banks b ON txs.rn = b.rn
             WHERE t.id = txs.id
-        """)
+        """)  # noqa: S608  # only a constant filter fragment is interpolated; values are bound
 
         params = {"bank_codes": bank_codes}
         if user_id is not None:
@@ -393,9 +385,9 @@ class TransacaoRepository:
 
     async def create_batch_from_extract(
         self,
-        transactions: List[Dict],
+        transactions: list[dict],
         user_id: int,
-    ) -> tuple[int, List[str]]:
+    ) -> tuple[int, list[str]]:
         """
         Creates multiple transactions from extract in a single batch.
         Returns (created_count, errors_list).
@@ -422,7 +414,7 @@ class TransacaoRepository:
                 sub_keys.add(("name", t["subcategory_name"], cat_key))
 
         # 2) Resolve all categories
-        cat_cache: Dict[tuple, any] = {}
+        cat_cache: dict[tuple, any] = {}
         for key in cat_keys:
             if key[0] == "id":
                 cat = await self.categoria_repo.get_by_id(key[1], user_id)
@@ -442,7 +434,7 @@ class TransacaoRepository:
             cat_cache[key] = cat
 
         # 3) Resolve all subcategories
-        sub_cache: Dict[tuple, any] = {}
+        sub_cache: dict[tuple, any] = {}
         for key in sub_keys:
             if key[0] == "id":
                 sub = await self.subcategoria_repo.get_by_id(key[1], user_id)
@@ -529,7 +521,7 @@ class TransacaoRepository:
                     )
                     all_instances.append(inst)
             except Exception as e:
-                errors.append(f"Erro ao preparar '{t.get('description', 'N/A')}': {str(e)}")
+                errors.append(f"Erro ao preparar '{t.get('description', 'N/A')}': {e!s}")
 
         # 5) Batch insert all
         if all_instances:
@@ -542,7 +534,7 @@ class TransacaoRepository:
             except Exception as e:
                 await self.db.rollback()
                 log.error(f"Batch commit failed: {e}")
-                errors.append(f"Erro no commit em lote: {str(e)}")
+                errors.append(f"Erro no commit em lote: {e!s}")
                 return 0, errors
 
         return len(all_instances), errors
@@ -556,12 +548,12 @@ class TransacaoRepository:
         entity_type: str,
         payment_method: str,
         user_id: int,
-        category_id: Optional[int] = None,
-        subcategory_id: Optional[int] = None,
-        category_name: Optional[str] = None,
-        subcategory_name: Optional[str] = None,
-        bank_code: Optional[str] = None,
-        total_installments: Optional[int] = None,
+        category_id: int | None = None,
+        subcategory_id: int | None = None,
+        category_name: str | None = None,
+        subcategory_name: str | None = None,
+        bank_code: str | None = None,
+        total_installments: int | None = None,
         is_installment: bool = False,
     ) -> TransactionORM:
         group_id = str(uuid4())

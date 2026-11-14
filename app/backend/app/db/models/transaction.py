@@ -1,7 +1,9 @@
-from sqlalchemy import Column, Integer, Float, String, Boolean, DateTime, ForeignKey, func
-from sqlalchemy.orm import relationship
-from app.db.base import Base
 from uuid import uuid4
+
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy.orm import relationship
+
+from app.db.base import Base
 
 
 class TransactionORM(Base):

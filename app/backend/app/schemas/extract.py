@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
 
 
 class ParsedTransaction(BaseModel):
@@ -7,10 +6,10 @@ class ParsedTransaction(BaseModel):
     description: str
     amount: float
     type: str
-    category_id: Optional[int] = None
-    subcategory_id: Optional[int] = None
-    payment_method: Optional[str] = None
-    entity_type: Optional[str] = None
+    category_id: int | None = None
+    subcategory_id: int | None = None
+    payment_method: str | None = None
+    entity_type: str | None = None
 
 
 class UploadResponse(BaseModel):
@@ -19,7 +18,7 @@ class UploadResponse(BaseModel):
     total_expenses: int
     total_income_amount: float
     total_expenses_amount: float
-    transactions: List[ParsedTransaction]
+    transactions: list[ParsedTransaction]
 
 
 class ConfirmTransaction(BaseModel):
@@ -27,21 +26,21 @@ class ConfirmTransaction(BaseModel):
     description: str
     amount: float
     type: str
-    category_id: Optional[int] = None
-    subcategory_id: Optional[int] = None
-    category_name: Optional[str] = None
-    subcategory_name: Optional[str] = None
+    category_id: int | None = None
+    subcategory_id: int | None = None
+    category_name: str | None = None
+    subcategory_name: str | None = None
     payment_method: str = Field(default="pix")
     entity_type: str = Field(default="individual")
-    bank_code: Optional[str] = None
-    total_installments: Optional[int] = None
+    bank_code: str | None = None
+    total_installments: int | None = None
     is_installment: bool = False
 
 
 class ConfirmPayload(BaseModel):
-    transactions: List[ConfirmTransaction]
+    transactions: list[ConfirmTransaction]
 
 
 class ConfirmResponse(BaseModel):
     created: int
-    errors: List[str]
+    errors: list[str]

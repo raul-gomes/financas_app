@@ -1,12 +1,12 @@
 from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from passlib.context import CryptContext
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.db.models.user import UserORM
 from app.db.models.user_bank import UserBankORM
-from app.schemas.settings import ProfileUpdate, BankCreate
+from app.schemas.settings import BankCreate, ProfileUpdate
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

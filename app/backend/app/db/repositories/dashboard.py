@@ -2,13 +2,15 @@
 
 import calendar
 import time
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
-from app.db.models.transaction import TransactionORM
+
 from app.db.models.category import CategoryORM
+from app.db.models.transaction import TransactionORM
 from app.schemas.dashboard import (
     CategoriaOpcao,
     EntradasPorCategoriaResponse,
@@ -19,14 +21,14 @@ from app.schemas.dashboard import (
     TipoTrans,
     TransacaoExtrato,
 )
-from app.schemas.transaction import NaturezaTransacao, TransacaoResponse
+from app.schemas.transaction import NaturezaTransacao
 
 # Categorias de configuração (orçamento mensal / limite do cartão) que não podem ser
 # selecionadas como categoria de uma transação — só existem para alimentar o dashboard.
 CATEGORIAS_CONFIGURACAO = {"mensal pf", "mensal pj", "limite cartao credito"}
 
 # Simple in-memory cache for opcoes_categorias (key: (entity_type, tipo), value: (timestamp, data))
-_opcoes_categorias_cache: Dict[tuple, tuple] = {}
+_opcoes_categorias_cache: dict[tuple, tuple] = {}
 _CACHE_TTL_SECONDS = 300  # 5 minutes
 
 
@@ -37,8 +39,8 @@ def _invalidate_opcoes_categorias_cache():
 
 
 def _get_cached_opcoes_categorias(
-    entity_type: str, tipo: Optional[str], user_id: Optional[int]
-) -> Optional[OpcoesCategoriaResponse]:
+    entity_type: str, tipo: str | None, user_id: int | None
+) -> OpcoesCategoriaResponse | None:
     """Gets cached opcoes_categorias if not expired."""
     key = (entity_type, tipo or "", user_id or 0)
     if key in _opcoes_categorias_cache:
@@ -51,7 +53,7 @@ def _get_cached_opcoes_categorias(
 
 
 def _set_cached_opcoes_categorias(
-    entity_type: str, tipo: Optional[str], user_id: Optional[int], data: OpcoesCategoriaResponse
+    entity_type: str, tipo: str | None, user_id: int | None, data: OpcoesCategoriaResponse
 ):
     """Sets opcoes_categorias in cache with current timestamp."""
     key = (entity_type, tipo or "", user_id or 0)
@@ -68,8 +70,8 @@ class DashboardRepository:
         end_date: datetime,
         entity_type: str,
         type: TipoTrans,
-        user_id: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        user_id: int | None = None,
+    ) -> list[dict[str, Any]]:
         stmt = (
             select(TransactionORM)
             .where(TransactionORM.transaction_date >= start_date)
@@ -84,7 +86,7 @@ class DashboardRepository:
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
 
-        gastos: Dict[int, Dict[str, Any]] = {}
+        gastos: dict[int, dict[str, Any]] = {}
         for t in transacoes:
             if not t.category or not t.subcategory:
                 continue
@@ -120,10 +122,11 @@ class DashboardRepository:
 
     async def rendimento_por_periodo(
         self, ano: int, entity_type: str, user_id: int
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
 
         # Single query with GROUP BY month instead of 12 queries
-        from sqlalchemy import func as sa_func, extract
+        from sqlalchemy import extract
+        from sqlalchemy import func as sa_func
 
         stmt = select(
             extract("month", TransactionORM.transaction_date).label("mes"),
@@ -140,7 +143,7 @@ class DashboardRepository:
         result = await self.db.execute(stmt)
         rows = result.all()
 
-        meses_data: Dict[str, Dict[str, float]] = {}
+        meses_data: dict[str, dict[str, float]] = {}
         for m in range(1, 13):
             meses_data[calendar.month_name[m].lower()] = {"income": 0.0, "expense": 0.0}
 
@@ -286,7 +289,7 @@ class DashboardRepository:
         )
 
     async def opcoes_categorias(
-        self, entity_type: str = "all", tipo: Optional[str] = None, user_id: Optional[int] = None
+        self, entity_type: str = "all", tipo: str | None = None, user_id: int | None = None
     ) -> OpcoesCategoriaResponse:
         # Check cache first
         cached = _get_cached_opcoes_categorias(entity_type, tipo, user_id)
@@ -301,7 +304,7 @@ class DashboardRepository:
         result = await self.db.execute(stmt)
         categorias = result.unique().scalars().all()
 
-        opcoes: List[CategoriaOpcao] = []
+        opcoes: list[CategoriaOpcao] = []
         for categoria in categorias:
             if categoria.name.strip().lower() in CATEGORIAS_CONFIGURACAO:
                 continue
@@ -323,7 +326,7 @@ class DashboardRepository:
         entity_type: str,
         start_date_str: str,
         end_date_str: str,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
     ) -> EntradasPorCategoriaResponse:
 
         # Buscar transações de entrada com subcategoria carregada
@@ -342,7 +345,7 @@ class DashboardRepository:
         transacoes = result.unique().scalars().all()
 
         # Agrupar por subcategoria
-        subs: Dict[str, float] = {}
+        subs: dict[str, float] = {}
         for transacao in transacoes:
             sub_nome = transacao.subcategory.name if transacao.subcategory else "Sem subcategoria"
             subs[sub_nome] = subs.get(sub_nome, 0.0) + transacao.amount

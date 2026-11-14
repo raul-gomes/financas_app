@@ -19,7 +19,7 @@ Ou dentro da rede docker (alvo interno, sem nginx):
 import random
 from datetime import datetime
 
-from locust import HttpUser, task, between
+from locust import HttpUser, between, task
 
 # IDs válidos presentes no banco de demonstração (evita 400 por FK/unique)
 CATEGORY_ID = 5  # Alimentação

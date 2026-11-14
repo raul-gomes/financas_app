@@ -1,22 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
-from typing import List
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.repositories.transaction import TransacaoRepository
-from app.services.limit_alert_service import trigger_limit_evaluation
-from app.db.models.user import UserORM
 from app.core.security import get_current_user, require_admin
+from app.db.models.user import UserORM
+from app.db.repositories.transaction import TransacaoRepository
+from app.logger import log_api_request
 from app.schemas.extract import (
-    UploadResponse,
-    ParsedTransaction,
     ConfirmPayload,
     ConfirmResponse,
+    ParsedTransaction,
+    UploadResponse,
 )
 from app.services.extract_parsers import parse_csv, parse_ofx
-from app.logger import log_api_request
-from uuid import uuid4
-from datetime import datetime
+from app.services.limit_alert_service import trigger_limit_evaluation
 
 router = APIRouter(prefix="/extracts", tags=["Bank Extract"], dependencies=[Depends(require_admin)])
 
@@ -106,8 +103,6 @@ async def confirm_extracto(
     criadas, erros = await repo.create_batch_from_extract(transactions_data, current_user.id)
 
     try:
-        from datetime import datetime as _dt
-
         if payload.transactions:
             primeira = min(t.date for t in payload.transactions)
             await trigger_limit_evaluation(

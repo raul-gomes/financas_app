@@ -5,7 +5,7 @@ class TestAdminGuard:
     """Etapa 9 — rotas protegidas por require_admin retornam 403 para role='user'."""
 
     # (método, path, payload, observação do módulo)
-    ADMIN_ENDPOINTS = [
+    ADMIN_ENDPOINTS = [  # noqa: RUF012  # read-only test table
         ("GET", "/pluggy/accounts", None),
         ("GET", "/export/csv", None),
         ("GET", "/export/ofx", None),
