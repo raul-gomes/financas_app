@@ -53,6 +53,7 @@ Observação: as migrations (`alembic upgrade head`) rodam no start do backend e
 | `npm run lint` | Lint (ESLint). |
 | `npm run build` | Build de produção (`dist/`). |
 | `npm audit --omit=dev` | Auditoria de dependências de produção do frontend (`npm audit fix` sem `--force`). |
+| `VITE_SUPABASE_URL=http://fake.local VITE_SUPABASE_ANON_KEY=anon VITE_API_URL=http://127.0.0.1:18799 npx vite build --outDir <pasta-temporária> && npx vite preview --outDir <pasta-temporária> --host 127.0.0.1 --port 18080` | Servir o frontend contra um backend local (SQLite com seed) para checagem visual/Playwright em 390x844 e 1440x900. Sessão falsa no `localStorage` na chave `sb-fake-auth-token`; backend com `SUPABASE_JWT_SECRET` descartável e `CORS_ORIGINS=http://127.0.0.1:18080`. |
 | `node scripts/check-bundle-size.mjs` | Orçamento de bundle (64 kB gzip por chunk), o mesmo do CI. |
 
 ## Git e CI

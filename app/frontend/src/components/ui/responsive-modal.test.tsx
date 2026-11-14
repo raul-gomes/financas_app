@@ -43,4 +43,16 @@ describe('ResponsiveModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /fechar/i }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it('anchors as a bottom sheet below md and centers from md up', () => {
+    render(
+      <ResponsiveModal open onOpenChange={() => {}} title="Folha">
+        <p>c</p>
+      </ResponsiveModal>,
+    );
+
+    const content = screen.getByRole('dialog');
+    expect(content).toHaveClass('max-md:bottom-0', 'max-md:w-full', 'max-md:rounded-t-[22px]');
+    expect(content).toHaveClass('md:left-[50%]', 'md:top-[50%]');
+  });
 });

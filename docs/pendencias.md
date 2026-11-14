@@ -6,7 +6,7 @@ e o commit. Itens antigos de `todo.md`, `backlog.md` e `ideias.md` estão
 consolidados no fim.
 
 ## Decisões do dono (antes de codar)
-- [ ] Nome do produto: a confirmar ("Olavo" ou "Placo"?) antes de renomear repo, `package.json` e textos.
+- [x] Nome do produto: **Placo** (DECIDIDO). FEITO no frontend: logo, favicon, manifest, título, `package.json`. Falta renomear o repo/pastas e os nomes de container (`financas-*`), o README do frontend (ainda é o do Lovable) e o remetente/textos de e-mail no backend.
 - [x] **MVP = o produto do usuário comum** (transações, categorias, limites, dashboards, configurações). As rotas só de admin (metas, compras, recorrentes, extrato, Pluggy, investimentos, export) são **implementações em andamento**, fora do MVP. DECIDIDO 2026-11-14.
 - [ ] Uso pessoal apenas, ou também empresarial?
 - [ ] Onde roda a produção hoje?
@@ -68,7 +68,8 @@ consolidados no fim.
 - [ ] **MULTI-01** Multi-moeda: moeda global por usuário (`backlog.md`).
 - [ ] Conectar com o MCP de Open Finance (`ideias.md`).
 - [ ] Limitar o extrato para não crescer sem fim.
-- [ ] Visão mobile.
+- [ ] Visão mobile. **Fase 1 FEITA** (shell): barra de abas inferior com botão "+" (folha de nova transação), barra superior com slot de mês e sino, página `/mais`, `ResponsiveModal` como bottom sheet abaixo de `md`, `/recorrentes` em cards, moeda/datas pt-BR, textos em português. **Fase 2 (falta, por página):** `/financial` (legenda do gráfico e KPIs estouram 390 px, KPIs em carrossel, gráfico de 6 meses, lançamentos agrupados por dia, sem lixeira na linha), `/` (início como cards do mock, PF/PJ segmentado, mês no slot `MobileTopBarSlot`), `/limits` (cards em vez de tabela, edição em folha, chips de abas), formulários com campos de 48 px e teclado numérico, tabelas de `/extrato-bancario`, `/investments` e `/configuracoes`, títulos `h1` duplicados com a barra superior, desligar o `overflow-x-clip` do `main` quando cada página parar de estourar.
+- [ ] Erros engolidos restantes (`.catch(() => {})` sem log) em `ContaForm`, `EditRecurrentBillDialog`, `AddRecurrentBillDialog`, `bank-select`, `ExtratoDialog`, `BankExtract`, `FinancialDashboard`: tratar como em `AddTransactionDialog`/`TransactionList` (log + aviso).
 - [ ] Tirar investimento (decisão de produto).
 - [ ] Estudar API para um app mobile.
 - [ ] Validar a questão de permissão (parcialmente respondida: o backend impõe `admin`; ver decisão acima).

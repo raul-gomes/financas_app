@@ -60,14 +60,27 @@ function NotificationRow({
   );
 }
 
-export function NotificationBell() {
+interface NotificationBellProps {
+  /** Icon-only 44px touch target (mobile top bar). */
+  compact?: boolean;
+  /** Custom trigger (rendered as the popover trigger); replaces the default bell button. */
+  children?: React.ReactNode;
+}
+
+export function NotificationBell({ compact = false, children }: NotificationBellProps = {}) {
   const { notifications, loading, error, refresh, markRead, markAllRead } = useLimitAlerts();
   const unreadCount = notifications.unread_count;
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative flex items-center gap-1">
+        {children ?? (
+        <Button
+          variant="ghost"
+          size={compact ? 'icon' : 'sm'}
+          className={cn('relative flex items-center gap-1', compact && 'h-11 w-11')}
+          aria-label={unreadCount > 0 ? `Alertas, ${unreadCount} não lidos` : 'Alertas'}
+        >
           {unreadCount > 0 ? (
             <>
               <BellRing className="h-4 w-4" />
@@ -78,8 +91,9 @@ export function NotificationBell() {
           ) : (
             <Bell className="h-4 w-4" />
           )}
-          <span className="hidden sm:inline">Alertas</span>
+          {!compact && <span className="hidden sm:inline">Alertas</span>}
         </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between px-4 py-3 border-b">
