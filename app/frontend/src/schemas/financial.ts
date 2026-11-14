@@ -46,7 +46,7 @@ export const financialSummarySchema = z.object({
 /** `RendimentoPeriodoResponse`. */
 export const yearlyPerformanceSchema = z.object({
   limit: z.number(),
-  months: z.record(z.object({ income: z.number(), expense: z.number() })),
+  months: z.record(z.string(), z.object({ income: z.number(), expense: z.number() })),
 });
 
 /** `GastosPorCategoriaResponse`. Subcategory amount is a string in the API. */
