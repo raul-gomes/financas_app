@@ -29,8 +29,10 @@ async def update_profile(
     current_user: UserORM = Depends(get_current_user),
     repo: SettingsRepository = Depends(),
 ):
-    """Atualiza nome, email e/ou senha do perfil."""
-    log = log_api_request(method="PUT", endpoint=str(request.url), payload=payload.model_dump())
+    """Atualiza o nome e/ou a chave Pluggy do perfil (e-mail e senha ficam no Supabase)."""
+    log = log_api_request(
+        method="PUT", endpoint=str(request.url), fields=sorted(payload.model_fields_set)
+    )
     user = await repo.update_profile(current_user.id, payload)
     log.success("Perfil atualizado", user_id=user.id)
     return user

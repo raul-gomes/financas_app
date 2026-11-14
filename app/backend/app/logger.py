@@ -1,6 +1,7 @@
 # app/logger.py
 import sys
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
 
@@ -37,7 +38,7 @@ def setup_logger(app_name: str = "financas_backend"):
         level="DEBUG",
         colorize=True,
         backtrace=True,
-        diagnose=True,
+        diagnose=False,  # True prints local variables (secrets) in tracebacks
     )
 
     # Arquivo geral
@@ -50,7 +51,7 @@ def setup_logger(app_name: str = "financas_backend"):
         compression="zip",
         encoding="utf-8",
         backtrace=True,
-        diagnose=True,
+        diagnose=False,  # True prints local variables (secrets) in tracebacks
     )
 
     # Arquivo só para erros
@@ -63,7 +64,7 @@ def setup_logger(app_name: str = "financas_backend"):
         compression="zip",
         encoding="utf-8",
         backtrace=True,
-        diagnose=True,
+        diagnose=False,  # True prints local variables (secrets) in tracebacks
     )
 
     # Logs estruturados em JSON
@@ -104,8 +105,31 @@ def log_database_operation(operation: str, collection: str | None = None, **cont
 
 
 # Função para logs de API requests
-def log_api_request(method: str, endpoint: str, **context):
+REDACTED = "[REDACTED]"
+SENSITIVE_KEY_PARTS = ("password", "senha", "secret", "token", "api_key", "apikey", "authorization")
+
+
+def _is_sensitive(key: str) -> bool:
+    """Whether a field name looks like it holds a credential."""
+    lowered = key.lower()
+    return any(part in lowered for part in SENSITIVE_KEY_PARTS)
+
+
+def redact(value: Any) -> Any:
+    """Return a copy with credential-like fields masked (dicts and lists, recursively).
+
+    Empty values stay visible so logs still show that a field was cleared.
     """
-    Log específico para requests de API
-    """
-    return logger.bind(http_method=method, endpoint=endpoint, **context)
+    if isinstance(value, dict):
+        return {
+            key: (REDACTED if _is_sensitive(str(key)) and item not in (None, "") else redact(item))
+            for key, item in value.items()
+        }
+    if isinstance(value, list | tuple):
+        return [redact(item) for item in value]
+    return value
+
+
+def log_api_request(method: str, endpoint: str, **context: Any):
+    """Logger bound to an API request; credential-like fields are always redacted."""
+    return logger.bind(http_method=method, endpoint=endpoint, **redact(context))
