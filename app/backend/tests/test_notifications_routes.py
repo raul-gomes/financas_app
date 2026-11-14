@@ -1,5 +1,8 @@
+from datetime import UTC, datetime
+
 import pytest
 import pytest_asyncio
+import time_machine
 from httpx import ASGITransport, AsyncClient
 
 from app.core.database import get_session
@@ -7,6 +10,16 @@ from app.core.security import get_current_user
 from app.db.models.user import UserORM
 from app.db.repositories.limit_alert import LimitAlertRepository
 from app.main import app
+
+# Fixtures use September 2026 data, so pin "now" to that month.
+FROZEN_NOW = datetime(2026, 9, 20, 12, 0, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def _frozen_clock():
+    """Freeze the clock so month-relative logic matches the hardcoded fixtures."""
+    with time_machine.travel(FROZEN_NOW, tick=False):
+        yield
 
 
 @pytest_asyncio.fixture
