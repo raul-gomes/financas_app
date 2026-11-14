@@ -64,7 +64,7 @@ npm run typecheck              # tsc -b --noEmit — SEMPRE usar este formato (t
 ### Migrations (PostgreSQL via Alembic)
 ```sh
 cd app/backend
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5436/financas alembic upgrade head
+DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas alembic upgrade head
 ```
 
 ## Key Backend Structure
