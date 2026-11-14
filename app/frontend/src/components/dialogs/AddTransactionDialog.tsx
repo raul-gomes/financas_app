@@ -92,6 +92,7 @@ export function AddTransactionDialog({
   const [duplicateConflict, setDuplicateConflict] = useState<{
     existing: DuplicateInfo
     payload: TransactionCreatePayload
+    newData: { description: string; amount: number; transaction_date: string }
   } | null>(null);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
@@ -258,6 +259,11 @@ export function AddTransactionDialog({
         setDuplicateConflict({
           existing: checkResult.results[0].duplicates[0],
           payload,
+          newData: {
+            description: formData.description,
+            amount: parseFloat(formData.amount),
+            transaction_date: formData.transaction_date,
+          },
         });
         return;
       }
@@ -704,11 +710,7 @@ export function AddTransactionDialog({
           conflicts={[{
             index: 0,
             existing: duplicateConflict.existing,
-            newData: {
-              description: duplicateConflict.payload.description,
-              amount: duplicateConflict.payload.amount,
-              transaction_date: duplicateConflict.payload.transaction_date,
-            },
+            newData: duplicateConflict.newData,
           }]}
           onResolve={(_action) => handleDuplicateAction(_action)}
           onClose={() => setDuplicateConflict(null)}

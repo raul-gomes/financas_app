@@ -88,9 +88,10 @@ function D3PieChartBase({ data, width = 400, height = 300 }: D3PieChartProps) {
       .attrTween('d', function(d) {
         const interpolate = d3.interpolate(0, radius);
         return function(t) {
+          // d3.arc only returns null when given a canvas context, which is not used here.
           return d3.arc<d3.PieArcDatum<PieChartData>>()
             .innerRadius(0)
-            .outerRadius(interpolate(t))(d);
+            .outerRadius(interpolate(t))(d) ?? '';
         };
       });
 

@@ -78,8 +78,8 @@ export function TransactionList({
     const q = searchQuery.toLowerCase();
     return transactions.filter(t => (
       t.description.toLowerCase().includes(q) ||
-      t.category_name.toLowerCase().includes(q) ||
-      t.subcategory_name.toLowerCase().includes(q) ||
+      (t.category_name ?? '').toLowerCase().includes(q) ||
+      (t.subcategory_name ?? '').toLowerCase().includes(q) ||
       t.payment_method.toLowerCase().includes(q) ||
       t.amount.toString().includes(q) ||
       (t.bank_code || '').toLowerCase().includes(q) ||
