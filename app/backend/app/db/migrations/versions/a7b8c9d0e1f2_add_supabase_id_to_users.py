@@ -1,17 +1,16 @@
 """add users.supabase_id (identity by Supabase sub, not by e-mail)
 
-Revision ID: f1a2b3c4d5e6
+Revision ID: a7b8c9d0e1f2
 Revises: f0a1b2c3d4e5
 Create Date: 2026-11-14
 
-Renamed from a7b8c9d0e1f2, which collided with add_user_id_to_categorias.
 Existing rows stay NULL and are linked by e-mail on their next login.
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "f1a2b3c4d5e6"
+revision = "a7b8c9d0e1f2"
 down_revision = "f0a1b2c3d4e5"
 branch_labels = None
 depends_on = None
