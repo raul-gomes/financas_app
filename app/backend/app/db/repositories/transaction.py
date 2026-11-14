@@ -27,6 +27,15 @@ class TransacaoRepository:
         self.categoria_repo = CategoriaRepository(db)
         self.subcategoria_repo = SubcategoriaRepository(db)
 
+    @staticmethod
+    def _category_cache_key(row: dict) -> tuple | None:
+        """Cache key for a row's category: by id, else by (name, entity type)."""
+        if row.get("category_id"):
+            return ("id", row["category_id"])
+        if row.get("category_name"):
+            return ("name", row["category_name"], row["entity_type"])
+        return None
+
     def _calculate_installment_amount(self, total_amount: float, total_installments: int) -> float:
         return round(total_amount / total_installments, 2)
 
@@ -397,17 +406,17 @@ class TransacaoRepository:
         )
 
         # 1) Collect all unique category/subcategory resolutions needed
+        # Subcategory-by-name keys embed the category cache key, so steps 3 and 4
+        # look up exactly the same tuple.
         cat_keys = set()
         sub_keys = set()
         for t in transactions:
-            if t.get("category_id"):
-                cat_keys.add(("id", t["category_id"]))
-            elif t.get("category_name"):
-                cat_keys.add(("name", t["category_name"], t["entity_type"]))
+            cat_key = self._category_cache_key(t)
+            if cat_key:
+                cat_keys.add(cat_key)
             if t.get("subcategory_id"):
                 sub_keys.add(("id", t["subcategory_id"]))
-            elif t.get("subcategory_name") and (t.get("category_id") or t.get("category_name")):
-                cat_key = t.get("category_id") or t.get("category_name")
+            elif t.get("subcategory_name") and cat_key:
                 sub_keys.add(("name", t["subcategory_name"], cat_key))
 
         # 2) Resolve all categories
@@ -433,10 +442,11 @@ class TransacaoRepository:
         # 3) Resolve all subcategories
         sub_cache: dict[tuple, any] = {}
         for key in sub_keys:
+            sub = None
             if key[0] == "id":
                 sub = await self.subcategoria_repo.get_by_id(key[1], user_id)
             else:  # name
-                cat = cat_cache.get(("id", key[2])) or cat_cache.get(("name", key[2], None))
+                cat = cat_cache.get(key[2])
                 if cat:
                     sub = await self.subcategoria_repo.get_by_nome_and_categoria(
                         key[1], cat.id, user_id
@@ -456,11 +466,7 @@ class TransacaoRepository:
         for t in transactions:
             try:
                 group_id = str(uuid4())
-                cat_key = (
-                    ("id", t["category_id"])
-                    if t.get("category_id")
-                    else ("name", t["category_name"], t["entity_type"])
-                )
+                cat_key = self._category_cache_key(t)
                 cat = cat_cache[cat_key]
 
                 sub_key = None

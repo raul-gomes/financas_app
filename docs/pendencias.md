@@ -29,6 +29,8 @@ consolidados no fim.
 - [ ] **B2** (média) Confirmar 413 em extrato > 1 MB; definir `client_max_body_size 10m`.
 - [ ] **B3** (média) Nginx de prod: upstream `frontend:8080` × imagem na 80; 443 sem TLS. Versionar o compose de prod sem segredos.
 - [x] **B4** (baixa) FEITO: `DATABASE_URL` ausente falha na partida com `RuntimeError` citando a variável (`require_database_url`); `sync_engine` removido (sem uso); texto padrão do Pluggy virou "Sincronizado" (a busca ainda reconhece o texto antigo) e `datetime.now(UTC)` em `pluggy_routes.py`.
+- [x] **B5** (alta) Import de OFX voltava vazio para qualquer arquivo (`_clean_ofx_tags` quebrava o XML; `DTPOSTED` com hora e fuso era descartado; decimal com vírgula falhava). FEITO: SGML 1.x e XML 2.x testados.
+- [x] **B6** (alta) Lote por nome (sync Pluggy) estourava `UnboundLocalError` ou gravava a subcategoria errada (chaves de cache diferentes entre os passos). FEITO.
 
 ## Qualidade
 - [~] **Q1** (alta) PARCIAL: job de backend no CI (ruff, pytest, pip-audit informativo), actions por SHA, `permissions` mínimas, concurrency e CI em todos os PRs FEITOS. Falta: SAST, `alembic check`, e tornar o pip-audit bloqueante (hoje reporta 43 vulnerabilidades em anyio, certifi, idna, mako, pyjwt, python-dotenv, python-multipart, starlette; atualizar dependências).

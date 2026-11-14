@@ -86,6 +86,8 @@ financas_app/
 │   │   │   ├── conftest.py                     # Fixtures: SQLite in-memory, httpx.AsyncClient, factories de payload
 │   │   │   ├── test_security.py                # Testes de autenticação JWT (HS256/ES256, aud, iss, alg none, sem segredo → 401) + require_role/require_admin (403)
 │   │   │   ├── test_logger_redaction.py        # Credenciais nunca chegam ao log (redact, log_api_request)
+│   │   │   ├── test_ofx_parser.py              # OFX 1.x (SGML) e 2.x (XML) reais
+│   │   │   ├── test_batch_from_extract.py      # Lote por nome de categoria/subcategoria (sync Pluggy)
 │   │   │   ├── test_admin_guard.py             # Etapa 9: rotas admin-only → 403 para role='user' (pluggy, export, shopping, goals, extract) + acesso user a recurring-accounts (generate segue 403)
 │   │   │   ├── test_auth_required.py           # Etapa 4: cada rota sem token → 401 (client_no_auth)
 │   │   │   ├── test_category_isolation.py      # Etapa 5: isolamento por usuário de categorias/subcategorias (via client_user2 + clients_ctrl)
