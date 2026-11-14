@@ -128,11 +128,11 @@ export function RecurringBillsTable({
                 <td className="px-4 py-3">
                   <button onClick={() => onToggleActive(conta)} className="flex items-center gap-1 text-sm">
                     {conta.active ? (
-                      <ToggleRight className="w-5 h-5 text-green-500" />
+                      <ToggleRight className="w-5 h-5 text-success" />
                     ) : (
                       <ToggleLeft className="w-5 h-5 text-muted-foreground" />
                     )}
-                    <span className={`text-xs ${conta.active ? 'text-green-500' : 'text-muted-foreground'}`}>
+                    <span className={`text-xs ${conta.active ? 'text-success' : 'text-muted-foreground'}`}>
                       {conta.active ? 'Ativa' : 'Inativa'}
                     </span>
                   </button>

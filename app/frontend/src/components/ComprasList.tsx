@@ -197,7 +197,7 @@ export function ComprasList({ sidebarOpen, entityType, refreshKey }: ComprasList
                   concluidosFiltrados.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-green-50/50 group"
+                      className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-success/5 group"
                     >
                       <Checkbox
                         checked={item.checked}

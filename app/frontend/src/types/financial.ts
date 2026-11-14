@@ -167,14 +167,6 @@ export const CATEGORY_SUBCATEGORIES = {
 
 export const CATEGORIES = Object.keys(CATEGORY_SUBCATEGORIES);
 
-export const CATEGORY_COLORS: Record<string, string> = {
-  'Prestação de Serviços': '#22c55e',
-  'Equipamentos': '#3b82f6',
-  'Marketing': '#8b5cf6',
-  'Impostos': '#f97316',
-  'Aluguel Comercial': '#eab308'
-};
-
 // Investment types (mantidos iguais)
 export interface Investment {
   id: string;

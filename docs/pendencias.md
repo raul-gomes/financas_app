@@ -37,7 +37,7 @@ consolidados no fim.
 - [ ] **Q4** (média) Trocar `except Exception` silenciosos por exceções específicas.
 - [x] **Q5** (média) Zod nos services do frontend; remover `any`. Feito: `src/schemas/*` + `lib/parse.ts`; todo `res.json()` dos services é parseado uma vez na borda; sem `any` em src (fora de `ui/`). Follow-up: ligar `strictNullChecks` (hoje `Infer<>` compensa o `z.infer` no modo não estrito).
 - [ ] **Q6** (média) Quebrar `BankExtract.tsx`, `ExtratoDialog.tsx`, `AddTransactionDialog.tsx`; unificar Add/Edit (ao tocar).
-- [ ] **Q7** (média) Trocar cores fixas por tokens (ao tocar).
+- [x] **Q7** (média) Trocar cores fixas por tokens. Feito em todo `src/`: novos tokens `critical` e `chart-1..12` (light+dark); só restam overlays `bg-black/80` do shadcn.
 - [ ] **Q8** (média) Usar react-query nos fetches ou remover a dependência.
 - [ ] **Q9** (baixa) ~~17 erros de ESLint~~ (feito; restam 16 warnings); ~~remover `bun.lockb`~~ (feito); ~~`lang="pt-BR"`~~ (feito); `aria-label` nos botões de ícone; `.dict()` → `model_dump()`; imports mortos; tetos de versão; tirar `psycopg2-binary`/`aiosqlite` de produção.
 - [ ] **Q10** (baixa) Commits em inglês daqui em diante.

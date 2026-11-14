@@ -12,8 +12,8 @@ function LayoutContent() {
   const { isAdmin } = useRole();
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     isActive
-      ? 'bg-primary text-white'
-      : 'text-muted-foreground hover:bg-gray-100';
+      ? 'bg-primary text-primary-foreground'
+      : 'text-muted-foreground hover:bg-muted';
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
