@@ -22,6 +22,7 @@ comando? Atualize este arquivo no mesmo commit. Segredos ficam no EnvVault: use
 | `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` | Backend local fora do Docker. |
 | `DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas uv run alembic upgrade head` | Aplicar migrations no Postgres do Docker (porta 5436 no host). |
 | `uv run alembic revision -m "<descrição>"` | Nova migration (nunca editar uma já aplicada). |
+| `SEED_USER_EMAIL=<seu-email-de-dev> DATABASE_URL=postgresql://<usuário>:<senha>@localhost:5436/financas uv run python -m app.scripts.seed` | Popular o banco de dev com dados de exemplo (usuário admin com o e-mail informado). |
 | `uv run ruff check .` / `uv run ruff format .` | Lint e formatação do backend (config em `pyproject.toml`; `--fix` aplica correções seguras). |
 | `uvx pip-audit --disable-pip --no-deps -r <(uv export --frozen --no-hashes --no-emit-project)` | Auditoria de dependências do backend (roda no CI de forma informativa; ver Q1). |
 

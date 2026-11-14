@@ -34,6 +34,7 @@ from app.db.models import (
     UserORM,
 )
 
+DEFAULT_SEED_EMAIL = "dev@example.com"
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL não definida. Verifique o arquivo .env")
@@ -51,7 +52,12 @@ def seed():
     db = SessionLocal()
     try:
         # ── Usuário ──────────────────────────────────────────────
-        user = UserORM(name="Raul Gomes", email="rsgomes86@gmail.com", role="admin")
+        user = UserORM(
+            name=os.getenv("SEED_USER_NAME", "Usuário Dev"),
+            # Use o e-mail da sua conta Supabase de dev para logar com os dados do seed.
+            email=os.getenv("SEED_USER_EMAIL", DEFAULT_SEED_EMAIL),
+            role="admin",
+        )
         db.add(user)
         db.flush()
 
