@@ -1,4 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useErrorToast } from '@/hooks/queries/useErrorToast'
+import { invalidateDomain, useRecurringAccounts } from '@/hooks/queries/useLimitsQueries'
 import { Button } from '@/components/ui/button'
 import { PlusCircle, RefreshCw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -15,25 +18,16 @@ interface RecorrentesTabProps {
 
 // ===== Recorrentes Tab =====
 export const RecorrentesTab = ({ entityTypeFilter = 'all' }: RecorrentesTabProps) => {
-    const [contas, setContas] = useState<ContaRecorrente[]>([])
+    const queryClient = useQueryClient()
+    const { data: contas = [], isError } = useRecurringAccounts(entityTypeFilter)
+    useErrorToast(isError, 'Falha ao carregar contas recorrentes.')
     const [formMode, setFormMode] = useState<{ type: 'create' } | { type: 'edit', conta: ContaRecorrente } | null>(null)
     const [renewingId, setRenewingId] = useState<number | null>(null)
     const [pendingToggle, setPendingToggle] = useState<ContaRecorrente | null>(null)
     const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
     const { toast } = useToast()
 
-    const loadContas = useCallback(async () => {
-        try {
-            const entityTypeParam = entityTypeFilter === 'all' ? undefined : (entityTypeFilter === 'pf' ? 'individual' : 'business')
-            setContas(await ContaRecorrenteService.getAll(entityTypeParam))
-        } catch {
-            toast({ title: 'Erro', description: 'Falha ao carregar contas recorrentes.', variant: 'destructive' })
-        }
-    }, [toast, entityTypeFilter])
-
-    useEffect(() => {
-        loadContas()
-    }, [loadContas])
+    const loadContas = () => invalidateDomain(queryClient, 'recurring')
 
     const handleCreate = async (payload: ContaRecorrenteCreate) => {
         try {

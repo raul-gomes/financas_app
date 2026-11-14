@@ -1,4 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useErrorToast } from '@/hooks/queries/useErrorToast'
+import { invalidateDomain, toBackendEntityType, useGoals } from '@/hooks/queries/useLimitsQueries'
 import {
     Card,
     CardHeader,
@@ -20,8 +23,9 @@ interface MetasTabProps {
 
 // ===== Metas Tab =====
 export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
-    const [metas, setMetas] = useState<Meta[]>([])
-    const [loading, setLoading] = useState(false)
+    const queryClient = useQueryClient()
+    const { data: metas = [], isPending: loading, isError } = useGoals(entityTypeFilter)
+    useErrorToast(isError, 'Falha ao carregar metas.')
     const [formNome, setFormNome] = useState('')
     const [formValor, setFormValor] = useState('')
     const [editingMeta, setEditingMeta] = useState<Meta | null>(null)
@@ -32,25 +36,12 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
     const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
     const { toast } = useToast()
 
-    const loadMetas = useCallback(async () => {
-        setLoading(true)
-        try {
-            const entityTypeParam = entityTypeFilter === 'all' ? undefined : (entityTypeFilter === 'pf' ? 'individual' : 'business')
-            const data = await MetasService.list(entityTypeParam)
-            setMetas(data)
-        } catch {
-            toast({ title: 'Erro', description: 'Falha ao carregar metas.', variant: 'destructive' })
-        } finally {
-            setLoading(false)
-        }
-    }, [toast, entityTypeFilter])
-
-    useEffect(() => { loadMetas() }, [loadMetas])
+    const loadMetas = () => invalidateDomain(queryClient, 'goals')
 
     const handleCreate = async () => {
         if (!formNome.trim() || !formValor) return
         try {
-            const entityTypeParam = entityTypeFilter === 'all' ? undefined : (entityTypeFilter === 'pf' ? 'individual' : 'business')
+            const entityTypeParam = toBackendEntityType(entityTypeFilter)
             await MetasService.create({
                 subcategory_name: formNome.trim(),
                 target_amount: parseFloat(formValor),

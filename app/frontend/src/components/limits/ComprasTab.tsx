@@ -1,4 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useErrorToast } from '@/hooks/queries/useErrorToast'
+import { currentReferenceMonth, invalidateDomain, useShoppingItems } from '@/hooks/queries/useLimitsQueries'
 import {
     Card,
     CardHeader,
@@ -20,8 +23,9 @@ interface ComprasTabProps {
 
 // ===== Compras Tab =====
 export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
-    const [items, setItems] = useState<ShoppingItem[]>([])
-    const [loading, setLoading] = useState(false)
+    const queryClient = useQueryClient()
+    const { data: items = [], isPending: loading, isError } = useShoppingItems(entityTypeFilter)
+    useErrorToast(isError, 'Falha ao carregar compras.')
     const [newNome, setNewNome] = useState('')
     const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null)
     const [editNome, setEditNome] = useState('')
@@ -29,23 +33,9 @@ export const ComprasTab = ({ entityTypeFilter = 'all' }: ComprasTabProps) => {
     const [searchConcluidas, setSearchConcluidas] = useState('')
     const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
     const { toast } = useToast()
-    const mesRef = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-    const mesRefStr = mesRef.toISOString().slice(0, 10)
+    const mesRefStr = currentReferenceMonth()
 
-    const loadItems = useCallback(async () => {
-        setLoading(true)
-        try {
-            const entityTypeParam = entityTypeFilter === 'all' ? undefined : (entityTypeFilter === 'pf' ? 'individual' : 'business')
-            const data = await ShoppingService.listByMonth(mesRefStr, entityTypeParam)
-            setItems(data)
-        } catch {
-            toast({ title: 'Erro', description: 'Falha ao carregar compras.', variant: 'destructive' })
-        } finally {
-            setLoading(false)
-        }
-    }, [toast, mesRefStr, entityTypeFilter])
-
-    useEffect(() => { loadItems() }, [loadItems])
+    const loadItems = () => invalidateDomain(queryClient, 'shopping')
 
     const handleCreate = async () => {
         if (!newNome.trim()) return
