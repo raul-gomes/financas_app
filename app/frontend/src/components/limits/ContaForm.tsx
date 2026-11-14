@@ -58,7 +58,7 @@ export const ContaForm = ({ conta, onClose, onSubmit, defaultEntityType }: {
         e.preventDefault()
         if (!form.description || !form.amount) return
 
-        const payload: any = {
+        const payload: ContaRecorrenteCreate = {
             description: form.description,
             amount: parseFloat(form.amount),
             due_day: parseInt(form.due_day),
