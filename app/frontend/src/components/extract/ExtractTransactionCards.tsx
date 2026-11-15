@@ -56,7 +56,7 @@ interface ExtractTransactionCardProps {
 
 function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="min-w-0 space-y-1">
+    <div className="flex min-w-0 flex-col gap-1">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       {children}
     </div>
