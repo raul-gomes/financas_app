@@ -1,5 +1,5 @@
 import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
@@ -22,24 +22,25 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   build: {
     // Performance budget (Fase 4.3): aviso se algum chunk > 250 kB (o gate gzip fica no check-bundle-size)
     chunkSizeWarningLimit: 250, // kB (raw); largest vendor chunk is ~223 kB
     sourcemap: false,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        // Vendor chunks: long-lived cache and a smaller entry chunk.
-        manualChunks: (id: string) => {
-          if (!id.includes("node_modules")) return undefined;
-          if (/node_modules\/(react|react-dom|react-router|scheduler)\//.test(id)) return "react-vendor";
-          if (id.includes("node_modules/d3-") || id.includes("node_modules/internmap")) return "d3";
-          if (id.includes("node_modules/@supabase/")) return "supabase";
-          if (id.includes("node_modules/zod/")) return "zod";
-          if (id.includes("node_modules/@radix-ui/")) return "radix";
-          return undefined;
+        // Vendor chunks: long-lived cache and a smaller entry chunk (Rolldown code-splitting groups;
+        // the highest-priority matching group wins, mirroring the former manualChunks order).
+        codeSplitting: {
+          groups: [
+            { name: "react-vendor", test: /node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/, priority: 5 },
+            { name: "d3", test: /node_modules[\\/](d3-[^\\/]+|internmap)[\\/]/, priority: 4 },
+            { name: "supabase", test: /node_modules[\\/]@supabase[\\/]/, priority: 3 },
+            { name: "zod", test: /node_modules[\\/]zod[\\/]/, priority: 2 },
+            { name: "radix", test: /node_modules[\\/]@radix-ui[\\/]/, priority: 1 },
+          ],
         },
       },
     },
