@@ -102,6 +102,13 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 - Tipo fixo: `expense`
 - Vincula via `recurring_account_id` + `group_id` (UUID da conta)
 
+#### Estado das parcelas (só o backend calcula)
+- O backend é o único dono das parcelas: o navegador nunca dispara geração nem recalcula o estado. Criar a conta gera as `total_installments` parcelas; renovar gera +12.
+- Regra única em `app/services/recurring_installments.py`, usada pela resposta de `/recurring-accounts` e pela Visão Geral: `current_installment = total - restantes + 1` (limitado a `1..total`; `restantes` = parcelas com data a partir do 1º dia do mês corrente)
+- **`is_ending_soon` ("Acabando")**: conta ativa, `current_installment >= 10` (`ENDING_SOON_FROM_INSTALLMENT`, "a partir da 10ª parcela de 12") e `restantes > 0`
+- **`can_renew`**: conta inativa, ou com no máximo 2 parcelas restantes (`CAN_RENEW_MAX_REMAINING`); caso contrário o botão Renovar fica desabilitado ("Ainda há parcelas restantes")
+- O frontend só lê `current_installment`, `is_ending_soon` e `can_renew` da API
+
 #### Renovação (`POST /{id}/renew`)
 - Reativa conta (`active=true`)
 - Move `start_date` para mês atual (ou próximo se já tem parcela neste mês)

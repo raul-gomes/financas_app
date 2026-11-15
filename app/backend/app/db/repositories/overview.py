@@ -23,6 +23,7 @@ from app.schemas.overview import (
     RecorrentePagarOverview,
     TotaisOverview,
 )
+from app.services.recurring_installments import DEFAULT_TOTAL_INSTALLMENTS, installment_state
 
 # Categoria cujo limite é o limite do cartão de crédito
 CREDIT_CARD_CATEGORY = "limite cartao credito"
@@ -319,13 +320,8 @@ class DashboardOverviewRepository:
         for c in ativas:
             if c.id not in pagam_no_mes:
                 continue
-            total = c.total_installments or 12
             remaining = getattr(c, "remaining_installments", 0) or 0
-            current = total - remaining + 1
-            if current < 1:
-                current = 1
-            if current > total:
-                current = total
+            state = installment_state(c.total_installments, remaining, active=c.active)
             result.append(
                 RecorrentePagarOverview(
                     id=c.id,
@@ -336,10 +332,10 @@ class DashboardOverviewRepository:
                     subcategory_name=c.subcategory.name if c.subcategory else "",
                     entity_type=c.entity_type,
                     payment_method=c.payment_method,
-                    current_installment=current,
-                    total_installments=total,
+                    current_installment=state.current_installment,
+                    total_installments=c.total_installments or DEFAULT_TOTAL_INSTALLMENTS,
                     remaining_installments=remaining,
-                    is_ending_soon=(remaining > 0 and remaining <= 2),
+                    is_ending_soon=state.is_ending_soon,
                 )
             )
         return result

@@ -3,6 +3,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.services.recurring_installments import installment_state
+
 
 class ContaRecorrenteBase(BaseModel):
     description: str = Field(..., min_length=1, max_length=500)
@@ -72,6 +74,7 @@ class ContaRecorrenteResponse(ContaRecorrenteBase):
     remaining_installments: int = 0
     current_installment: int = 0
     is_ending_soon: bool = False
+    can_renew: bool = True
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -91,13 +94,12 @@ class ContaRecorrenteResponse(ContaRecorrenteBase):
         ):
             data.subcategory_name = data.subcategory.name
 
-        total = getattr(data, "total_installments", 12) or 12
-        remaining = getattr(data, "remaining_installments", 0) or 0
-        current = total - remaining + 1
-        if current < 1:
-            current = 1
-        if current > total:
-            current = total
-        data.current_installment = current
-        data.is_ending_soon = remaining > 0 and remaining <= 2
+        state = installment_state(
+            getattr(data, "total_installments", None),
+            getattr(data, "remaining_installments", 0),
+            active=bool(getattr(data, "active", True)),
+        )
+        data.current_installment = state.current_installment
+        data.is_ending_soon = state.is_ending_soon
+        data.can_renew = state.can_renew
         return data

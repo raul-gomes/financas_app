@@ -88,6 +88,7 @@ financas_app/
 │   │   │       ├── goal_service.py             # GoalService: metas do usuário (list_goals/create/update/delete/complete/reactivate/progress); NotFoundError/ConflictError; só flush
 │   │   │       ├── shopping_service.py         # ShoppingService: lista de compras do usuário (list_month com rollover, create/update/delete, generate_recurring); NotFoundError; só flush
 │   │   │       ├── settings_service.py         # SettingsService: perfil (nome, chave Pluggy cifrada), bancos e assign_random_banks do usuário; NotFoundError/ValidationError; só flush
+│   │   │       ├── recurring_installments.py    # installment_state: regra única (função pura) de parcela atual, "acabando" (>= 10ª) e pode renovar (<= 2 restantes)
 │   │   │       ├── recurring_account_service.py # RecurringAccountService: contas recorrentes do usuário (CRUD, renew); resolve/cria categoria e subcategoria por nome; avalia limites após o commit; só flush
 │   │   │       ├── extract_service.py          # ExtractService: parse_upload (CSV/OFX por extensão ou conteúdo) e confirm (importação em lote, só flush; limites avaliados após o commit no mês mais antigo)
 │   │   │       ├── pluggy_sync_service.py      # PluggySyncService: contas, validar chave e sync do Pluggy do usuário (chave decifrada do usuário autenticado), dedupe pelo id do provedor (external_id) e aviso de duplicata só p/ linhas sem id; limites após o commit; pluggy_client_for
@@ -121,6 +122,7 @@ financas_app/
 │   │   │   ├── test_categories.py              # CRUD categorias + subcategorias + duplicatas (409)
 │   │   │   ├── test_dashboard.py               # Endpoints do dashboard (extrato, rendimento, gastos)
 │   │   │   ├── test_limits.py                  # Atualização em lote de limites
+│   │   │   ├── test_recurring_installments.py  # regra única do estado das parcelas (constantes, limites, inativa)
 │   │   │   ├── test_recurring_accounts.py      # CRUD contas recorrentes + parcelas + renovação
 │   │   │   ├── test_recurring_account_isolation.py # Etapa 7: isolamento de contas recorrentes por usuário (list, get, update, delete, renew) + geração de parcelas com user_id
 │   │   │   ├── test_extract.py                 # Upload e confirmação de extratos CSV
