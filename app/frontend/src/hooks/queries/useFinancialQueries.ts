@@ -90,7 +90,8 @@ export function useRecurringGeneration(range: DateRangeInput, enabled: boolean) 
 /**
  * Income/expense of the last 6 months ending at `end` (mobile bar chart). Reuses the
  * yearly queries (shared cache with the desktop chart) and reads the previous year too
- * when the window crosses the new year. `enabled` keeps the desktop from fetching it.
+ * when the window crosses the new year. While `enabled` is false (the period's recurring
+ * bills are still being generated) nothing is fetched and the chart reports pending.
  */
 export function useRecentMonths(end: YearMonth, entityType: string, enabled: boolean) {
   const needsPreviousYear = recentMonthYears(end, MOBILE_CHART_MONTHS).length > 1;
@@ -100,6 +101,6 @@ export function useRecentMonths(end: YearMonth, entityType: string, enabled: boo
     () => buildRecentMonths(end, MOBILE_CHART_MONTHS, { [end.year]: current.data, [end.year - 1]: previous.data }),
     [end, current.data, previous.data],
   );
-  const isPending = enabled && (current.isPending || (needsPreviousYear && previous.isPending));
+  const isPending = !enabled || current.isPending || (needsPreviousYear && previous.isPending);
   return { months, isPending };
 }

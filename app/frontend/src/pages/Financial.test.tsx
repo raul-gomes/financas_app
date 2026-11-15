@@ -4,6 +4,15 @@ import { renderWithQuery } from '@/test/queryWrapper';
 import Financial from './Financial';
 
 const mockIsAdmin = vi.fn(() => false);
+const mockIsMobile = vi.fn(() => false);
+
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => mockIsMobile(),
+}));
+
+vi.mock('@/components/TransactionListMobile', () => ({
+  TransactionListMobile: () => <div data-testid="transaction-list-mobile" />,
+}));
 
 vi.mock('@/contexts/RoleContext', () => ({
   useRole: () => ({ isAdmin: mockIsAdmin() }),
@@ -108,6 +117,7 @@ const yearly = {
 beforeEach(() => {
   vi.clearAllMocks();
   mockIsAdmin.mockReturnValue(false);
+  mockIsMobile.mockReturnValue(false);
   mockSummary.mockResolvedValue(summary());
   mockYearly.mockResolvedValue(yearly);
   mockBreakdown.mockResolvedValue(null);
@@ -192,6 +202,22 @@ describe('Financial page - dados com react-query', () => {
     finishGeneration();
 
     await waitFor(() => expect(mockSummary).toHaveBeenCalledTimes(1));
+  });
+
+  it('admin no celular: o gráfico de 6 meses espera as recorrentes do mês', async () => {
+    mockIsAdmin.mockReturnValue(true);
+    mockIsMobile.mockReturnValue(true);
+    let finishGeneration: () => void = () => {};
+    mockGenerate.mockReturnValue(new Promise<void>((resolve) => { finishGeneration = resolve; }));
+
+    renderWithQuery(<Financial />);
+
+    await waitFor(() => expect(mockGenerate).toHaveBeenCalledTimes(1));
+    expect(mockYearly).not.toHaveBeenCalled();
+
+    finishGeneration();
+
+    await waitFor(() => expect(mockYearly).toHaveBeenCalled());
   });
 
   it('admin: uma falha ao gerar recorrentes é registrada e não bloqueia os dados', async () => {

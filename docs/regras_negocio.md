@@ -114,6 +114,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 
 #### Geração Legada (`POST /generate`)
 - Gera parcelas para contas ativas no range `start_date` a `end_date` (compatibilidade)
+- **Quem chama (frontend, só `admin`):** a Visão Geral (`/`) e o Financeiro (`/financial`) geram as contas do mês exibido **antes** de buscar os totais e gráficos (inclusive o gráfico de 6 meses do celular), para que os números já incluam as contas fixas do mês. A geração usa a mesma chave de cache nas duas telas, então roda uma vez por mês por sessão. Usuário comum não gera (rota só de admin).
 
 ---
 
