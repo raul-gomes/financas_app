@@ -17,6 +17,7 @@ os.environ["PLUGGY_KEY_ENCRYPTION_KEYS"] = TEST_ONLY_ENCRYPTION_KEY
 
 from app.core.database import get_session
 from app.core.security import get_current_user
+from app.core.unit_of_work import UnitOfWork
 from app.db.base import Base
 from app.db.models.user import UserORM
 from app.main import app
@@ -56,6 +57,25 @@ async def async_session():
 
 
 @pytest_asyncio.fixture
+async def make_uow(async_session):
+    """Factory ``await make_uow(user_id, role="admin")`` -> ``(UnitOfWork, UserORM)``.
+
+    Creates the user when missing; the unit of work wraps the shared test session, so a
+    service test decides when to ``commit()``/``rollback()`` like the request dependency does.
+    """
+
+    async def build(user_id: int, role: str = "admin") -> tuple[UnitOfWork, UserORM]:
+        if await async_session.get(UserORM, user_id) is None:
+            async_session.add(
+                UserORM(id=user_id, name="U", email=f"u{user_id}@example.com", role=role)
+            )
+            await async_session.commit()
+        return UnitOfWork(async_session), await async_session.get(UserORM, user_id)
+
+    return build
+
+
+@pytest_asyncio.fixture
 async def client():
     async with TestSessionLocal() as session:
 
@@ -79,10 +99,11 @@ async def client():
             updated_at=now,
         )
         session.add(fake_user)
-        await session.flush()
+        await session.commit()  # durable: a request rollback must not undo the seed users
 
         async def override_get_current_user() -> UserORM:
-            return fake_user
+            # Re-read: a request rollback expires the instance of the shared test session.
+            return await session.get(UserORM, 1)
 
         app.dependency_overrides[get_current_user] = override_get_current_user
 
@@ -141,10 +162,10 @@ async def client_user2():
             updated_at=now,
         )
         session.add(fake_user2)
-        await session.flush()
+        await session.commit()  # durable: a request rollback must not undo the seed users
 
         async def override_get_current_user() -> UserORM:
-            return fake_user2
+            return await session.get(UserORM, 2)
 
         app.dependency_overrides[get_current_user] = override_get_current_user
 
@@ -203,12 +224,12 @@ async def clients_ctrl():
         }
         for u in users.values():
             session.add(u)
-        await session.flush()
+        await session.commit()  # durable: a request rollback must not undo the seed users
 
         current_id = {"value": 1}
 
         async def override_get_current_user() -> UserORM:
-            return users[current_id["value"]]
+            return await session.get(UserORM, current_id["value"])
 
         app.dependency_overrides[get_current_user] = override_get_current_user
 

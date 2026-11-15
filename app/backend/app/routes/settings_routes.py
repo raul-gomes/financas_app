@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+"""Settings routes: HTTP concerns only. Rules and authorization live in SettingsService."""
 
-from app.core.security import get_current_user
-from app.db.models.user import UserORM
-from app.db.repositories.settings import SettingsRepository
-from app.db.repositories.transaction import TransacaoRepository
+from fastapi import APIRouter, Depends, Request, status
+
 from app.logger import log_api_request
+from app.routes.dependencies import get_settings_reader, get_settings_service
 from app.schemas.settings import BankCreate, BankResponse, ProfileResponse, ProfileUpdate
+from app.services.settings_service import SettingsService
 
 router = APIRouter(prefix="/settings", tags=["Configurações"])
 
@@ -13,27 +13,26 @@ router = APIRouter(prefix="/settings", tags=["Configurações"])
 @router.get("/profile", response_model=ProfileResponse)
 async def get_profile(
     request: Request,
-    current_user: UserORM = Depends(get_current_user),
-    repo: SettingsRepository = Depends(),
+    service: SettingsService = Depends(get_settings_reader),
 ):
     """Retorna o perfil do usuário autenticado."""
     log = log_api_request(method="GET", endpoint=str(request.url))
-    log.success("Perfil obtido", user_id=current_user.id)
-    return current_user
+    user = service.profile()
+    log.success("Perfil obtido", user_id=user.id)
+    return user
 
 
 @router.put("/profile", response_model=ProfileResponse)
 async def update_profile(
     request: Request,
     payload: ProfileUpdate,
-    current_user: UserORM = Depends(get_current_user),
-    repo: SettingsRepository = Depends(),
+    service: SettingsService = Depends(get_settings_service),
 ):
     """Atualiza o nome e/ou a chave Pluggy do perfil (e-mail e senha ficam no Supabase)."""
     log = log_api_request(
         method="PUT", endpoint=str(request.url), fields=sorted(payload.model_fields_set)
     )
-    user = await repo.update_profile(current_user.id, payload)
+    user = await service.update_profile(payload)
     log.success("Perfil atualizado", user_id=user.id)
     return user
 
@@ -41,12 +40,11 @@ async def update_profile(
 @router.get("/banks", response_model=list[BankResponse])
 async def list_banks(
     request: Request,
-    current_user: UserORM = Depends(get_current_user),
-    repo: SettingsRepository = Depends(),
+    service: SettingsService = Depends(get_settings_reader),
 ):
     """Lista os bancos adicionados pelo usuário."""
     log = log_api_request(method="GET", endpoint=str(request.url))
-    banks = await repo.list_banks(current_user.id)
+    banks = await service.list_banks()
     log.success(f"{len(banks)} bancos listados")
     return banks
 
@@ -55,12 +53,11 @@ async def list_banks(
 async def add_bank(
     request: Request,
     payload: BankCreate,
-    current_user: UserORM = Depends(get_current_user),
-    repo: SettingsRepository = Depends(),
+    service: SettingsService = Depends(get_settings_service),
 ):
     """Adiciona um banco à lista do usuário."""
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
-    bank = await repo.add_bank(current_user.id, payload)
+    bank = await service.add_bank(payload)
     log.success("Banco adicionado", bank_id=bank.id, bank_name=bank.bank_name)
     return bank
 
@@ -69,37 +66,21 @@ async def add_bank(
 async def remove_bank(
     request: Request,
     bank_id: int,
-    current_user: UserORM = Depends(get_current_user),
-    repo: SettingsRepository = Depends(),
+    service: SettingsService = Depends(get_settings_service),
 ):
     """Remove um banco da lista do usuário."""
     log = log_api_request(method="DELETE", endpoint=str(request.url))
-    removed = await repo.remove_bank(bank_id, current_user.id)
-    if not removed:
-        log.error("Banco nao encontrado", bank_id=bank_id)
-        raise HTTPException(status_code=404, detail="Banco não encontrado")
+    await service.remove_bank(bank_id)
     log.success("Banco removido", bank_id=bank_id)
 
 
 @router.post("/assign-random-banks")
 async def assign_random_banks(
     request: Request,
-    current_user: UserORM = Depends(get_current_user),
-    settings_repo: SettingsRepository = Depends(),
-    transacao_repo: TransacaoRepository = Depends(),
+    service: SettingsService = Depends(get_settings_service),
 ):
     """Atribui um banco aleatório às transações que não possuem bank_code."""
     log = log_api_request(method="POST", endpoint=str(request.url))
-    banks = await settings_repo.list_banks(current_user.id)
-
-    if not banks:
-        raise HTTPException(
-            status_code=400, detail="Nenhum banco cadastrado. Adicione bancos primeiro."
-        )
-
-    updated = await transacao_repo.assign_random_banks(
-        [b.bank_code for b in banks], current_user.id
-    )
-
+    updated = await service.assign_random_banks()
     log.success(f"{updated} transações atualizadas com banco aleatório")
     return {"updated": updated}

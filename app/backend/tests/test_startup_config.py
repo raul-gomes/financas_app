@@ -69,7 +69,7 @@ async def test_pluggy_sync_uses_correctly_spelled_fallback_description(client, m
         return user
 
     app.dependency_overrides[get_current_user] = _current_user
-    monkeypatch.setattr("app.routes.pluggy_routes.PluggyService", _FakePluggy)
+    monkeypatch.setattr("app.services.pluggy_sync_service.PluggyService", _FakePluggy)
     captured: list[dict] = []
 
     async def _fake_batch(self, transactions: list[dict], user_id: int) -> tuple[int, list]:

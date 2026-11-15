@@ -1,17 +1,11 @@
 # app/routes/notifications_routes.py
+"""Notifications routes: HTTP concerns only. Rules and authorization live in NotificationService."""
 
 from fastapi import APIRouter, Depends, Path
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_session
-from app.core.security import get_current_user
-from app.db.models.user import UserORM
-from app.db.repositories.limit_alert import LimitAlertRepository
-from app.schemas.notifications import (
-    MarkReadResponse,
-    NotificationItem,
-    NotificationsResponse,
-)
+from app.routes.dependencies import get_notification_reader, get_notification_service
+from app.schemas.notifications import MarkReadResponse, NotificationsResponse
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -22,17 +16,8 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
     summary="Listar notificações de limite",
     description="Retorna alertas não resolvidos de limites (categoria e cartão) prontos para a UI: unread_count para o badge + itens com severity e mensagem computados no backend.",
 )
-async def list_notifications(
-    current_user: UserORM = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session),
-):
-    repo = LimitAlertRepository(db)
-    alertas = await repo.list_by_user(current_user.id)
-    unread = await repo.unread_count(current_user.id)
-    return NotificationsResponse(
-        unread_count=unread,
-        items=[NotificationItem.from_alert(a) for a in alertas],
-    )
+async def list_notifications(service: NotificationService = Depends(get_notification_reader)):
+    return await service.list_notifications()
 
 
 @router.put(
@@ -42,15 +27,9 @@ async def list_notifications(
 )
 async def mark_alert_read(
     alert_id: int = Path(..., description="ID da notificação"),
-    current_user: UserORM = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session),
+    service: NotificationService = Depends(get_notification_service),
 ):
-    repo = LimitAlertRepository(db)
-    alerta = await repo.mark_read(alert_id, current_user.id)
-    if alerta is None:
-        return MarkReadResponse(success=False, updated=0)
-    await db.commit()
-    return MarkReadResponse(success=True, updated=1)
+    return await service.mark_read(alert_id)
 
 
 @router.put(
@@ -58,11 +37,5 @@ async def mark_alert_read(
     response_model=MarkReadResponse,
     summary="Marcar todas como lidas",
 )
-async def mark_all_read(
-    current_user: UserORM = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session),
-):
-    repo = LimitAlertRepository(db)
-    updated = await repo.mark_all_read(current_user.id)
-    await db.commit()
-    return MarkReadResponse(success=True, updated=updated)
+async def mark_all_read(service: NotificationService = Depends(get_notification_service)):
+    return await service.mark_all_read()

@@ -1,15 +1,16 @@
 # app/db/repositories/categoria.py
 
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_session
+from app.core.errors import ConflictError, ValidationError
 from app.db.models.category import CategoryORM
-from app.db.repositories.dashboard import _invalidate_opcoes_categorias_cache
+from app.db.repositories.dashboard import invalidate_opcoes_categorias_cache
 from app.db.repositories.subcategory import SubcategoriaRepository
 from app.logger import log_database_operation
 from app.schemas.categories import CategoriaCreate, CategoriaUpdate
@@ -60,13 +61,6 @@ class CategoriaRepository:
         )
         return result.scalars().first()
 
-    async def _persist(self, commit: bool) -> None:
-        """Commits, or only flushes when the caller's unit of work owns the commit."""
-        if commit:
-            await self.db.commit()
-        else:
-            await self.db.flush()
-
     async def get_by_tipo(self, tipo: str, user_id: int) -> CategoryORM | None:
         """Busca a primeira categoria com o tipo informado (ex: 'income', 'investment')."""
         result = await self.db.execute(
@@ -74,14 +68,12 @@ class CategoriaRepository:
         )
         return result.scalars().first()
 
-    async def create(
-        self, user_id: int, obj_in: CategoriaCreate, *, commit: bool = True
-    ) -> CategoryORM:
+    async def create(self, user_id: int, obj_in: CategoriaCreate) -> CategoryORM:
         """
         Insere uma nova categoria e suas subcategorias (se houver).
-        Lança HTTPException em caso de erro de unicidade.
+        Raises ConflictError on a duplicate name and ValidationError on other integrity errors.
 
-        Com ``commit=False`` só faz flush: o commit fica com a unit of work do request.
+        Só faz flush: o commit fica com a unit of work do request.
         """
         log = log_database_operation(
             operation="create",
@@ -105,16 +97,14 @@ class CategoriaRepository:
 
             instance = self.model(user_id=user_id, **orm_data)
             self.db.add(instance)
-            await self._persist(commit)
+            await self.db.flush()
             await self.db.refresh(instance)
 
             if obj_in.subcategories:
-                await self.sub_repo.create_many(
-                    instance.id, user_id, obj_in.subcategories, commit=commit
-                )
+                await self.sub_repo.create_many(instance.id, user_id, obj_in.subcategories)
 
             log.info(f"Categoria {instance.id} criada")
-            _invalidate_opcoes_categorias_cache()
+            invalidate_opcoes_categorias_cache()
 
             # Recarrega categoria completa com subcategorias
             result = await self.db.execute(
@@ -125,7 +115,6 @@ class CategoriaRepository:
             return result.scalars().first()
 
         except IntegrityError as e:
-            await self.db.rollback()
             err = str(e)
             if (
                 "categorias.name" in err
@@ -133,15 +122,9 @@ class CategoriaRepository:
                 or "uq_categorias_name_entity_type_user" in err
             ):
                 log.error("Violação de unicidade em (name, entity_type, user_id)")
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Categoria com nome '{obj_in.category_name}' já existe",
-                ) from e
+                raise ConflictError(f"Categoria com nome '{obj_in.category_name}' já existe") from e
             log.error(f"Erro de integridade no banco: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Erro de integridade no banco de dados",
-            ) from e
+            raise ValidationError("Erro de integridade no banco de dados") from e
 
     async def get_all(self, user_id: int) -> list[CategoryORM]:
         """
@@ -155,6 +138,7 @@ class CategoriaRepository:
         return categorias
 
     async def update(self, id: int, user_id: int, obj_in: CategoriaUpdate) -> CategoryORM | None:
+        """Updates a category and syncs its subcategories (flush only)."""
         categoria = await self.get_by_id(id, user_id)
         if not categoria:
             return None
@@ -175,10 +159,7 @@ class CategoriaRepository:
                 .first()
             )
             if conflict:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Outra categoria com nome '{obj_in.category_name}' já existe",
-                )
+                raise ConflictError(f"Outra categoria com nome '{obj_in.category_name}' já existe")
 
         # 2) Atualiza campos básicos
         base = obj_in.model_dump(exclude_unset=True, exclude={"subcategories"})
@@ -191,7 +172,7 @@ class CategoriaRepository:
         for field, val in base.items():
             orm_field = field_map.get(field, field)
             setattr(categoria, orm_field, val)
-        await self.db.commit()
+        await self.db.flush()
 
         # 3) Sincroniza subcategorias sem deletar as existentes
         incoming = obj_in.subcategories or []
@@ -208,12 +189,12 @@ class CategoriaRepository:
 
         # 4) Recarrega e retorna
         result = await self.db.execute(select(self.model).where(self.model.id == id))
-        _invalidate_opcoes_categorias_cache()
+        invalidate_opcoes_categorias_cache()
         return result.scalars().first()
 
-    async def delete(self, id: int, user_id: int) -> CategoryORM | None:
+    async def delete(self, id: int, user_id: int, *, commit: bool = True) -> CategoryORM | None:
         """
-        Remove uma categoria pelo ID, restrita ao usuário.
+        Remove uma categoria pelo ID, restrita ao usuário (só flush com ``commit=False``).
         """
         log = log_database_operation(
             operation="delete", collection="categorias", categoria_id=id, user_id=user_id
@@ -222,7 +203,7 @@ class CategoriaRepository:
         if not categoria:
             return None
         await self.db.delete(categoria)
-        await self.db.commit()
-        _invalidate_opcoes_categorias_cache()
+        await self.db.flush()
+        invalidate_opcoes_categorias_cache()
         log.info(f"Categoria {id} excluída")
         return categoria

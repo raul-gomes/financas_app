@@ -8,8 +8,7 @@ unit of work does it once, when the route returns.
 
 from datetime import date, datetime
 
-from fastapi import HTTPException, status
-
+from app.core.errors import NotFoundError, ValidationError
 from app.core.unit_of_work import UnitOfWork
 from app.db.models.transaction import TransactionORM
 from app.db.models.user import UserORM
@@ -67,25 +66,25 @@ class TransactionService:
         return transaction
 
     async def get(self, transaction_id: int) -> TransactionORM:
-        """Returns one of the user's transactions or raises 404."""
+        """Returns one of the user's transactions or raises NotFoundError."""
         transaction = await self.repo.get_by_id(transaction_id, self.user.id)
         if transaction is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND_MESSAGE)
+            raise NotFoundError(NOT_FOUND_MESSAGE)
         return transaction
 
     async def update(self, transaction_id: int, payload: TransacaoUpdate) -> TransactionORM:
-        """Updates one of the user's transactions or raises 404."""
+        """Updates one of the user's transactions or raises NotFoundError."""
         transaction = await self.repo.update(transaction_id, payload, self.user.id)
         if transaction is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND_MESSAGE)
+            raise NotFoundError(NOT_FOUND_MESSAGE)
         self._evaluate_limits_after_commit(transaction.transaction_date)
         return transaction
 
     async def delete(self, transaction_id: int) -> TransactionORM:
-        """Deletes one of the user's transactions or raises 404."""
+        """Deletes one of the user's transactions or raises NotFoundError."""
         deleted = await self.repo.delete(transaction_id, self.user.id)
         if deleted is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND_MESSAGE)
+            raise NotFoundError(NOT_FOUND_MESSAGE)
         self._evaluate_limits_after_commit(deleted.transaction_date)
         return deleted
 
@@ -107,12 +106,12 @@ class TransactionService:
         """Returns one keyset page of the user's transactions (date desc, id desc).
 
         Raises:
-            HTTPException: 400 when ``cursor`` is malformed.
+            ValidationError: when ``cursor`` is malformed (400).
         """
         try:
             position = TransactionCursor.decode(cursor) if cursor else None
         except InvalidCursorError as exc:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, INVALID_CURSOR_MESSAGE) from exc
+            raise ValidationError(INVALID_CURSOR_MESSAGE) from exc
         page = await self.repo.list_page(self.user.id, filters, limit, position)
         return TransacaoPageResponse(
             items=[TransacaoResponse.model_validate(row) for row in page.items],

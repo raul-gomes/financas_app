@@ -1,18 +1,19 @@
+"""Shopping routes (admin only): HTTP concerns only. Rules live in ShoppingService."""
+
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy.exc import SQLAlchemyError
+from fastapi import APIRouter, Depends, Query, Request, status
 
-from app.core.security import get_current_user, require_admin
-from app.db.models.user import UserORM
-from app.db.repositories.shopping import ShoppingRepository
+from app.core.security import require_admin
 from app.logger import log_api_request
+from app.routes.dependencies import get_shopping_reader, get_shopping_service
 from app.schemas.shopping import (
     GenerateRecurringShoppingRequest,
     ShoppingItemCreate,
     ShoppingItemResponse,
     ShoppingItemUpdate,
 )
+from app.services.shopping_service import ShoppingService
 
 router = APIRouter(prefix="/shopping", tags=["Shopping"], dependencies=[Depends(require_admin)])
 
@@ -26,25 +27,18 @@ router = APIRouter(prefix="/shopping", tags=["Shopping"], dependencies=[Depends(
 )
 async def list_shopping(
     request: Request,
-    current_user: UserORM = Depends(get_current_user),
     month: date = Query(..., description="Mês de referência (YYYY-MM-DD, primeiro dia do mês)"),
     entity_type: str | None = Query(
         None, description="Filtrar por tipo de entidade: individual, business"
     ),
-    repo: ShoppingRepository = Depends(ShoppingRepository),
+    service: ShoppingService = Depends(get_shopping_reader),
 ):
     log = log_api_request(
         method="GET", endpoint=str(request.url), month=str(month), entity_type=entity_type
     )
-    try:
-        items = await repo.list_by_month(month, entity_type=entity_type, user_id=current_user.id)
-        log.info(f"{len(items)} itens encontrados")
-        return items
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao listar itens: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao listar itens"
-        ) from e
+    items = await service.list_month(month, entity_type)
+    log.info(f"{len(items)} itens encontrados")
+    return items
 
 
 @router.post(
@@ -57,19 +51,12 @@ async def list_shopping(
 async def create_shopping_item(
     request: Request,
     payload: ShoppingItemCreate,
-    current_user: UserORM = Depends(get_current_user),
-    repo: ShoppingRepository = Depends(ShoppingRepository),
+    service: ShoppingService = Depends(get_shopping_service),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
-    try:
-        item = await repo.create(payload, current_user.id)
-        log.info(f"Item {item.id} criado")
-        return item
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao criar item: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao criar item"
-        ) from e
+    item = await service.create(payload)
+    log.info(f"Item {item.id} criado")
+    return item
 
 
 @router.put(
@@ -82,24 +69,12 @@ async def update_shopping_item(
     request: Request,
     item_id: int,
     payload: ShoppingItemUpdate,
-    current_user: UserORM = Depends(get_current_user),
-    repo: ShoppingRepository = Depends(ShoppingRepository),
+    service: ShoppingService = Depends(get_shopping_service),
 ):
     log = log_api_request(method="PUT", endpoint=str(request.url), item_id=item_id)
-    try:
-        item = await repo.update(item_id, payload, current_user.id)
-        if not item:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item não encontrado")
-        log.info(f"Item {item_id} atualizado")
-        return item
-    except HTTPException:
-        raise
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao atualizar item {item_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao atualizar item",
-        ) from e
+    item = await service.update(item_id, payload)
+    log.info(f"Item {item_id} atualizado")
+    return item
 
 
 @router.delete(
@@ -111,23 +86,12 @@ async def update_shopping_item(
 async def delete_shopping_item(
     request: Request,
     item_id: int,
-    current_user: UserORM = Depends(get_current_user),
-    repo: ShoppingRepository = Depends(ShoppingRepository),
+    service: ShoppingService = Depends(get_shopping_service),
 ):
     log = log_api_request(method="DELETE", endpoint=str(request.url), item_id=item_id)
-    try:
-        item = await repo.delete(item_id, current_user.id)
-        if not item:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item não encontrado")
-        log.info(f"Item {item_id} excluído")
-        return item
-    except HTTPException:
-        raise
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao excluir item {item_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao excluir item"
-        ) from e
+    item = await service.delete(item_id)
+    log.info(f"Item {item_id} excluído")
+    return item
 
 
 @router.post(
@@ -138,16 +102,9 @@ async def delete_shopping_item(
 async def generate_recurring_shopping(
     request: Request,
     payload: GenerateRecurringShoppingRequest,
-    current_user: UserORM = Depends(get_current_user),
-    repo: ShoppingRepository = Depends(ShoppingRepository),
+    service: ShoppingService = Depends(get_shopping_service),
 ):
     log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
-    try:
-        gerados = await repo.generate_recurring_items(payload, current_user.id)
-        log.info(f"{gerados} itens recorrentes de compras gerados")
-        return {"generated": gerados, "message": f"{gerados} itens recorrentes gerados"}
-    except SQLAlchemyError as e:
-        log.error(f"Erro ao gerar itens recorrentes: {type(e).__name__}: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail="Erro interno ao gerar itens recorrentes"
-        ) from e
+    gerados = await service.generate_recurring(payload)
+    log.info(f"{gerados} itens recorrentes de compras gerados")
+    return {"generated": gerados, "message": f"{gerados} itens recorrentes gerados"}

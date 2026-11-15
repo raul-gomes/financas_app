@@ -7,18 +7,23 @@ from typing import Any
 
 from sqlalchemy import Select, case, extract, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import lazyload
 
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
+from app.db.models.user_bank import UserBankORM
 from app.schemas.dashboard import (
     CategoriaOpcao,
     EntradasPorCategoriaResponse,
     ExtratoResponse,
     OpcoesCategoriaResponse,
+    ParcelasAPagar,
+    ParcelasBanco,
     RendimentoPeriodoResponse,
     SubcategoriaOpcao,
     TipoTrans,
+    TotalBanco,
+    TotalDiario,
+    TotalFormaPagamento,
     TransacaoExtrato,
 )
 from app.schemas.transaction import NaturezaTransacao
@@ -29,6 +34,10 @@ CATEGORIAS_CONFIGURACAO = {"mensal pf", "mensal pj", "limite cartao credito"}
 
 # Label for income whose subcategory is missing
 SEM_SUBCATEGORIA = "Sem subcategoria"
+
+# Label for installments paid without a registered bank
+SEM_BANCO = "Sem banco"
+MONEY_DECIMALS = 2
 
 
 def _sum_where(condition):
@@ -41,7 +50,7 @@ _opcoes_categorias_cache: dict[tuple, tuple] = {}
 _CACHE_TTL_SECONDS = 300  # 5 minutes
 
 
-def _invalidate_opcoes_categorias_cache():
+def invalidate_opcoes_categorias_cache():
     """Invalidates the opcoes_categorias cache."""
     global _opcoes_categorias_cache
     _opcoes_categorias_cache.clear()
@@ -234,9 +243,7 @@ class DashboardRepository:
         stmt = self._scope_transactions(
             select(TransactionORM), start_date, end_date, entity_type, user_id
         )
-        stmt = stmt.options(lazyload(TransactionORM.recurring_account)).order_by(
-            TransactionORM.transaction_date.desc(), TransactionORM.id.desc()
-        )
+        stmt = stmt.order_by(TransactionORM.transaction_date.desc(), TransactionORM.id.desc())
         result = await self.db.execute(stmt)
         transacoes = result.unique().scalars().all()
 
@@ -260,6 +267,7 @@ class DashboardRepository:
             user_id,
         )
         totals = (await self.db.execute(totals_stmt)).one()
+        aggregates = await self._statement_aggregates(start_date, end_date, entity_type, user_id)
         total_income = float(totals.income)
         total_expenses = float(totals.expenses)
         total_invested = float(totals.invested)
@@ -332,7 +340,128 @@ class DashboardRepository:
             credit_card_limit=credit_card_limit,
             fixed_expenses=fixed_expenses,
             variable_expenses=variable_expenses,
+            **aggregates,
         )
+
+    async def _statement_aggregates(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        entity_type: str,
+        user_id: int,
+    ) -> dict[str, Any]:
+        """Chart aggregates of the period from ONE grouped query (never from the ORM rows).
+
+        Groups by day, type, payment method, bank and installment flag (a few dozen cells at
+        most), then folds the cells into the daily totals, per-payment-method and per-bank
+        expenses and the installments still to pay. Bank names come from the user's own banks.
+        """
+        remaining = func.coalesce(TransactionORM.total_installments, 1) - func.coalesce(
+            TransactionORM.installment_number, 1
+        )
+        day = func.date(TransactionORM.transaction_date)
+        stmt = self._scope_transactions(
+            select(
+                day.label("day"),
+                TransactionORM.type,
+                TransactionORM.payment_method,
+                TransactionORM.bank_code,
+                TransactionORM.is_installment,
+                func.sum(TransactionORM.amount).label("amount"),
+                func.sum(remaining * TransactionORM.amount).label("remaining_amount"),
+                func.sum(remaining).label("remaining_count"),
+                func.count().label("transactions"),
+            ),
+            start_date,
+            end_date,
+            entity_type,
+            user_id,
+        ).group_by(
+            day,
+            TransactionORM.type,
+            TransactionORM.payment_method,
+            TransactionORM.bank_code,
+            TransactionORM.is_installment,
+        )
+        cells = (await self.db.execute(stmt)).all()
+
+        daily: dict[str, dict[str, float]] = {}
+        by_method: dict[str, float] = {}
+        by_bank: dict[tuple[str, str], float] = {}
+        installments: dict[str | None, list[float]] = {}  # bank -> [amount, count, transactions]
+        daily_key = {"income": "income", "expense": "expenses", "investment": "investment"}
+        for cell in cells:
+            amount = float(cell.amount)
+            totals = daily.setdefault(
+                str(cell.day), {"income": 0.0, "expenses": 0.0, "investment": 0.0}
+            )
+            totals[daily_key[cell.type]] += amount
+            if cell.type != "expense":
+                continue
+            by_method[cell.payment_method] = by_method.get(cell.payment_method, 0.0) + amount
+            if cell.bank_code:
+                key = (cell.payment_method, cell.bank_code)
+                by_bank[key] = by_bank.get(key, 0.0) + amount
+            if cell.is_installment:
+                bucket = installments.setdefault(cell.bank_code or None, [0.0, 0, 0])
+                bucket[0] += float(cell.remaining_amount or 0)
+                bucket[1] += int(cell.remaining_count or 0)
+                bucket[2] += int(cell.transactions)
+
+        bank_codes = {code for _, code in by_bank} | {c for c in installments if c is not None}
+        names = await self._bank_names(user_id, bank_codes)
+
+        def money(value: float) -> float:
+            return round(value, MONEY_DECIMALS)
+
+        return {
+            "daily_totals": [
+                TotalDiario(date=d, **{k: money(v) for k, v in daily[d].items()})
+                for d in sorted(daily)
+            ],
+            "expenses_by_payment_method": [
+                TotalFormaPagamento(payment_method=method, total=money(by_method[method]))
+                for method in sorted(by_method)
+            ],
+            "expenses_by_bank": [
+                TotalBanco(
+                    payment_method=method,
+                    bank_code=code,
+                    bank_name=names.get(code, code),
+                    total=money(by_bank[(method, code)]),
+                )
+                for method, code in sorted(by_bank)
+            ],
+            "installments_due": ParcelasAPagar(
+                remaining_amount=money(sum(b[0] for b in installments.values())),
+                remaining_installments=sum(b[1] for b in installments.values()),
+                transactions=sum(b[2] for b in installments.values()),
+                by_bank=[
+                    ParcelasBanco(
+                        bank_code=code,
+                        bank_name=names.get(code, code) if code else SEM_BANCO,
+                        remaining_amount=money(bucket[0]),
+                        remaining_installments=bucket[1],
+                        transactions=bucket[2],
+                    )
+                    for code, bucket in sorted(installments.items(), key=lambda kv: kv[0] or "")
+                ],
+            ),
+        }
+
+    async def _bank_names(self, user_id: int, codes: set[str]) -> dict[str, str]:
+        """Names of the user's own banks for ``codes`` (another user's banks never count)."""
+        if not codes:
+            return {}
+        result = await self.db.execute(
+            select(UserBankORM.bank_code, UserBankORM.bank_name)
+            .where(UserBankORM.user_id == user_id, UserBankORM.bank_code.in_(codes))
+            .order_by(UserBankORM.id)
+        )
+        names: dict[str, str] = {}
+        for code, name in result.all():
+            names.setdefault(code, name)
+        return names
 
     async def opcoes_categorias(
         self, entity_type: str = "all", tipo: str | None = None, *, user_id: int

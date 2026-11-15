@@ -4,12 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.crypto import encrypt_secret
 from app.core.database import get_session
+from app.core.errors import NotFoundError
 from app.db.models.user import UserORM
 from app.db.models.user_bank import UserBankORM
 from app.schemas.settings import BankCreate, ProfileUpdate
 
 
 class SettingsRepository:
+    """Perfil e bancos do usuário. Só faz flush: o commit é da unit of work (SettingsService)."""
+
     def __init__(self, db: AsyncSession = Depends(get_session)):
         self.db = db
 
@@ -19,7 +22,7 @@ class SettingsRepository:
         result = await self.db.execute(select(UserORM).where(UserORM.id == user_id))
         user = result.scalars().first()
         if not user:
-            raise ValueError("Usuário não encontrado")
+            raise NotFoundError("Usuário não encontrado")
         if payload.name is not None:
             user.name = payload.name
         if payload.pluggy_api_key is not None:
@@ -27,7 +30,7 @@ class SettingsRepository:
             user.pluggy_api_key = (
                 encrypt_secret(payload.pluggy_api_key) if payload.pluggy_api_key else None
             )
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(user)
         return user
 
@@ -44,7 +47,7 @@ class SettingsRepository:
             bank_name=payload.bank_name,
         )
         self.db.add(bank)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(bank)
         return bank
 
@@ -59,5 +62,5 @@ class SettingsRepository:
         if not bank:
             return False
         await self.db.delete(bank)
-        await self.db.commit()
+        await self.db.flush()
         return True

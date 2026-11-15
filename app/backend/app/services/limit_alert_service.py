@@ -30,11 +30,21 @@ async def trigger_limit_evaluation(
     Usado pós-mutação (criar/editar/excluir transação, sincronizar extrato/pluggy,
     gerar recorrentes) e pelo job periódico. As proteções do banco tornam
     chamadas repetidas idempotentes.
+
+    É a fronteira de transação própria da avaliação: roda DEPOIS do commit da requisição
+    (callback ``after_commit`` da unit of work) ou fora de requisição (job). Aqui os alertas
+    novos são gravados (commit) e só então os e-mails são enviados.
     """
     now = datetime.now(UTC)
     year = year or now.year
     month = month or now.month
-    return await LimitAlertService(db).evaluate_limits(user_id, year, month)
+    service = LimitAlertService(db)
+    criados = await service.evaluate_limits(user_id, year, month)
+    if criados:
+        await db.commit()
+        logger.info(f"{len(criados)} alerta(s) novos para user={user_id} month={criados[0].month}")
+        await service.send_alert_emails(user_id, criados)
+    return criados
 
 
 async def evaluate_all_users_current_month(db: AsyncSession) -> int:
@@ -71,7 +81,10 @@ class LimitAlertService:
         self.limits_repo = LimitsRepository(db)
 
     async def evaluate_limits(self, user_id: int, year: int, month: int) -> list[LimitAlertORM]:
-        """Retorna os alertas NOVOS criados para o mês (idempotente)."""
+        """Retorna os alertas NOVOS criados para o mês (idempotente).
+
+        Só faz flush: quem chama decide o commit (ver ``trigger_limit_evaluation``).
+        """
 
         data = await self.limits_repo.get_limits_with_spending(year, month, user_id)
         criados: list[LimitAlertORM] = []
@@ -103,17 +116,13 @@ class LimitAlertService:
 
         criados += await self._evaluate_credit_card(user_id, year, month, data["month"])
 
-        if criados:
-            await self.db.commit()
-            logger.info(f"{len(criados)} alerta(s) novos para user={user_id} month={data['month']}")
-
-        if criados:
-            await self._send_alert_emails(user_id, criados)
-
         return criados
 
-    async def _send_alert_emails(self, user_id: int, alertas: list[LimitAlertORM]) -> None:
-        """Best-effort: envia e-mail por alerta novo (respeita EMAIL_ALERTS_ENABLED)."""
+    async def send_alert_emails(self, user_id: int, alertas: list[LimitAlertORM]) -> None:
+        """Best-effort: envia e-mail por alerta novo (respeita EMAIL_ALERTS_ENABLED).
+
+        Chamar só depois que os alertas estão gravados (commit).
+        """
         from app.db.models.category import CategoryORM
 
         user = (

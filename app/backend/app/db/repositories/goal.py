@@ -2,11 +2,12 @@
 
 from datetime import date
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.errors import ConflictError
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
 from app.logger import log_database_operation
@@ -19,6 +20,7 @@ class MetaRepository:
     """
     Repositório para operações com Metas.
     Metas são subcategorias com target_amount preenchido, agrupadas sob a categoria "Metas".
+    Só faz flush: o commit é da unit of work do request (ver ``MetaService``).
     """
 
     def __init__(self, db: AsyncSession = Depends(get_session)):
@@ -46,7 +48,7 @@ class MetaRepository:
                 user_id=user_id,
             )
             self.db.add(categoria)
-            await self.db.commit()
+            await self.db.flush()
             await self.db.refresh(categoria)
         return categoria
 
@@ -104,10 +106,7 @@ class MetaRepository:
             )
         )
         if existente.scalars().first():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Meta com nome '{obj_in.subcategory_name}' já existe",
-            )
+            raise ConflictError(f"Meta com nome '{obj_in.subcategory_name}' já existe")
 
         meta = self.model(
             name=obj_in.subcategory_name,
@@ -115,7 +114,7 @@ class MetaRepository:
             target_amount=obj_in.target_amount,
         )
         self.db.add(meta)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(meta)
         log.info(f"Meta {meta.id} criada: {meta.name}")
         return meta
@@ -140,7 +139,7 @@ class MetaRepository:
         for field, value in update_data.items():
             orm_field = field_map.get(field, field)
             setattr(meta, orm_field, value)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(meta)
         log.info(f"Meta {meta_id} atualizada")
         return meta
@@ -156,7 +155,7 @@ class MetaRepository:
             return None
 
         await self.db.delete(meta)
-        await self.db.commit()
+        await self.db.flush()
         log.info(f"Meta {meta_id} excluída")
         return meta
 
@@ -171,7 +170,7 @@ class MetaRepository:
             return None
         meta.completed = True
         meta.completed_at = date.today()
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(meta)
         log.info(f"Meta {meta_id} concluída em {meta.completed_at}")
         return meta
@@ -187,7 +186,7 @@ class MetaRepository:
             return None
         meta.completed = False
         meta.completed_at = None
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(meta)
         log.info(f"Meta {meta_id} reativada")
         return meta

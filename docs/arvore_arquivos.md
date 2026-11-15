@@ -15,6 +15,8 @@ financas_app/
 │   │   │   │   ├── config.py                   # Classe Config + require_database_url (falha na partida sem DATABASE_URL): carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL do .env
 │   │   │   │   ├── crypto.py                   # Cifra em repouso da chave Pluggy (Fernet/MultiFernet): encrypt_secret/decrypt_secret, validate_encryption_keys (falha na partida), SecretDecryptionError, helpers idempotentes p/ migration
 │   │   │   │   ├── database.py                 # Engine async SQLAlchemy, AsyncSessionLocal, get_session() dependency
+│   │   │   │   ├── br_number.py                # parse_br_amount: valor digitado em pt-BR → Decimal (None se não for valor); usado na busca de transações
+│   │   │   │   ├── errors.py                   # Exceções de domínio (DomainError, NotFoundError, ConflictError, ValidationError, UnprocessableError, ForbiddenError, PayloadTooLargeError, UpstreamError, ServerConfigError) + register_exception_handlers: único ponto que traduz para HTTP (mensagens pt-BR genéricas)
 │   │   │   │   ├── unit_of_work.py             # UnitOfWork (commit/rollback único por request, after_commit para efeitos colaterais) + get_unit_of_work (usar com scope="function")
 │   │   │   │   └── security.py                 # get_current_user() — decodifica JWT Supabase via JWKS (ES256/RS256) ou HS256 (SUPABASE_JWT_SECRET), bearer_scheme (HTTPBearer auto_error=False → 401 sem token); require_role(*roles) + require_admin (403)
 │   │   │   │
@@ -32,16 +34,16 @@ financas_app/
 │   │   │   │   │   └── limit_alert.py          # LimitAlertORM (limit_alerts) — alertas de limite 80/90/100 + exceeded, scope category/credit_card, read_at/email_sent
 │   │   │   │   │
 │   │   │   │   ├── repositories/               # Camada de acesso a dados (queries SQL)
-│   │   │   │   │   ├── category.py             # CategoriaRepository: CRUD categorias + sincronização de subcategorias
-│   │   │   │   │   ├── subcategory.py          # SubcategoriaRepository: CRUD subcategorias, criação em lote
-│   │   │   │   │   ├── transaction.py          # TransacaoRepository: CRUD (flush, sem commit) + parcelas + detecção de duplicatas + listagem paginada por cursor (list_page, TransactionCursor/Filters/Page) + importação de extrato
-│   │   │   │   │   ├── dashboard.py            # DashboardRepository: queries agregadas (gastos, rendimento, extrato)
+│   │   │   │   │   ├── category.py             # CategoriaRepository: CRUD categorias + sincronização de subcategorias (só flush; erros de domínio)
+│   │   │   │   │   ├── subcategory.py          # SubcategoriaRepository: CRUD subcategorias, criação em lote (só flush)
+│   │   │   │   │   ├── transaction.py          # TransacaoRepository: CRUD (flush, sem commit) + parcelas + detecção de duplicatas + listagem paginada por cursor (list_page com busca por texto, valor pt-BR e nome do banco do usuário; TransactionCursor/Filters/Page) + importação de extrato em lote (create_batch_from_extract, insert em savepoint) + assign_random_banks
+│   │   │   │   │   ├── dashboard.py            # DashboardRepository: queries agregadas (gastos, rendimento, extrato com agregados dos gráficos numa query GROUP BY)
 │   │   │   │   │   ├── overview.py             # DashboardOverviewRepository: dashboard geral (totais, progresso mês e cartão numa única agregação SQL — MonthAggregates; status limites, parcelas, recorrentes; metas/compras só admin)
-│   │   │   │   │   ├── limits.py               # LimitsRepository: atualização em lote de limites de categorias
-│   │   │   │   │   ├── recurring_account.py    # ContaRecorrenteRepository: CRUD + geração de parcelas + renovação
+│   │   │   │   │   ├── limits.py               # LimitsRepository: leitura de limites e gastos do mês (a atualização em lote é do LimitsService)
+│   │   │   │   │   ├── recurring_account.py    # ContaRecorrenteRepository: CRUD + geração de parcelas + renovação (só flush)
 │   │   │   │   │   ├── goal.py                 # MetaRepository: CRUD metas + cálculo de progresso baseado em transações
 │   │   │   │   │   ├── shopping.py             # ShoppingRepository: CRUD lista de compras + migração de itens não marcados
-│   │   │   │   │   ├── settings.py             # SettingsRepository: perfil do usuário + gerenciamento de bancos
+│   │   │   │   │   ├── settings.py             # SettingsRepository: perfil do usuário + gerenciamento de bancos (só flush)
 │   │   │   │   │   ├── limit_alert.py          # LimitAlertRepository: CRUD alertas de limite (create, list_for_user com notificações, mark read/read-all)
 │   │   │   │   │   └── users.py                # get_or_create_user_from_supabase(): identidade pelo sub (supabase_id), vincula legado pelo e-mail, IdentityConflictError; novo cadastro nasce role='user'
 │   │   │   │   │
@@ -52,18 +54,18 @@ financas_app/
 │   │   │   │
 │   │   │   ├── routes/                         # Rotas FastAPI (API REST)
 │   │   │   │   ├── transactions_routes.py      # /transacoes — CRUD, GET /paginated (cursor + total + filtros) e detecção/resolução de duplicatas; só HTTP, regras no TransactionService
-│   │   │   │   ├── dependencies.py             # Providers FastAPI: get_transaction_service (unit of work), get_transaction_reader/get_dashboard_service (leitura) e parse_date (DD/MM/YYYY → 400)
-│   │   │   │   ├── categories_routes.py        # /categories — CRUD categorias
+│   │   │   │   ├── dependencies.py             # Providers FastAPI por domínio: get_*_service (unit of work, escrita) e get_*_reader/get_dashboard_service (leitura, sem commit) e parse_date (DD/MM/YYYY → ValidationError/400)
+│   │   │   │   ├── categories_routes.py        # /categories — CRUD categorias; só HTTP, regras no CategoryService
 │   │   │   │   ├── dashboard_routes.py         # /dashboard — extrato, overview, rendimento, gastos por categoria (só HTTP; usa DashboardService)
-│   │   │   │   ├── limits_routes.py            # /limits — listar e atualizar limites em lote; /limits/risk-check projeta o valor digitado (gasto atual + amount → thresholds 80/90/100)
-│   │   │   │   ├── recurring_accounts_routes.py # /recurring-accounts — CRUD + renovação + geração
-│   │   │   │   ├── extract_routes.py           # /extracts — upload de extrato CSV/OFX (leitura em blocos, limite 10 MB) + confirmação
-│   │   │   │   ├── settings_routes.py          # /settings — perfil + bancos + atribuição aleatória
-│   │   │   │   ├── goals_routes.py             # /goals — CRUD metas + progresso
-│   │   │   │   ├── shopping_routes.py          # /shopping — CRUD lista de compras + migração
-│   │   │   │   ├── pluggy_routes.py            # /pluggy — integração Open Finance (contas, sincronização)
-│   │   │   │   ├── notifications_routes.py     # /notifications — listar alertas, marcar lido (1 ou todos)
-│   │   │   │   └── export_routes.py            # /export — exportação CSV e OFX
+│   │   │   │   ├── limits_routes.py            # /limits — listar e atualizar limites em lote; /limits/risk-check projeta o valor digitado (gasto atual + amount → thresholds 80/90/100); só HTTP, regras no LimitsService
+│   │   │   │   ├── recurring_accounts_routes.py # /recurring-accounts — CRUD + renovação + geração; só HTTP, regras no RecurringAccountService
+│   │   │   │   ├── extract_routes.py           # /extracts — upload de extrato CSV/OFX (leitura em blocos, limite 10 MB) + confirmação; só HTTP, parsing/importação no ExtractService
+│   │   │   │   ├── settings_routes.py          # /settings — perfil + bancos + atribuição aleatória; só HTTP, regras no SettingsService
+│   │   │   │   ├── goals_routes.py             # /goals — CRUD metas + progresso (admin); só HTTP, regras no GoalService
+│   │   │   │   ├── shopping_routes.py          # /shopping — CRUD lista de compras + migração (admin); só HTTP, regras no ShoppingService
+│   │   │   │   ├── pluggy_routes.py            # /pluggy — integração Open Finance (contas, sincronização, validar chave); só HTTP, regras no PluggySyncService
+│   │   │   │   ├── notifications_routes.py     # /notifications — listar alertas, marcar lido (1 ou todos); só HTTP, regras no NotificationService
+│   │   │   │   └── export_routes.py            # /export — exportação CSV e OFX (admin); só HTTP, arquivos gerados pelo ExportService
 │   │   │   │
 │   │   │   ├── schemas/                        # DTOs Pydantic (validação de request/response)
 │   │   │   │   ├── transaction.py              # TransacaoCreate/Response/Update, TransacaoPageResponse (paginação) + constantes TRANSACTIONS_*_PAGE_SIZE + schemas de duplicatas
@@ -81,15 +83,25 @@ financas_app/
 │   │   │   │
 │   │   │   └── services/                       # Lógica de negócio e integrações externas
 │   │   │       ├── transaction_service.py      # TransactionService: casos de uso de transações (create/get/update/delete, list_page, duplicatas); autorização pelo usuário autenticado; avalia limites após o commit
+│   │   │       ├── category_service.py         # CategoryService: casos de uso de categorias/subcategorias (list/get/create/update/delete), só flush; invalida o cache de opções após o commit
+│   │   │       ├── limits_service.py           # LimitsService: limites por categoria, gastos do mês, risk-check e atualização em lote (cada item num savepoint: erro de um item vira `errors`, os demais seguem); só flush
+│   │   │       ├── goal_service.py             # GoalService: metas do usuário (list_goals/create/update/delete/complete/reactivate/progress); NotFoundError/ConflictError; só flush
+│   │   │       ├── shopping_service.py         # ShoppingService: lista de compras do usuário (list_month com rollover, create/update/delete, generate_recurring); NotFoundError; só flush
+│   │   │       ├── settings_service.py         # SettingsService: perfil (nome, chave Pluggy cifrada), bancos e assign_random_banks do usuário; NotFoundError/ValidationError; só flush
+│   │   │       ├── recurring_account_service.py # RecurringAccountService: contas recorrentes do usuário (CRUD, renew, generate); resolve/cria categoria e subcategoria por nome; avalia limites após o commit; só flush
+│   │   │       ├── extract_service.py          # ExtractService: parse_upload (CSV/OFX por extensão ou conteúdo) e confirm (importação em lote, só flush; limites avaliados após o commit no mês mais antigo)
+│   │   │       ├── pluggy_sync_service.py      # PluggySyncService: contas, validar chave e sync do Pluggy do usuário (chave decifrada do usuário autenticado), detecção de duplicatas; limites após o commit; pluggy_client_for
+│   │   │       ├── notification_service.py     # NotificationService: alertas de limite do usuário (list_notifications, mark_read, mark_all_read); só altera linhas carregadas, commit da unit of work
+│   │   │       ├── export_service.py           # ExportService: CSV/OFX das transações do usuário no período (leitura; relógio injetável) → ExportFile
 │   │   │       ├── dashboard_service.py        # DashboardService: overview e dashboard financeiro (leitura); metas/compras só para admin decididas pelo role do token
 │   │   │       ├── pluggy_service.py           # Cliente HTTP para API Meu Pluggy (Open Finance)
-│   │   │       ├── extract_parsers.py          # Parsers de extrato bancário (CSV e OFX via defusedxml; UnsafeOfxError)
-│   │   │       ├── limit_alert_service.py      # LimitAlertService: avalia limites (evaluate_limits, _evaluate_credit_card), envia emails, trigger_limit_evaluation e evaluate_all_users_current_month (disparos pós-mutação)
+│   │   │       ├── extract_parsers.py          # Parsers de extrato bancário (CSV e OFX via defusedxml; UnsafeOfxError é um ValidationError)
+│   │   │       ├── limit_alert_service.py      # LimitAlertService: avalia limites (evaluate_limits só faz flush, _evaluate_credit_card), send_alert_emails; trigger_limit_evaluation (commit próprio e só então e-mails) e evaluate_all_users_current_month (disparos pós-commit/job)
 │   │   │       ├── email_service.py            # Envio de e-mails via Resend API (opt-in EMAIL_ALERTS_ENABLED; best-effort, nunca levanta)
 │   │   │       └── limit_alert_job.py          # Job periódico de avaliação de limites (run_evaluation_once, _job_loop, start/stop) — roda no lifespan
 │   │   │
 │   │   ├── tests/                              # Suite de testes (pytest + pytest-asyncio)
-│   │   │   ├── conftest.py                     # Fixtures: SQLite in-memory, httpx.AsyncClient, factories de payload
+│   │   │   ├── conftest.py                     # Fixtures: SQLite in-memory, httpx.AsyncClient, make_uow (service + UnitOfWork sobre a sessão de teste), factories de payload
 │   │   │   ├── test_security.py                # Testes de autenticação JWT (HS256/ES256, aud, iss, alg none, sem segredo → 401) + require_role/require_admin (403)
 │   │   │   ├── test_logger_redaction.py        # Credenciais nunca chegam ao log (redact, log_api_request)
 │   │   │   ├── test_ofx_parser.py              # OFX 1.x (SGML) e 2.x (XML) reais
@@ -100,6 +112,7 @@ financas_app/
 │   │   │   ├── test_transaction_isolation.py   # Etapa 6: isolamento de transações por usuário (list, get, update, delete, duplicatas, extrato, export)
 │   │   │   ├── test_user_scoped_repositories.py # S5/P1: export e dashboard só retornam dados do usuário (filtro no SQL)
 │   │   │   ├── test_advisory_lock.py           # P5: lock consultivo (no-op fora do Postgres, SQL no Postgres, job pula se travado) e contagem de queries sem selectin
+│   │   │   ├── test_domain_errors.py           # Exceções de domínio: status/mensagem por classe, handler único, causa interna nunca vaza, 500 genérico
 │   │   │   ├── test_error_leak.py              # S9: erros internos nunca chegam ao cliente (mensagem genérica; texto real só no log)
 │   │   │   ├── test_user_model_columns.py      # S8: guarda — `users` não tem coluna de senha
 │   │   │   ├── test_users_repository.py        # Testes de upsert de usuário (criação, retorno existente, não duplica)
@@ -121,6 +134,18 @@ financas_app/
 │   │   │   ├── test_startup_config.py          # B4: DATABASE_URL e PLUGGY_KEY_ENCRYPTION_KEYS obrigatórios (falha na partida) e descrição padrão do sync Pluggy
 │   │   │   ├── test_goals.py                   # CRUD metas + progresso + duplicatas
 │   │   │   ├── test_unit_of_work.py            # UnitOfWork: commit/rollback únicos, callbacks pós-commit (falha não desfaz o commit), dependência com scope="function"
+│   │   │   ├── test_category_service.py        # CategoryService: nada comitado antes do UoW, rollback desfaz, cache invalidado após commit, isolamento entre usuários, 409 em nome duplicado
+│   │   │   ├── test_limits_service.py          # LimitsService: bulk com item falhando isolado por savepoint (sem vazar texto), rollback, isolamento entre usuários, projeção do risk-check
+│   │   │   ├── test_goal_service.py            # GoalService: nada comitado antes do UoW, rollback desfaz a categoria "Metas", 409 em nome duplicado, isolamento entre usuários, concluir/reativar
+│   │   │   ├── test_shopping_service.py        # ShoppingService: nada comitado antes do UoW, rollback, isolamento entre usuários, completed_at ao marcar, rollover do mês
+│   │   │   ├── test_settings_service.py        # SettingsService: rollback, bancos isolados por usuário, chave Pluggy cifrada/removida, assign_random_banks só com os bancos do usuário
+│   │   │   ├── test_recurring_account_service.py # RecurringAccountService: rollback desfaz conta+parcelas+categoria, nomes resolvidos, 422, isolamento, desativar cancela futuras, limites avaliados após commit
+│   │   │   ├── test_extract_service.py         # ExtractService: parse (extensão/conteúdo/OFX hostil), confirm só flush + rollback, limites após commit no mês mais antigo, falha do lote vira erro sem poluir a sessão
+│   │   │   ├── test_pluggy_sync_service.py     # PluggySyncService: importação do usuário, rollback, duplicatas só do usuário, sem chave → 400, chave ilegível → 500 sem vazar, validate_key
+│   │   │   ├── test_notification_service.py    # NotificationService: lista só do usuário (severity computada), marcar lido só vale após o commit, id alheio/inexistente = success False
+│   │   │   ├── test_export_service.py          # ExportService: CSV/OFX exatos com relógio fixo, fim em aberto = hoje, só dados do usuário, data inválida → 400
+│   │   │   ├── test_transactions_search.py     # GET /transacoes/paginated: busca por valor pt-BR (exato) e por nome do banco do usuário, OR com texto, total, isolamento entre usuários
+│   │   │   ├── test_br_number.py               # parse_br_amount: formas aceitas (120, 120,50, 1.234,56, R$) e texto ignorado
 │   │   │   ├── test_transaction_service.py     # TransactionService: nada comitado antes do UoW, rollback desfaz categoria auto-criada, limites avaliados após commit, isolamento entre usuários
 │   │   │   ├── test_transactions_pagination.py # GET /transacoes/paginated: ordem estável (data desc, id desc), cursor, total, filtros, teto de página, isolamento
 │   │   │   ├── test_dashboard_sql_parity.py    # Agregações SQL do dashboard/overview x referência em Python (PF/PJ, 2 usuários) + teto de queries

@@ -45,13 +45,15 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 - **Resolução:** `keep_both` | `keep_new` (deleta existente) | `keep_existing` (deleta nova)
 
 #### Listagem/Filtros
-- Filtro por `start_date` / `end_date` (formato DD/MM/YYYY)
-- Ordenação: `transaction_date DESC`
+- `GET /transacoes` (legado, `limit`/`offset`): filtro por `start_date` / `end_date` (DD/MM/YYYY), ordenação `transaction_date DESC`
+- `GET /transacoes/paginated` (usado pelo frontend): página por cursor opaco (`next_cursor`), ordem estável `transaction_date DESC, id DESC`, `total` do filtro, `limit` máx. `TRANSACTIONS_MAX_PAGE_SIZE`; filtros combináveis (AND): período, PF/PJ (`entity_type`), `type`, `category_id` e `search`
+- **Busca (`search`, máx. 100 caracteres, sem diferenciar maiúsculas/minúsculas, `%` e `_` são literais):** um registro entra se o texto aparece na descrição, na forma de pagamento, no nome da categoria ou da subcategoria, **no nome de um banco que o próprio usuário cadastrou** (`user_banks.bank_name`, ligado pelo `bank_code` da transação), **ou** se o texto é um valor em pt-BR igual ao `amount` da transação (comparação exata, ao centavo)
+- **Valor digitado:** aceita `120`, `120,5`, `120,50`, `1.234,56`, `1.234` (= 1234) e prefixo `R$`; `120.50` (um ponto + 1–2 dígitos) vale como decimal. Texto que não é valor (`abc`, `1,234.56`, `120,555`, sinais) é ignorado para o valor e só vale como texto. A busca por valor e por banco nunca enxerga dados de outro usuário
 
 #### Importação de Extrato (CSV/OFX)
 - **Upload:** Stateless, máx 10 MB, retorna preview com totais income/expense
 - **Parsers:** Auto-detecta delimitador CSV (; → tab → ,); fuzzy mapping colunas PT/EN; 6 formatos de data; valores BR (`1.234,56`); sinal negativo ⇒ expense
-- **Confirmação:** Loop `create_from_extract()` (1 commit/item), suporta parcelamento
+- **Confirmação:** `ExtractService.confirm` importa tudo num lote (uma transação por request, 1 commit pela unit of work); linhas inválidas voltam em `errors`; suporta parcelamento; limites reavaliados após o commit
 
 #### Pluggy Sync (Open Finance)
 - Requer `pluggy_api_key` no perfil
@@ -155,6 +157,8 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 #### Extrato Financeiro (`/statement`)
 - Período + `entity_type` (individual/business/all)
 - Retorna: `total_income`, `total_expenses`, `monthly_goal`, `credit_card_limit`, `total_invested`, `fixed_expenses` (com `recurring_account_id`), `variable_expenses`, lista de transações
+- **Agregados para os gráficos (calculados no SQL, nunca somando as linhas):** `daily_totals` (entradas/saídas/investimentos por dia, só dias com dados, `YYYY-MM-DD`), `expenses_by_payment_method` (saídas por forma de pagamento), `expenses_by_bank` (saídas por forma de pagamento e banco; `bank_name` vem dos bancos do próprio usuário, senão o código) e `installments_due` (parcelas a pagar das saídas parceladas: `(total_installments - installment_number) x amount`, quantidade de parcelas e de transações, e o detalhe por banco; sem banco = "Sem banco")
+- **`transactions` (lista de todas as linhas do período) está DEPRECADA:** continua na resposta só porque o frontend ainda lê (gráfico diário, totais por forma de pagamento/banco, parcelas e lista de investimentos). Próximo passo: o frontend passar a ler os agregados acima (e `total_invested`); depois remover `transactions` da resposta (a lista de lançamentos já pagina em `GET /transacoes/paginated`)
 - **Meta mensal:** Categoria "Mensal PF" (PF) ou "Mensal PJ" (PJ) → coluna `limit`
 - **Limite cartão:** Categoria "Limite Cartao Credito" (por entity_type) → fallback 0
 
@@ -274,6 +278,13 @@ Descrevem lacunas; o código atual não decide por elas.
 6. Papel: existem outros além de `user`/`admin`? Convém restringir os valores no banco?
 7. Excluir uma conta recorrente apaga todas as transações vinculadas (inclusive as passadas): é o desejado?
 8. Produto: uso pessoal apenas ou também empresarial (PF/PJ)? E o nome ("Olavo" ou "Placo")?
+
+---
+
+### 3.8 Erros e transações (backend)
+- **Erros de domínio:** services e repositórios levantam exceções de `app/core/errors.py` (`NotFoundError` 404, `ConflictError` 409, `ValidationError` 400, `UnprocessableError` 422, `ForbiddenError` 403, `PayloadTooLargeError` 413, `UpstreamError` 502, `ServerConfigError` 500); um único handler (`register_exception_handlers`) converte para `{"detail": "<mensagem pt-BR fixa>"}`. Qualquer outra exceção vira 500 com "Erro interno do servidor" (o texto real só vai para o log). Mensagens nunca carregam texto de exceção, SQL ou dados de outro usuário.
+- **Uma transação por requisição:** a `UnitOfWork` faz um único commit quando a rota retorna e rollback se levantar. Itens de operações em lote (PUT `/limits` e o insert do lote de extrato) rodam em savepoint: o item com erro volta em `errors` e os demais seguem; o item que falha desfaz o próprio trabalho parcial (categoria criada + subcategoria que falhou saem juntas).
+- **Avaliação de limites** (alertas 80/90/100 e e-mail) roda sempre DEPOIS do commit (criar/editar/excluir transação, confirmar extrato, gerar recorrentes, sync Pluggy) e tem transação própria; falha só vai para o log.
 
 ---
 

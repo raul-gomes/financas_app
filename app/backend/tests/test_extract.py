@@ -130,7 +130,7 @@ async def test_confirm_evaluates_limits_for_earliest_statement_month(client, mon
         calls.append((year, month))
         return []
 
-    monkeypatch.setattr("app.routes.extract_routes.trigger_limit_evaluation", fake_trigger)
+    monkeypatch.setattr("app.services.extract_service.trigger_limit_evaluation", fake_trigger)
     _cat, cat_id, sub_id = await _create_cat(client)
     base = {"description": "x", "amount": 1.0, "type": "expense"}
     base |= {"category_id": cat_id, "subcategory_id": sub_id}

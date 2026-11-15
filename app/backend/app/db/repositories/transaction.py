@@ -9,14 +9,17 @@ from typing import Self
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.br_number import parse_br_amount
 from app.core.database import get_session
+from app.core.errors import ValidationError
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
+from app.db.models.user_bank import UserBankORM
 from app.db.repositories.category import CategoriaRepository
 from app.db.repositories.subcategory import SubcategoriaRepository
 from app.logger import log_database_operation
@@ -26,6 +29,8 @@ from app.schemas.transaction import TransacaoCreate, TransacaoUpdate
 
 # Escape character for LIKE patterns built from user-supplied search text
 LIKE_ESCAPE = "\\"
+# Half a cent: an amount search matches the value to the cent despite float storage
+AMOUNT_MATCH_TOLERANCE = 0.005
 
 
 class InvalidCursorError(ValueError):
@@ -210,7 +215,7 @@ class TransacaoRepository:
         if obj_in.category_id is not None:
             categoria = await self.categoria_repo.get_by_id(obj_in.category_id, user_id)
             if not categoria:
-                raise HTTPException(status_code=400, detail="Categoria não encontrada")
+                raise ValidationError("Categoria não encontrada")
         else:
             categoria = await self.categoria_repo.get_by_nome(obj_in.category_name, user_id)
             if not categoria:
@@ -224,14 +229,13 @@ class TransacaoRepository:
                         type=obj_in.type.value,
                         subcategories=[],
                     ),
-                    commit=False,
                 )
 
         # 2) Subcategoria: se id não informado, busca ou cria por nome sob a categoria
         if obj_in.subcategory_id is not None:
             sub = await self.subcategoria_repo.get_by_id(obj_in.subcategory_id, user_id)
             if not sub or sub.category_id != categoria.id:
-                raise HTTPException(status_code=400, detail="Subcategoria inválida")
+                raise ValidationError("Subcategoria inválida")
         else:
             sub = await self.subcategoria_repo.get_by_nome_and_categoria(
                 obj_in.subcategory_name, categoria.id, user_id
@@ -241,7 +245,6 @@ class TransacaoRepository:
                     categoria_id=categoria.id,
                     user_id=user_id,
                     obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name),
-                    commit=False,
                 )
 
         # 3) Cria a transação usando os IDs resolvidos
@@ -280,9 +283,7 @@ class TransacaoRepository:
             log.info(f"Transação {inst.id} criada")
             return inst
         except IntegrityError as exc:
-            raise HTTPException(
-                status_code=400, detail="Erro ao criar transação (integridade)"
-            ) from exc
+            raise ValidationError("Erro ao criar transação (integridade)") from exc
         except Exception as e:
             log.error(f"Erro inesperado ao criar transação: {type(e).__name__}: {e}", exc_info=True)
             raise
@@ -335,18 +336,31 @@ class TransacaoRepository:
                 .replace("_", f"{LIKE_ESCAPE}_")
             )
             pattern = f"%{escaped}%"
-            stmt = stmt.where(
-                or_(
-                    TransactionORM.description.ilike(pattern, escape=LIKE_ESCAPE),
-                    TransactionORM.payment_method.ilike(pattern, escape=LIKE_ESCAPE),
-                    TransactionORM.category.has(
-                        CategoryORM.name.ilike(pattern, escape=LIKE_ESCAPE)
-                    ),
-                    TransactionORM.subcategory.has(
-                        SubcategoryORM.name.ilike(pattern, escape=LIKE_ESCAPE)
-                    ),
+            matches = [
+                TransactionORM.description.ilike(pattern, escape=LIKE_ESCAPE),
+                TransactionORM.payment_method.ilike(pattern, escape=LIKE_ESCAPE),
+                TransactionORM.category.has(CategoryORM.name.ilike(pattern, escape=LIKE_ESCAPE)),
+                TransactionORM.subcategory.has(
+                    SubcategoryORM.name.ilike(pattern, escape=LIKE_ESCAPE)
+                ),
+                # Bank name: only the banks the user registered (never another user's)
+                TransactionORM.bank_code.in_(
+                    select(UserBankORM.bank_code).where(
+                        UserBankORM.user_id == user_id,
+                        UserBankORM.bank_name.ilike(pattern, escape=LIKE_ESCAPE),
+                    )
+                ),
+            ]
+            amount = parse_br_amount(filters.search)
+            if amount is not None:
+                # Exact value to the cent: amounts are floats, so compare within half a cent
+                value = float(amount)
+                matches.append(
+                    TransactionORM.amount.between(
+                        value - AMOUNT_MATCH_TOLERANCE, value + AMOUNT_MATCH_TOLERANCE
+                    )
                 )
-            )
+            stmt = stmt.where(or_(*matches))
         return stmt
 
     async def list_page(
@@ -407,7 +421,7 @@ class TransacaoRepository:
             if obj_in.category_id is not None:
                 categoria = await self.categoria_repo.get_by_id(obj_in.category_id, user_id)
                 if not categoria:
-                    raise HTTPException(status_code=400, detail="Categoria não encontrada")
+                    raise ValidationError("Categoria não encontrada")
             else:
                 categoria = await self.categoria_repo.get_by_nome(obj_in.category_name, user_id)
                 if not categoria:
@@ -420,7 +434,6 @@ class TransacaoRepository:
                             type=obj_in.type.value if obj_in.type else None,
                             subcategories=[],
                         ),
-                        commit=False,
                     )
             resolved_category_id = categoria.id
 
@@ -430,7 +443,7 @@ class TransacaoRepository:
             if obj_in.subcategory_id is not None:
                 sub = await self.subcategoria_repo.get_by_id(obj_in.subcategory_id, user_id)
                 if not sub or sub.category_id != cat_id_for_sub:
-                    raise HTTPException(status_code=400, detail="Subcategoria inválida")
+                    raise ValidationError("Subcategoria inválida")
             else:
                 sub = await self.subcategoria_repo.get_by_nome_and_categoria(
                     obj_in.subcategory_name, cat_id_for_sub, user_id
@@ -440,7 +453,6 @@ class TransacaoRepository:
                         categoria_id=cat_id_for_sub,
                         user_id=user_id,
                         obj_in=SubcategoriaCreate(subcategory_name=obj_in.subcategory_name),
-                        commit=False,
                     )
             trans.subcategory_id = sub.id
 
@@ -473,7 +485,7 @@ class TransacaoRepository:
             await self.db.refresh(trans)
             return trans
         except IntegrityError as exc:
-            raise HTTPException(status_code=400, detail="Erro ao atualizar transação") from exc
+            raise ValidationError("Erro ao atualizar transação") from exc
 
     async def delete(self, id: int, user_id: int) -> TransactionORM | None:
         """Deletes the user's transaction (flush only; the unit of work commits)."""
@@ -500,8 +512,25 @@ class TransacaoRepository:
         result = await self.db.execute(stmt)
         return list(result.unique().scalars().all())
 
+    async def list_latest_by_description_patterns(
+        self, user_id: int, patterns: list[str], limit: int
+    ) -> list[TransactionORM]:
+        """The user's most recently created transactions whose description matches any LIKE pattern."""
+        stmt = (
+            select(TransactionORM)
+            .where(or_(*(TransactionORM.description.like(pattern) for pattern in patterns)))
+            .where(TransactionORM.user_id == user_id)
+            .order_by(TransactionORM.created_at.desc())
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.unique().scalars().all())
+
     async def assign_random_banks(self, bank_codes: list[str], user_id: int) -> int:
-        """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto."""
+        """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto.
+
+        Não faz commit: a unit of work do request é a dona da transação.
+        """
         from sqlalchemy import text
 
         if not bank_codes:
@@ -526,7 +555,6 @@ class TransacaoRepository:
 
         params = {"bank_codes": bank_codes, "user_id": user_id}
         result = await self.db.execute(stmt, params)
-        await self.db.commit()
         return result.rowcount
 
     async def create_batch_from_extract(
@@ -535,8 +563,8 @@ class TransacaoRepository:
         user_id: int,
     ) -> tuple[int, list[str]]:
         """
-        Creates multiple transactions from extract in a single batch.
-        Returns (created_count, errors_list).
+        Creates multiple transactions from extract in a single batch (flush only: the unit of
+        work commits). Returns (created_count, errors_list).
         """
         log = log_database_operation(
             operation="batch_create",
@@ -667,126 +695,19 @@ class TransacaoRepository:
                 log.warning(f"Batch item skipped ({type(e).__name__}): {e}")
                 errors.append(f"Erro ao preparar '{t.get('description', 'N/A')}': dados inválidos")
 
-        # 5) Batch insert all
+        # 5) Batch insert all: a savepoint keeps a failing insert from poisoning the request's
+        # transaction, so the failure is reported in ``errors`` instead of aborting the request.
         if all_instances:
             try:
-                self.db.add_all(all_instances)
-                await self.db.commit()
+                async with self.db.begin_nested():
+                    self.db.add_all(all_instances)
+                    await self.db.flush()
                 for inst in all_instances:
                     await self.db.refresh(inst)
                 log.info(f"Batch created {len(all_instances)} transactions")
             except SQLAlchemyError as e:
-                await self.db.rollback()
-                log.error(f"Batch commit failed: {e}")
+                log.error(f"Batch insert failed: {e}")
                 errors.append("Erro no commit em lote")
                 return 0, errors
 
         return len(all_instances), errors
-
-    async def create_from_extract(
-        self,
-        amount: float,
-        description: str,
-        transaction_date: datetime,
-        type: str,
-        entity_type: str,
-        payment_method: str,
-        user_id: int,
-        category_id: int | None = None,
-        subcategory_id: int | None = None,
-        category_name: str | None = None,
-        subcategory_name: str | None = None,
-        bank_code: str | None = None,
-        total_installments: int | None = None,
-        is_installment: bool = False,
-    ) -> TransactionORM:
-        group_id = str(uuid4())
-
-        # 1) Resolve categoria: by ID or by name (cria se não existir)
-        if category_id is not None:
-            cat = await self.categoria_repo.get_by_id(category_id, user_id)
-            if not cat:
-                raise HTTPException(status_code=400, detail="Categoria não encontrada")
-        elif category_name is not None:
-            cat = await self.categoria_repo.get_by_nome(category_name, user_id)
-            if not cat:
-                cat = await self.categoria_repo.create(
-                    user_id,
-                    CategoriaCreate(
-                        category_name=category_name,
-                        entity_type=entity_type,
-                        limit=0,
-                        type=type,
-                        subcategories=[],
-                    ),
-                )
-        else:
-            raise HTTPException(status_code=400, detail="category_id or category_name is required")
-
-        # 2) Resolve subcategoria: by ID or by nome (cria se não existir)
-        sub = None
-        if subcategory_id is not None:
-            sub = await self.subcategoria_repo.get_by_id(subcategory_id, user_id)
-            if not sub or sub.category_id != cat.id:
-                raise HTTPException(status_code=400, detail="Subcategoria inválida")
-        elif subcategory_name is not None:
-            sub = await self.subcategoria_repo.get_by_nome_and_categoria(
-                subcategory_name, cat.id, user_id
-            )
-            if not sub:
-                sub = await self.subcategoria_repo.create(
-                    categoria_id=cat.id,
-                    user_id=user_id,
-                    obj_in=SubcategoriaCreate(subcategory_name=subcategory_name),
-                )
-
-        # 3) Cria transação(ões) — com parcelamento se solicitado
-        if total_installments is not None and total_installments > 1:
-            valor_parcela = self._calculate_installment_amount(amount, total_installments)
-            datas = self._generate_installment_dates(transaction_date, total_installments)
-            transacoes = []
-            for i in range(total_installments):
-                inst = TransactionORM(
-                    amount=valor_parcela,
-                    description=f"{description} - parcela {i + 1}/{total_installments}",
-                    installment_number=i + 1,
-                    total_installments=total_installments,
-                    is_installment=True,
-                    transaction_date=datas[i],
-                    type=type,
-                    entity_type=entity_type,
-                    payment_method=payment_method,
-                    category_id=cat.id,
-                    subcategory_id=sub.id if sub else None,
-                    bank_code=bank_code,
-                    group_id=group_id,
-                    user_id=user_id,
-                )
-                self.db.add(inst)
-                transacoes.append(inst)
-            self._adjust_last_installment(transacoes, amount)
-            await self.db.commit()
-            for inst in transacoes:
-                await self.db.refresh(inst)
-            return transacoes[0]
-        else:
-            inst = TransactionORM(
-                amount=amount,
-                description=description,
-                installment_number=1,
-                total_installments=1,
-                transaction_date=transaction_date,
-                type=type,
-                entity_type=entity_type,
-                payment_method=payment_method,
-                category_id=cat.id,
-                subcategory_id=sub.id if sub else None,
-                bank_code=bank_code,
-                group_id=group_id,
-                is_installment=is_installment,
-                user_id=user_id,
-            )
-            self.db.add(inst)
-            await self.db.commit()
-            await self.db.refresh(inst)
-            return inst

@@ -21,6 +21,7 @@ from app.schemas.shopping import (
 class ShoppingRepository:
     """
     Repositório para operações CRUD de itens da lista de compras.
+    Só faz flush: o commit é da unit of work do request (ver ``ShoppingService``).
     """
 
     def __init__(self, db: AsyncSession = Depends(get_session)):
@@ -74,7 +75,7 @@ class ShoppingRepository:
             entity_type=obj_in.entity_type,
         )
         self.db.add(item)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(item)
         log.info(f"Item {item.id} criado: {item.name}")
         return item
@@ -105,7 +106,7 @@ class ShoppingRepository:
         # Auto-set completed_at when marking/unmarking (after setattr to avoid overwrite)
         if "checked" in update_data:
             item.completed_at = date.today() if update_data["checked"] else None
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(item)
         log.info(
             f"Item {item_id} atualizado (checked={item.checked}, completed_at={item.completed_at})"
@@ -123,7 +124,7 @@ class ShoppingRepository:
             return None
 
         await self.db.delete(item)
-        await self.db.commit()
+        await self.db.flush()
         log.info(f"Item {item_id} excluído")
         return item
 
@@ -201,6 +202,6 @@ class ShoppingRepository:
             current_month = current_month + relativedelta(months=1)
 
         if gerados > 0:
-            await self.db.commit()
+            await self.db.flush()
             log.info(f"{gerados} itens recorrentes gerados")
         return gerados

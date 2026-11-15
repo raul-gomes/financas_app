@@ -1,12 +1,13 @@
 # app/db/repositories/subcategoria.py
 
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.errors import NotFoundError, ValidationError
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.logger import log_database_operation
 from app.schemas.categories import SubcategoriaUpdate
@@ -42,7 +43,7 @@ class SubcategoriaRepository:
         return result.scalars().first()
 
     async def create(
-        self, categoria_id: int, user_id: int, obj_in: SubcategoriaCreate, *, commit: bool = True
+        self, categoria_id: int, user_id: int, obj_in: SubcategoriaCreate
     ) -> SubcategoryORM:
         log = log_database_operation(
             operation="create",
@@ -54,35 +55,25 @@ class SubcategoriaRepository:
             # Garante que a categoria pertence ao usuário
             categoria = await self.db.get(CategoryORM, categoria_id)
             if not categoria or categoria.user_id != user_id:
-                raise HTTPException(status_code=404, detail="Categoria não encontrada")
+                raise NotFoundError("Categoria não encontrada")
             inst = self.model(name=obj_in.subcategory_name, category_id=categoria_id)
             self.db.add(inst)
-            await self._persist(commit)
+            await self.db.flush()
             await self.db.refresh(inst)
             log.info(f"Subcategoria {inst.id} criada para categoria {categoria_id}")
             return inst
         except IntegrityError as exc:
-            await self.db.rollback()
-            raise HTTPException(status_code=400, detail="Erro ao criar subcategoria") from exc
-
-    async def _persist(self, commit: bool) -> None:
-        """Commits, or only flushes when the caller's unit of work owns the commit."""
-        if commit:
-            await self.db.commit()
-        else:
-            await self.db.flush()
+            raise ValidationError("Erro ao criar subcategoria") from exc
 
     async def create_many(
         self,
         categoria_id: int,
         user_id: int,
         subs: list[SubcategoriaCreate],
-        *,
-        commit: bool = True,
     ):
         sub_objs = [self.model(name=s.subcategory_name, category_id=categoria_id) for s in subs]
         self.db.add_all(sub_objs)
-        await self._persist(commit)
+        await self.db.flush()
 
     async def get_by_categoria(self, categoria_id: int, user_id: int) -> list[SubcategoryORM]:
         """Busca todas as subcategorias de uma categoria do usuário"""
@@ -110,18 +101,18 @@ class SubcategoriaRepository:
             orm_field = field_map.get(field, field)
             setattr(sub, orm_field, value)
 
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(sub)
         return sub
 
-    async def delete(self, id: int, user_id: int) -> SubcategoryORM | None:
+    async def delete(self, id: int, user_id: int, *, commit: bool = True) -> SubcategoryORM | None:
         """Deleta uma subcategoria, garantindo que pertença a uma categoria do usuário."""
         sub = await self.get_by_id(id, user_id)
         if not sub:
             return None
 
         await self.db.delete(sub)
-        await self.db.commit()
+        await self.db.flush()
         return sub
 
     async def delete_by_categoria(self, categoria_id: int, user_id: int) -> None:
@@ -132,4 +123,4 @@ class SubcategoriaRepository:
                 self.model.category.has(CategoryORM.user_id == user_id),
             )
         )
-        await self.db.commit()
+        await self.db.flush()

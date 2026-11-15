@@ -7,7 +7,6 @@ from typing import Any
 
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import lazyload
 
 from app.db.models.category import CategoryORM
 from app.db.models.transaction import TransactionORM
@@ -268,7 +267,6 @@ class DashboardOverviewRepository:
                 TransactionORM.type == "expense",
                 TransactionORM.is_installment.is_(True),
             )
-            .options(lazyload(TransactionORM.recurring_account))
             .order_by(TransactionORM.transaction_date, TransactionORM.id)
         )
         if entity_type != "all":

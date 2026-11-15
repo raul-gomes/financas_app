@@ -1,11 +1,12 @@
 from datetime import datetime
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_session
+from app.core.errors import ValidationError
 from app.db.models.transaction import TransactionORM
 from app.logger import log_database_operation
 
@@ -29,10 +30,7 @@ class ExportRepository:
             dt_i = datetime.strptime(start_date, "%d/%m/%Y") if start_date else datetime(2000, 1, 1)
             dt_f = datetime.strptime(end_date, "%d/%m/%Y") if end_date else datetime.now()
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Formato de data inválido. Use DD/MM/YYYY.",
-            ) from exc
+            raise ValidationError("Formato de data inválido. Use DD/MM/YYYY.") from exc
 
         result = await self.db.execute(
             select(TransactionORM)
