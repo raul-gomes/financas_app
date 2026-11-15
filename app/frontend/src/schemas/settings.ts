@@ -65,5 +65,9 @@ export const pluggyAccountsSchema = z.object({
 export const syncResultSchema = z.object({
   message: z.string(),
   imported: z.number(),
+  /** Rows already in the app (includes `linked`). */
+  skipped: z.number().default(0),
+  /** Existing entries adopted by the bank's transaction id instead of imported again. */
+  linked: z.number().default(0),
   accounts: z.number().optional(),
 });

@@ -8,6 +8,7 @@ const mockGetProfile = vi.fn();
 const mockListBanks = vi.fn();
 const mockUpdateProfile = vi.fn();
 const mockRemoveBank = vi.fn();
+const mockSyncPluggy = vi.fn();
 const mockToast = vi.fn();
 
 vi.mock('@/services/settingsService', () => ({
@@ -17,6 +18,8 @@ vi.mock('@/services/settingsService', () => ({
     updateProfile: (...args: unknown[]) => mockUpdateProfile(...args),
     removeBank: (...args: unknown[]) => mockRemoveBank(...args),
     searchBrasilApi: vi.fn().mockResolvedValue([]),
+    listPluggyAccounts: vi.fn().mockResolvedValue({ accounts: [], items: [] }),
+    syncPluggy: () => mockSyncPluggy(),
   },
 }));
 
@@ -106,5 +109,28 @@ describe('Settings (react-query)', () => {
         expect.objectContaining({ description: 'Falha ao carregar configurações.' }),
       ),
     );
+  });
+});
+
+describe('Settings - Pluggy sync result', () => {
+  it('tells how many transactions were skipped and linked in the toast and the result box', async () => {
+    mockGetProfile.mockResolvedValue({ ...profile, has_pluggy_key: true });
+    mockSyncPluggy.mockResolvedValue({
+      message: '4 transações importadas de 2 contas.',
+      imported: 4,
+      skipped: 12,
+      linked: 3,
+      accounts: 2,
+    });
+    renderWithQuery(<Settings />);
+    const button = await screen.findByRole('button', { name: 'Sincronizar Transações' });
+    await waitFor(() => expect(button).not.toBeDisabled());
+
+    fireEvent.click(button);
+
+    const expected =
+      '4 transações importadas de 2 contas. 12 já estavam no app (3 vinculadas a lançamentos existentes).';
+    expect(await screen.findByText(expected)).toBeTruthy();
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Sucesso', description: expected }));
   });
 });

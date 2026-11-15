@@ -351,7 +351,9 @@ describe('SettingsService boundary', () => {
     const accounts = await SettingsService.listPluggyAccounts();
     expect(accounts.items[0].institution_number).toBe('123');
     respondWith({ message: 'ok', imported: 3, accounts: 1 });
-    await expect(SettingsService.syncPluggy()).resolves.toHaveProperty('imported', 3);
+    await expect(SettingsService.syncPluggy()).resolves.toMatchObject({ imported: 3, skipped: 0, linked: 0 });
+    respondWith({ message: 'ok', imported: 3, skipped: 7, linked: 2, accounts: 1 });
+    await expect(SettingsService.syncPluggy()).resolves.toMatchObject({ skipped: 7, linked: 2 });
   });
 
   it('rejects malformed settings payloads', async () => {
