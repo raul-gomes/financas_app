@@ -279,7 +279,7 @@ Descrevem lacunas; o código atual não decide por elas.
 5. As categorias "Mensal PF"/"Mensal PJ" (meta mensal) geram alerta de categoria como as demais quando têm limite; é o desejado? Hoje só "Metas" e "Limite Cartao Credito" ficam de fora.
 6. Papel: existem outros além de `user`/`admin`? Convém restringir os valores no banco?
 7. Excluir uma conta recorrente apaga todas as transações vinculadas (inclusive as passadas): é o desejado?
-8. Produto: uso pessoal apenas ou também empresarial (PF/PJ)? E o nome ("Olavo" ou "Placo")?
+8. Produto: uso pessoal apenas ou também empresarial (PF/PJ)? (Nome decidido: **Placo**.)
 
 ---
 
