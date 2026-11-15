@@ -10,7 +10,6 @@ import {
   useCategoryBreakdown,
   useCategoryIncome,
   useFinancialSummary,
-  useRecurringGeneration,
   useYearlyPerformance,
 } from '@/hooks/queries/useFinancialQueries';
 import { useTransactionMutations, useYearInvestments } from '@/hooks/queries/useTransactionQueries';
@@ -48,21 +47,14 @@ const Financial = () => {
   const currentYear = new Date().getFullYear();
 
 
-  // Server data: one cached query per block. Admins first generate the period's recurring
-  // bills, then the dashboards load (the transactions list pages itself in TransactionList).
-  const { isSettled: recurringReady } = useRecurringGeneration(selectedDateRange, isAdmin);
-  const summaryQuery = useFinancialSummary(selectedDateRange, selectedEntityType, recurringReady);
+  // Server data: one cached query per block (the transactions list pages itself in TransactionList).
+  const summaryQuery = useFinancialSummary(selectedDateRange, selectedEntityType);
   // The 12-month chart and its investment bars are desktop only (mobile shows 6 months)
-  const yearlyQuery = useYearlyPerformance(currentYear, selectedEntityType, recurringReady && !isMobile);
-  const categoriesQuery = useCategoryBreakdown(
-    selectedDateRange,
-    selectedEntityType,
-    'expense',
-    recurringReady,
-  );
-  const incomesQuery = useCategoryIncome(selectedDateRange, selectedEntityType, recurringReady);
+  const yearlyQuery = useYearlyPerformance(currentYear, selectedEntityType, !isMobile);
+  const categoriesQuery = useCategoryBreakdown(selectedDateRange, selectedEntityType, 'expense');
+  const incomesQuery = useCategoryIncome(selectedDateRange, selectedEntityType);
   // Always fetch full-year investments for the yearly chart
-  const yearInvestmentsQuery = useYearInvestments(currentYear, selectedEntityType, recurringReady && !isMobile);
+  const yearInvestmentsQuery = useYearInvestments(currentYear, selectedEntityType, !isMobile);
   const { updateTransaction, deleteTransaction, onTransactionCreated } = useTransactionMutations();
 
   const financialSummary = summaryQuery.data ?? null;
@@ -218,7 +210,6 @@ const Financial = () => {
           onMonthChange={handleMobileMonthChange}
           entityType={selectedEntityType}
           onEntityTypeChange={setSelectedEntityType}
-          recurringReady={recurringReady}
           dateRange={selectedDateRange}
           statement={financialSummary}
           creditCardLimit={financialSummary?.credit_card_limit || 0}

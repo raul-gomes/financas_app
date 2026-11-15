@@ -23,9 +23,3 @@ export const contaRecorrenteSchema = z.object({
 });
 
 export const contaRecorrenteListSchema = z.array(contaRecorrenteSchema);
-
-/** `GenerateResponse`. */
-export const generateResponseSchema = z.object({
-  generated: z.number(),
-  details: z.array(z.string()),
-});

@@ -13,14 +13,6 @@ vi.mock('@/services/overviewService', () => ({
   },
 }));
 
-const mockGenerate = vi.fn();
-
-vi.mock('@/services/recurringAccountService', () => ({
-  ContaRecorrenteService: {
-    generate: (...args: unknown[]) => mockGenerate(...args),
-  },
-}));
-
 const baseOverview: OverviewResponse = {
   reference_month: '09/2026',
   entity_type: 'all',
@@ -75,33 +67,20 @@ const baseOverview: OverviewResponse = {
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetOverview.mockResolvedValue(baseOverview);
-  mockGenerate.mockResolvedValue({ generated: 0 });
 });
 
 describe('OverviewDashboard - recurring bills of the month', () => {
-  it('generates the month bills for admins before reading the totals', async () => {
-    let finishGeneration: (value: unknown) => void = () => undefined;
-    mockGenerate.mockReturnValue(new Promise((resolve) => { finishGeneration = resolve; }));
-    renderWithQuery(<OverviewDashboard isAdmin />);
-
-    await waitFor(() => expect(mockGenerate).toHaveBeenCalledTimes(1));
-    const [from, to] = mockGenerate.mock.calls[0] as [Date, Date];
-    const now = new Date();
-    expect(from.getDate()).toBe(1);
-    expect(from.getMonth()).toBe(now.getMonth());
-    expect(to.getMonth()).toBe(now.getMonth());
-    expect(to.getDate()).toBe(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate());
-    expect(mockGetOverview).not.toHaveBeenCalled();
-
-    finishGeneration({ generated: 3 });
-    await waitFor(() => expect(mockGetOverview).toHaveBeenCalledTimes(1));
-  });
-
-  it('does not generate bills for regular users (recurring bills are admin only)', async () => {
-    renderWithQuery(<OverviewDashboard />);
+  it.each([
+    ['admins', true],
+    ['regular users', false],
+  ])('only reads the overview for %s: the backend owns the recurring bills', async (_label, isAdmin) => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    renderWithQuery(<OverviewDashboard isAdmin={isAdmin} />);
 
     await waitFor(() => expect(mockGetOverview).toHaveBeenCalledTimes(1));
-    expect(mockGenerate).not.toHaveBeenCalled();
+    const urls = fetchSpy.mock.calls.map(([input]) => String(input));
+    expect(urls.some((url) => url.includes('/recurring-accounts/generate'))).toBe(false);
+    fetchSpy.mockRestore();
   });
 });
 

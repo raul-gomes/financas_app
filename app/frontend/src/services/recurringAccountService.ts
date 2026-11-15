@@ -1,11 +1,11 @@
 import { apiFetch } from '@/lib/api';
 import { parseResponse } from '@/lib/parse';
 import {
-  contaRecorrenteSchema, contaRecorrenteListSchema, generateResponseSchema,
+  contaRecorrenteSchema, contaRecorrenteListSchema,
 } from '@/schemas/recurringAccount';
 import {
   ContaRecorrente, ContaRecorrenteCreate,
-  ContaRecorrenteUpdate, GenerateResponse,
+  ContaRecorrenteUpdate,
 } from '@/types/recurringAccount';
 
 export class ContaRecorrenteService {
@@ -53,19 +53,5 @@ export class ContaRecorrenteService {
     const res = await apiFetch(`/recurring-accounts/${id}/renew`, { method: 'POST' });
     if (!res.ok) throw new Error(`Erro ${res.status} ao renovar conta recorrente`);
     return parseResponse(res, contaRecorrenteSchema, 'renovar conta recorrente');
-  }
-
-  static async generate(startDate: Date, endDate: Date): Promise<GenerateResponse> {
-    const payload = {
-      start_date: startDate.toISOString(),
-      end_date: endDate.toISOString(),
-    };
-    const res = await apiFetch(`/recurring-accounts/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error(`Erro ${res.status} ao gerar contas recorrentes`);
-    return parseResponse(res, generateResponseSchema, 'gerar contas recorrentes');
   }
 }

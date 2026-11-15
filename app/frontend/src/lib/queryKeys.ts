@@ -64,7 +64,6 @@ export const queryKeys = {
   recurring: {
     all: ['recurring-accounts'] as const,
     list: (entityType: string | undefined) => ['recurring-accounts', 'list', entityType ?? 'all'] as const,
-    generation: (range: DateRangeInput) => ['recurring-accounts', 'generation', rangeKey(range)] as const,
   },
   goals: {
     all: ['goals'] as const,
