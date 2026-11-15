@@ -15,7 +15,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
-import { RecurringBillsTable, currentInstallment, isEndingSoon } from '@/components/recorrentes/RecurringBillsTable';
+import { RecurringBillsTable } from '@/components/recorrentes/RecurringBillsTable';
+import { isEndingSoon } from '@/lib/recurringBills';
 
 const RecurrentBills = () => {
   const queryClient = useQueryClient();

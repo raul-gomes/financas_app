@@ -1,11 +1,9 @@
-import { createContext, useContext } from 'react';
+import { useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import { Logo } from '@/components/brand/Logo';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-
-/** DOM node of the top bar's "month selector" slot (null until the bar mounts). */
-export const MobileTopBarSlotContext = createContext<HTMLElement | null>(null);
+import { MobileTopBarSlotContext } from './mobileTopBarContext';
 
 /**
  * Renders its children inside the mobile top bar, between the title and the

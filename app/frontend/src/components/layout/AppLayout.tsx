@@ -5,13 +5,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DollarSign, BarChart3, TrendingUp, SlidersHorizontal, Settings, RefreshCw, Landmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/brand/Logo';
-import { SidebarProvider } from '@/contexts/SidebarContext';
+import { SidebarProvider } from '@/contexts/SidebarProvider';
 import { useRole } from '@/contexts/RoleContext';
 import { AddTransactionDialog } from '@/components/dialogs/AddTransactionDialog';
 import { LogoutButton } from './LogoutButton';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { MobileTabBar } from './MobileTabBar';
-import { MobileTopBar, MobileTopBarSlotContext } from './MobileTopBar';
+import { MobileTopBar } from './MobileTopBar';
+import { MobileTopBarSlotContext } from './mobileTopBarContext';
 import { MORE_ROUTE, getRouteTitle } from './navigation';
 
 function LayoutContent() {

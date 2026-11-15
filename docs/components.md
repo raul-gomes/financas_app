@@ -86,6 +86,11 @@ Categorias principais:
 
 Merge de classes sempre com `cn()` (`@/lib/utils`) — permite override limpo pelo chamador.
 
+Arquivos `.tsx` exportam **só componentes** (regra `react-refresh/only-export-components`, lint com 0 warnings). Variantes e helpers ficam ao lado, em `.ts`:
+`buttonVariants` em `ui/button-variants`, `badgeVariants` em `ui/badge-variants`, `toggleVariants` em `ui/toggle-variants`, `navigationMenuTriggerStyle` em `ui/navigation-menu-style`,
+`useFormField` em `ui/form-field-context`, `useSidebar` em `ui/sidebar-context`, helpers dos logos de banco em `lib/bankLogo`. Contextos seguem o mesmo padrão
+(`contexts/RoleContext.ts` + `RoleProvider.tsx`, idem Auth e Sidebar; `useRole`/`useSession`/`useSidebar` continuam importáveis de `@/contexts/<Nome>Context`).
+
 ---
 
 ## 4. Componentes Compostos do Projeto

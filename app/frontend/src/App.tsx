@@ -9,8 +9,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageSkeleton } from "@/components/layout/PageSkeleton";
-import { RoleProvider, useRole } from "@/contexts/RoleContext";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { useRole } from "@/contexts/RoleContext";
+import { RoleProvider } from "@/contexts/RoleProvider";
+import { AuthProvider } from "@/contexts/AuthProvider";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 
 // Code-splitting por rota: cada página (inclusive as de autenticação) vira um chunk separado no build

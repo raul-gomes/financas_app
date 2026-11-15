@@ -179,7 +179,7 @@ financas_app/
 │       │   │
 │       │   ├── components/
 │       │   │   ├── ErrorBoundary.tsx             # Barreira de erro por rota (fallback + retry; crash não derruba o app)
-│       │   │   ├── ui/                         # shadcn-ui primitives + compostos (button, dialog, card, responsive-modal, confirm-dialog, bank-logo, bank-select, bank-search, currency-input, stat-card, empty-state, page-header, segmented-control, chip-group, etc.); smoke tests Vitest colocados (*.test.tsx ao lado). Obs: carousel.tsx e command.tsx REMOVIDOS (não usados; deps embla-carousel-react/cmdk removidas)
+│       │   │   ├── ui/                         # shadcn-ui primitives + compostos (button, dialog, card, responsive-modal, confirm-dialog, bank-logo, bank-select, bank-search, currency-input, stat-card, empty-state, page-header, segmented-control, chip-group, etc.); smoke tests Vitest colocados (*.test.tsx ao lado). Só componentes saem dos `.tsx`: `button-variants.ts`, `badge-variants.ts`, `toggle-variants.ts`, `navigation-menu-style.ts`, `form-field-context.ts` e `sidebar-context.ts` guardam variantes, contextos e hooks (regra `react-refresh/only-export-components`). Obs: carousel.tsx e command.tsx REMOVIDOS (não usados; deps embla-carousel-react/cmdk removidas)
 │       │   │   │
 │       │   │   ├── charts/                     # Componentes de gráficos D3
 │       │   │   │   ├── D3BarChart.tsx           # Gráfico de barras anual (income/expenses/investment por mês)
@@ -250,6 +250,7 @@ financas_app/
 │   │   │               │   ├── MobileTabBar.tsx          # Barra de abas inferior (Início, Financeiro, +, Limites, Mais): ≥44px, safe-area, aria-current
 │   │   │               │   ├── MobileTabBar.test.tsx     # Testes da barra de abas
 │   │   │               │   ├── MobileTopBar.tsx          # Barra superior mobile (logo/título, slot de mês `MobileTopBarSlot`, sino)
+│   │   │               │   ├── mobileTopBarContext.ts    # MobileTopBarSlotContext (nó do slot de mês)
 │   │   │               │   ├── MonthStepper.tsx          # Seletor de mês compacto (‹ nov 2026 ›) para o slot da barra superior; addMonths/YearMonth (+ teste)
 │   │   │               │   ├── navigation.ts             # Abas, grupo "Mais", títulos por rota, isTabActive/getRouteTitle
 │   │   │               │   ├── navigation.test.ts        # Testes de navigation.ts
@@ -372,9 +373,12 @@ financas_app/
 │       │   │       └── useErrorToast.ts         # Toast pt-BR quando uma query falha
 │       │   │
 │       │   ├── contexts/                       # React contexts
-│       │   │   ├── SidebarContext.tsx           # SidebarContext — estado open/toggle da sidebar
-│       │   │   ├── AuthContext.tsx              # AuthProvider/useSession — sessão Supabase (session/user/loading) + teste
-│       │   │   ├── RoleContext.tsx              # RoleProvider/useRole — deriva isAdmin de profile.role ('admin'/'user'); refetch quando o usuário autenticado troca (evita role stale após logout/login)
+│       │   │   ├── SidebarContext.ts            # SidebarContext + useSidebar — estado open/toggle da sidebar
+│       │   │   ├── SidebarProvider.tsx          # SidebarProvider (componente)
+│       │   │   ├── AuthContext.ts               # AuthContext + useSession — sessão Supabase (session/user/loading)
+│       │   │   ├── AuthProvider.tsx             # AuthProvider (componente): getSession + onAuthStateChange
+│       │   │   ├── RoleContext.ts               # RoleContext + useRole
+│       │   │   ├── RoleProvider.tsx             # RoleProvider — deriva isAdmin de profile.role ('admin'/'user'); refetch quando o usuário autenticado troca (evita role stale após logout/login)
 │       │   │   ├── AuthContext.test.tsx         # Testes do AuthContext (mock do Supabase)
 │       │   │   └── RoleContext.test.tsx         # Testes do RoleContext (refetch ao trocar de conta; admin/user paths)
 │       │   │
@@ -387,6 +391,8 @@ financas_app/
 │       │       ├── format.ts                   # formatCurrency/formatDate/formatPercent (fonte única de formatação)
 │       │   │       ├── transactionGroups.ts        # Agrupa lançamentos por dia ("Hoje · 14 nov") e formata valor com sinal (+ teste)
 │       │   │       ├── extractReview.ts            # Regras puras da revisão do extrato: rascunhos por linha, validação, payload de confirmação, totais, duplicatas, contagem (+ teste)
+│       │   │       ├── bankLogo.ts                 # URL do logo, iniciais e paleta do fallback dos bancos (+ teste)
+│       │   │       ├── recurringBills.ts           # currentInstallment e isEndingSoon das contas recorrentes (+ teste)
 │       │   │       ├── statementAggregates.ts      # Funções puras sobre os agregados do /dashboard/statement: gráfico diário (buildDailyData), total por forma de pagamento, itens por banco, parcelas (+ teste)
 │       │   │       ├── months.ts                   # YearMonth, addMonths, toYearMonth, SHORT_MONTHS (+ teste)
 │       │   │       ├── recentMonths.ts             # Janela dos últimos 6 meses a partir dos payloads anuais (+ teste)

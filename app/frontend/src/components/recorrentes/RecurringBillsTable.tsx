@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { BankLogo } from "@/components/ui/bank-logo";
 import { formatCurrency } from "@/lib/format";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { currentInstallment, isEndingSoon } from "@/lib/recurringBills";
 import type { ContaRecorrente } from "@/types/recurringAccount";
 
 /** Altura fixa estimada de cada linha da tabela (px). */
@@ -22,14 +23,6 @@ interface RecurringBillsTableProps {
   /** Exibe a coluna Banco (logo + código FEBRABAN). */
   showBank?: boolean
 }
-
-/** Parcela atual = total - restantes + 1 (restantes inclui o mês corrente). */
-export const currentInstallment = (conta: ContaRecorrente): number =>
-  Math.min(conta.total_installments, Math.max(1, conta.total_installments - conta.remaining_installments + 1))
-
-/** Tag "Acabando" apenas nas parcelas finais (10+ de 12). */
-export const isEndingSoon = (conta: ContaRecorrente): boolean =>
-  conta.active && conta.remaining_installments > 0 && currentInstallment(conta) >= 10
 
 /**
  * Tabela compartilhada de contas recorrentes com virtualização de linhas.
