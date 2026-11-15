@@ -299,8 +299,8 @@ financas_app/
 │       │   │   ├── Investments.tsx             # Página de investimentos (placeholder)
 │       │   │   ├── Limits.tsx                  # Página de limites: tabs por role no desktop; chips (Categorias/Recorrentes/Metas/Compras) + PF/PJ segmentado no mobile
 │       │   │   ├── Limits.test.tsx             # Testes das abas por role (user: sem Metas/Compras)
-│       │   │   ├── RecurrentBills.tsx          # Página de contas recorrentes: lista + CRUD
-│       │   │   ├── BankExtract.tsx             # Página de extrato bancário: upload + preview + confirmação
+│       │   │   ├── RecurrentBills.tsx          # Página de contas recorrentes: lista (react-query) + CRUD que invalida contas e lançamentos (+ RecurrentBills.test.tsx)
+│       │   │   ├── BankExtract.tsx             # Página de extrato bancário: upload + preview + confirmação; categorias/bancos via react-query (+ BankExtract.test.tsx)
 │       │   │   ├── Settings.tsx                # Página de configurações: perfil + bancos + Pluggy
 │       │   │   ├── Login.tsx                   # Login email/senha (Supabase) — teste ao lado
 │       │   │   ├── Login.test.tsx              # Testes do formulário de login
@@ -348,9 +348,10 @@ financas_app/
 │       │   │   ├── useDebouncedValue.ts        # useDebouncedValue(value, ms) — usado na busca do extrato (+ teste ao lado)
 │       │   │   └── queries/                    # Hooks react-query (um por domínio); a chave vem de lib/queryKeys
 │       │   │       ├── useTransactionQueries.ts # useTransactionsInfinite (cursor), useYearInvestments, useTransactionMutations, invalidateTransactionData (+ teste)
-│       │   │       ├── useFinancialQueries.ts   # Extrato do período, rendimento anual, categorias, geração de recorrentes (admin)
+│       │   │       ├── useFinancialQueries.ts   # Extrato do período, rendimento anual, categorias, useCategoryOptions (selects da importação), geração de recorrentes (admin)
 │       │   │       ├── useOverviewQuery.ts      # Overview do mês (GET /dashboard/overview)
 │       │   │       ├── useLimitsQueries.ts      # Limites, gastos do mês, recorrentes, metas, compras + invalidateDomain
+│       │   │       ├── useRecurringQueries.ts   # invalidateRecurringData: atualiza as contas recorrentes e os lançamentos que elas geram/cancelam (+ teste)
 │       │   │       ├── useSettingsQueries.ts    # Perfil e bancos (compartilhados com o extrato)
 │       │   │       └── useErrorToast.ts         # Toast pt-BR quando uma query falha
 │       │   │

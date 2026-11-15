@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { formatCurrency } from '@/lib/format';
 import { useLocation, useNavigate } from 'react-router'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -11,12 +12,17 @@ import {
   Loader2, ArrowLeft, Save, Trash2
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { reportLoadError } from '@/lib/reportLoadError'
+import { useErrorToast } from '@/hooks/queries/useErrorToast'
+import { useCategoryOptions } from '@/hooks/queries/useFinancialQueries'
+import { invalidateDomain } from '@/hooks/queries/useLimitsQueries'
+import { useBanks } from '@/hooks/queries/useSettingsQueries'
+import { invalidateTransactionData } from '@/hooks/queries/useTransactionQueries'
+import { queryKeys } from '@/lib/queryKeys'
 import { ExtractoService } from '@/services/extractService'
 import { FinancialService } from '@/services/financialService'
 import { SettingsService } from '@/services/settingsService'
 import type { SessionData, ParsedTransaction, ConfirmTransaction } from '@/types/extract'
-import type { CategorySubcategories, DuplicateInfo } from '@/types/financial'
+import type { DuplicateInfo } from '@/types/financial'
 import type { UserBank, BankCreate } from '@/services/settingsService'
 import { BankLogo } from '@/components/ui/bank-logo'
 
@@ -52,8 +58,12 @@ const BankExtract = () => {
   const [isUploading, setIsUploading] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
-  const [banks, setBanks] = useState<UserBank[]>([])
-  const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null)
+  const queryClient = useQueryClient()
+  // Shared cache: refreshed by the global "+" add and by this page's own mutations
+  const { data: categoryOptions = null, isError: categoriesFailed } = useCategoryOptions('all')
+  const { data: banks = [], isError: banksFailed } = useBanks()
+  useErrorToast(categoriesFailed, 'Falha ao carregar as categorias.')
+  useErrorToast(banksFailed, 'Falha ao carregar os bancos.')
 
   // Inline "add bank" state
   const [addingBankSessionIdx, setAddingBankSessionIdx] = useState<number | null>(null)
@@ -74,15 +84,6 @@ const BankExtract = () => {
   const [totalInstallmentsMap, setTotalInstallmentsMap] = useState<Record<string, number>>({})
   // Inline validation errors per transaction
   const [transactionErrors, setTransactionErrors] = useState<Record<string, TransactionErrors>>({})
-
-  useEffect(() => {
-    FinancialService.getCategorySubcategories('all').then(setCategoryOptions)
-      .catch((error: unknown) => reportLoadError(toast, 'as categorias', error))
-    SettingsService.listBanks().then(setBanks)
-      .catch((error: unknown) => reportLoadError(toast, 'os bancos', error))
-    // toast is a stable global dispatcher; the lists load once
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const rowKey = (sIdx: number, rIdx: number) => `${sIdx}-${rIdx}`
 
@@ -236,6 +237,7 @@ const BankExtract = () => {
     // Delete the existing transaction, and add the new one back to its session for import
     try {
       await FinancialService.deleteTransaction(item.existing.id)
+      void invalidateTransactionData(queryClient)
       setDuplicateItems(prev => prev.map(d => d.key === item.key ? { ...d, resolved: 'replace' } : d))
       // Re-add the transaction to its session
       setSessions(prev => prev.map((s, i) =>
@@ -316,7 +318,8 @@ const BankExtract = () => {
     try {
       const payload: BankCreate = { bank_code: newBankCode.trim(), bank_name: newBankName.trim() }
       const created = await SettingsService.addBank(payload)
-      setBanks(prev => [...prev, created])
+      queryClient.setQueryData<UserBank[]>(queryKeys.settings.banks(), prev => [...(prev ?? []), created])
+      void invalidateDomain(queryClient, 'settings')
       updateSession(sIdx, { bankCode: created.bank_code })
       setAddingBankSessionIdx(null)
       setNewBankCode('')
@@ -455,6 +458,7 @@ setTransactionErrors(allErrors)
     setIsConfirming(true)
     try {
       const result = await ExtractoService.confirm(payload)
+      void invalidateTransactionData(queryClient)
       updateSession(sIdx, { isConfirmed: true })
       toast({
         title: 'Sucesso',
@@ -508,6 +512,7 @@ setTransactionErrors(allErrors)
       try {
         const payload = { transactions: buildConfirmPayload(sessions[i]) }
         await ExtractoService.confirm(payload)
+        void invalidateTransactionData(queryClient)
         updateSession(i, { isConfirmed: true })
       } catch {
         toast({

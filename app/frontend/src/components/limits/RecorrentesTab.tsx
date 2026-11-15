@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useErrorToast } from '@/hooks/queries/useErrorToast'
-import { invalidateDomain, useRecurringAccounts } from '@/hooks/queries/useLimitsQueries'
+import { useRecurringAccounts } from '@/hooks/queries/useLimitsQueries'
+import { invalidateRecurringData } from '@/hooks/queries/useRecurringQueries'
 import { Button } from '@/components/ui/button'
 import { PlusCircle, RefreshCw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -27,7 +28,7 @@ export const RecorrentesTab = ({ entityTypeFilter = 'all' }: RecorrentesTabProps
     const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
     const { toast } = useToast()
 
-    const loadContas = () => invalidateDomain(queryClient, 'recurring')
+    const loadContas = () => invalidateRecurringData(queryClient)
 
     const handleCreate = async (payload: ContaRecorrenteCreate) => {
         try {

@@ -56,6 +56,15 @@ export function useCategoryIncome(range: DateRangeInput, entityType: string, ena
   });
 }
 
+/** Categories with their subcategories (options of the review selects), optionally by type. */
+export function useCategoryOptions(entityType: string, type?: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.financial.categoryOptions(entityType, type),
+    queryFn: () => FinancialService.getCategorySubcategories(entityType, type),
+    enabled,
+  });
+}
+
 /**
  * Generates the period's recurring bills (admin only) before the dashboards load.
  * A failure is logged and does not block the data (the generation is idempotent).
