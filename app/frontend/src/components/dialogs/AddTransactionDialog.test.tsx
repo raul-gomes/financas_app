@@ -223,8 +223,11 @@ describe('AddTransactionDialog', () => {
 
     const dateInput = screen.getByLabelText('Data') as HTMLInputElement;
 
-    const today = new Date().toISOString().split('T')[0];
-    const [y, m, d] = today.split('-');
+    // The dialog defaults to the user's LOCAL date (toISOString would use UTC and flake near midnight).
+    const now = new Date();
+    const y = String(now.getFullYear());
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
     expect(dateInput.value).toBe(`${d}/${m}/${y}`);
 
     fireEvent.change(dateInput, { target: { value: '15092026' } });

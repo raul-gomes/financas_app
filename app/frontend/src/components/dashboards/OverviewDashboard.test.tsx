@@ -121,14 +121,14 @@ describe('OverviewDashboard', () => {
   });
 
   it('refaz o fetch ao trocar o entity_type', async () => {
-    const { getByRole } = renderWithQuery(<OverviewDashboard />);
+    const { getByRole, findByRole } = renderWithQuery(<OverviewDashboard />);
 
     await waitFor(() => {
       expect(mockGetOverview.mock.calls.length).toBeGreaterThan(0);
     });
     const callsBefore = mockGetOverview.mock.calls.length;
 
-    fireEvent.click(getByRole('button', { name: 'PJ' }));
+    fireEvent.click(await findByRole('button', { name: 'PJ' }));
 
     await waitFor(() => {
       expect(mockGetOverview.mock.calls.length).toBeGreaterThan(callsBefore);
@@ -184,10 +184,10 @@ describe('OverviewDashboard', () => {
   });
 
   it('reaproveita o cache ao voltar para um filtro já carregado', async () => {
-    const { getByRole } = renderWithQuery(<OverviewDashboard />);
+    const { getByRole, findByRole } = renderWithQuery(<OverviewDashboard />);
     await waitFor(() => expect(screen.getByText('Entradas')).toBeTruthy());
 
-    fireEvent.click(getByRole('button', { name: 'PJ' }));
+    fireEvent.click(await findByRole('button', { name: 'PJ' }));
     await waitFor(() => expect(mockGetOverview).toHaveBeenCalledTimes(2));
     fireEvent.click(getByRole('button', { name: 'Ambos' }));
 

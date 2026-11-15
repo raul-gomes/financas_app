@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { renderWithQuery } from '@/test/queryWrapper';
 import { PaymentKpiCards } from './PaymentKpiCards';
 import type { Transaction } from '@/types/financial';
@@ -68,6 +68,9 @@ describe('PaymentKpiCards', () => {
   it('opens the bank breakdown with the bank name when a card is tapped', async () => {
     renderWithQuery(<PaymentKpiCards transactions={[tx(1)]} creditCardLimit={0} />);
     await waitFor(() => expect(mockListBanks).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
     fireEvent.click(screen.getByRole('button', { name: /Pix/ }));
     expect(await screen.findByTitle('Nubank')).toBeTruthy();
   });
