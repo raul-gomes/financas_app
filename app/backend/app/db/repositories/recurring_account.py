@@ -3,7 +3,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import Depends
-from sqlalchemy import and_, func, select, text
+from sqlalchemy import and_, func, insert, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -194,104 +194,47 @@ class ContaRecorrenteRepository:
         if not dates_to_insert:
             return 0
 
-        # Bulk insert using PostgreSQL INSERT ... ON CONFLICT DO NOTHING
-        # Conflict target: (group_id, date_trunc('month', transaction_date))
-        values_list = []
-        for d in dates_to_insert:
-            values_list.append(
-                {
-                    "amount": conta.amount,
-                    "description": conta.description,
-                    "installment_number": d["installment_number"],
-                    "total_installments": conta.total_installments,
-                    "transaction_date": d["transaction_date"],
-                    "type": "expense",
-                    "entity_type": conta.entity_type,
-                    "payment_method": conta.payment_method,
-                    "category_id": conta.category_id,
-                    "subcategory_id": conta.subcategory_id,
-                    "group_id": gid_str,
-                    "recurring_account_id": conta.id,
-                    "user_id": user_id,
-                }
-            )
+        # One portable bulk INSERT (SQLite and Postgres): months that already have a
+        # transaction of this group are skipped (checked with a single SELECT).
+        existing_months = await self._existing_months(conta.group_id, dates_to_insert)
+        values_list = [
+            {
+                "amount": conta.amount,
+                "description": conta.description,
+                "installment_number": d["installment_number"],
+                "total_installments": conta.total_installments,
+                "transaction_date": d["transaction_date"],
+                "type": "expense",
+                "entity_type": conta.entity_type,
+                "payment_method": conta.payment_method,
+                "category_id": conta.category_id,
+                "subcategory_id": conta.subcategory_id,
+                "group_id": gid_str,
+                "recurring_account_id": conta.id,
+                "user_id": user_id,
+            }
+            for d in dates_to_insert
+            if (d["transaction_date"].year, d["transaction_date"].month) not in existing_months
+        ]
+        if not values_list:
+            return 0
 
-        # Use raw SQL for ON CONFLICT DO NOTHING (PostgreSQL specific)
-        stmt = text("""
-            INSERT INTO transacoes (
-                amount, description, installment_number, total_installments,
-                transaction_date, type, entity_type, payment_method,
-                category_id, subcategory_id, group_id, recurring_account_id, user_id
-            )
-            SELECT * FROM UNNEST(
-                :amounts::numeric[],
-                :descriptions::text[],
-                :installment_numbers::int[],
-                :total_installments::int[],
-                :transaction_dates::timestamp[],
-                :types::text[],
-                :entity_types::text[],
-                :payment_methods::text[],
-                :category_ids::int[],
-                :subcategory_ids::int[],
-                :group_ids::text[],
-                :recurring_account_ids::int[],
-                :user_ids::int[]
-            )
-            ON CONFLICT (group_id, date_trunc('month', transaction_date)) DO NOTHING
-        """)
+        await self.db.execute(insert(TransactionORM), values_list)
+        await self.db.flush()
+        return len(values_list)
 
-        try:
-            # Extract arrays
-            result = await self.db.execute(
-                stmt,
-                {
-                    "amounts": [v["amount"] for v in values_list],
-                    "descriptions": [v["description"] for v in values_list],
-                    "installment_numbers": [v["installment_number"] for v in values_list],
-                    "total_installments": [v["total_installments"] for v in values_list],
-                    "transaction_dates": [v["transaction_date"] for v in values_list],
-                    "types": [v["type"] for v in values_list],
-                    "entity_types": [v["entity_type"] for v in values_list],
-                    "payment_methods": [v["payment_method"] for v in values_list],
-                    "category_ids": [v["category_id"] for v in values_list],
-                    "subcategory_ids": [v["subcategory_id"] for v in values_list],
-                    "group_ids": [v["group_id"] for v in values_list],
-                    "recurring_account_ids": [v["recurring_account_id"] for v in values_list],
-                    "user_ids": [v["user_id"] for v in values_list],
-                },
+    async def _existing_months(self, group_id: str, dates: list[dict]) -> set[tuple[int, int]]:
+        """(year, month) pairs of the group's transactions inside the span of ``dates``."""
+        first = min(d["transaction_date"] for d in dates).replace(day=1)
+        last = max(d["transaction_date"] for d in dates)
+        rows = await self.db.execute(
+            select(TransactionORM.transaction_date).where(
+                TransactionORM.group_id == str(group_id),
+                TransactionORM.transaction_date >= first,
+                TransactionORM.transaction_date <= last.replace(hour=23, minute=59, second=59),
             )
-            geradas = result.rowcount
-        except SQLAlchemyError as e:
-            # Fallback to original method if PostgreSQL-specific fails (e.g., SQLite in tests)
-            logger.warning(f"Bulk insert failed, falling back to row-by-row: {e}")
-            geradas = 0
-            for d in dates_to_insert:
-                already_exists = await self._check_transaction_exists(
-                    conta.group_id, d["transaction_date"].year, d["transaction_date"].month
-                )
-                if not already_exists:
-                    transacao = TransactionORM(
-                        amount=conta.amount,
-                        description=conta.description,
-                        installment_number=d["installment_number"],
-                        total_installments=conta.total_installments,
-                        transaction_date=d["transaction_date"],
-                        type="expense",
-                        entity_type=conta.entity_type,
-                        payment_method=conta.payment_method,
-                        category_id=conta.category_id,
-                        subcategory_id=conta.subcategory_id,
-                        group_id=gid_str,
-                        recurring_account_id=conta.id,
-                        user_id=user_id,
-                    )
-                    self.db.add(transacao)
-                    geradas += 1
-
-        if geradas > 0:
-            await self.db.flush()
-        return geradas
+        )
+        return {(day.year, day.month) for day in rows.scalars()}
 
     async def renew(self, conta_id: int, user_id: int) -> RecurringAccountORM | None:
         """Re-activate and generate 12 more installments from current month."""

@@ -5,15 +5,17 @@ from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.database import get_session
 from app.core.errors import ConflictError, ValidationError
 from app.db.models.category import CategoryORM
+from app.db.models.transaction import TransactionORM
 from app.db.repositories.dashboard import invalidate_opcoes_categorias_cache
 from app.db.repositories.subcategory import SubcategoriaRepository
 from app.logger import log_database_operation
 from app.schemas.categories import CategoriaCreate, CategoriaUpdate
+
+HAS_TRANSACTIONS_MESSAGE = "Categoria possui transações vinculadas"
 
 
 class CategoriaRepository:
@@ -42,6 +44,15 @@ class CategoriaRepository:
         else:
             log.warning(f"Categoria {id} não encontrada")
         return categoria
+
+    async def _has_transactions(self, category_id: int, user_id: int) -> bool:
+        """True when the user has at least one transaction in the category."""
+        result = await self.db.execute(
+            select(TransactionORM.id)
+            .where(TransactionORM.category_id == category_id, TransactionORM.user_id == user_id)
+            .limit(1)
+        )
+        return result.first() is not None
 
     async def get_by_nome(self, nome: str, user_id: int) -> CategoryORM | None:
         result = await self.db.execute(
@@ -106,13 +117,10 @@ class CategoriaRepository:
             log.info(f"Categoria {instance.id} criada")
             invalidate_opcoes_categorias_cache()
 
-            # Recarrega categoria completa com subcategorias
-            result = await self.db.execute(
-                select(self.model)
-                .options(selectinload(self.model.subcategories))
-                .where(self.model.id == instance.id)
-            )
-            return result.scalars().first()
+            # The collection loaded by the first refresh is stale once subcategories were
+            # added: reload just that attribute so the returned category is complete.
+            await self.db.refresh(instance, attribute_names=["subcategories"])
+            return instance
 
         except IntegrityError as e:
             err = str(e)
@@ -202,8 +210,15 @@ class CategoriaRepository:
         categoria = await self.get_by_id(id, user_id)
         if not categoria:
             return None
+        if await self._has_transactions(id, user_id):
+            log.warning(f"Categoria {id} tem transações vinculadas; exclusão recusada")
+            raise ConflictError(HAS_TRANSACTIONS_MESSAGE)
         await self.db.delete(categoria)
-        await self.db.flush()
+        try:
+            await self.db.flush()
+        except IntegrityError as e:
+            log.warning(f"Categoria {id} referenciada por outros dados: {e.orig}")
+            raise ConflictError(HAS_TRANSACTIONS_MESSAGE) from e
         invalidate_opcoes_categorias_cache()
         log.info(f"Categoria {id} excluída")
         return categoria

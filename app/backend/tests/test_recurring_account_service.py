@@ -4,12 +4,13 @@ from datetime import UTC, datetime
 
 import pytest
 import time_machine
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 
 from app.core.errors import NotFoundError, UnprocessableError
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.recurring_account import RecurringAccountORM
 from app.db.models.transaction import TransactionORM
+from app.db.repositories.recurring_account import ContaRecorrenteRepository
 from app.schemas.recurring_account import (
     ContaRecorrenteCreate,
     ContaRecorrenteUpdate,
@@ -163,3 +164,45 @@ async def test_generate_only_touches_the_users_accounts(make_uow, evaluations):
     )
 
     assert generated == 0
+
+
+@pytest.mark.asyncio
+async def test_installments_use_one_portable_bulk_insert_and_skip_existing_months(
+    async_session, make_uow
+):
+    """Q12 e: no Postgres-only SQL; months that already have a transaction are skipped."""
+    uow, user = await make_uow(1)
+    account = await RecurringAccountService(uow, user).create(_payload(total_installments=4))
+    repo = ContaRecorrenteRepository(uow.session)
+    rows = (
+        (
+            await async_session.execute(
+                select(TransactionORM)
+                .where(TransactionORM.recurring_account_id == account.id)
+                .order_by(TransactionORM.transaction_date)
+            )
+        )
+        .unique()
+        .scalars()
+    )
+    await async_session.delete(next(iter(rows)))
+    await async_session.flush()
+
+    statements: list[str] = []
+
+    def _capture(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    sync_engine = async_session.bind.sync_engine
+    event.listen(sync_engine, "before_cursor_execute", _capture)
+    try:
+        created = await repo._generate_installments(account, user.id)
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", _capture)
+
+    assert created == 1
+    assert await _count(async_session, TransactionORM) == 4
+    inserts = [s for s in statements if s.lstrip().upper().startswith("INSERT INTO TRANSACOES")]
+    assert len(inserts) == 1
+    assert not any("UNNEST" in s.upper() or "ON CONFLICT" in s.upper() for s in statements)
+    assert await repo._generate_installments(account, user.id) == 0
