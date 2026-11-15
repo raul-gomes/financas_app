@@ -16,7 +16,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { RecurringBillsTable } from '@/components/recorrentes/RecurringBillsTable';
-import { isEndingSoon } from '@/lib/recurringBills';
 
 const RecurrentBills = () => {
   const queryClient = useQueryClient();
@@ -100,7 +99,7 @@ const RecurrentBills = () => {
 
   const activeContas = contas.filter((c) => c.active);
   const monthlyTotal = activeContas.reduce((sum, c) => sum + c.amount, 0);
-  const endingCount = contas.filter(isEndingSoon).length;
+  const endingCount = contas.filter((c) => c.is_ending_soon).length;
 
   return (
     <div className="min-h-screen bg-gradient-subtle">

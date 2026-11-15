@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import pytest
+import time_machine
 
 
 def _expected_remaining_2026(total: int = 12) -> int:
@@ -225,28 +226,54 @@ async def test_renew_conta_recorrente(client):
 
 
 @pytest.mark.asyncio
-async def test_generate_pending_transactions(client):
-    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta6")
-    await client.post(
-        "/recurring-accounts/",
-        json={
-            "description": "Gas",
-            "amount": 60.0,
-            "due_day": 10,
-            "category_id": cat_id,
-            "subcategory_id": sub_id,
-            "entity_type": "individual",
-            "payment_method": "pix",
-            "start_date": "2025-01-01T00:00:00",
-        },
-    )
+async def test_legacy_generate_endpoint_is_gone(client):
+    """The backend alone owns the installments: there is no bulk-generation endpoint."""
     response = await client.post(
         "/recurring-accounts/generate",
-        json={
-            "start_date": "2026-01-01T00:00:00",
-            "end_date": "2026-03-31T00:00:00",
-        },
+        json={"start_date": "2026-01-01T00:00:00", "end_date": "2026-03-31T00:00:00"},
     )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["generated"] >= 0
+    assert response.status_code in (404, 405, 422)
+    assert "/recurring-accounts/generate" not in client._transport.app.openapi()["paths"]
+
+
+@pytest.mark.asyncio
+async def test_installment_state_comes_from_the_api(client):
+    """current_installment, is_ending_soon and can_renew are computed by the backend only."""
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Estado")
+    payload = {
+        "description": "Plano",
+        "amount": 30.0,
+        "due_day": 10,
+        "category_id": cat_id,
+        "subcategory_id": sub_id,
+        "entity_type": "individual",
+        "payment_method": "pix",
+        "start_date": "2026-01-01T00:00:00",
+    }
+    with time_machine.travel(datetime(2026, 5, 15, 12), tick=False):
+        created = (await client.post("/recurring-accounts/", json=payload)).json()
+    account_id = created["id"]
+
+    async def state(now: datetime) -> dict:
+        with time_machine.travel(now, tick=False):
+            listed = (await client.get("/recurring-accounts/")).json()
+        return next(a for a in listed if a["id"] == account_id)
+
+    middle = await state(datetime(2026, 5, 15, 12))  # 5th installment, 8 left
+    assert (middle["current_installment"], middle["is_ending_soon"], middle["can_renew"]) == (
+        5,
+        False,
+        False,
+    )
+    tenth = await state(datetime(2026, 10, 15, 12))  # 10th installment, 3 left
+    assert (tenth["current_installment"], tenth["is_ending_soon"], tenth["can_renew"]) == (
+        10,
+        True,
+        False,
+    )
+    eleventh = await state(datetime(2026, 11, 15, 12))  # 11th installment, 2 left
+    assert (eleventh["current_installment"], eleventh["is_ending_soon"], eleventh["can_renew"]) == (
+        11,
+        True,
+        True,
+    )

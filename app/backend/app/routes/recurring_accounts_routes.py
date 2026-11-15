@@ -2,15 +2,12 @@
 
 from fastapi import APIRouter, Depends, Query, Request, status
 
-from app.core.security import require_admin
 from app.logger import log_api_request
 from app.routes.dependencies import get_recurring_account_reader, get_recurring_account_service
 from app.schemas.recurring_account import (
     ContaRecorrenteCreate,
     ContaRecorrenteResponse,
     ContaRecorrenteUpdate,
-    GenerateRequest,
-    GenerateResponse,
 )
 from app.services.recurring_account_service import RecurringAccountService
 
@@ -99,15 +96,3 @@ async def renew_conta_recorrente(
     conta = await service.renew(conta_id)
     log.info(f"Conta recorrente {conta_id} renovada")
     return conta
-
-
-@router.post("/generate", response_model=GenerateResponse, dependencies=[Depends(require_admin)])
-async def generate_recurrent_transactions(
-    request: Request,
-    payload: GenerateRequest,
-    service: RecurringAccountService = Depends(get_recurring_account_service),
-):
-    log = log_api_request(method="POST", endpoint=str(request.url), payload=payload.model_dump())
-    geradas, detalhes = await service.generate(payload)
-    log.info(f"{geradas} transacoes recorrentes geradas")
-    return GenerateResponse(generated=geradas, details=detalhes)

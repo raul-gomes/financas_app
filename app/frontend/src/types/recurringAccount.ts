@@ -1,8 +1,7 @@
 import type { z } from 'zod';
-import type { contaRecorrenteSchema, generateResponseSchema } from '@/schemas/recurringAccount';
+import type { contaRecorrenteSchema } from '@/schemas/recurringAccount';
 
 export type ContaRecorrente = z.infer<typeof contaRecorrenteSchema>;
-export type GenerateResponse = z.infer<typeof generateResponseSchema>;
 
 export interface ContaRecorrenteCreate {
   description: string;

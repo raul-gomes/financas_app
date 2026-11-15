@@ -16,10 +16,8 @@ from app.schemas.categories import CategoriaCreate
 from app.schemas.recurring_account import (
     ContaRecorrenteCreate,
     ContaRecorrenteUpdate,
-    GenerateRequest,
 )
 from app.schemas.subcategory import SubcategoriaCreate
-from app.services.limit_alert_service import trigger_limit_evaluation
 
 NOT_FOUND_MESSAGE = "Conta recorrente nao encontrada"
 CATEGORY_REQUIRED_MESSAGE = "category_id or category_name is required"
@@ -72,23 +70,6 @@ class RecurringAccountService:
     async def renew(self, account_id: int) -> RecurringAccountORM:
         """Reactivates one of the user's accounts and generates 12 more installments."""
         return self._found(await self.repo.renew(account_id, self.user.id))
-
-    async def generate(self, payload: GenerateRequest) -> tuple[int, list[str]]:
-        """Generates the user's pending recurring transactions in the period.
-
-        Returns the number generated and a description of each. Limits are re-evaluated for
-        the period's first month once the transaction is committed.
-        """
-        generated, details = await self.repo.generate_pending_transactions(payload, self.user.id)
-        user_id = self.user.id
-        session = self.uow.session
-        year, month = payload.start_date.year, payload.start_date.month
-
-        async def evaluate() -> None:
-            await trigger_limit_evaluation(session, user_id, year=year, month=month)
-
-        self.uow.after_commit(evaluate)
-        return generated, details
 
     async def _resolve_category_and_subcategory(
         self, payload: ContaRecorrenteCreate | ContaRecorrenteUpdate

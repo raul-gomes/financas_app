@@ -88,7 +88,8 @@ financas_app/
 │   │   │       ├── goal_service.py             # GoalService: metas do usuário (list_goals/create/update/delete/complete/reactivate/progress); NotFoundError/ConflictError; só flush
 │   │   │       ├── shopping_service.py         # ShoppingService: lista de compras do usuário (list_month com rollover, create/update/delete, generate_recurring); NotFoundError; só flush
 │   │   │       ├── settings_service.py         # SettingsService: perfil (nome, chave Pluggy cifrada), bancos e assign_random_banks do usuário; NotFoundError/ValidationError; só flush
-│   │   │       ├── recurring_account_service.py # RecurringAccountService: contas recorrentes do usuário (CRUD, renew, generate); resolve/cria categoria e subcategoria por nome; avalia limites após o commit; só flush
+│   │   │       ├── recurring_installments.py    # installment_state: regra única (função pura) de parcela atual, "acabando" (>= 10ª) e pode renovar (<= 2 restantes)
+│   │   │       ├── recurring_account_service.py # RecurringAccountService: contas recorrentes do usuário (CRUD, renew); resolve/cria categoria e subcategoria por nome; avalia limites após o commit; só flush
 │   │   │       ├── extract_service.py          # ExtractService: parse_upload (CSV/OFX por extensão ou conteúdo) e confirm (importação em lote, só flush; limites avaliados após o commit no mês mais antigo)
 │   │   │       ├── pluggy_sync_service.py      # PluggySyncService: contas, validar chave e sync do Pluggy do usuário (chave decifrada do usuário autenticado), dedupe pelo id do provedor (external_id) e aviso de duplicata só p/ linhas sem id; limites após o commit; pluggy_client_for
 │   │   │       ├── notification_service.py     # NotificationService: alertas de limite do usuário (list_notifications, mark_read, mark_all_read); só altera linhas carregadas, commit da unit of work
@@ -106,7 +107,7 @@ financas_app/
 │   │   │   ├── test_logger_redaction.py        # Credenciais nunca chegam ao log (redact, log_api_request)
 │   │   │   ├── test_ofx_parser.py              # OFX 1.x (SGML) e 2.x (XML) reais
 │   │   │   ├── test_batch_from_extract.py      # Lote por nome de categoria/subcategoria (sync Pluggy)
-│   │   │   ├── test_admin_guard.py             # Etapa 9: rotas admin-only → 403 para role='user' (pluggy, export, shopping, goals, extract) + acesso user a recurring-accounts (generate segue 403)
+│   │   │   ├── test_admin_guard.py             # Etapa 9: rotas admin-only → 403 para role='user' (pluggy, export, shopping, goals, extract) + acesso user a recurring-accounts 
 │   │   │   ├── test_auth_required.py           # Etapa 4: cada rota sem token → 401 (client_no_auth)
 │   │   │   ├── test_category_isolation.py      # Etapa 5: isolamento por usuário de categorias/subcategorias (via client_user2 + clients_ctrl)
 │   │   │   ├── test_transaction_isolation.py   # Etapa 6: isolamento de transações por usuário (list, get, update, delete, duplicatas, extrato, export)
@@ -121,6 +122,7 @@ financas_app/
 │   │   │   ├── test_categories.py              # CRUD categorias + subcategorias + duplicatas (409)
 │   │   │   ├── test_dashboard.py               # Endpoints do dashboard (extrato, rendimento, gastos)
 │   │   │   ├── test_limits.py                  # Atualização em lote de limites
+│   │   │   ├── test_recurring_installments.py  # regra única do estado das parcelas (constantes, limites, inativa)
 │   │   │   ├── test_recurring_accounts.py      # CRUD contas recorrentes + parcelas + renovação
 │   │   │   ├── test_recurring_account_isolation.py # Etapa 7: isolamento de contas recorrentes por usuário (list, get, update, delete, renew) + geração de parcelas com user_id
 │   │   │   ├── test_extract.py                 # Upload e confirmação de extratos CSV
@@ -395,7 +397,6 @@ financas_app/
 │       │   │       ├── extractReview.ts            # Regras puras da revisão do extrato: rascunhos por linha (chaveados por rowId), validação, payload de confirmação, totais, duplicatas, contagem (+ teste)
 │       │   │       ├── pluggySync.ts               # formatSyncSummary: mensagem pt-BR da sincronização Pluggy com os totais já existentes e vinculados (+ teste)
 │       │   │       ├── bankLogo.ts                 # URL do logo, iniciais e paleta do fallback dos bancos (+ teste)
-│       │   │       ├── recurringBills.ts           # currentInstallment e isEndingSoon das contas recorrentes (+ teste)
 │       │   │       ├── statementAggregates.ts      # Funções puras sobre os agregados do /dashboard/statement: gráfico diário (buildDailyData), total por forma de pagamento, itens por banco, parcelas (+ teste)
 │       │   │       ├── months.ts                   # YearMonth, addMonths, toYearMonth, SHORT_MONTHS (+ teste)
 │       │   │       ├── recentMonths.ts             # Janela dos últimos 6 meses a partir dos payloads anuais (+ teste)

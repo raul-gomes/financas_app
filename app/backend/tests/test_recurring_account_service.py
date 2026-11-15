@@ -14,7 +14,6 @@ from app.db.repositories.recurring_account import ContaRecorrenteRepository
 from app.schemas.recurring_account import (
     ContaRecorrenteCreate,
     ContaRecorrenteUpdate,
-    GenerateRequest,
 )
 from app.services import recurring_account_service as module
 from app.services.recurring_account_service import RecurringAccountService
@@ -131,39 +130,6 @@ async def test_deactivating_cancels_future_transactions_and_delete_removes_all(
     await service.delete(account_id)
     await uow.commit()
     assert await _count(async_session, RecurringAccountORM) == 0
-
-
-@pytest.mark.asyncio
-async def test_generate_evaluates_limits_only_after_the_commit(
-    async_session, make_uow, evaluations
-):
-    uow, user = await make_uow(1)
-    service = RecurringAccountService(uow, user)
-    await service.create(_payload(start_date="2026-01-01T00:00:00", total_installments=1))
-
-    generated, details = await service.generate(
-        GenerateRequest(start_date="2026-02-01T00:00:00", end_date="2026-02-28T00:00:00")
-    )
-
-    assert generated == 1
-    assert len(details) == 1
-    assert evaluations == []
-    await uow.commit()
-    assert evaluations == [(1, 2026, 2)]
-
-
-@pytest.mark.asyncio
-async def test_generate_only_touches_the_users_accounts(make_uow, evaluations):
-    owner_uow, owner = await make_uow(1)
-    await RecurringAccountService(owner_uow, owner).create(_payload(total_installments=1))
-    await owner_uow.commit()
-    other_uow, other = await make_uow(2)
-
-    generated, _ = await RecurringAccountService(other_uow, other).generate(
-        GenerateRequest(start_date="2026-04-01T00:00:00", end_date="2026-04-30T00:00:00")
-    )
-
-    assert generated == 0
 
 
 @pytest.mark.asyncio

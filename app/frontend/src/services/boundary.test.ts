@@ -292,16 +292,18 @@ describe('ContaRecorrenteService boundary', () => {
     id: 1, description: 'Netflix', amount: 55.9, due_day: 10, category_id: 1, subcategory_id: 2,
     category_name: 'Lazer', subcategory_name: 'Streaming', entity_type: 'individual', payment_method: 'credit',
     bank_code: null, start_date: '2026-01-01T00:00:00', end_date: null, active: true, total_installments: 12,
-    remaining_installments: 8, current_installment: 5, is_ending_soon: false,
+    remaining_installments: 8, current_installment: 5, is_ending_soon: false, can_renew: false,
   };
 
-  it('parses valid recurring accounts and generation result', async () => {
+  it('parses valid recurring accounts', async () => {
     respondWith([conta]);
     await expect(ContaRecorrenteService.getAll()).resolves.toEqual([conta]);
     respondWith(conta);
     await expect(ContaRecorrenteService.getById(1)).resolves.toEqual(conta);
-    respondWith({ generated: 2, details: ['a', 'b'] });
-    await expect(ContaRecorrenteService.generate(range.from, range.to)).resolves.toHaveProperty('generated', 2);
+  });
+
+  it('has no bulk generation call: the backend owns the installments', () => {
+    expect('generate' in ContaRecorrenteService).toBe(false);
   });
 
   it('rejects malformed recurring accounts', async () => {
@@ -309,8 +311,6 @@ describe('ContaRecorrenteService boundary', () => {
     await expect(ContaRecorrenteService.getAll()).rejects.toBeInstanceOf(ApiSchemaError);
     respondWith({ ...conta, entity_type: 'all' });
     await expect(ContaRecorrenteService.renew(1)).rejects.toBeInstanceOf(ApiSchemaError);
-    respondWith({ generated: 'x', details: [] });
-    await expect(ContaRecorrenteService.generate(range.from, range.to)).rejects.toBeInstanceOf(ApiSchemaError);
   });
 });
 

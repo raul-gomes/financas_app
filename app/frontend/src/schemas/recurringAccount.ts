@@ -20,12 +20,7 @@ export const contaRecorrenteSchema = z.object({
   remaining_installments: z.number(),
   current_installment: z.number(),
   is_ending_soon: z.boolean(),
+  can_renew: z.boolean(),
 });
 
 export const contaRecorrenteListSchema = z.array(contaRecorrenteSchema);
-
-/** `GenerateResponse`. */
-export const generateResponseSchema = z.object({
-  generated: z.number(),
-  details: z.array(z.string()),
-});

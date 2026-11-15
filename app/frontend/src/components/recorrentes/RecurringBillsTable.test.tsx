@@ -13,6 +13,7 @@ const base = (over: Partial<ContaRecorrente>): ContaRecorrente => ({
   bank_code: null,
   current_installment: 5,
   is_ending_soon: false,
+  can_renew: false,
   category_id: 1,
   subcategory_id: 1,
   category_name: 'Lazer',
@@ -27,8 +28,8 @@ const base = (over: Partial<ContaRecorrente>): ContaRecorrente => ({
 
 const contas: ContaRecorrente[] = [
   base({ id: 1 }),
-  base({ id: 2, description: 'Academia', active: false }),
-  base({ id: 3, description: 'Notebook', total_installments: 12, remaining_installments: 1, bank_code: '260' }),
+  base({ id: 2, description: 'Academia', active: false, can_renew: true }),
+  base({ id: 3, description: 'Notebook', total_installments: 12, remaining_installments: 1, current_installment: 12, is_ending_soon: true, can_renew: true, bank_code: '260' }),
 ];
 
 describe('RecurringBillsTable', () => {
@@ -82,5 +83,14 @@ describe('RecurringBillsTable', () => {
     expect(renewButtons.length).toBeGreaterThan(0);
     fireEvent.click(renewButtons[0]);
     expect(props.onRenew).toHaveBeenCalled();
+  });
+
+  it('lê o estado das parcelas da API: badge, parcela e renovação não são recalculados', () => {
+    const conta = base({ id: 9, description: 'Plano', current_installment: 7, remaining_installments: 1, is_ending_soon: false, can_renew: false });
+    render(<RecurringBillsTable {...setup({ contas: [conta] })} />);
+
+    expect(screen.queryByText('Acabando')).not.toBeInTheDocument();
+    expect(screen.getByText('7/12')).toBeInTheDocument();
+    expect(screen.getByTitle('Ainda há parcelas restantes')).toBeDisabled();
   });
 });

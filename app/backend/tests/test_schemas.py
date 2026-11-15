@@ -19,8 +19,6 @@ from app.schemas.limits import (
 from app.schemas.recurring_account import (
     ContaRecorrenteCreate,
     ContaRecorrenteUpdate,
-    GenerateRequest,
-    GenerateResponse,
 )
 from app.schemas.subcategory import SubcategoriaCreate
 from app.schemas.transaction import (
@@ -252,13 +250,3 @@ class TestLimitsSchemas:
         )
         assert r.success is True
         assert r.created_categories == 1
-
-
-class TestGenerateRequestResponse:
-    def test_generate_request(self):
-        r = GenerateRequest(start_date=datetime(2026, 1, 1), end_date=datetime(2026, 12, 31))
-        assert r.start_date.year == 2026
-
-    def test_generate_response(self):
-        r = GenerateResponse(generated=3, details=["Bill 1", "Bill 2"])
-        assert r.generated == 3

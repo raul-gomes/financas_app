@@ -33,7 +33,7 @@ export function OverviewDashboard({ isAdmin = false }: OverviewDashboardProps) {
   const [entityType, setEntityType] = useState<EntityTypeFilter>('all');
   const entityParam: OverviewEntityType =
     entityType === 'pf' ? 'individual' : entityType === 'pj' ? 'business' : 'all';
-  const { data, isPending } = useOverviewQuery(year, month, entityParam, isAdmin);
+  const { data, isPending } = useOverviewQuery(year, month, entityParam);
 
   const changeMonth = (delta: number) => {
     const d = new Date(year, month - 1 + delta, 1);

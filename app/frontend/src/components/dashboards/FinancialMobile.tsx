@@ -33,8 +33,6 @@ interface FinancialMobileProps {
   onMonthChange: (month: YearMonth) => void;
   entityType: EntityScope;
   onEntityTypeChange: (type: EntityScope) => void;
-  /** True once the period's recurring bills exist (admins generate them first); gates the chart. */
-  recurringReady: boolean;
   dateRange: { from: Date; to: Date };
   /** Server-side aggregates of the period (feed the payment KPI cards); null while loading. */
   statement: StatementAggregates | null;
@@ -57,7 +55,6 @@ export function FinancialMobile({
   onMonthChange,
   entityType,
   onEntityTypeChange,
-  recurringReady,
   dateRange,
   statement,
   creditCardLimit,
@@ -68,7 +65,7 @@ export function FinancialMobile({
   onEditTransaction,
   onDeleteTransaction,
 }: FinancialMobileProps) {
-  const recent = useRecentMonths(month, entityType, recurringReady);
+  const recent = useRecentMonths(month, entityType);
   const aggregates = statement ?? EMPTY_STATEMENT_AGGREGATES;
 
   return (

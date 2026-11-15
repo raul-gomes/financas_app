@@ -28,7 +28,6 @@ const mockBreakdown = vi.fn();
 const mockIncome = vi.fn();
 const mockYearInvestments = vi.fn();
 const mockDelete = vi.fn();
-const mockGenerate = vi.fn();
 
 vi.mock('@/services/financialService', () => ({
   TRANSACTIONS_PAGE_SIZE: 30,
@@ -40,12 +39,6 @@ vi.mock('@/services/financialService', () => ({
     getYearInvestments: (...args: unknown[]) => mockYearInvestments(...args),
     updateTransaction: vi.fn(),
     deleteTransaction: (...args: unknown[]) => mockDelete(...args),
-  },
-}));
-
-vi.mock('@/services/recurringAccountService', () => ({
-  ContaRecorrenteService: {
-    generate: (...args: unknown[]) => mockGenerate(...args),
   },
 }));
 
@@ -123,7 +116,6 @@ beforeEach(() => {
   mockBreakdown.mockResolvedValue(null);
   mockIncome.mockResolvedValue(null);
   mockYearInvestments.mockResolvedValue([]);
-  mockGenerate.mockResolvedValue(undefined);
   mockDelete.mockResolvedValue(undefined);
 });
 
@@ -150,7 +142,6 @@ describe('Financial page - dados com react-query', () => {
     expect(mockBreakdown).toHaveBeenCalledTimes(1);
     expect(mockIncome).toHaveBeenCalledTimes(1);
     expect(mockYearInvestments).toHaveBeenCalledTimes(1);
-    expect(mockGenerate).not.toHaveBeenCalled();
   });
 
   it('conta os investimentos do período (total_invested) como saída no saldo', async () => {
@@ -189,46 +180,22 @@ describe('Financial page - dados com react-query', () => {
     expect(screen.getByTestId('entity').textContent).toBe('pj');
   });
 
-  it('admin: gera as recorrentes antes de buscar os dashboards', async () => {
-    mockIsAdmin.mockReturnValue(true);
-    let finishGeneration: () => void = () => {};
-    mockGenerate.mockReturnValue(new Promise<void>((resolve) => { finishGeneration = resolve; }));
+  it.each([
+    ['admin no desktop', true, false],
+    ['admin no celular', true, true],
+    ['usuário comum', false, false],
+  ])('%s: busca os dashboards direto, sem disparar geração de recorrentes', async (_label, admin, mobile) => {
+    mockIsAdmin.mockReturnValue(admin);
+    mockIsMobile.mockReturnValue(mobile);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
     renderWithQuery(<Financial />);
-
-    await waitFor(() => expect(mockGenerate).toHaveBeenCalledTimes(1));
-    expect(mockSummary).not.toHaveBeenCalled();
-
-    finishGeneration();
 
     await waitFor(() => expect(mockSummary).toHaveBeenCalledTimes(1));
-  });
-
-  it('admin no celular: o gráfico de 6 meses espera as recorrentes do mês', async () => {
-    mockIsAdmin.mockReturnValue(true);
-    mockIsMobile.mockReturnValue(true);
-    let finishGeneration: () => void = () => {};
-    mockGenerate.mockReturnValue(new Promise<void>((resolve) => { finishGeneration = resolve; }));
-
-    renderWithQuery(<Financial />);
-
-    await waitFor(() => expect(mockGenerate).toHaveBeenCalledTimes(1));
-    expect(mockYearly).not.toHaveBeenCalled();
-
-    finishGeneration();
-
     await waitFor(() => expect(mockYearly).toHaveBeenCalled());
-  });
-
-  it('admin: uma falha ao gerar recorrentes é registrada e não bloqueia os dados', async () => {
-    mockIsAdmin.mockReturnValue(true);
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockGenerate.mockRejectedValue(new Error('falhou'));
-
-    renderWithQuery(<Financial />);
-
-    await waitFor(() => expect(mockSummary).toHaveBeenCalledTimes(1));
-    expect(logged).toHaveBeenCalled();
+    const urls = fetchSpy.mock.calls.map(([input]) => String(input));
+    expect(urls.some((url) => url.includes('/recurring-accounts/generate'))).toBe(false);
+    fetchSpy.mockRestore();
   });
 
   it('só ativa a virada do mês depois que os dados do mês chegam', async () => {
