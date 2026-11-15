@@ -38,6 +38,9 @@ Observação: as migrations (`alembic upgrade head`) rodam no start do backend e
 | `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` | Backend local fora do Docker. |
 | `DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas uv run alembic upgrade head` | Aplicar migrations no Postgres do Docker (porta 5436 no host). |
 | `DATABASE_URL=postgresql+asyncpg://<usuário>:<senha>@localhost:5436/financas uv run alembic check` | Falha se os models divergem das migrations (rode após `upgrade head`; roda no CI contra um Postgres descartável). |
+| `docker run -d --rm --name financas-pgtest -e POSTGRES_USER=t -e POSTGRES_PASSWORD=t -e POSTGRES_DB=t -p 55432:5432 postgres:16-alpine` | Postgres descartável (porta livre 55432) para os testes marcados `postgres`. Espere ~5 s (`docker exec financas-pgtest pg_isready -U t`). |
+| `DATABASE_URL=sqlite+aiosqlite:///:memory: TEST_POSTGRES_URL=postgresql+asyncpg://t:t@localhost:55432/t uv run pytest -m postgres` | Testes de integração do Postgres (`tests/test_postgres_integration.py`: parcelas em lote, advisory lock, savepoints, índice único do id do provedor, paginação por cursor). A fixture **apaga e recria o schema `public`** e roda `alembic upgrade head`; nunca aponte para dados reais. Sem `TEST_POSTGRES_URL` esses testes são pulados (`-m "not postgres"` os exclui). No CI rodam contra o serviço `postgres:16`. |
+| `docker stop financas-pgtest` | Remove o container descartável (`--rm` apaga ao parar). |
 | `uv run alembic revision -m "<descrição>"` | Nova migration (nunca editar uma já aplicada). |
 | `SEED_USER_EMAIL=<seu-email-de-dev> DATABASE_URL=postgresql://<usuário>:<senha>@localhost:5436/financas uv run python -m app.scripts.seed` | Popular o banco de dev com dados de exemplo (usuário admin com o e-mail informado). |
 | `uv run ruff check .` / `uv run ruff format .` | Lint e formatação do backend (config em `pyproject.toml`; `--fix` aplica correções seguras). |

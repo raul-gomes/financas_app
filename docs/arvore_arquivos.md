@@ -141,6 +141,7 @@ financas_app/
 │   │   │   ├── test_settings_service.py        # SettingsService: rollback, bancos isolados por usuário, chave Pluggy cifrada/removida, assign_random_banks só com os bancos do usuário
 │   │   │   ├── test_recurring_account_service.py # RecurringAccountService: rollback desfaz conta+parcelas+categoria, nomes resolvidos, 422, isolamento, desativar cancela futuras, limites avaliados após commit
 │   │   │   ├── test_extract_service.py         # ExtractService: parse (extensão/conteúdo/OFX hostil), confirm só flush + rollback, limites após commit no mês mais antigo, falha do lote vira erro sem poluir a sessão
+│   │   │   ├── test_postgres_integration.py    # Marcador `postgres` (TEST_POSTGRES_URL; pulado sem ele): schema recriado + alembic upgrade head; parcelas em lote, advisory lock, savepoints (limites e lote de extrato), índice único parcial do id do provedor, paginação por cursor
 │   │   │   ├── test_pluggy_sync_service.py     # PluggySyncService: importação do usuário, rollback, duplicatas só do usuário, sem chave → 400, chave ilegível → 500 sem vazar, validate_key
 │   │   │   ├── test_notification_service.py    # NotificationService: lista só do usuário (severity computada), marcar lido só vale após o commit, id alheio/inexistente = success False
 │   │   │   ├── test_export_service.py          # ExportService: CSV/OFX exatos com relógio fixo, fim em aberto = hoje, só dados do usuário, data inválida → 400
