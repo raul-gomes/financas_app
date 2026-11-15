@@ -473,7 +473,7 @@ Fileira de chips que **rola na horizontal** (nunca quebra nem estoura a tela): f
 ### 8.6 `/financial` no mobile
 
 `FinancialMobile` (`dashboards/`) monta a página abaixo de `md` na ordem do mock: seletor de mês no `MobileTopBarSlot`, chips de seção (`ChartAnchors`, rolam na horizontal),
-`PaymentKpiCards` (carrossel com snap), `MonthlyBarsChart` (6 meses, legenda embaixo, toque lê o valor) e `TransactionListMobile`
+`PaymentKpiCards` (carrossel com snap; lê os agregados do `/dashboard/statement`, nunca linhas de transação), `MonthlyBarsChart` (6 meses, legenda embaixo, toque lê o valor) e `TransactionListMobile`
 (lançamentos agrupados por dia; tocar na linha abre `TransactionDetailSheet` com Editar/Excluir; a lixeira não aparece na linha), depois `FixedVariableCard` e as categorias.
 O desktop segue com `FinancialDashboard` + `TransactionList` (os dois usam `PaymentKpiCards`, `FixedVariableCard` e o hook `useTransactionList`).
 `useRecentMonths` (em `useFinancialQueries`) lê o ano do mês final e, se a janela cruza o ano, o anterior.

@@ -10,7 +10,13 @@ import { MobileTopBarSlot } from '@/components/layout/MobileTopBar';
 import { MonthStepper } from '@/components/layout/MonthStepper';
 import { useRecentMonths } from '@/hooks/queries/useFinancialQueries';
 import type { YearMonth } from '@/lib/months';
-import type { CategoryBreakdown, IncomeBySubcategoria, Transaction } from '@/types/financial';
+import { EMPTY_STATEMENT_AGGREGATES } from '@/lib/statementAggregates';
+import type {
+  CategoryBreakdown,
+  IncomeBySubcategoria,
+  StatementAggregates,
+  Transaction,
+} from '@/types/financial';
 
 type EntityScope = 'all' | 'pf' | 'pj';
 
@@ -28,8 +34,8 @@ interface FinancialMobileProps {
   entityType: EntityScope;
   onEntityTypeChange: (type: EntityScope) => void;
   dateRange: { from: Date; to: Date };
-  /** Transactions of the period (feed the payment KPI cards). */
-  transactions: Transaction[];
+  /** Server-side aggregates of the period (feed the payment KPI cards); null while loading. */
+  statement: StatementAggregates | null;
   creditCardLimit: number;
   fixedExpenses: number;
   variableExpenses: number;
@@ -50,7 +56,7 @@ export function FinancialMobile({
   entityType,
   onEntityTypeChange,
   dateRange,
-  transactions,
+  statement,
   creditCardLimit,
   fixedExpenses,
   variableExpenses,
@@ -60,6 +66,7 @@ export function FinancialMobile({
   onDeleteTransaction,
 }: FinancialMobileProps) {
   const recent = useRecentMonths(month, entityType, true);
+  const aggregates = statement ?? EMPTY_STATEMENT_AGGREGATES;
 
   return (
     <div className="min-w-0 space-y-4 px-4 py-4">
@@ -69,7 +76,12 @@ export function FinancialMobile({
 
       <ChartAnchors items={[...SECTION_ANCHORS]} />
 
-      <PaymentKpiCards transactions={transactions} creditCardLimit={creditCardLimit} />
+      <PaymentKpiCards
+        expensesByPaymentMethod={aggregates.expenses_by_payment_method}
+        expensesByBank={aggregates.expenses_by_bank}
+        installmentsDue={aggregates.installments_due}
+        creditCardLimit={creditCardLimit}
+      />
 
       <Card id="dashboard-ancora-rendimento" className="scroll-mt-20 border-none p-4 shadow-card">
         <h2 className="mb-3 text-sm font-bold text-foreground">Últimos 6 meses</h2>

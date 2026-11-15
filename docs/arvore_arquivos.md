@@ -208,11 +208,11 @@ financas_app/
 │       │   │   │   └── PluggyInfoDialog.tsx          # Modal de informações da integração Pluggy
 │       │   │   │
 │       │   │   ├── dashboards/                 # Componentes de dashboard
-│       │   │   │   ├── FinancialDashboard.tsx   # Dashboard financeiro: orçamento, gráfico flip, categorias; cartão com barra de % (>=80 warning, estourado destructive + badge "Estourando")
+│       │   │   │   ├── FinancialDashboard.tsx   # Dashboard financeiro: orçamento, gráfico flip (diário a partir de daily_totals), categorias; cartão com barra de % (>=80 warning, estourado destructive + badge "Estourando")
 │       │   │   │   ├── ChartAnchors.tsx         # Âncoras de navegação que rolam até cada gráfico/seção do dashboard
 │       │   │   │   ├── ChartAnchors.test.tsx    # Testes das âncoras (render, scrollIntoView, seção inexistente)
-│       │   │   │   ├── PaymentKpiCards.tsx      # Cards Pix/Crédito/Débito/Parcelas: carrossel snap no mobile, grid de 4 colunas no md+; detalhe por banco (useBanks, erro com toast)
-│       │   │   │   ├── PaymentKpiCards.test.tsx # Testes dos KPIs (totais, carrossel, detalhe por banco, erro de bancos)
+│       │   │   │   ├── PaymentKpiCards.tsx      # Cards Pix/Crédito/Débito/Parcelas: carrossel snap no mobile, grid de 4 colunas no md+; detalhe por banco; lê só os agregados do statement (expenses_by_payment_method/expenses_by_bank/installments_due), sem linhas
+│       │   │   │   ├── PaymentKpiCards.test.tsx # Testes dos KPIs (totais, carrossel, detalhe por banco vindo do servidor, parcelas, estouro do limite)
 │       │   │   │   ├── FixedVariableCard.tsx    # Card Gastos Fixos vs Variáveis (extraído do FinancialDashboard)
 │       │   │   │   ├── FinancialMobile.tsx      # /financial abaixo de md: mês no topo, chips de seção, KPIs, gráfico de 6 meses, lançamentos por dia, categorias
 │       │   │   │   ├── OverviewDashboard.tsx    # Dashboard geral da página inicial: indicadores, progresso mês, cartão (badge "Estourando" e tone 80/100), status limites, parcelas, recorrentes, metas/compras (admin); dados via useOverviewQuery (react-query)
@@ -369,6 +369,7 @@ financas_app/
 │       │       ├── utils.ts                    # cn() — merge de classes Tailwind (shadcn)
 │       │       ├── format.ts                   # formatCurrency/formatDate/formatPercent (fonte única de formatação)
 │       │   │       ├── transactionGroups.ts        # Agrupa lançamentos por dia ("Hoje · 14 nov") e formata valor com sinal (+ teste)
+│       │   │       ├── statementAggregates.ts      # Funções puras sobre os agregados do /dashboard/statement: gráfico diário (buildDailyData), total por forma de pagamento, itens por banco, parcelas (+ teste)
 │       │   │       ├── months.ts                   # YearMonth, addMonths, toYearMonth, SHORT_MONTHS (+ teste)
 │       │   │       ├── recentMonths.ts             # Janela dos últimos 6 meses a partir dos payloads anuais (+ teste)
 │       │   │       ├── transactionLabels.ts        # Rótulos pt-BR de forma de pagamento, categoria automática e tipo (+ teste)

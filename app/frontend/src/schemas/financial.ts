@@ -35,7 +35,45 @@ export const transactionPageSchema = z.object({
   next_cursor: z.string().nullable(),
 });
 
-/** `ExtratoResponse`. */
+/** `TotalDiario`: totals of one day (`date` is YYYY-MM-DD; only days with data are listed). */
+export const statementDailyTotalSchema = z.object({
+  date: z.string(),
+  income: z.number(),
+  expenses: z.number(),
+  investment: z.number(),
+});
+
+/** `TotalFormaPagamento`. */
+export const statementPaymentMethodTotalSchema = z.object({
+  payment_method: z.string(),
+  total: z.number(),
+});
+
+/** `TotalBanco`. */
+export const statementBankTotalSchema = z.object({
+  payment_method: z.string(),
+  bank_code: z.string(),
+  bank_name: z.string(),
+  total: z.number(),
+});
+
+/** `ParcelasAPagar` (`by_bank[].bank_code` is null for installments without a bank). */
+export const statementInstallmentsDueSchema = z.object({
+  remaining_amount: z.number(),
+  remaining_installments: z.number(),
+  transactions: z.number(),
+  by_bank: z.array(
+    z.object({
+      bank_code: z.string().nullable(),
+      bank_name: z.string(),
+      remaining_amount: z.number(),
+      remaining_installments: z.number(),
+      transactions: z.number(),
+    }),
+  ),
+});
+
+/** `ExtratoResponse` (aggregates only: the period's rows come from `/transacoes/paginated`). */
 export const financialSummarySchema = z.object({
   total_income: z.number(),
   total_expenses: z.number(),
@@ -43,10 +81,13 @@ export const financialSummarySchema = z.object({
   end_date: z.string(),
   monthly_goal: z.number(),
   total_invested: z.number(),
-  transactions: z.array(transactionSchema),
   credit_card_limit: z.number(),
   fixed_expenses: z.number(),
   variable_expenses: z.number(),
+  daily_totals: z.array(statementDailyTotalSchema),
+  expenses_by_payment_method: z.array(statementPaymentMethodTotalSchema),
+  expenses_by_bank: z.array(statementBankTotalSchema),
+  installments_due: statementInstallmentsDueSchema,
 });
 
 /** `RendimentoPeriodoResponse`. */
