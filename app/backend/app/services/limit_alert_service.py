@@ -19,7 +19,9 @@ THRESHOLDS = [80, 90, 100]
 # Categorias que não geram alerta de limite normal:
 #  - "Limite Cartao Credito" → tratado como escopo credit_card (cartão)
 #  - "Metas" → são alvos de subcategoria, não limites mensais de gasto
-SPECIAL_CATEGORIAS_ALERT = {"limite cartao credito", "metas"}
+#  - "Mensal PF"/"Mensal PJ" → orçamento do mês inteiro; nunca alertaram (o gasto vinha
+#    zerado) e alertar por eles é decisão pendente do dono (regras_negocio 3.7, item 5)
+SPECIAL_CATEGORIAS_ALERT = {"limite cartao credito", "metas", "mensal pf", "mensal pj"}
 
 
 async def trigger_limit_evaluation(
