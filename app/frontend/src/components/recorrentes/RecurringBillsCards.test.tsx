@@ -15,6 +15,7 @@ const conta = (over: Partial<ContaRecorrente>): ContaRecorrente => ({
   bank_code: '260',
   current_installment: 5,
   is_ending_soon: false,
+  can_renew: false,
   category_id: 1,
   subcategory_id: 1,
   category_name: 'Lazer',

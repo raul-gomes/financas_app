@@ -292,7 +292,7 @@ describe('ContaRecorrenteService boundary', () => {
     id: 1, description: 'Netflix', amount: 55.9, due_day: 10, category_id: 1, subcategory_id: 2,
     category_name: 'Lazer', subcategory_name: 'Streaming', entity_type: 'individual', payment_method: 'credit',
     bank_code: null, start_date: '2026-01-01T00:00:00', end_date: null, active: true, total_installments: 12,
-    remaining_installments: 8, current_installment: 5, is_ending_soon: false,
+    remaining_installments: 8, current_installment: 5, is_ending_soon: false, can_renew: false,
   };
 
   it('parses valid recurring accounts', async () => {

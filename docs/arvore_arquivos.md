@@ -397,7 +397,6 @@ financas_app/
 │       │   │       ├── extractReview.ts            # Regras puras da revisão do extrato: rascunhos por linha (chaveados por rowId), validação, payload de confirmação, totais, duplicatas, contagem (+ teste)
 │       │   │       ├── pluggySync.ts               # formatSyncSummary: mensagem pt-BR da sincronização Pluggy com os totais já existentes e vinculados (+ teste)
 │       │   │       ├── bankLogo.ts                 # URL do logo, iniciais e paleta do fallback dos bancos (+ teste)
-│       │   │       ├── recurringBills.ts           # currentInstallment e isEndingSoon das contas recorrentes (+ teste)
 │       │   │       ├── statementAggregates.ts      # Funções puras sobre os agregados do /dashboard/statement: gráfico diário (buildDailyData), total por forma de pagamento, itens por banco, parcelas (+ teste)
 │       │   │       ├── months.ts                   # YearMonth, addMonths, toYearMonth, SHORT_MONTHS (+ teste)
 │       │   │       ├── recentMonths.ts             # Janela dos últimos 6 meses a partir dos payloads anuais (+ teste)

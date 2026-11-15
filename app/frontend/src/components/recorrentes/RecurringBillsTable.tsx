@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { BankLogo } from "@/components/ui/bank-logo";
 import { formatCurrency } from "@/lib/format";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { currentInstallment, isEndingSoon } from "@/lib/recurringBills";
 import type { ContaRecorrente } from "@/types/recurringAccount";
 
 /** Altura fixa estimada de cada linha da tabela (px). */
@@ -54,7 +53,6 @@ function RecurringBillsCards({
   return (
     <ul className="space-y-3 p-3" data-testid="recurring-bills-cards">
       {contas.map((conta) => {
-        const cannotRenew = conta.active && conta.remaining_installments > 2;
         return (
           <li
             key={conta.id}
@@ -72,7 +70,7 @@ function RecurringBillsCards({
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span>
-                Parcela {currentInstallment(conta)}/{conta.total_installments}
+                Parcela {conta.current_installment}/{conta.total_installments}
               </span>
               {showBank && conta.bank_code && (
                 <span className="flex items-center gap-1.5">
@@ -80,7 +78,7 @@ function RecurringBillsCards({
                   {conta.bank_code}
                 </span>
               )}
-              {isEndingSoon(conta) && (
+              {conta.is_ending_soon && (
                 <Badge variant="warning" className="gap-1">
                   <AlertTriangle className="h-3 w-3" />
                   Acabando
@@ -119,8 +117,8 @@ function RecurringBillsCards({
                     className="h-11 w-11"
                     aria-label={`Renovar ${conta.description}`}
                     onClick={() => onRenew(conta.id)}
-                    disabled={renewingId === conta.id || cannotRenew}
-                    title={cannotRenew ? 'Ainda há parcelas restantes' : 'Renovar por mais 12 meses'}
+                    disabled={renewingId === conta.id || !conta.can_renew}
+                    title={!conta.can_renew ? 'Ainda há parcelas restantes' : 'Renovar por mais 12 meses'}
                   >
                     <RefreshCw className={`h-4 w-4 ${renewingId === conta.id ? 'animate-spin' : ''}`} />
                   </Button>
@@ -200,7 +198,7 @@ function RecurringBillsDesktopTable({
                 <td className="px-4 py-3 text-sm font-medium text-foreground">
                   <div className="flex items-center gap-2">
                     {conta.description}
-                    {isEndingSoon(conta) && (
+                    {conta.is_ending_soon && (
                       <Badge variant="warning" className="shrink-0 gap-1">
                         <AlertTriangle className="w-3 h-3" />
                         Acabando
@@ -227,7 +225,7 @@ function RecurringBillsDesktopTable({
                   </td>
                 )}
                 <td className="px-4 py-3 text-sm text-muted-foreground">
-                  {currentInstallment(conta)}/{conta.total_installments}
+                  {conta.current_installment}/{conta.total_installments}
                 </td>
                 <td className="px-4 py-3">
                   <button onClick={() => onToggleActive(conta)} className="flex items-center gap-1 text-sm">
@@ -257,9 +255,9 @@ function RecurringBillsDesktopTable({
                         variant="ghost"
                         size="sm"
                         onClick={() => onRenew(conta.id)}
-                        disabled={renewingId === conta.id || (conta.active && conta.remaining_installments > 2)}
+                        disabled={renewingId === conta.id || !conta.can_renew}
                         title={
-                          conta.active && conta.remaining_installments > 2
+                          !conta.can_renew
                             ? 'Ainda há parcelas restantes'
                             : 'Renovar por mais 12 meses'
                         }

@@ -41,6 +41,7 @@ function conta(id: number, description: string): ContaRecorrente {
     bank_code: null,
     current_installment: 1,
     is_ending_soon: false,
+    can_renew: false,
     category_id: 1,
     subcategory_id: 1,
     category_name: 'Lazer',
