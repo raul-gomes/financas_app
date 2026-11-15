@@ -350,7 +350,7 @@ def build_demo_data(
     """Create one admin user and its fictitious finances; flushes, does not commit.
 
     One-off entries of the current month only go up to `today`; recurring bills and
-    installments exist for the whole month (as the app generates them).
+    installments exist in full, future months included (as the app creates them).
 
     Returns:
         Counts per created entity (for the CLI summary).
@@ -431,7 +431,7 @@ def build_demo_data(
         inflated = base * (1 + MONTHLY_INFLATION * month_index)
         return inflated + rng.uniform(-base * AMOUNT_JITTER, base * AMOUNT_JITTER)
 
-    # Recurring bills: one transaction per month, sharing the account's group_id
+    # Recurring bills: the account's 12 installments, sharing its group_id
     recurring_accounts: list[RecurringAccountORM] = []
     for nature, bills in ((PF, RECURRING_PF), (PJ, RECURRING_PJ)):
         for desc, amount, due_day, cat, sub, method, bank in bills:
@@ -456,9 +456,10 @@ def build_demo_data(
             db.add(account)
             db.flush()
             recurring_accounts.append(account)
-            for index, (year, month) in enumerate(months):
-                if (year, month) < (start_year, start_month):
-                    continue
+            # Like the app, every installment exists from the start (future ones included)
+            for number in range(1, RECURRING_INSTALLMENTS + 1):
+                year, month = add_months(start_year, start_month, number - 1)
+                index = months.index((year, month)) if (year, month) in months else len(months)
                 day = min(due_day, calendar.monthrange(year, month)[1])
                 add_txn(
                     desc,
@@ -471,8 +472,8 @@ def build_demo_data(
                     sub,
                     bank,
                     group_id=account.group_id,
-                    installment=1,
-                    total_installments=1,
+                    installment=number,
+                    total_installments=RECURRING_INSTALLMENTS,
                     recurring_id=account.id,
                 )
 

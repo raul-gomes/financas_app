@@ -77,9 +77,23 @@ async def test_recurring_bills_share_their_account_group_once_a_month(async_sess
     )
     assert set(per_month.values()) == {1}
     for account in accounts.values():
-        months_billed = {(y, m) for acc_id, y, m in per_month if acc_id == account.id}
+        months_billed = sorted((y, m) for acc_id, y, m in per_month if acc_id == account.id)
         start = (account.start_date.year, account.start_date.month)
-        assert months_billed == {ym for ym in demo_months(TODAY) if ym >= start}
+        # Like the app: every installment exists from the start, future ones included
+        assert len(months_billed) == account.total_installments
+        assert months_billed[0] == start
+
+
+@pytest.mark.asyncio
+async def test_recurring_accounts_are_at_different_installments(async_session):
+    await _seed(async_session)
+    bills = [txn for txn in await _transactions(async_session) if txn.recurring_account_id]
+    remaining = Counter(
+        txn.recurring_account_id for txn in bills if txn.transaction_date >= CURRENT_MONTH_START
+    )
+    ending_soon = [count for count in remaining.values() if count <= 2]
+    assert len(set(remaining.values())) > 1
+    assert len(ending_soon) < len(remaining) / 2
 
 
 @pytest.mark.asyncio
