@@ -10,6 +10,7 @@ consolidados no fim.
 - [x] **MVP = o produto do usuário comum** (transações, categorias, limites, dashboards, configurações). As rotas só de admin (metas, compras, recorrentes, extrato, Pluggy, investimentos, export) são **implementações em andamento**, fora do MVP. DECIDIDO 2026-11-14.
 - [ ] Uso pessoal apenas, ou também empresarial?
 - [ ] Onde roda a produção hoje?
+- [ ] **Pluggy** (alta): a integração atual não funciona contra a API real (chave por usuário em vez de `client_id`/`client_secret` + `POST /auth`; `GET /accounts` sem `itemId`; data em UTC; fatura contada em dobro; pendentes, atualizações e exclusões ignoradas; truncamento silencioso). Análise, decisões do dono e fases em `docs/analise-pluggy.md`.
 - [x] Git flow: `develop` criada a partir de `mvp` e virou a branch padrão; `feature/*` → `develop`; `main` só por release. FEITO 2026-11-14.
 
 ## Segurança
