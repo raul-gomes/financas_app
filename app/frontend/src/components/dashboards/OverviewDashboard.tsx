@@ -32,7 +32,7 @@ export function OverviewDashboard({ isAdmin = false }: OverviewDashboardProps) {
   const [entityType, setEntityType] = useState<EntityTypeFilter>('all');
   const entityParam: OverviewEntityType =
     entityType === 'pf' ? 'individual' : entityType === 'pj' ? 'business' : 'all';
-  const { data, isPending } = useOverviewQuery(year, month, entityParam);
+  const { data, isPending } = useOverviewQuery(year, month, entityParam, isAdmin);
 
   const changeMonth = (delta: number) => {
     const d = new Date(year, month - 1 + delta, 1);
@@ -261,10 +261,10 @@ export function OverviewDashboard({ isAdmin = false }: OverviewDashboardProps) {
               {recurring_accounts.map((r) => (
                 <li key={r.id} className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">
+                    <div className="text-sm font-medium">
                       {r.description}
                       {r.is_ending_soon && <Badge variant="warning" className="ml-2">Acabando</Badge>}
-                    </p>
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Vence dia {r.due_day} · {r.current_installment}/{r.total_installments}
                     </p>

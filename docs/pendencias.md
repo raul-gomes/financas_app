@@ -26,6 +26,7 @@ consolidados no fim.
 - [x] **S10** (média) Tooltips D3 montavam HTML com o nome da categoria (dado do usuário). FEITO: `escapeHtml` (`lib/format.ts`) em todo texto interpolado.
 
 ## Bugs
+- [x] **B7** (média) FEITO 2026-11-15: a Visão Geral mostrava o mês sem as contas recorrentes até alguém abrir o Financeiro (só ele gerava as contas do mês; num teste, R$ 23.554,03 contra R$ 34.333,03 de saídas no mesmo mês), e o gráfico de 6 meses do Financeiro no celular carregava antes da geração e ficava defasado. Agora as duas telas geram antes de buscar (admin). Também: selo "Acabando" dentro de `<p>` (HTML inválido) na Visão Geral.
 - [x] **B1** (média) FEITO: 4 testes dependiam da data (fixtures de setembro/2026 vs `now()`); agora o relógio é congelado com `time-machine` (fixture autouse em `test_limit_alert_job.py` e `test_notifications_routes.py`).
 - [x] **B2** (média) Confirmar 413 em extrato > 1 MB; definir `client_max_body_size 10m`. _Feito: `client_max_body_size 10m` nos dois nginx._
 - [x] **B3** (média) Nginx de prod: upstream `frontend:8080` × imagem na 80; 443 sem TLS. Versionar o compose de prod sem segredos. _Feito: frontend de prod na 8080 (nginx-unprivileged), `infra/nginx.prod.conf.template` com TLS, compose de prod versionado._

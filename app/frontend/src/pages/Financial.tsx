@@ -218,6 +218,7 @@ const Financial = () => {
           onMonthChange={handleMobileMonthChange}
           entityType={selectedEntityType}
           onEntityTypeChange={setSelectedEntityType}
+          recurringReady={recurringReady}
           dateRange={selectedDateRange}
           statement={financialSummary}
           creditCardLimit={financialSummary?.credit_card_limit || 0}

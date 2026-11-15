@@ -13,6 +13,14 @@ vi.mock('@/services/overviewService', () => ({
   },
 }));
 
+const mockGenerate = vi.fn();
+
+vi.mock('@/services/recurringAccountService', () => ({
+  ContaRecorrenteService: {
+    generate: (...args: unknown[]) => mockGenerate(...args),
+  },
+}));
+
 const baseOverview: OverviewResponse = {
   reference_month: '09/2026',
   entity_type: 'all',
@@ -67,6 +75,47 @@ const baseOverview: OverviewResponse = {
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetOverview.mockResolvedValue(baseOverview);
+  mockGenerate.mockResolvedValue({ generated: 0 });
+});
+
+describe('OverviewDashboard - recurring bills of the month', () => {
+  it('generates the month bills for admins before reading the totals', async () => {
+    let finishGeneration: (value: unknown) => void = () => undefined;
+    mockGenerate.mockReturnValue(new Promise((resolve) => { finishGeneration = resolve; }));
+    renderWithQuery(<OverviewDashboard isAdmin />);
+
+    await waitFor(() => expect(mockGenerate).toHaveBeenCalledTimes(1));
+    const [from, to] = mockGenerate.mock.calls[0] as [Date, Date];
+    const now = new Date();
+    expect(from.getDate()).toBe(1);
+    expect(from.getMonth()).toBe(now.getMonth());
+    expect(to.getMonth()).toBe(now.getMonth());
+    expect(to.getDate()).toBe(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate());
+    expect(mockGetOverview).not.toHaveBeenCalled();
+
+    finishGeneration({ generated: 3 });
+    await waitFor(() => expect(mockGetOverview).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not generate bills for regular users (recurring bills are admin only)', async () => {
+    renderWithQuery(<OverviewDashboard />);
+
+    await waitFor(() => expect(mockGetOverview).toHaveBeenCalledTimes(1));
+    expect(mockGenerate).not.toHaveBeenCalled();
+  });
+});
+
+describe('OverviewDashboard - valid HTML', () => {
+  it('never renders a block badge inside a paragraph (category and ending-soon badges)', async () => {
+    mockGetOverview.mockResolvedValue({
+      ...baseOverview,
+      recurring_accounts: baseOverview.recurring_accounts.map((r) => ({ ...r, is_ending_soon: true })),
+    });
+    const { container } = renderWithQuery(<OverviewDashboard isAdmin />);
+
+    await waitFor(() => expect(screen.getByText('Acabando')).toBeTruthy());
+    expect(container.querySelectorAll('p div')).toHaveLength(0);
+  });
 });
 
 describe('OverviewDashboard', () => {
