@@ -516,7 +516,7 @@ O header desktop mostra, só para admin, os links **Recorrentes** e **Extrato ba
 `pages/BankExtract.tsx` (antes ~1100 linhas) só orquestra: `ExtractUploadStep` (soltar/escolher arquivos), `ExtractReviewHeader`, `ExtractSummaryCards`, `ExtractDuplicatesSection`,
 um `ExtractSessionCard` por arquivo (`ExtractSessionHeader` com banco + Confirmar, `ExtractAddBankForm`, `ExtractTransactionsTable` com `ExtractRowCells`) e `ExtractConfirmBar`.
 O estado e as ações ficam em hooks (`useExtractReview`, `useExtractDuplicates`, `useExtractUpload`, `useExtractConfirmation`) e as regras puras (rascunho por linha, validação, payload,
-totais, duplicatas) em `lib/extractReview.ts`, com testes unitários. Layout inalterado: a tabela de linhas rola dentro do próprio contêiner (`overflow-x-auto`), então a página não passa da largura da tela.
+totais, duplicatas) em `lib/extractReview.ts`, com testes unitários. Linhas da revisão: tabela densa do `md` em diante (rola dentro do próprio contêiner, `overflow-x-auto`) e, abaixo de `md`, um card por linha (`ExtractTransactionCards`) com os mesmos campos (`ExtractRowFields`, tamanho `touch`) em alvos de 44 px (`h-11`), sem rolagem horizontal. Cada linha tem um `rowId` estável e os rascunhos são chaveados por ele.
 O `ExtratoDialog` (modal que duplicava essa lógica e não era montado em nenhuma tela) foi removido; o fluxo é `ExtratoUploadModal` -> `/extrato-bancario`.
 
 ### 8.11 `PageHeader`: título escondido no mobile

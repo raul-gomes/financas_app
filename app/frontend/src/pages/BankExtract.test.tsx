@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { renderWithQuery } from '@/test/queryWrapper';
@@ -448,5 +448,69 @@ describe('BankExtract - adding a bank inline', () => {
       expect.objectContaining({ description: 'Preencha código e nome do banco.', variant: 'destructive' }),
     );
     expect(mockAddBank).not.toHaveBeenCalled();
+  });
+});
+
+describe('BankExtract - review on a phone (below md)', () => {
+  const originalWidth = window.innerWidth;
+  beforeEach(() => {
+    window.innerWidth = 390;
+  });
+  afterEach(() => {
+    window.innerWidth = originalWidth;
+  });
+
+  /** The card of a row (the description input lives inside it). */
+  function cardOf(description: string): HTMLElement {
+    return screen.getByDisplayValue(description).closest('[data-testid="extract-row-card"]') as HTMLElement;
+  }
+
+  it('shows one card per row instead of the wide table', async () => {
+    renderPage([makeSession()]);
+    await screen.findByText('Revisar Extrato');
+
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.getAllByTestId('extract-row-card')).toHaveLength(2);
+    expect(within(cardOf('Mercado do bairro')).getByText('15/03/2026')).toBeInTheDocument();
+    expect(within(cardOf('Mercado do bairro')).getByText('Saída')).toBeInTheDocument();
+  });
+
+  it('gives every control of a card a touch target of at least 44px (h-11)', async () => {
+    renderPage([makeSession()]);
+    await screen.findByText('Revisar Extrato');
+    const card = cardOf('Mercado do bairro');
+
+    const controls = [
+      screen.getByDisplayValue('Mercado do bairro'),
+      ...within(card).getAllByRole('combobox'),
+      within(card).getByRole('button', { name: 'Remover transação' }),
+    ];
+    for (const control of controls) expect(control.className).toMatch(/\bh-11\b/);
+  });
+
+  it('edits and confirms through the cards like through the table', async () => {
+    renderPage([makeSession()]);
+    await screen.findByText('Revisar Extrato');
+    await waitFor(() => expect(mockCategories).toHaveBeenCalled());
+    await pickOption(screen.getAllByRole('combobox')[0], /Nubank/);
+    await pickOption(within(cardOf('Mercado do bairro')).getAllByRole('combobox')[1], 'Alimentacao');
+    await pickOption(within(cardOf('Salario marco')).getAllByRole('combobox')[1], 'Salario');
+    fireEvent.click(within(cardOf('Salario marco')).getByRole('button', { name: 'Remover transação' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /^Confirmar$/ }));
+
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1));
+    const sent = mockConfirm.mock.calls[0][0].transactions;
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ description: 'Mercado do bairro', category_id: 1, subcategory_id: 11 });
+  });
+
+  it('keeps the table on desktop', async () => {
+    window.innerWidth = originalWidth;
+    renderPage([makeSession()]);
+    await screen.findByText('Revisar Extrato');
+
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.queryByTestId('extract-row-card')).toBeNull();
   });
 });

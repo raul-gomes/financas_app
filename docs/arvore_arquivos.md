@@ -229,8 +229,9 @@ financas_app/
 │       │   │   │   ├── ExtractSessionCard.tsx      # Um arquivo: cabeçalho (banco + Confirmar), formulário de banco, tabela e aviso de categoria
 │       │   │   │   ├── ExtractSessionHeader.tsx    # Nome do arquivo, contagem, seletor de banco e Confirmar
 │       │   │   │   ├── ExtractAddBankForm.tsx      # Formulário inline (código + nome) para cadastrar banco
-│       │   │   │   ├── ExtractTransactionsTable.tsx # Tabela editável das linhas (rola dentro do próprio contêiner no mobile)
-│       │   │   │   ├── ExtractRowCells.tsx         # Células da linha: parcelas, pagamento, PF/PJ, categoria, subcategoria
+│       │   │   │   ├── ExtractTransactionsTable.tsx # Linhas da sessão: tabela densa do md em diante (rola no próprio contêiner) ou cards no mobile
+│       │   │   │   ├── ExtractTransactionCards.tsx # Layout mobile (abaixo de md): um card por linha, campos empilhados, controles de 44 px
+│       │   │   │   ├── ExtractRowFields.tsx        # Campos da linha (parcelas, pagamento, PF/PJ, categoria, subcategoria) nos tamanhos compact (tabela) e touch (card)
 │       │   │   │   ├── ExtractTypeBadge.tsx        # Selo Entrada/Saída
 │       │   │   │   ├── ExtractConfirmBar.tsx       # Barra fixa no rodapé: pendências + Confirmar Tudo
 │       │   │   │   ├── useExtractReview.ts         # Estado da revisão (sessões + rascunhos por linha) e as edições de cada linha

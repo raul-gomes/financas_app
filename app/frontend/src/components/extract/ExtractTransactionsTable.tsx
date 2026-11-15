@@ -1,16 +1,18 @@
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { formatCurrency } from '@/lib/format';
 import { EMPTY_ROW_DRAFT, type RowDrafts } from '@/lib/extractReview';
 import type { ParsedTransaction } from '@/types/extract';
 import type { CategorySubcategories } from '@/types/financial';
 import {
-  CategoryCell,
-  EntityTypeCell,
-  InstallmentsCell,
-  PaymentMethodCell,
-  SubcategoryCell,
-} from './ExtractRowCells';
+  CategoryField,
+  EntityTypeField,
+  InstallmentsField,
+  PaymentMethodField,
+  SubcategoryField,
+} from './ExtractRowFields';
+import { ExtractTransactionCards } from './ExtractTransactionCards';
 import { ExtractTypeBadge } from './ExtractTypeBadge';
 import type { RowActions } from './useExtractReview';
 
@@ -26,8 +28,8 @@ interface ExtractTransactionsTableProps {
 }
 
 /**
- * Editable rows of one session. The table scrolls inside its own container, so the page
- * never grows wider than the screen on a phone.
+ * Editable rows of one session: a dense table from `md` up (it scrolls inside its own
+ * container) and one card per row on a phone.
  */
 export function ExtractTransactionsTable({
   transactions,
@@ -35,6 +37,17 @@ export function ExtractTransactionsTable({
   categoryOptions,
   rowActions,
 }: ExtractTransactionsTableProps) {
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return (
+      <ExtractTransactionCards
+        transactions={transactions}
+        drafts={drafts}
+        categoryOptions={categoryOptions}
+        rowActions={rowActions}
+      />
+    );
+  }
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -53,7 +66,6 @@ export function ExtractTransactionsTable({
             return (
               <ExtractTransactionRow
                 key={transaction.rowId}
-                rowId={transaction.rowId}
                 transaction={transaction}
                 draft={drafts[transaction.rowId] ?? EMPTY_ROW_DRAFT}
                 categoryOptions={categoryOptions}
@@ -68,14 +80,13 @@ export function ExtractTransactionsTable({
 }
 
 interface ExtractTransactionRowProps {
-  rowId: string;
   transaction: ParsedTransaction;
   draft: RowDrafts[string];
   categoryOptions: CategorySubcategories | null;
   actions: RowActions;
 }
 
-function ExtractTransactionRow({ rowId, transaction, draft, categoryOptions, actions }: ExtractTransactionRowProps) {
+function ExtractTransactionRow({ transaction, draft, categoryOptions, actions }: ExtractTransactionRowProps) {
   return (
     <tr className="hover:bg-muted/30">
       <td className="px-3 py-2 text-xs whitespace-nowrap">{transaction.date}</td>
@@ -98,11 +109,33 @@ function ExtractTransactionRow({ rowId, transaction, draft, categoryOptions, act
       <td className="px-3 py-2">
         <ExtractTypeBadge type={transaction.type} />
       </td>
-      <InstallmentsCell rowId={rowId} draft={draft} actions={actions} />
-      <PaymentMethodCell transaction={transaction} draft={draft} actions={actions} />
-      <EntityTypeCell transaction={transaction} actions={actions} />
-      <CategoryCell transaction={transaction} draft={draft} actions={actions} categoryOptions={categoryOptions} />
-      <SubcategoryCell transaction={transaction} draft={draft} actions={actions} categoryOptions={categoryOptions} />
+      <td className="px-3 py-2 whitespace-nowrap">
+        <InstallmentsField draft={draft} actions={actions} size="compact" />
+      </td>
+      <td className="px-3 py-2 min-w-[120px]">
+        <PaymentMethodField transaction={transaction} draft={draft} actions={actions} size="compact" />
+      </td>
+      <td className="px-3 py-2">
+        <EntityTypeField transaction={transaction} actions={actions} size="compact" />
+      </td>
+      <td className="px-3 py-2 min-w-[130px]">
+        <CategoryField
+          transaction={transaction}
+          draft={draft}
+          actions={actions}
+          categoryOptions={categoryOptions}
+          size="compact"
+        />
+      </td>
+      <td className="px-3 py-2 min-w-[130px]">
+        <SubcategoryField
+          transaction={transaction}
+          draft={draft}
+          actions={actions}
+          categoryOptions={categoryOptions}
+          size="compact"
+        />
+      </td>
       <td className="px-1 py-2">
         <Button
           variant="ghost"
