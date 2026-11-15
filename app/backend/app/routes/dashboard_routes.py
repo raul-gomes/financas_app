@@ -54,8 +54,9 @@ async def overview_geral(
     response_model=ExtratoResponse,
     summary="Extrato financeiro completo",
     description=(
-        "Retorna entradas, saídas, meta, agregados dos gráficos (por dia, forma de pagamento, "
-        "banco e parcelas a pagar) e, DEPRECADA, a lista de transações do período"
+        "Retorna entradas, saídas, meta e os agregados dos gráficos (por dia, forma de "
+        "pagamento, banco e parcelas a pagar). As linhas do período vêm de "
+        "GET /transacoes/paginated"
     ),
     status_code=status.HTTP_200_OK,
 )
@@ -78,7 +79,6 @@ async def extrato_financeiro(
         "Extrato gerado",
         total_income=extrato.total_income,
         total_expenses=extrato.total_expenses,
-        count=len(extrato.transactions),
     )
 
     return extrato

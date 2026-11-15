@@ -60,7 +60,8 @@ async def test_extrato_financeiro(client):
     data = response.json()
     assert "total_income" in data
     assert "total_expenses" in data
-    assert "transactions" in data
+    assert "daily_totals" in data
+    assert "transactions" not in data
 
 
 @pytest.mark.asyncio

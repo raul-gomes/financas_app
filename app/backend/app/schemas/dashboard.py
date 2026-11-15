@@ -1,30 +1,6 @@
-from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
-
-from app.schemas.transaction import NaturezaTransacao, TipoTransacao
-
-
-class TransacaoExtrato(BaseModel):
-    id: int
-    type: TipoTransacao
-    amount: float
-    description: str
-    category_id: int
-    subcategory_id: int
-    category_name: str
-    subcategory_name: str
-    payment_method: str
-    installment_number: int | None
-    total_installments: int | None
-    is_installment: bool = False
-    entity_type: NaturezaTransacao
-    transaction_date: datetime
-    recurring_account_id: int | None = None
-    bank_code: str | None = None
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class TotalDiario(BaseModel):
@@ -79,15 +55,8 @@ class ExtratoResponse(BaseModel):
     start_date: str = Field(..., description="Data inicial do filtro (dd/mm/yyyy)")
     end_date: str = Field(..., description="Data final do filtro (dd/mm/yyyy)")
     monthly_goal: float = Field(..., description="Meta mensal financeira")
-    total_invested: float = Field(..., description="Total investido (igual às entradas)")
-    transactions: list[TransacaoExtrato] = Field(
-        ...,
-        description=(
-            "DEPRECATED: todas as transações do período. Os gráficos devem ler os agregados "
-            "abaixo (daily_totals, expenses_by_payment_method, expenses_by_bank, installments_due); "
-            "o campo sai quando o frontend parar de lê-lo. Listas paginadas: GET /transacoes/paginated."
-        ),
-        json_schema_extra={"deprecated": True},
+    total_invested: float = Field(
+        ..., description="Total investido no período (transações do tipo investment)"
     )
     credit_card_limit: float = Field(default=0, description="Limite do cartão de crédito")
     fixed_expenses: float = Field(
