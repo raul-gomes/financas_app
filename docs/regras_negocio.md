@@ -113,10 +113,6 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 #### Exclusão
 - **DELETE** → apaga TODAS as transações vinculadas (manual cascade) + a conta
 
-#### Geração Legada (`POST /generate`)
-- Gera parcelas para contas ativas no range `start_date` a `end_date` (compatibilidade)
-- **Quem chama (frontend, só `admin`):** a Visão Geral (`/`) e o Financeiro (`/financial`) geram as contas do mês exibido **antes** de buscar os totais e gráficos (inclusive o gráfico de 6 meses do celular), para que os números já incluam as contas fixas do mês. A geração usa a mesma chave de cache nas duas telas, então roda uma vez por mês por sessão. Usuário comum não gera (rota só de admin).
-
 ---
 
 ### 2.4 Metas (`/goals`)
@@ -267,7 +263,7 @@ Aplicado em: criação/edição de transação, extrato, Pluggy, contas recorren
 ### 3.6 Papéis e permissões
 - Papéis em `users.role`: **`user`** (padrão, todo novo cadastro) e **`admin`** (só por promoção manual no banco). O banco não restringe os valores (ver perguntas em aberto)
 - **Qualquer usuário autenticado** (isolado por `user_id`): `/transacoes`, `/categories`, `/limits`, `/dashboard`, `/notifications`, `/settings` e o CRUD de `/recurring-accounts`
-- **Somente `admin`** (403 para `user`): `/goals`, `/shopping`, `/extracts`, `/pluggy`, `/export` e `POST /recurring-accounts/generate`
+- **Somente `admin`** (403 para `user`): `/goals`, `/shopping`, `/extracts`, `/pluggy`, `/export`
 - Decisão do dono (2026-11-14, `pendencias.md`): o **MVP é o produto do usuário comum** (transações, categorias, limites, dashboards, configurações); as rotas só de admin são implementações em andamento, fora do MVP
 
 ---
@@ -333,7 +329,7 @@ Descrevem lacunas; o código atual não decide por elas.
 | **Transações** | `POST/GET/PUT/DELETE /transacoes`, `POST /check-duplicates`, `POST /resolve-duplicates` |
 | **Extratos** | `POST /extracts/upload`, `POST /extracts/confirm` |
 | **Categorias** | CRUD `/categories`, `PUT /limits` (bulk) |
-| **Recorrentes** | CRUD `/recurring-accounts`, `POST /{id}/renew`, `POST /generate` |
+| **Recorrentes** | CRUD `/recurring-accounts`, `POST /{id}/renew` |
 | **Metas** | CRUD `/goals`, `PUT /{id}/complete|reactivate`, `GET /progress` |
 | **Compras** | CRUD `/shopping` (GET com rollover p/ meses anteriores) |
 | **Dashboard** | `GET /statement`, `/period-income`, `/expenses-by-category`, `/income-by-category`, `/category-options` |
@@ -380,7 +376,7 @@ Descrevem lacunas; o código atual não decide por elas.
 1. **Seed vs Migrations:** `scripts/seed.py` usa `drop_all/create_all` direto dos models — pode divergir das migrações (ex.: unique constraint de categorias)
 2. **Export routes:** Usam `Session` direta (sem repository) — quebra padrão
 3. **Código morto (frontend):** `getAllTransactions`, `resolveDuplicates`, `GET /recurring-accounts/{id}`, `POST /shopping/generate-recurring` não chamados
-4. **Multi-user concluído (Etapa 4–9):** autenticação via Supabase JWT + isolamento por `user_id` + roles. Todo novo cadastro nasce `role='user'` (admin só por promoção manual). Rotas `pluggy/export/shopping/goals/extract` e `recurring-accounts/generate` são **admin-only**; `recurring-accounts` (CRUD) é liberado para `role='user'` por decisão de produto (403 p/ `role='user'` no resto)
+4. **Multi-user concluído (Etapa 4–9):** autenticação via Supabase JWT + isolamento por `user_id` + roles. Todo novo cadastro nasce `role='user'` (admin só por promoção manual). Rotas `pluggy/export/shopping/goals/extract` são **admin-only**; `recurring-accounts` (CRUD) é liberado para `role='user'` por decisão de produto (403 p/ `role='user'` no resto)
 5. **Pluggy sync:** Dedupe exato pelo id do provedor (aviso de duplicata só para linhas sem id); força `entity_type=PF` e categorias fixas
 6. **N+1 evitado:** Repositories usam `selectinload` e `GROUP BY` para agregações
 7. **Qualidade backend:** ruff (lint + format), pytest, `alembic check`, bandit e pip-audit rodam no CI

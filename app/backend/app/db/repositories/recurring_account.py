@@ -15,7 +15,6 @@ from app.logger import log_database_operation, logger
 from app.schemas.recurring_account import (
     ContaRecorrenteCreate,
     ContaRecorrenteUpdate,
-    GenerateRequest,
 )
 
 
@@ -320,103 +319,6 @@ class ContaRecorrenteRepository:
 
         for c in contas:
             c.remaining_installments = future_map.get(c.id, 0)
-
-    # ── Legacy generate (kept for Compatibility) ──────────
-
-    async def generate_pending_transactions(
-        self, req: GenerateRequest, user_id: int
-    ) -> tuple[int, list[str]]:
-        log = log_database_operation(
-            operation="generate",
-            collection="contas_recorrentes",
-            payload={"start_date": str(req.start_date), "end_date": str(req.end_date)},
-        )
-
-        stmt = select(RecurringAccountORM).where(
-            RecurringAccountORM.active == True,  # noqa: E712  # SQLAlchemy column comparison
-            RecurringAccountORM.start_date <= req.end_date,
-        )
-        stmt = stmt.where(RecurringAccountORM.user_id == user_id)
-        result = await self.db.execute(stmt)
-        contas = list(result.unique().scalars().all())
-
-        geradas = 0
-        detalhes = []
-
-        for conta in contas:
-            if conta.end_date and conta.end_date < req.start_date:
-                continue
-
-            current_date = req.start_date
-            while current_date <= req.end_date:
-                year = current_date.year
-                month = current_date.month
-
-                ultimo_dia = calendar.monthrange(year, month)[1]
-                day = min(conta.due_day, ultimo_dia)
-                transaction_date = datetime(year, month, day, 0, 0, 0)
-
-                if transaction_date < req.start_date or transaction_date > req.end_date:
-                    from dateutil.relativedelta import relativedelta
-
-                    current_date = current_date.replace(day=1) + relativedelta(months=1)
-                    continue
-
-                try:
-                    already_exists = await self._check_transaction_exists(
-                        conta.group_id, year, month
-                    )
-                except SQLAlchemyError as e:
-                    log.error(
-                        f"Erro ao verificar transacao existente para {conta.description}: {e}"
-                    )
-                    already_exists = True
-                    from dateutil.relativedelta import relativedelta
-
-                    current_date = current_date.replace(day=1) + relativedelta(months=1)
-                    continue
-
-                if not already_exists:
-                    try:
-                        transacao = TransactionORM(
-                            amount=conta.amount,
-                            description=conta.description,
-                            installment_number=1,
-                            total_installments=1,
-                            transaction_date=transaction_date,
-                            type="expense",
-                            entity_type=conta.entity_type,
-                            payment_method=conta.payment_method,
-                            category_id=conta.category_id,
-                            subcategory_id=conta.subcategory_id,
-                            group_id=str(conta.group_id),
-                            recurring_account_id=conta.id,
-                            user_id=user_id,
-                        )
-                        self.db.add(transacao)
-                        geradas += 1
-                        detalhes.append(
-                            f"{conta.description} - R$ {conta.amount:.2f} em {transaction_date.strftime('%d/%m/%Y')}"
-                        )
-                    except (SQLAlchemyError, ValueError) as e:
-                        log.error(
-                            f"Erro ao gerar transacao recorrente para {conta.description}: {e}"
-                        )
-                        continue
-
-                from dateutil.relativedelta import relativedelta
-
-                current_date = current_date.replace(day=1) + relativedelta(months=1)
-
-        if geradas > 0:
-            try:
-                await self.db.flush()
-                log.info(f"{geradas} transacoes recorrentes geradas")
-            except SQLAlchemyError as e:
-                log.error(f"Erro ao gravar transacoes recorrentes: {e}", exc_info=True)
-                raise
-
-        return geradas, detalhes
 
     async def _check_transaction_exists(self, group_id: str, year: int, month: int) -> bool:
         try:

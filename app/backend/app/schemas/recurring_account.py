@@ -101,20 +101,3 @@ class ContaRecorrenteResponse(ContaRecorrenteBase):
         data.current_installment = current
         data.is_ending_soon = remaining > 0 and remaining <= 2
         return data
-
-
-class GenerateRequest(BaseModel):
-    start_date: datetime
-    end_date: datetime
-
-    @field_validator("start_date", "end_date", mode="after")
-    @classmethod
-    def strip_timezone(cls, v):
-        if v is not None and v.tzinfo is not None:
-            return v.replace(tzinfo=None)
-        return v
-
-
-class GenerateResponse(BaseModel):
-    generated: int
-    details: list[str]

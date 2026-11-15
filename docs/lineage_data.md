@@ -2,7 +2,7 @@
 
 > Documento de linhagem (lineage) dos dados: origem, transformações, armazenamento e consumo.
 >
-> **Última atualização:** 2026-11-14
+> **Última atualização:** 2026-11-15
 > **Head do Alembic:** `c5d6e7f8a9b0` (29 migrações)
 >
 > ⚠️ **Manutenção obrigatória**: qualquer alteração em models (`app/db/models/`), migrações
@@ -51,7 +51,7 @@ FK scoping as queries por usuário:
 
 **Roles (Etapa 9):** coluna `users.role` (string `admin`/`user`). Todo novo cadastro nasce
 `role='user'` (sem bootstrap admin — promoção manual no banco). Apenas `pluggy`, `export`,
-`shopping`, `goals`, `extract` e `recurring-accounts/generate` são **admin-only**
+`shopping`, `goals` e `extract` são **admin-only**
 (`Depends(require_admin)` → 403 p/ `role='user'`). `recurring-accounts` (CRUD/leitura) é
 acessível a qualquer role autenticada. `require_role(*roles)` está pronto p/ multi-role.
 
@@ -212,7 +212,7 @@ cache estático em memória (`SettingsService.#banksCache`). Não toca no backen
 |---|---|---|---|
 | T1 | **Geração de parcelas** | `POST /transacoes/`, `POST /extracts/confirm` (se `total_installments > 1`) | N linhas em `transacoes` com mesmo `group_id` (uuid); datas +1 mês preservando dia (clamp ao último dia); descrição `"desc - parcela i/N"`; última parcela ajustada para compensar arredondamento |
 | T2 | **Resolve-ou-cria categoria/subcategoria** | criação/edição de transação, extrato, Pluggy, contas recorrentes | Busca por nome (+ entity_type); cria como efeito colateral se não existir |
-| T3 | **Geração de parcelas recorrentes** | `POST /recurring-accounts/`, `/{id}/renew`, `/generate` | Cria `total_installments` transações mensais em `transacoes` vinculadas por `recurring_account_id` + `group_id`; tipo fixo `expense`; **idempotente por group_id + ano-mês**; `renew` move `start_date` e gera +12 |
+| T3 | **Geração de parcelas recorrentes** | `POST /recurring-accounts/`, `/{id}/renew` | Cria `total_installments` transações mensais em `transacoes` vinculadas por `recurring_account_id` + `group_id`; tipo fixo `expense`; **idempotente por group_id + ano-mês**; `renew` move `start_date` e gera +12 |
 | T4 | **Desativação/exclusão de recorrente** | `PUT/DELETE /recurring-accounts/{id}` | Desativar ⇒ DELETE transações futuras (data ≥ início do mês corrente); excluir ⇒ DELETE de todas as transações vinculadas (cascade manual) antes da conta |
 | T5 | **Sync Pluggy → transacoes** | `POST /pluggy/sync` | Mapeamento `DEBIT→expense` / `CREDIT→income`; abs(); `payment_method` de `paymentMethod/category` (default "pix"); `bank_code` = 3 primeiros dígitos da conta BANK; força `entity_type=PF` + categoria "Importado"/sub "Pluggy" (auto-criadas); descrição truncada a 255; depois **detecta duplicatas e apenas reporta** |
 | T6 | **Detecção/resolução de duplicatas** | `POST /transacoes/check-duplicates` e `/resolve-duplicates` | Match por mesmo dia (ignora hora) + mesmo valor; ações: `keep_both`, `keep_new` (deleta existente), `keep_existing` (deleta nova) |
@@ -242,7 +242,7 @@ Legenda: 📖 lê · ✏️ escreve · 🗑 delete
 | `/limits` | GET, PUT | LimitsService → LimitsRepository (leitura) + CategoriaRepository / SubcategoriaRepository (PUT em lote: cada item num savepoint, 1 commit por request) | categorias, subcategorias | categorias, subcategorias | T8 |
 | `/limits/risk-check` | GET | LimitsService.category_risk → LimitsRepository.get_limits_with_spending | categorias, subcategorias, transacoes (spending) | — | projeção de risco p/ o mês do usuário: `spent` + `amount` (valor digitado) → `projected_spent`/`projected_percent_used`/`thresholds_hit` (80/90/100)/`severity`/`is_over_limit` (banner do AddTransactionDialog "Segure a mão") |
 | `/recurring-accounts` | POST, GET, PUT, DELETE | RecurringAccountService → ContaRecorrenteRepository (+ Categoria/SubcategoriaRepository para resolver nomes; 1 commit por request) | recurring_accounts, transacoes, categorias, subcategorias | recurring_accounts, transacoes | T3, T4 |
-| `/recurring-accounts/{id}/renew` · `/generate` | POST | idem | idem | transacoes, recurring_accounts, limit_alerts* (*disparo no generate, mês = start_date) | T3 |
+| `/recurring-accounts/{id}/renew` | POST | idem | idem | transacoes, recurring_accounts | T3 |
 | `/goals` | CRUD | GoalService → MetaRepository | subcategorias, categorias | subcategorias (+cat "Metas") | metas = subcategorias com `target_amount ≠ null` |
 | `/goals/progress` | GET | GoalService → MetaRepository | subcategorias, transacoes | — | T9 |
 | `/goals/{id}/complete` · `/reactivate` | PUT | GoalService → MetaRepository | subcategorias | subcategorias | completed/completed_at |
@@ -296,7 +296,6 @@ Legenda: 📖 lê · ✏️ escreve · 🗑 delete
                                       ▲      disparedo por:
                                       │        · create/update/delete transação (mesmo mês)
                                       │        · extrato confirm (menor data) · pluggy sync (mês atual)
-                                      │        · recurring generate (start_date)
                                       └────────· job periódico /limit_alert_job (todos usuários, mês atual)
 ```
 
@@ -311,7 +310,7 @@ staging de extrato vive em React state (perdido ao recarregar).
 | Service | Endpoint(s) | Dado | Tela(s) |
 |---|---|---|---|
 | financialService | `/dashboard/statement`, `/period-income`, `/expenses-by-category`, `/income-by-category`, `/category-options`, `/transacoes` (GET/POST/PUT/DELETE), `/transacoes/check-duplicates`, `/categories`, `/limits`, `/limits/with-spending` | resumo, gráficos, CRUD transações, limites (+ % pré-save no LimitsTab) | Financial, AddTransactionDialog, TransactionList, BankExtract, LimitsTab |
-| recurringAccountService | `/recurring-accounts` (CRUD, renew, generate) | contas recorrentes | RecurrentBills, RecorrentesTab; `generate` disparado pelo Financial ao trocar período |
+| recurringAccountService | `/recurring-accounts` (CRUD, renew) | contas recorrentes | RecurrentBills, RecorrentesTab |
 | overviewService | `/dashboard/overview` | dashboard geral (indicadores, status limites, parcelas, recorrentes, crédito, metas, compras) | **Index (página principal)** via OverviewDashboard |
 | goalsService | `/goals` (CRUD, complete, reactivate, progress) | metas + progresso | MetasTab (Limits), MetasList (dashboard) |
 | shoppingService | `/shopping` (CRUD) | lista de compras | ComprasTab (Limits) |

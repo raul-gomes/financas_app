@@ -5,7 +5,6 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.repositories.category import CategoriaRepository
-from app.db.repositories.recurring_account import ContaRecorrenteRepository
 from app.db.repositories.shopping import ShoppingRepository
 from app.db.repositories.transaction import TransacaoRepository
 from app.main import app
@@ -60,13 +59,6 @@ async def test_generate_shopping_does_not_leak(tolerant_client, monkeypatch, exc
     monkeypatch.setattr(ShoppingRepository, "generate_recurring_items", _boom(exc))
     payload = {"start_month": "2026-01-01", "end_month": "2026-02-01"}
     _assert_generic(await tolerant_client.post("/shopping/generate-recurring", json=payload))
-
-
-@pytest.mark.parametrize("exc", [RuntimeError(LEAK_MARKER), SQLAlchemyError(LEAK_MARKER)])
-async def test_generate_recurring_does_not_leak(tolerant_client, monkeypatch, exc):
-    monkeypatch.setattr(ContaRecorrenteRepository, "generate_pending_transactions", _boom(exc))
-    payload = {"start_date": "2026-01-01T00:00:00", "end_date": "2026-02-01T00:00:00"}
-    _assert_generic(await tolerant_client.post("/recurring-accounts/generate", json=payload))
 
 
 async def test_bulk_limits_item_errors_do_not_leak(tolerant_client, monkeypatch):

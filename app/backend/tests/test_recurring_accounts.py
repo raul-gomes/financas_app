@@ -225,28 +225,11 @@ async def test_renew_conta_recorrente(client):
 
 
 @pytest.mark.asyncio
-async def test_generate_pending_transactions(client):
-    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Conta6")
-    await client.post(
-        "/recurring-accounts/",
-        json={
-            "description": "Gas",
-            "amount": 60.0,
-            "due_day": 10,
-            "category_id": cat_id,
-            "subcategory_id": sub_id,
-            "entity_type": "individual",
-            "payment_method": "pix",
-            "start_date": "2025-01-01T00:00:00",
-        },
-    )
+async def test_legacy_generate_endpoint_is_gone(client):
+    """The backend alone owns the installments: there is no bulk-generation endpoint."""
     response = await client.post(
         "/recurring-accounts/generate",
-        json={
-            "start_date": "2026-01-01T00:00:00",
-            "end_date": "2026-03-31T00:00:00",
-        },
+        json={"start_date": "2026-01-01T00:00:00", "end_date": "2026-03-31T00:00:00"},
     )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["generated"] >= 0
+    assert response.status_code in (404, 405, 422)
+    assert "/recurring-accounts/generate" not in client._transport.app.openapi()["paths"]

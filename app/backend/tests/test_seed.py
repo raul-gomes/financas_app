@@ -7,14 +7,11 @@ import pytest
 from sqlalchemy import select
 
 from app.db.models import RecurringAccountORM, TransactionORM
-from app.db.repositories.recurring_account import ContaRecorrenteRepository
-from app.schemas.recurring_account import GenerateRequest
 from app.schemas.transaction import TipoPagamento
 from app.scripts.seed import DEMO_HISTORY_MONTHS, build_demo_data, demo_months
 
 TODAY = date(2026, 11, 15)
 CURRENT_MONTH_START = datetime(2026, 11, 1)
-CURRENT_MONTH_END = datetime(2026, 11, 30, 23, 59, 59)
 
 
 async def _seed(session) -> int:
@@ -44,18 +41,6 @@ async def test_every_payment_method_is_one_the_app_stores(async_session):
     allowed = {method.value for method in TipoPagamento}
     used = {txn.payment_method for txn in await _transactions(async_session)}
     assert used <= allowed
-
-
-@pytest.mark.asyncio
-async def test_monthly_generation_finds_the_seeded_recurring_bills(async_session):
-    user_id = await _seed(async_session)
-    repo = ContaRecorrenteRepository(async_session)
-
-    generated, _ = await repo.generate_pending_transactions(
-        GenerateRequest(start_date=CURRENT_MONTH_START, end_date=CURRENT_MONTH_END), user_id
-    )
-
-    assert generated == 0
 
 
 @pytest.mark.asyncio
