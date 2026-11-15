@@ -123,3 +123,69 @@ async def test_email_owned_by_another_sub_is_refused(async_session):
         await get_or_create_user_from_supabase(
             async_session, sub="sub-intruder", email="taken@example.com"
         )
+
+
+# ── Concurrent first requests (deterministic race simulation) ─────────
+
+
+def _miss_first_lookups(session, monkeypatch, misses: int) -> None:
+    """Make the first ``misses`` queries see nothing, as if another request of the same
+    login committed the user right after them (the app fires parallel first requests)."""
+    from sqlalchemy import false
+
+    original = session.execute
+    remaining = {"misses": misses}
+
+    async def execute(statement, *args, **kwargs):
+        if remaining["misses"] > 0:
+            remaining["misses"] -= 1
+            statement = statement.where(false())
+        return await original(statement, *args, **kwargs)
+
+    monkeypatch.setattr(session, "execute", execute)
+
+
+@pytest.mark.asyncio
+async def test_parallel_first_request_finds_the_row_linked_by_the_other_one(
+    async_session, monkeypatch
+):
+    async_session.add(UserORM(name="Ana", email="race@example.com", supabase_id="sub-race"))
+    await async_session.commit()
+    _miss_first_lookups(async_session, monkeypatch, misses=1)  # the lookup by sub
+
+    user = await get_or_create_user_from_supabase(
+        async_session, sub="sub-race", email="race@example.com"
+    )
+
+    assert user.supabase_id == "sub-race"
+
+
+@pytest.mark.asyncio
+async def test_parallel_first_sign_up_returns_the_user_the_other_request_created(
+    async_session, monkeypatch
+):
+    async_session.add(UserORM(name="", email="new-race@example.com", supabase_id="sub-new"))
+    await async_session.commit()
+    _miss_first_lookups(async_session, monkeypatch, misses=2)  # by sub and by e-mail
+
+    user = await get_or_create_user_from_supabase(
+        async_session, sub="sub-new", email="new-race@example.com"
+    )
+
+    assert user.supabase_id == "sub-new"
+    count = await async_session.execute(
+        select(UserORM).where(UserORM.email == "new-race@example.com")
+    )
+    assert len(count.scalars().all()) == 1
+
+
+@pytest.mark.asyncio
+async def test_sign_up_racing_with_another_identity_is_still_a_conflict(async_session, monkeypatch):
+    async_session.add(UserORM(name="", email="taken@example.com", supabase_id="sub-owner"))
+    await async_session.commit()
+    _miss_first_lookups(async_session, monkeypatch, misses=2)
+
+    with pytest.raises(IdentityConflictError):
+        await get_or_create_user_from_supabase(
+            async_session, sub="sub-intruder", email="taken@example.com"
+        )
