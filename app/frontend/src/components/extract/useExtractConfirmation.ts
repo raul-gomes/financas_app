@@ -35,7 +35,7 @@ export function useExtractConfirmation({
   const [isConfirming, setIsConfirming] = useState(false);
 
   const payloadOf = (sIdx: number) => ({
-    transactions: buildConfirmTransactions(sessions[sIdx], sIdx, drafts),
+    transactions: buildConfirmTransactions(sessions[sIdx], drafts),
   });
 
   /** Confirms one already-validated session. */
@@ -68,7 +68,7 @@ export function useExtractConfirmation({
   };
 
   const confirmSession = async (sIdx: number) => {
-    const validation = validateSession(sessions[sIdx], sIdx, drafts, categoryOptions);
+    const validation = validateSession(sessions[sIdx], drafts, categoryOptions);
     if (validation.hasErrors) {
       toast({
         title: 'Validação',
@@ -83,8 +83,8 @@ export function useExtractConfirmation({
 
   const confirmAll = async () => {
     let totalErrors = 0;
-    sessions.forEach((s, i) => {
-      if (!s.isConfirmed) totalErrors += validateSession(s, i, drafts, categoryOptions).errorCount;
+    sessions.forEach((s) => {
+      if (!s.isConfirmed) totalErrors += validateSession(s, drafts, categoryOptions).errorCount;
     });
     if (totalErrors > 0) {
       toast({

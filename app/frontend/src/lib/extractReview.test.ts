@@ -10,8 +10,8 @@ import {
   changeSubcategory,
   flattenForDuplicateCheck,
   formatTransactionCount,
+  nextRowId,
   parseTotalInstallments,
-  rowKey,
   splitDuplicates,
   summarizeSessions,
   toDuplicateCheckPayload,
@@ -32,6 +32,7 @@ const categories: CategorySubcategories = {
 
 function tx(overrides: Partial<ParsedTransaction> = {}): ParsedTransaction {
   return {
+    rowId: 'r1',
     date: '15/03/2026',
     description: 'Mercado',
     amount: 100,
@@ -48,9 +49,9 @@ function session(transactions: ParsedTransaction[], overrides: Partial<SessionDa
   return { filename: 'a.csv', bankCode: '260', isConfirmed: false, transactions, ...overrides };
 }
 
-describe('rowKey', () => {
-  it('joins the session and row indexes', () => {
-    expect(rowKey(2, 5)).toBe('2-5');
+describe('nextRowId', () => {
+  it('hands out a different id every time', () => {
+    expect(nextRowId()).not.toBe(nextRowId());
   });
 });
 
@@ -146,12 +147,12 @@ describe('installments', () => {
 
 describe('validateSession', () => {
   it('fails at once when the session has no bank', () => {
-    const result = validateSession(session([tx()], { bankCode: '' }), 0, {}, categories);
+    const result = validateSession(session([tx()], { bankCode: '' }), {}, categories);
     expect(result).toEqual({ hasErrors: true, errorCount: 1, errors: {} });
   });
 
   it('passes a complete row', () => {
-    expect(validateSession(session([tx()]), 0, {}, categories)).toEqual({
+    expect(validateSession(session([tx()]), {}, categories)).toEqual({
       hasErrors: false,
       errorCount: 0,
       errors: {},
@@ -159,11 +160,11 @@ describe('validateSession', () => {
   });
 
   it('counts every missing field per row, keyed by the row key', () => {
-    const bad = tx({ description: '  ', amount: 0, category_id: undefined, subcategory_id: undefined, payment_method: '', date: '' });
-    const result = validateSession(session([tx(), bad]), 0, {}, categories);
+    const bad = tx({ rowId: 'bad', description: '  ', amount: 0, category_id: undefined, subcategory_id: undefined, payment_method: '', date: '' });
+    const result = validateSession(session([tx(), bad]), {}, categories);
     expect(result.hasErrors).toBe(true);
-    expect(Object.keys(result.errors)).toEqual(['0-1']);
-    expect(result.errors['0-1']).toEqual({
+    expect(Object.keys(result.errors)).toEqual(['bad']);
+    expect(result.errors['bad']).toEqual({
       description: 'Descrição é obrigatória',
       amount: 'Valor inválido',
       category: 'Categoria é obrigatória',
@@ -175,17 +176,17 @@ describe('validateSession', () => {
 
   it('requires a subcategory only when the chosen category has some', () => {
     const noSub = tx({ subcategory_id: undefined });
-    expect(validateSession(session([noSub]), 0, {}, categories).errors['0-0']).toEqual({
+    expect(validateSession(session([noSub]), {}, categories).errors['r1']).toEqual({
       subcategory: 'Subcategoria é obrigatória',
     });
     const emptyCategory = tx({ category_id: 3, subcategory_id: undefined });
-    expect(validateSession(session([emptyCategory]), 0, {}, categories).hasErrors).toBe(false);
+    expect(validateSession(session([emptyCategory]), {}, categories).hasErrors).toBe(false);
   });
 
   it('accepts typed names instead of ids and rejects blank ones', () => {
     const row = tx({ category_id: undefined, subcategory_id: undefined, payment_method: '' });
     const filled: RowDrafts = {
-      '0-0': {
+      'r1': {
         ...EMPTY_ROW_DRAFT,
         customCategory: true,
         categoryName: 'Pets',
@@ -193,33 +194,33 @@ describe('validateSession', () => {
         paymentMethodName: 'vale',
       },
     };
-    expect(validateSession(session([row]), 0, filled, categories).hasErrors).toBe(false);
+    expect(validateSession(session([row]), filled, categories).hasErrors).toBe(false);
     const blank: RowDrafts = {
-      '0-0': { ...EMPTY_ROW_DRAFT, customCategory: true, categoryName: '   ', customPaymentMethod: true, paymentMethodName: '' },
+      'r1': { ...EMPTY_ROW_DRAFT, customCategory: true, categoryName: '   ', customPaymentMethod: true, paymentMethodName: '' },
     };
-    const result = validateSession(session([row]), 0, blank, categories);
-    expect(result.errors['0-0']).toEqual({
+    const result = validateSession(session([row]), blank, categories);
+    expect(result.errors['r1']).toEqual({
       category: 'Categoria é obrigatória',
       payment_method: 'Forma de pagamento é obrigatória',
     });
   });
 
   it('requires at least 2 installments when the row is installment-based', () => {
-    const drafts: RowDrafts = { '0-0': { ...EMPTY_ROW_DRAFT, installment: true, totalInstallments: 1 } };
-    expect(validateSession(session([tx()]), 0, drafts, categories).errors['0-0']).toEqual({
+    const drafts: RowDrafts = { 'r1': { ...EMPTY_ROW_DRAFT, installment: true, totalInstallments: 1 } };
+    expect(validateSession(session([tx()]), drafts, categories).errors['r1']).toEqual({
       total_installments: 'Mínimo 2 parcelas',
     });
   });
 
-  it('uses the session index in the row keys', () => {
-    const result = validateSession(session([tx({ description: '' })]), 3, {}, categories);
-    expect(Object.keys(result.errors)).toEqual(['3-0']);
+  it('keys the errors by the row id, not by its position', () => {
+    const result = validateSession(session([tx({ rowId: 'first' }), tx({ rowId: 'second', description: '' })]), {}, categories);
+    expect(Object.keys(result.errors)).toEqual(['second']);
   });
 });
 
 describe('buildConfirmTransactions', () => {
   it('maps rows to the confirm payload with the session bank', () => {
-    expect(buildConfirmTransactions(session([tx()]), 0, {})).toEqual([
+    expect(buildConfirmTransactions(session([tx()]), {})).toEqual([
       {
         date: '15/03/2026',
         description: 'Mercado',
@@ -235,13 +236,13 @@ describe('buildConfirmTransactions', () => {
   });
 
   it('omits the bank when the session has none', () => {
-    const [row] = buildConfirmTransactions(session([tx()], { bankCode: '' }), 0, {});
+    const [row] = buildConfirmTransactions(session([tx()], { bankCode: '' }), {});
     expect(row.bank_code).toBeUndefined();
   });
 
   it('sends typed names instead of ids, and the installment data', () => {
     const drafts: RowDrafts = {
-      '1-0': {
+      'r1': {
         ...EMPTY_ROW_DRAFT,
         customCategory: true,
         categoryName: 'Pets',
@@ -253,7 +254,7 @@ describe('buildConfirmTransactions', () => {
         totalInstallments: 3,
       },
     };
-    const [row] = buildConfirmTransactions(session([tx()]), 1, drafts);
+    const [row] = buildConfirmTransactions(session([tx()]), drafts);
     expect(row).toMatchObject({
       category_name: 'Pets',
       subcategory_name: 'Ração',
@@ -266,8 +267,8 @@ describe('buildConfirmTransactions', () => {
   });
 
   it('defaults the installments to 2 when the total is missing', () => {
-    const drafts: RowDrafts = { '0-0': { ...EMPTY_ROW_DRAFT, installment: true } };
-    expect(buildConfirmTransactions(session([tx()]), 0, drafts)[0].total_installments).toBe(2);
+    const drafts: RowDrafts = { 'r1': { ...EMPTY_ROW_DRAFT, installment: true } };
+    expect(buildConfirmTransactions(session([tx()]), drafts)[0].total_installments).toBe(2);
   });
 });
 
@@ -301,8 +302,11 @@ describe('summarizeSessions', () => {
 
 describe('duplicate detection helpers', () => {
   const sessions = [
-    session([tx({ date: '01/02/2026', amount: 1 }), tx({ date: '02/02/2026', amount: 2 })]),
-    session([tx({ date: '03/02/2026', amount: 3 })]),
+    session([
+      tx({ rowId: 'a', date: '01/02/2026', amount: 1 }),
+      tx({ rowId: 'b', date: '02/02/2026', amount: 2 }),
+    ]),
+    session([tx({ rowId: 'c', date: '03/02/2026', amount: 3 })]),
   ];
 
   it('flattens every row with its coordinates and builds the ISO payload', () => {
@@ -337,7 +341,7 @@ describe('duplicate detection helpers', () => {
       { index: 2, has_duplicate: true, duplicates: [] },
     ]);
     expect(dupItems).toHaveLength(1);
-    expect(dupItems[0]).toMatchObject({ sIdx: 0, rIdx: 1, key: '0-1', existing: { id: 7 } });
+    expect(dupItems[0]).toMatchObject({ sIdx: 0, rIdx: 1, key: 'b', existing: { id: 7 } });
     expect(dupItems[0].transaction).toBe(sessions[0].transactions[1]);
     expect(cleanSessions[0].transactions).toHaveLength(1);
     expect(cleanSessions[1].transactions).toHaveLength(1);

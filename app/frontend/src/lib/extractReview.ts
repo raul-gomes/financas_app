@@ -10,9 +10,12 @@ export const ADD_BANK_OPTION = '+add';
 /** Fewest installments an installment purchase may have. */
 export const MIN_INSTALLMENTS = 2;
 
-/** Stable key of a row of the review: session index and row index. */
-export function rowKey(sIdx: number, rIdx: number): string {
-  return `${sIdx}-${rIdx}`;
+let lastRowId = 0;
+
+/** New id for a parsed row. Unique for the lifetime of the page and stable while the row is edited or moved. */
+export function nextRowId(): string {
+  lastRowId += 1;
+  return `row-${lastRowId}`;
 }
 
 /**
@@ -30,7 +33,7 @@ export interface RowDraft {
   totalInstallments?: number;
 }
 
-/** Drafts of every row, by `rowKey`. A row without an entry has the empty draft. */
+/** Drafts of every row, by the row's `rowId` (so they follow the row when others are removed). A row without an entry has the empty draft. */
 export type RowDrafts = Record<string, RowDraft>;
 
 export const EMPTY_ROW_DRAFT: RowDraft = {
@@ -126,7 +129,7 @@ export interface TransactionErrors {
   date?: string;
 }
 
-/** Result of validating a session: `errors` is keyed by `rowKey`. */
+/** Result of validating a session: `errors` is keyed by the row's `rowId`. */
 export interface SessionValidation {
   hasErrors: boolean;
   errorCount: number;
@@ -170,7 +173,6 @@ function validateRow(
  */
 export function validateSession(
   session: SessionData,
-  sIdx: number,
   drafts: RowDrafts,
   options: CategorySubcategories | null,
 ): SessionValidation {
@@ -178,12 +180,11 @@ export function validateSession(
 
   const errors: Record<string, TransactionErrors> = {};
   let errorCount = 0;
-  session.transactions.forEach((t, rIdx) => {
-    const key = rowKey(sIdx, rIdx);
-    const rowErrors = validateRow(t, drafts[key] ?? EMPTY_ROW_DRAFT, options);
+  session.transactions.forEach((t) => {
+    const rowErrors = validateRow(t, drafts[t.rowId] ?? EMPTY_ROW_DRAFT, options);
     const fieldCount = Object.keys(rowErrors).length;
     if (fieldCount > 0) {
-      errors[key] = rowErrors;
+      errors[t.rowId] = rowErrors;
       errorCount += fieldCount;
     }
   });
@@ -191,13 +192,9 @@ export function validateSession(
 }
 
 /** Rows of a session in the shape `POST /extracts/confirm` expects (typed names win over ids). */
-export function buildConfirmTransactions(
-  session: SessionData,
-  sIdx: number,
-  drafts: RowDrafts,
-): ConfirmTransaction[] {
-  return session.transactions.map((t, rIdx) => {
-    const draft = drafts[rowKey(sIdx, rIdx)] ?? EMPTY_ROW_DRAFT;
+export function buildConfirmTransactions(session: SessionData, drafts: RowDrafts): ConfirmTransaction[] {
+  return session.transactions.map((t) => {
+    const draft = drafts[t.rowId] ?? EMPTY_ROW_DRAFT;
     const base: ConfirmTransaction = {
       date: t.date,
       description: t.description,
@@ -263,6 +260,7 @@ export function summarizeSessions(sessions: SessionData[]): SessionsSummary {
 export interface DuplicateItem {
   sIdx: number;
   rIdx: number;
+  /** The `rowId` of the uploaded row. */
   key: string;
   transaction: ParsedTransaction;
   existing: DuplicateInfo;
@@ -321,21 +319,21 @@ export function splitDuplicates(
   for (const result of results) {
     if (result.has_duplicate && result.duplicates.length > 0) {
       const row = flat[result.index];
-      const key = rowKey(row.sIdx, row.rIdx);
-      dupKeys.add(key);
+      const transaction = sessions[row.sIdx].transactions[row.rIdx];
+      dupKeys.add(transaction.rowId);
       dupItems.push({
         sIdx: row.sIdx,
         rIdx: row.rIdx,
-        key,
-        transaction: sessions[row.sIdx].transactions[row.rIdx],
+        key: transaction.rowId,
+        transaction,
         existing: result.duplicates[0],
       });
     }
   }
 
-  const cleanSessions = sessions.map((s, sIdx) => ({
+  const cleanSessions = sessions.map((s) => ({
     ...s,
-    transactions: s.transactions.filter((_, rIdx) => !dupKeys.has(rowKey(sIdx, rIdx))),
+    transactions: s.transactions.filter((t) => !dupKeys.has(t.rowId)),
   }));
   return { dupItems, cleanSessions };
 }

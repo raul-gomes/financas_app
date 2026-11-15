@@ -135,7 +135,6 @@ const BankExtract = () => {
             <ExtractSessionCard
               key={sIdx}
               session={session}
-              sIdx={sIdx}
               banks={banks}
               categoryOptions={categoryOptions}
               drafts={drafts}

@@ -391,7 +391,7 @@ financas_app/
 │       │       ├── utils.ts                    # cn() — merge de classes Tailwind (shadcn)
 │       │       ├── format.ts                   # formatCurrency/formatDate/formatPercent (fonte única de formatação)
 │       │   │       ├── transactionGroups.ts        # Agrupa lançamentos por dia ("Hoje · 14 nov") e formata valor com sinal (+ teste)
-│       │   │       ├── extractReview.ts            # Regras puras da revisão do extrato: rascunhos por linha, validação, payload de confirmação, totais, duplicatas, contagem (+ teste)
+│       │   │       ├── extractReview.ts            # Regras puras da revisão do extrato: rascunhos por linha (chaveados por rowId), validação, payload de confirmação, totais, duplicatas, contagem (+ teste)
 │       │   │       ├── bankLogo.ts                 # URL do logo, iniciais e paleta do fallback dos bancos (+ teste)
 │       │   │       ├── recurringBills.ts           # currentInstallment e isEndingSoon das contas recorrentes (+ teste)
 │       │   │       ├── statementAggregates.ts      # Funções puras sobre os agregados do /dashboard/statement: gráfico diário (buildDailyData), total por forma de pagamento, itens por banco, parcelas (+ teste)

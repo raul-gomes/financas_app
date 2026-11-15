@@ -10,7 +10,6 @@ import type { RowActions } from './useExtractReview';
 
 interface ExtractSessionCardProps {
   session: SessionData;
-  sIdx: number;
   banks: UserBank[];
   categoryOptions: CategorySubcategories | null;
   drafts: RowDrafts;
@@ -27,7 +26,6 @@ interface ExtractSessionCardProps {
 /** One uploaded file: header (bank + confirm), optional add-bank form, rows and warnings. */
 export function ExtractSessionCard({
   session,
-  sIdx,
   banks,
   categoryOptions,
   drafts,
@@ -60,7 +58,6 @@ export function ExtractSessionCard({
 
       {!session.isConfirmed && (
         <ExtractTransactionsTable
-          sIdx={sIdx}
           transactions={session.transactions}
           drafts={drafts}
           categoryOptions={categoryOptions}

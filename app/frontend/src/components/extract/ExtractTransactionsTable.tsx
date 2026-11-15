@@ -1,7 +1,7 @@
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/format';
-import { EMPTY_ROW_DRAFT, rowKey, type RowDrafts } from '@/lib/extractReview';
+import { EMPTY_ROW_DRAFT, type RowDrafts } from '@/lib/extractReview';
 import type { ParsedTransaction } from '@/types/extract';
 import type { CategorySubcategories } from '@/types/financial';
 import {
@@ -18,7 +18,6 @@ import type { RowActions } from './useExtractReview';
 const COLUMNS = ['Data', 'Descrição', 'Valor', 'Tipo', 'Parcelas', 'Pagto', 'Nat.', 'Categoria', 'Subcategoria'];
 
 interface ExtractTransactionsTableProps {
-  sIdx: number;
   transactions: ParsedTransaction[];
   drafts: RowDrafts;
   categoryOptions: CategorySubcategories | null;
@@ -31,7 +30,6 @@ interface ExtractTransactionsTableProps {
  * never grows wider than the screen on a phone.
  */
 export function ExtractTransactionsTable({
-  sIdx,
   transactions,
   drafts,
   categoryOptions,
@@ -52,13 +50,12 @@ export function ExtractTransactionsTable({
         </thead>
         <tbody className="divide-y divide-border">
           {transactions.map((transaction, rIdx) => {
-            const id = rowKey(sIdx, rIdx);
             return (
               <ExtractTransactionRow
-                key={rIdx}
-                rowId={id}
+                key={transaction.rowId}
+                rowId={transaction.rowId}
                 transaction={transaction}
-                draft={drafts[id] ?? EMPTY_ROW_DRAFT}
+                draft={drafts[transaction.rowId] ?? EMPTY_ROW_DRAFT}
                 categoryOptions={categoryOptions}
                 actions={rowActions(rIdx)}
               />

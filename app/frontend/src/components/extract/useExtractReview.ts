@@ -5,7 +5,6 @@ import {
   changePaymentMethod,
   changeSubcategory,
   parseTotalInstallments,
-  rowKey,
   toggleInstallment,
   typeCategoryName,
   typePaymentMethodName,
@@ -70,23 +69,22 @@ export function useExtractReview(initialSessions: SessionData[], categoryOptions
     setDrafts((prev) => ({ ...prev, [key]: { ...(prev[key] ?? EMPTY_ROW_DRAFT), ...patch } }));
   }, []);
 
-  const applyChange = (sIdx: number, rIdx: number, change: RowChange) => {
-    patchDraft(rowKey(sIdx, rIdx), change.draft);
-    updateTransaction(sIdx, rIdx, change.transaction);
-  };
-
-  /** The edits of one row, bound to its coordinates. */
+  /** The edits of one row, bound to its coordinates (drafts are kept by the row's stable id). */
   const rowActions = (sIdx: number, rIdx: number): RowActions => {
-    const key = rowKey(sIdx, rIdx);
+    const key = sessions[sIdx].transactions[rIdx].rowId;
+    const applyChange = (change: RowChange) => {
+      patchDraft(key, change.draft);
+      updateTransaction(sIdx, rIdx, change.transaction);
+    };
     return {
       onDescriptionChange: (value) => updateTransaction(sIdx, rIdx, { description: value }),
-      onPaymentMethodChange: (value) => applyChange(sIdx, rIdx, changePaymentMethod(value)),
-      onPaymentMethodNameChange: (value) => applyChange(sIdx, rIdx, typePaymentMethodName(value)),
+      onPaymentMethodChange: (value) => applyChange(changePaymentMethod(value)),
+      onPaymentMethodNameChange: (value) => applyChange(typePaymentMethodName(value)),
       onEntityTypeChange: (entityType) => updateTransaction(sIdx, rIdx, { entity_type: entityType }),
-      onCategoryChange: (value) => applyChange(sIdx, rIdx, changeCategory(value, categoryOptions)),
-      onCategoryNameChange: (value) => applyChange(sIdx, rIdx, typeCategoryName(value)),
-      onSubcategoryChange: (value) => applyChange(sIdx, rIdx, changeSubcategory(value)),
-      onSubcategoryNameChange: (value) => applyChange(sIdx, rIdx, typeSubcategoryName(value)),
+      onCategoryChange: (value) => applyChange(changeCategory(value, categoryOptions)),
+      onCategoryNameChange: (value) => applyChange(typeCategoryName(value)),
+      onSubcategoryChange: (value) => applyChange(changeSubcategory(value)),
+      onSubcategoryNameChange: (value) => applyChange(typeSubcategoryName(value)),
       onInstallmentToggle: (checked) =>
         patchDraft(key, toggleInstallment(drafts[key] ?? EMPTY_ROW_DRAFT, checked)),
       onTotalInstallmentsChange: (raw) => patchDraft(key, { totalInstallments: parseTotalInstallments(raw) }),

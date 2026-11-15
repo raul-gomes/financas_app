@@ -58,8 +58,8 @@ function makeSession(): SessionData {
     bankCode: '',
     isConfirmed: false,
     transactions: [
-      { date: '15/03/2026', description: 'Mercado do bairro', amount: 100, type: 'expense', payment_method: 'pix', entity_type: 'individual' },
-      { date: '16/03/2026', description: 'Salario marco', amount: 3000, type: 'income', payment_method: 'pix', entity_type: 'individual' },
+      { rowId: 'row-a', date: '15/03/2026', description: 'Mercado do bairro', amount: 100, type: 'expense', payment_method: 'pix', entity_type: 'individual' },
+      { rowId: 'row-b', date: '16/03/2026', description: 'Salario marco', amount: 3000, type: 'income', payment_method: 'pix', entity_type: 'individual' },
     ],
   };
 }
@@ -371,6 +371,27 @@ describe('BankExtract - confirmation', () => {
     const [expense] = mockConfirm.mock.calls[0][0].transactions;
     expect(expense.category_name).toBe('Pets');
     expect(expense).not.toHaveProperty('category_id');
+  });
+
+  it('keeps each row\'s typed values when an earlier row is removed (drafts follow the row, not its position)', async () => {
+    renderPage([makeSession()]);
+    await screen.findByText('Revisar Extrato');
+    await waitFor(() => expect(mockCategories).toHaveBeenCalled());
+    await pickOption(screen.getAllByRole('combobox')[0], /Nubank/);
+    // The second row (income) gets a typed new category name
+    const incomeRow = rowOf('Salario marco');
+    await pickOption(within(incomeRow).getAllByRole('combobox')[1], 'Outros...');
+    fireEvent.change(within(incomeRow).getByPlaceholderText('Nova categoria'), { target: { value: 'Freelas' } });
+    // ... then the first row is removed: the income row moves to position 0
+    fireEvent.click(within(rowOf('Mercado do bairro')).getByRole('button', { name: 'Remover transação' }));
+
+    expect(within(rowOf('Salario marco')).getByPlaceholderText('Nova categoria')).toHaveValue('Freelas');
+    fireEvent.click(screen.getByRole('button', { name: /^Confirmar$/ }));
+
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1));
+    const [only] = mockConfirm.mock.calls[0][0].transactions;
+    expect(only.description).toBe('Salario marco');
+    expect(only.category_name).toBe('Freelas');
   });
 
   it('reports a failed confirmation without marking the session as confirmed', async () => {
