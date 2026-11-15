@@ -165,14 +165,16 @@ export function TransactionList({
             <Plus className="h-4 w-4 mr-1" />
             Nova
           </Button>
-          <Button
-            onClick={() => setUploadOpen(true)}
-            variant="outline"
-            size="sm"
-          >
-            <FileText className="h-4 w-4 mr-1" />
-            Extrato
-          </Button>
+          {isAdmin && (
+            <Button
+              onClick={() => setUploadOpen(true)}
+              variant="outline"
+              size="sm"
+            >
+              <FileText className="h-4 w-4 mr-1" />
+              Extrato
+            </Button>
+          )}
         </div>
       </div>
 

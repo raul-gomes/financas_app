@@ -2,14 +2,17 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithQuery } from '@/test/queryWrapper';
 import { FinancialDashboard } from './FinancialDashboard';
-import { Transaction } from '@/types/financial';
+import { EMPTY_STATEMENT_AGGREGATES } from '@/lib/statementAggregates';
+import type { DailyData } from '@/types/financial';
 
 vi.mock('@/services/settingsService', () => ({
   SettingsService: { listBanks: vi.fn().mockResolvedValue([]) },
 }));
 
 vi.mock('@/components/charts/FlippableChart', () => ({
-  FlippableChart: () => <div>flippable-chart</div>,
+  FlippableChart: ({ dailyData }: { dailyData: DailyData[] }) => (
+    <div data-testid="flippable-chart">{JSON.stringify(dailyData.filter((d) => d.expenses > 0))}</div>
+  ),
 }));
 
 vi.mock('@/components/charts/IncomeChart', () => ({
@@ -22,7 +25,7 @@ const baseProps = {
   monthlyGoal: 0,
   currentMonthExpenses: 0,
   dateRange: { from: new Date('2026-09-01'), to: new Date('2026-09-30') },
-  transactions: [],
+  statement: null,
   selectedMonth: null,
   incomeBreakdown: null,
   categoryBreakdown: null,
@@ -55,27 +58,32 @@ describe('FinancialDashboard - rolagem dos boxes', () => {
   });
 
   it('mostra badge "Estourando" no cartão ao passar do limite', async () => {
-    const tx = (amount: number): Transaction => ({
-      id: amount,
-      amount,
-      description: 'Compra',
-      transaction_date: '2026-09-10T00:00:00',
-      type: 'expense',
-      entity_type: 'individual',
-      payment_method: 'credit',
-      category_id: 1,
-      category_name: 'Alimentacao',
-      subcategory_id: 1,
-      subcategory_name: 'Mercado',
-      installment_number: null,
-      total_installments: null,
-      recurring_account_id: null,
-      is_installment: false,
-      bank_code: null,
-    });
+    const statement = {
+      ...EMPTY_STATEMENT_AGGREGATES,
+      expenses_by_payment_method: [{ payment_method: 'credit', total: 1200 }],
+    };
 
-    renderWithQuery(<FinancialDashboard {...baseProps} transactions={[tx(1200)]} creditCardLimit={1000} />);
+    renderWithQuery(<FinancialDashboard {...baseProps} statement={statement} creditCardLimit={1000} />);
 
     expect((await screen.findByText('Estourando')).textContent).toContain('Estourando');
+  });
+
+  it('alimenta o gráfico diário do mês selecionado com os totais diários do servidor', () => {
+    const statement = {
+      ...EMPTY_STATEMENT_AGGREGATES,
+      daily_totals: [{ date: '2026-09-10', income: 0, expenses: 40, investment: 0 }],
+    };
+
+    renderWithQuery(
+      <FinancialDashboard
+        {...baseProps}
+        statement={statement}
+        selectedMonth={{ name: 'Set', index: 8, year: 2026 }}
+      />,
+    );
+
+    expect(JSON.parse(screen.getByTestId('flippable-chart').textContent ?? '[]')).toEqual([
+      { day: 10, income: 0, expenses: 40, investment: 0 },
+    ]);
   });
 });

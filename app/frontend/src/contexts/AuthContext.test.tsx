@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { ReactNode } from 'react';
-import { AuthProvider, useSession } from './AuthContext';
+import { useSession } from './AuthContext';
+import { AuthProvider } from './AuthProvider';
 
 const mockGetSession = vi.fn();
 const mockOnAuthStateChange = vi.fn();

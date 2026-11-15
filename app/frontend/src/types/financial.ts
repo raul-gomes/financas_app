@@ -1,6 +1,8 @@
 import type { z } from 'zod';
 import type {
-  transactionSchema, transactionPageSchema, financialSummarySchema, yearlyPerformanceSchema,
+  transactionSchema, transactionPageSchema, financialSummarySchema,
+  statementDailyTotalSchema, statementPaymentMethodTotalSchema, statementBankTotalSchema,
+  statementInstallmentsDueSchema, yearlyPerformanceSchema,
   categoryBreakdownSchema, incomeBySubcategorySchema, categorySubcategoriesSchema,
   limitsUpdateResponseSchema, limitsWithSpendingSchema, duplicateCheckResponseSchema,
   limitsPayloadSchema,
@@ -194,6 +196,15 @@ export const INVESTMENT_CATEGORIES = {
 export type Transaction = z.infer<typeof transactionSchema>;
 export type TransactionPage = z.infer<typeof transactionPageSchema>;
 export type FinancialSummary = z.infer<typeof financialSummarySchema>;
+export type StatementDailyTotal = z.infer<typeof statementDailyTotalSchema>;
+export type StatementPaymentMethodTotal = z.infer<typeof statementPaymentMethodTotalSchema>;
+export type StatementBankTotal = z.infer<typeof statementBankTotalSchema>;
+export type StatementInstallmentsDue = z.infer<typeof statementInstallmentsDueSchema>;
+/** The statement's server-side aggregates that feed the charts and the payment KPI cards. */
+export type StatementAggregates = Pick<
+  FinancialSummary,
+  'daily_totals' | 'expenses_by_payment_method' | 'expenses_by_bank' | 'installments_due'
+>;
 export type YearlyPerformance = z.infer<typeof yearlyPerformanceSchema>;
 export type CategoryBreakdown = z.infer<typeof categoryBreakdownSchema>;
 export type IncomeBySubcategoria = z.infer<typeof incomeBySubcategorySchema>;

@@ -1,20 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatCurrency } from '@/lib/format';
 import { ContaRecorrente, ContaRecorrenteCreate, ContaRecorrenteUpdate } from '@/types/recurringAccount';
 import { ContaRecorrenteService } from '@/services/recurringAccountService';
 import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw, Wallet, ToggleRight, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useErrorToast } from '@/hooks/queries/useErrorToast';
+import { useRecurringAccounts } from '@/hooks/queries/useLimitsQueries';
+import { invalidateRecurringData } from '@/hooks/queries/useRecurringQueries';
 import { AddRecurrentBillDialog } from '@/components/dialogs/AddRecurrentBillDialog';
 import { EditRecurrentBillDialog } from '@/components/dialogs/EditRecurrentBillDialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
-import { RecurringBillsTable, currentInstallment, isEndingSoon } from '@/components/recorrentes/RecurringBillsTable';
+import { RecurringBillsTable } from '@/components/recorrentes/RecurringBillsTable';
+import { isEndingSoon } from '@/lib/recurringBills';
 
 const RecurrentBills = () => {
-  const [contas, setContas] = useState<ContaRecorrente[]>([]);
+  const queryClient = useQueryClient();
+  const { data: contas = [], isError: loadFailed } = useRecurringAccounts(undefined);
+  useErrorToast(loadFailed, 'Falha ao carregar contas recorrentes.');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingConta, setEditingConta] = useState<ContaRecorrente | null>(null);
@@ -23,19 +30,8 @@ const RecurrentBills = () => {
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const { toast } = useToast();
 
-  const loadContas = useCallback(async () => {
-    try {
-      const data = await ContaRecorrenteService.getAll();
-      setContas(data);
-    } catch (error) {
-      console.error('Erro ao carregar contas recorrentes:', error);
-      toast({ title: 'Erro', description: 'Falha ao carregar contas recorrentes.', variant: 'destructive' });
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    loadContas();
-  }, [loadContas]);
+  // Every mutation refreshes the accounts and the transactions they generate or cancel
+  const loadContas = () => invalidateRecurringData(queryClient);
 
   const handleCreate = async (payload: ContaRecorrenteCreate) => {
     try {

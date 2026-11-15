@@ -59,10 +59,18 @@ const summary: FinancialSummary = {
   end_date: '31/05/2026',
   monthly_goal: 0,
   total_invested: 0,
-  transactions: [transaction],
   credit_card_limit: 0,
   fixed_expenses: 0,
   variable_expenses: 10.5,
+  daily_totals: [{ date: '2026-05-01', income: 100, expenses: 10.5, investment: 0 }],
+  expenses_by_payment_method: [{ payment_method: 'pix', total: 10.5 }],
+  expenses_by_bank: [{ payment_method: 'pix', bank_code: '260', bank_name: 'Nubank', total: 10.5 }],
+  installments_due: {
+    remaining_amount: 20,
+    remaining_installments: 2,
+    transactions: 1,
+    by_bank: [{ bank_code: null, bank_name: 'Sem banco', remaining_amount: 20, remaining_installments: 2, transactions: 1 }],
+  },
 };
 
 const range = { from: new Date(2026, 4, 1), to: new Date(2026, 4, 31) };
@@ -78,12 +86,29 @@ describe('FinancialService boundary', () => {
     await expect(FinancialService.getFinancialSummary(range)).rejects.toBeInstanceOf(ApiSchemaError);
   });
 
-  it('rejects an unknown transaction type without leaking the payload', async () => {
-    respondWith({ ...summary, transactions: [{ ...transaction, type: 'refund', description: 'segredo' }] });
+  it('rejects a statement without the aggregates', async () => {
+    const { daily_totals: _omitted, ...withoutDaily } = summary;
+    respondWith(withoutDaily);
     const error = await FinancialService.getFinancialSummary(range).catch((e: Error) => e);
     expect(error).toBeInstanceOf(ApiSchemaError);
-    expect((error as Error).message).toContain('transactions.0.type');
+    expect((error as Error).message).toContain('daily_totals');
+  });
+
+  it('rejects an aggregate with a wrong type without leaking the payload', async () => {
+    respondWith({
+      ...summary,
+      expenses_by_bank: [{ payment_method: 'pix', bank_code: '260', bank_name: 'segredo', total: 'x' }],
+    });
+    const error = await FinancialService.getFinancialSummary(range).catch((e: Error) => e);
+    expect(error).toBeInstanceOf(ApiSchemaError);
+    expect((error as Error).message).toContain('expenses_by_bank.0.total');
     expect((error as Error).message).not.toContain('segredo');
+  });
+
+  it('does not keep the deprecated transactions list the backend may still send', async () => {
+    respondWith({ ...summary, transactions: [transaction] });
+    const parsed = await FinancialService.getFinancialSummary(range);
+    expect(parsed).not.toHaveProperty('transactions');
   });
 
   it('parses the yearly performance, category breakdown and income lists', async () => {
@@ -326,7 +351,9 @@ describe('SettingsService boundary', () => {
     const accounts = await SettingsService.listPluggyAccounts();
     expect(accounts.items[0].institution_number).toBe('123');
     respondWith({ message: 'ok', imported: 3, accounts: 1 });
-    await expect(SettingsService.syncPluggy()).resolves.toHaveProperty('imported', 3);
+    await expect(SettingsService.syncPluggy()).resolves.toMatchObject({ imported: 3, skipped: 0, linked: 0 });
+    respondWith({ message: 'ok', imported: 3, skipped: 7, linked: 2, accounts: 1 });
+    await expect(SettingsService.syncPluggy()).resolves.toMatchObject({ skipped: 7, linked: 2 });
   });
 
   it('rejects malformed settings payloads', async () => {

@@ -45,6 +45,9 @@ export const queryKeys = {
       ['financial', 'category-breakdown', rangeKey(range), entityType, type] as const,
     categoryIncome: (range: DateRangeInput, entityType: string) =>
       ['financial', 'category-income', rangeKey(range), entityType] as const,
+    /** Category/subcategory options for selects (an import can create new ones, so it refreshes with the data). */
+    categoryOptions: (entityType: string, type?: string) =>
+      ['financial', 'category-options', entityType, type ?? 'all'] as const,
   },
   overview: {
     all: ['overview'] as const,

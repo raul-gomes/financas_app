@@ -60,7 +60,8 @@ async def test_extrato_financeiro(client):
     data = response.json()
     assert "total_income" in data
     assert "total_expenses" in data
-    assert "transactions" in data
+    assert "daily_totals" in data
+    assert "transactions" not in data
 
 
 @pytest.mark.asyncio
@@ -147,3 +148,43 @@ async def test_extrato_invalid_date_format(client):
         "/dashboard/statement?start_date=invalid&end_date=31/01/2026&entity_type=individual"
     )
     assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_dashboard_all_scope_includes_both_natures(client):
+    """entity_type=all sums individual and business on every dashboard endpoint the page calls."""
+    cat_id, sub_id = await _setup_dashboard_data(client)
+    business = await client.post(
+        "/transacoes/",
+        json={
+            "amount": 40.0,
+            "description": "Software",
+            "transaction_date": "2026-01-20T10:00:00",
+            "type": "expense",
+            "entity_type": "business",
+            "payment_method": "pix",
+            "category_id": cat_id,
+            "subcategory_id": sub_id,
+        },
+    )
+    assert business.status_code == 201
+    period = "start_date=01/01/2026&end_date=31/01/2026"
+
+    statements = {}
+    for scope in ("individual", "business", "all"):
+        response = await client.get(f"/dashboard/statement?{period}&entity_type={scope}")
+        assert response.status_code == 200
+        statements[scope] = response.json()
+
+    assert statements["individual"]["total_expenses"] == 100.0
+    assert statements["business"]["total_expenses"] == 40.0
+    assert statements["all"]["total_expenses"] == 140.0
+    assert statements["all"]["total_income"] == 3000.0
+
+    yearly = await client.get("/dashboard/period-income?year=2026&entity_type=all")
+    assert yearly.status_code == 200
+    assert yearly.json()["months"]["january"]["expense"] == 140.0
+    for path in ("expenses-by-category", "income-by-category"):
+        extra = "&type=expense" if path == "expenses-by-category" else ""
+        response = await client.get(f"/dashboard/{path}?{period}&entity_type=all{extra}")
+        assert response.status_code == 200

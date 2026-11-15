@@ -1,1109 +1,165 @@
-﻿import { useState, useEffect, useRef } from 'react'
-import { formatCurrency } from '@/lib/format';
-import { useLocation, useNavigate } from 'react-router'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import {
-  Upload, FileText, CheckCircle, AlertCircle, X, Plus, Banknote,
-  Loader2, ArrowLeft, Save, Trash2
-} from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
-import { reportLoadError } from '@/lib/reportLoadError'
-import { ExtractoService } from '@/services/extractService'
-import { FinancialService } from '@/services/financialService'
-import { SettingsService } from '@/services/settingsService'
-import type { SessionData, ParsedTransaction, ConfirmTransaction } from '@/types/extract'
-import type { CategorySubcategories, DuplicateInfo } from '@/types/financial'
-import type { UserBank, BankCreate } from '@/services/settingsService'
-import { BankLogo } from '@/components/ui/bank-logo'
+﻿import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { useToast } from '@/hooks/use-toast';
+import { useErrorToast } from '@/hooks/queries/useErrorToast';
+import { useCategoryOptions } from '@/hooks/queries/useFinancialQueries';
+import { useAddBank, useBanks } from '@/hooks/queries/useSettingsQueries';
+import { ADD_BANK_OPTION, summarizeSessions } from '@/lib/extractReview';
+import { ExtractConfirmBar } from '@/components/extract/ExtractConfirmBar';
+import { ExtractDuplicatesSection } from '@/components/extract/ExtractDuplicatesSection';
+import { ExtractReviewHeader } from '@/components/extract/ExtractReviewHeader';
+import { ExtractSessionCard } from '@/components/extract/ExtractSessionCard';
+import { ExtractSummaryCards } from '@/components/extract/ExtractSummaryCards';
+import { ExtractUploadStep } from '@/components/extract/ExtractUploadStep';
+import { useExtractConfirmation } from '@/components/extract/useExtractConfirmation';
+import { useExtractDuplicates } from '@/components/extract/useExtractDuplicates';
+import { useExtractReview } from '@/components/extract/useExtractReview';
+import { useExtractUpload } from '@/components/extract/useExtractUpload';
+import type { SessionData } from '@/types/extract';
 
-interface DuplicateItem {
-  sIdx: number
-  rIdx: number
-  key: string
-  transaction: ParsedTransaction
-  existing: DuplicateInfo
-  resolved?: 'skip' | 'replace'
-}
+/** Where to go after the import (or when the user gives up). */
+const AFTER_IMPORT_ROUTE = '/financial';
 
-const KNOWN_PAYMENT_METHODS = ['cash', 'pix', 'debit', 'credit', 'transfer', 'boleto']
-
-// Inline validation error type
-interface TransactionErrors {
-  description?: string
-  amount?: string
-  category?: string
-  subcategory?: string
-  payment_method?: string
-  total_installments?: string
-  date?: string
-}
-
+/**
+ * Bank statement import (`/extrato-bancario`): upload CSV/OFX files, review and fix the
+ * parsed rows (category, payment method, installments, bank), resolve duplicates and
+ * confirm. Categories and banks come from the shared query cache.
+ */
 const BankExtract = () => {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { toast } = useToast()
-  const initialSessions = (location.state as { sessions?: SessionData[] })?.sessions || []
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const initialSessions = (location.state as { sessions?: SessionData[] } | null)?.sessions || [];
 
-  const [sessions, setSessions] = useState<SessionData[]>(initialSessions)
-  const [isUploading, setIsUploading] = useState(false)
-  const [isConfirming, setIsConfirming] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState('')
-  const [banks, setBanks] = useState<UserBank[]>([])
-  const [categoryOptions, setCategoryOptions] = useState<CategorySubcategories | null>(null)
+  const { data: categoryOptions = null, isError: categoriesFailed } = useCategoryOptions('all');
+  const { data: banks = [], isError: banksFailed } = useBanks();
+  useErrorToast(categoriesFailed, 'Falha ao carregar as categorias.');
+  useErrorToast(banksFailed, 'Falha ao carregar os bancos.');
+  const addBank = useAddBank();
 
-  // Inline "add bank" state
-  const [addingBankSessionIdx, setAddingBankSessionIdx] = useState<number | null>(null)
-  const [newBankCode, setNewBankCode] = useState('')
-  const [newBankName, setNewBankName] = useState('')
+  const { sessions, setSessions, drafts, updateSession, appendTransaction, rowActions } = useExtractReview(
+    initialSessions,
+    categoryOptions,
+  );
+  const { duplicateItems, checkSessions, skipDuplicate, replaceDuplicate } = useExtractDuplicates((item) =>
+    appendTransaction(item.sIdx, item.transaction),
+  );
+  const upload = useExtractUpload(checkSessions, setSessions);
+  const confirmation = useExtractConfirmation({
+    sessions,
+    drafts,
+    categoryOptions,
+    updateSession,
+    onAllImported: () => navigate(AFTER_IMPORT_ROUTE),
+  });
 
-  // Post-upload duplicate items (shown as a section at top)
-  const [duplicateItems, setDuplicateItems] = useState<DuplicateItem[]>([])
+  // Index of the session whose inline "add bank" form is open
+  const [addingBankSessionIdx, setAddingBankSessionIdx] = useState<number | null>(null);
 
-  // Per-row "Other" state
-  const [showNewCategory, setShowNewCategory] = useState<Record<string, boolean>>({})
-  const [newCategoryName, setNewCategoryName] = useState<Record<string, string>>({})
-  const [showNewSubcategory, setShowNewSubcategory] = useState<Record<string, boolean>>({})
-  const [newSubcategoryName, setNewSubcategoryName] = useState<Record<string, string>>({})
-  const [showNewPaymentMethod, setShowNewPaymentMethod] = useState<Record<string, boolean>>({})
-  const [newPaymentMethodName, setNewPaymentMethodName] = useState<Record<string, string>>({})
-  const [installmentMap, setInstallmentMap] = useState<Record<string, boolean>>({})
-  const [totalInstallmentsMap, setTotalInstallmentsMap] = useState<Record<string, number>>({})
-  // Inline validation errors per transaction
-  const [transactionErrors, setTransactionErrors] = useState<Record<string, TransactionErrors>>({})
-
+  // Sessions that arrive through the navigation state (from ExtratoUploadModal) are checked once
+  const initialCheckedRef = useRef(false);
   useEffect(() => {
-    FinancialService.getCategorySubcategories('all').then(setCategoryOptions)
-      .catch((error: unknown) => reportLoadError(toast, 'as categorias', error))
-    SettingsService.listBanks().then(setBanks)
-      .catch((error: unknown) => reportLoadError(toast, 'os bancos', error))
-    // toast is a stable global dispatcher; the lists load once
+    if (initialSessions.length > 0 && !initialCheckedRef.current) {
+      initialCheckedRef.current = true;
+      void checkSessions(initialSessions).then(setSessions);
+    }
+    // runs once for the sessions the page was opened with
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, []);
 
-  const rowKey = (sIdx: number, rIdx: number) => `${sIdx}-${rIdx}`
-
-  // Track whether duplicate check has been done for navigation-loaded sessions
-  const initialDuplicatesCheckedRef = useRef(false)
-
-  // Run duplicate check for sessions that arrive via navigation state (from ExtratoUploadModal)
-  useEffect(() => {
-    if (initialSessions.length > 0 && !initialDuplicatesCheckedRef.current) {
-      initialDuplicatesCheckedRef.current = true
-      checkDuplicatesForSessions(sessions).then(({ dupItems, cleanSessions }) => {
-        setDuplicateItems(dupItems)
-        setSessions(cleanSessions)
-        if (dupItems.length > 0) {
-          toast({
-            title: `${dupItems.length} duplicata${dupItems.length > 1 ? 's' : ''} encontrada${dupItems.length > 1 ? 's' : ''}`,
-            description: 'Revise e resolva as duplicatas no topo da página antes de confirmar.',
-          })
-        }
-      }).catch(err => {
-        console.error('Erro ao verificar duplicatas:', err)
-        setDuplicateItems([])
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Shared duplicate-checking logic
-  async function checkDuplicatesForSessions(sessionList: SessionData[]): Promise<{
-    dupItems: DuplicateItem[]
-    cleanSessions: SessionData[]
-  }> {
-    const flatTransactions: Array<{ sIdx: number; rIdx: number; date: string; amount: number }> = []
-    sessionList.forEach((s, sIdx) => {
-      s.transactions.forEach((t, rIdx) => {
-        flatTransactions.push({ sIdx, rIdx, date: t.date, amount: t.amount })
-      })
-    })
-
-    const checkPayload = {
-      transactions: flatTransactions.map((t, idx) => ({
-        index: idx,
-        transaction_date: t.date.split('/').reverse().join('-'),
-        amount: t.amount,
-      })),
-    }
-    const checkResult = await FinancialService.checkDuplicates(checkPayload)
-
-    if (!checkResult?.results) {
-      throw new Error('Resposta inválida do servidor')
-    }
-
-    const dupItems: DuplicateItem[] = []
-    const dupSet = new Set<string>()
-
-    for (const r of checkResult.results) {
-      if (r.has_duplicate && r.duplicates.length > 0) {
-        const t = flatTransactions[r.index]
-        const key = rowKey(t.sIdx, t.rIdx)
-        dupSet.add(key)
-        dupItems.push({
-          sIdx: t.sIdx,
-          rIdx: t.rIdx,
-          key,
-          transaction: sessionList[t.sIdx].transactions[t.rIdx],
-          existing: r.duplicates[0],
-        })
-      }
-    }
-
-    const cleanSessions = sessionList.map((s, sIdx) => ({
-      ...s,
-      transactions: s.transactions.filter((_, rIdx) => !dupSet.has(rowKey(sIdx, rIdx))),
-    }))
-
-    return { dupItems, cleanSessions }
-  }
-
-  // ---- Upload handlers ----
-  const handleFileSelect = async (selectedFiles: FileList | File[]) => {
-    const fileArray = Array.from(selectedFiles)
-    if (fileArray.length === 0) return
-    setIsUploading(true)
-    try {
-      setUploadProgress(`Processando ${fileArray.length} arquivo${fileArray.length > 1 ? 's' : ''}...`)
-      const result = await ExtractoService.uploadMultiple(fileArray)
-
-      let dupItems: DuplicateItem[] = []
-      try {
-        const { dupItems: found, cleanSessions } = await checkDuplicatesForSessions(result)
-        dupItems = found
-        setDuplicateItems(found)
-        setSessions(cleanSessions)
-
-        if (found.length > 0) {
-          toast({
-            title: `${found.length} duplicata${found.length > 1 ? 's' : ''} encontrada${found.length > 1 ? 's' : ''}`,
-            description: 'Revise e resolva as duplicatas no topo da página antes de confirmar.',
-          })
-        }
-      } catch (err) {
-        console.error('Erro ao verificar duplicatas:', err)
-        // If duplicate check fails, show all sessions anyway
-        setDuplicateItems([])
-        setSessions(result)
-      }
-    } catch {
-      toast({ title: 'Erro', description: 'Falha ao processar o extrato. Verifique o formato do arquivo.', variant: 'destructive' })
-    } finally {
-      setIsUploading(false)
-      setUploadProgress('')
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    const droppedFiles = e.dataTransfer.files
-    if (droppedFiles.length > 0) handleFileSelect(droppedFiles)
-  }
-
-  // ---- Session helpers ----
-  const updateSession = (sIdx: number, updates: Partial<SessionData>) => {
-    setSessions(prev => prev.map((s, i) => i === sIdx ? { ...s, ...updates } : s))
-  }
-
-  const updateTransaction = (sIdx: number, rIdx: number, updates: Partial<ParsedTransaction>) => {
-    setSessions(prev => prev.map((s, i) =>
-      i === sIdx ? {
-        ...s,
-        transactions: s.transactions.map((t, j) => j === rIdx ? { ...t, ...updates } : t)
-      } : s
-    ))
-  }
-
-  const deleteTransaction = (sIdx: number, rIdx: number) => {
-    setSessions(prev => prev.map((s, i) =>
-      i === sIdx ? {
-        ...s,
-        transactions: s.transactions.filter((_, j) => j !== rIdx)
-      } : s
-    ))
-  }
-
-  // ---- Duplicate resolution (post-upload) ----
-  const skipDuplicate = (key: string) => {
-    // Mark as "skip" — transaction won't be imported
-    setDuplicateItems(prev => prev.map(d => d.key === key ? { ...d, resolved: 'skip' } : d))
-  }
-
-  const replaceDuplicate = async (item: DuplicateItem) => {
-    // Delete the existing transaction, and add the new one back to its session for import
-    try {
-      await FinancialService.deleteTransaction(item.existing.id)
-      setDuplicateItems(prev => prev.map(d => d.key === item.key ? { ...d, resolved: 'replace' } : d))
-      // Re-add the transaction to its session
-      setSessions(prev => prev.map((s, i) =>
-        i === item.sIdx
-          ? { ...s, transactions: [...s.transactions, item.transaction] }
-          : s
-      ))
-      toast({ title: 'Substituído', description: 'Transação existente removida. A nova será importada.' })
-    } catch {
-      toast({ title: 'Erro', description: 'Falha ao remover transação existente.', variant: 'destructive' })
-    }
-  }
-
-  // ---- Row edit handlers ----
-  const handlePaymentMethodChange = (sIdx: number, rIdx: number, value: string) => {
-    const key = rowKey(sIdx, rIdx)
-    if (value === 'outros') {
-      setShowNewPaymentMethod(prev => ({ ...prev, [key]: true }))
-      updateTransaction(sIdx, rIdx, { payment_method: '' })
-    } else {
-      setShowNewPaymentMethod(prev => ({ ...prev, [key]: false }))
-      setNewPaymentMethodName(prev => ({ ...prev, [key]: '' }))
-      updateTransaction(sIdx, rIdx, { payment_method: value })
-    }
-  }
-
-  const handleCategoryChange = (sIdx: number, rIdx: number, value: string) => {
-    const key = rowKey(sIdx, rIdx)
-    if (value === 'outros') {
-      setShowNewCategory(prev => ({ ...prev, [key]: true }))
-      updateTransaction(sIdx, rIdx, { category_id: undefined, subcategory_id: undefined })
-    } else {
-      const catId = parseInt(value)
-      setShowNewCategory(prev => ({ ...prev, [key]: false }))
-      setNewCategoryName(prev => ({ ...prev, [key]: '' }))
-      const catObj = categoryOptions?.options.find(c => c.id === catId)
-      const firstSub = catObj?.subcategories[0]
-      updateTransaction(sIdx, rIdx, {
-        category_id: catId,
-        subcategory_id: firstSub?.id,
-      })
-    }
-  }
-
-  const handleSubcategoryChange = (sIdx: number, rIdx: number, value: string) => {
-    const key = rowKey(sIdx, rIdx)
-    if (value === 'outros') {
-      setShowNewSubcategory(prev => ({ ...prev, [key]: true }))
-      updateTransaction(sIdx, rIdx, { subcategory_id: undefined })
-    } else {
-      setShowNewSubcategory(prev => ({ ...prev, [key]: false }))
-      setNewSubcategoryName(prev => ({ ...prev, [key]: '' }))
-      updateTransaction(sIdx, rIdx, { subcategory_id: parseInt(value) })
-    }
-  }
-
-  const handleEntityTypeChange = (sIdx: number, rIdx: number, entity_type: string) => {
-    updateTransaction(sIdx, rIdx, { entity_type })
-  }
-
-  // ---- Bank ----
   const handleBankSelect = (sIdx: number, value: string) => {
-    if (value === '+add') {
-      setAddingBankSessionIdx(sIdx)
-      setNewBankCode('')
-      setNewBankName('')
+    if (value === ADD_BANK_OPTION) {
+      setAddingBankSessionIdx(sIdx);
     } else {
-      updateSession(sIdx, { bankCode: value })
-      setAddingBankSessionIdx(null)
+      updateSession(sIdx, { bankCode: value });
+      setAddingBankSessionIdx(null);
     }
-  }
+  };
 
-  const handleAddBank = async (sIdx: number) => {
-    if (!newBankCode.trim() || !newBankName.trim()) {
-      toast({ title: 'Erro', description: 'Preencha código e nome do banco.', variant: 'destructive' })
-      return
+  const handleAddBank = async (sIdx: number, bankCode: string, bankName: string) => {
+    if (!bankCode.trim() || !bankName.trim()) {
+      toast({ title: 'Erro', description: 'Preencha código e nome do banco.', variant: 'destructive' });
+      return;
     }
     try {
-      const payload: BankCreate = { bank_code: newBankCode.trim(), bank_name: newBankName.trim() }
-      const created = await SettingsService.addBank(payload)
-      setBanks(prev => [...prev, created])
-      updateSession(sIdx, { bankCode: created.bank_code })
-      setAddingBankSessionIdx(null)
-      setNewBankCode('')
-      setNewBankName('')
-      toast({ title: 'Banco adicionado', description: `${created.bank_name} (${created.bank_code})` })
+      const created = await addBank.mutateAsync({ bank_code: bankCode.trim(), bank_name: bankName.trim() });
+      updateSession(sIdx, { bankCode: created.bank_code });
+      setAddingBankSessionIdx(null);
+      toast({ title: 'Banco adicionado', description: `${created.bank_name} (${created.bank_code})` });
     } catch {
-      toast({ title: 'Erro', description: 'Falha ao adicionar banco.', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Falha ao adicionar banco.', variant: 'destructive' });
     }
-  }
+  };
 
-  const cancelAddBank = () => {
-    setAddingBankSessionIdx(null)
-    setNewBankCode('')
-    setNewBankName('')
-  }
-
-  const selectedBank = (sIdx: number) => banks.find(b => b.bank_code === sessions[sIdx]?.bankCode)
-
-  // ---- Confirm ----
-  const buildConfirmPayload = (session: SessionData): ConfirmTransaction[] => {
-    return session.transactions.map((t, rIdx) => {
-      const key = rowKey(sessions.indexOf(session), rIdx)
-      const base: ConfirmTransaction = {
-        date: t.date,
-        description: t.description,
-        amount: t.amount,
-        type: t.type,
-        payment_method: showNewPaymentMethod[key] ? newPaymentMethodName[key] : t.payment_method,
-        entity_type: t.entity_type,
-        bank_code: session.bankCode || undefined,
-      }
-
-      if (showNewCategory[key]) {
-        base.category_name = newCategoryName[key]
-      } else {
-        base.category_id = t.category_id!
-      }
-
-      if (showNewSubcategory[key]) {
-        base.subcategory_name = newSubcategoryName[key]
-      } else {
-        base.subcategory_id = t.subcategory_id
-      }
-
-      if (installmentMap[key]) {
-        base.total_installments = totalInstallmentsMap[key] || 2
-        base.is_installment = true
-      }
-
-      return base
-    })
-  }
-
-const validateTransaction = (sIdx: number, rIdx: number, t: ParsedTransaction, key: string): TransactionErrors => {
-    const errors: TransactionErrors = {}
-    
-    // Description required
-    if (!t.description?.trim()) {
-      errors.description = 'Descrição é obrigatória'
-    }
-    
-    // Amount required and > 0
-    if (!t.amount || t.amount <= 0) {
-      errors.amount = 'Valor inválido'
-    }
-    
-    // Category required
-    const hasCategory = showNewCategory[key]
-      ? newCategoryName[key]?.trim()
-      : t.category_id
-    if (!hasCategory) {
-      errors.category = 'Categoria é obrigatória'
-    }
-    
-    // Subcategory required if category exists
-    const catObj = categoryOptions?.options.find(c => c.id === t.category_id)
-    if (catObj && catObj.subcategories.length > 0) {
-      const hasSubcategory = showNewSubcategory[key]
-        ? newSubcategoryName[key]?.trim()
-        : t.subcategory_id
-      if (!hasSubcategory) {
-        errors.subcategory = 'Subcategoria é obrigatória'
-      }
-    }
-    
-    // Payment method required
-    const hasPaymentMethod = showNewPaymentMethod[key]
-      ? newPaymentMethodName[key]?.trim()
-      : t.payment_method
-    if (!hasPaymentMethod) {
-      errors.payment_method = 'Forma de pagamento é obrigatória'
-    }
-    
-    // Installments validation
-    if (installmentMap[key]) {
-      const total = totalInstallmentsMap[key] || 0
-      if (total < 2) {
-        errors.total_installments = 'Mínimo 2 parcelas'
-      }
-    }
-    
-    // Date validation
-    if (!t.date) {
-      errors.date = 'Data é obrigatória'
-    }
-    
-    return errors
-  }
-
-  const validateSession = (session: SessionData, sIdx: number): { hasErrors: boolean; errorCount: number } => {
-    if (!session.bankCode) return { hasErrors: true, errorCount: 1 }
-
-    const allErrors: Record<string, TransactionErrors> = {}
-    let errorCount = 0
-
-    session.transactions.forEach((t, rIdx) => {
-      const key = rowKey(sIdx, rIdx)
-      const errors = validateTransaction(sIdx, rIdx, t, key)
-      const hasErrors = Object.keys(errors).length > 0
-      if (hasErrors) {
-        allErrors[key] = errors
-        errorCount += Object.keys(errors).length
-      }
-    })
-
-setTransactionErrors(allErrors)
-    return { hasErrors: errorCount > 0, errorCount }
-  }
-
-  const doConfirmSession = async (sIdx: number, payload?: { transactions: ConfirmTransaction[] }) => {
-    const session = sessions[sIdx]
-    if (!payload) {
-      payload = { transactions: buildConfirmPayload(session) }
-    }
-
-    setIsConfirming(true)
-    try {
-      const result = await ExtractoService.confirm(payload)
-      updateSession(sIdx, { isConfirmed: true })
-      toast({
-        title: 'Sucesso',
-        description: `${result.created} transações importadas de "${session.filename}"!`,
-      })
-
-      // Check if all sessions are now confirmed
-      const updated = sessions.map((s, i) => i === sIdx ? { ...s, isConfirmed: true } : s)
-      const allDone = updated.every(s => s.isConfirmed)
-      if (allDone) {
-        toast({ title: 'Concluído', description: 'Todas as transações foram importadas!' })
-        setTimeout(() => navigate('/financial'), 800)
-      }
-    } catch {
-      toast({ title: 'Erro', description: `Falha ao confirmar sessão "${session.filename}".`, variant: 'destructive' })
-    } finally {
-      setIsConfirming(false)
-    }
-  }
-
-  const confirmSession = async (sIdx: number) => {
-    const session = sessions[sIdx]
-    const validation = validateSession(session, sIdx)
-    if (validation.hasErrors) {
-      toast({ title: 'Validação', description: `Corrija os ${validation.errorCount} erro(s) antes de confirmar.`, variant: 'destructive' })
-      return
-    }
-    // Duplicate check already done at upload time — confirm directly
-    const payload = { transactions: buildConfirmPayload(session) }
-    await doConfirmSession(sIdx, payload)
-  }
-
-  const confirmAll = async () => {
-    // Validate all sessions first
-    let totalErrors = 0
-    for (let i = 0; i < sessions.length; i++) {
-      const s = sessions[i]
-      if (s.isConfirmed) continue
-      const validation = validateSession(s, i)
-      totalErrors += validation.errorCount
-    }
-    if (totalErrors > 0) {
-      toast({ title: 'Validação', description: `Corrija os ${totalErrors} erro(s) antes de confirmar tudo.`, variant: 'destructive' })
-      return
-    }
-
-    setIsConfirming(true)
-    let allOk = true
-    for (let i = 0; i < sessions.length; i++) {
-      if (sessions[i].isConfirmed) continue
-      try {
-        const payload = { transactions: buildConfirmPayload(sessions[i]) }
-        await ExtractoService.confirm(payload)
-        updateSession(i, { isConfirmed: true })
-      } catch {
-        toast({
-          title: 'Erro',
-          description: `Falha ao confirmar "${sessions[i].filename}". As anteriores foram salvas.`,
-          variant: 'destructive',
-        })
-        allOk = false
-        break
-      }
-    }
-    setIsConfirming(false)
-
-    if (allOk) {
-      toast({ title: 'Sucesso', description: 'Todas as sessões foram importadas!' })
-      setTimeout(() => navigate('/financial'), 800)
-    }
-  }
   const handleCancel = () => {
-    setSessions([])
-    navigate('/financial')
-  }
+    setSessions([]);
+    navigate(AFTER_IMPORT_ROUTE);
+  };
 
-  const totals = sessions.reduce((acc, s) => ({
-    total: acc.total + s.transactions.length,
-    income: acc.income + s.transactions.filter(t => t.type === 'income').length,
-    expense: acc.expense + s.transactions.filter(t => t.type === 'expense').length,
-    totalIncome: acc.totalIncome + s.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0),
-    totalExpense: acc.totalExpense + s.transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0),
-  }), { total: 0, income: 0, expense: 0, totalIncome: 0, totalExpense: 0 })
-
-  const allConfirmed = sessions.length > 0 && sessions.every(s => s.isConfirmed)
-  const pendingCount = sessions.filter(s => !s.isConfirmed).length
-
-  // ============================================================
-  // UPLOAD VIEW (no sessions yet)
-  // ============================================================
   if (sessions.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-subtle">
-        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center gap-4 mb-8">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/financial')}>
-              <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
-            </Button>
-            <div className="max-md:hidden">
-              <h1 className="text-2xl font-bold text-foreground">Extrato Bancário</h1>
-              <p className="text-muted-foreground mt-1">Importe seu extrato bancário em CSV ou OFX</p>
-            </div>
-          </div>
-
-          <div
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary transition-colors cursor-pointer"
-            onClick={() => !isUploading && document.getElementById('file-input-extrato')?.click()}
-          >
-            <input
-              id="file-input-extrato"
-              type="file"
-              accept=".csv,.ofx,.qfx"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                const selected = e.target.files
-                if (selected && selected.length > 0) handleFileSelect(selected)
-              }}
-            />
-            {isUploading ? (
-              <div className="flex flex-col items-center gap-4">
-                <FileText className="w-12 h-12 text-muted-foreground animate-pulse" />
-                <p className="text-lg text-muted-foreground">{uploadProgress || 'Processando...'}</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-4">
-                <Upload className="w-12 h-12 text-muted-foreground" />
-                <p className="text-lg text-muted-foreground">Arraste os arquivos aqui ou clique para selecionar</p>
-                <p className="text-sm text-muted-foreground">Formatos aceitos: CSV, OFX, QFX (múltiplos arquivos)</p>
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
-    )
+      <ExtractUploadStep
+        isUploading={upload.isUploading}
+        uploadProgress={upload.uploadProgress}
+        onFilesSelected={upload.handleFiles}
+        onBack={() => navigate(AFTER_IMPORT_ROUTE)}
+      />
+    );
   }
 
-  // ============================================================
-  // REVIEW VIEW (sessions loaded)
-  // ============================================================
+  const summary = summarizeSessions(sessions);
+  const pendingSessions = sessions.filter((s) => !s.isConfirmed).length;
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={handleCancel}>
-              <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Revisar Extrato</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                {sessions.length} arquivo{sessions.length > 1 ? 's' : ''} — {totals.total} transações
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Button variant="outline" size="sm" onClick={handleCancel} disabled={isConfirming}>
-              <X className="w-4 h-4 mr-2" />Cancelar
-            </Button>
-            {pendingCount > 0 && (
-              <Button
-                onClick={confirmAll}
-                disabled={isConfirming || allConfirmed}
-                size="sm"
-                className="bg-gradient-primary"
-              >
-                {isConfirming ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                )}
-                {isConfirming ? 'Importando...' : `Confirmar Tudo (${pendingCount})`}
-              </Button>
-            )}
-          </div>
-        </div>
+        <ExtractReviewHeader
+          fileCount={sessions.length}
+          transactionCount={summary.total}
+          pendingSessions={pendingSessions}
+          isConfirming={confirmation.isConfirming}
+          onCancel={handleCancel}
+          onConfirmAll={confirmation.confirmAll}
+        />
 
-        {/* Summary cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          <div className="bg-card rounded-lg p-4 border border-border">
-            <p className="text-sm text-muted-foreground">Total</p>
-            <p className="text-2xl font-bold">{totals.total}</p>
-          </div>
-          <div className="bg-card rounded-lg p-4 border border-border">
-            <p className="text-sm text-muted-foreground">Entradas</p>
-            <p className="text-2xl font-bold text-success">{totals.income}</p>
-          </div>
-          <div className="bg-card rounded-lg p-4 border border-border">
-            <p className="text-sm text-muted-foreground">Saídas</p>
-            <p className="text-2xl font-bold text-destructive">{totals.expense}</p>
-          </div>
-          <div className="bg-card rounded-lg p-4 border border-border">
-            <p className="text-sm text-success">Total Entradas</p>
-            <p className="text-lg font-bold text-success">{formatCurrency(totals.totalIncome)}</p>
-            <p className="text-sm text-destructive">Total Saídas</p>
-            <p className="text-lg font-bold text-destructive">{formatCurrency(totals.totalExpense)}</p>
-          </div>
-        </div>
+        <ExtractSummaryCards summary={summary} />
 
-        {/* Duplicates Section */}
-        <div className="space-y-4 mb-6">
-          <div className="flex items-center gap-2">
-            <AlertCircle className={`w-5 h-5 ${duplicateItems.length > 0 ? 'text-warning' : 'text-muted-foreground'}`} />
-            <h2 className="text-lg font-semibold">
-              {duplicateItems.length > 0 ? 'Transações Duplicadas Detectadas' : 'Verificação de Duplicatas'}
-            </h2>
-            {duplicateItems.length > 0 && (
-              <span className="text-sm text-muted-foreground">
-                ({duplicateItems.filter(d => !d.resolved).length} pendentes)
-              </span>
-            )}
-          </div>
+        <ExtractDuplicatesSection
+          items={duplicateItems}
+          onKeepExisting={skipDuplicate}
+          onReplace={replaceDuplicate}
+        />
 
-          {duplicateItems.length === 0 ? (
-            <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-success" />
-              <p className="text-sm">Nenhuma duplicata encontrada. Todas as transações são inéditas.</p>
-            </div>
-          ) : (
-            <div className="rounded-lg border-2 border-warning/40 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-warning/10 border-b border-warning/30">
-                    <tr>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Data</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Descrição</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Valor</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tipo</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Existente</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {duplicateItems.map((item) => {
-                      const isResolved = !!item.resolved
-                      return (
-                        <tr key={item.key} className={`${isResolved ? 'bg-success/5 opacity-70' : 'hover:bg-warning/5'}`}>
-                          <td className="px-3 py-2 text-xs whitespace-nowrap">{item.transaction.date}</td>
-                          <td className="px-3 py-2 text-xs max-w-[200px] truncate">{item.transaction.description}</td>
-                          <td className={`px-3 py-2 text-xs font-medium whitespace-nowrap ${
-                            item.transaction.type === 'income' ? 'text-success' : 'text-destructive'
-                          }`}>
-                            {item.transaction.type === 'expense' ? '-' : ''}{formatCurrency(item.transaction.amount)}
-                          </td>
-                          <td className="px-3 py-2">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                              item.transaction.type === 'income' ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'
-                            }`}>
-                              {item.transaction.type === 'income' ? 'Entrada' : 'Saída'}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 text-xs">
-                            <div className="space-y-0.5">
-                              <span className="font-medium">{item.existing.description}</span>
-                              <div className="text-muted-foreground">
-                                {item.existing.transaction_date} — {formatCurrency(item.existing.amount)}
-                                {item.existing.category_name && <span> · {item.existing.category_name}</span>}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-3 py-2">
-                            {isResolved ? (
-                              <span className="text-xs text-success font-medium">
-                                {item.resolved === 'skip' ? '✓ Ignorado' : '✓ Substituído'}
-                              </span>
-                            ) : (
-                              <div className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs"
-                                  onClick={() => skipDuplicate(item.key)}
-                                >
-                                  Manter existente
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs text-destructive border-destructive hover:bg-destructive/10"
-                                  onClick={() => replaceDuplicate(item)}
-                                >
-                                  Substituir
-                                </Button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Sessions */}
         <div className="space-y-6">
-          {sessions.map((session, sIdx) => {
-            const bank = selectedBank(sIdx)
-            const hasBank = !!session.bankCode
-            const isPending = !session.isConfirmed
-
-            return (
-              <div
-                key={sIdx}
-                className={`rounded-lg border-2 overflow-hidden transition-colors ${
-                  session.isConfirmed
-                    ? 'border-success opacity-80'
-                    : 'border-warning'
-                }`}
-              >
-                {/* Session Header */}
-                <div className={`px-4 py-3 flex items-center gap-3 flex-wrap ${
-                  session.isConfirmed ? 'bg-success/10' : 'bg-warning/10'
-                }`}>
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <FileText className="w-5 h-5 shrink-0 text-muted-foreground" />
-                    <span className="font-semibold text-sm truncate">{session.filename}</span>
-                    {session.isConfirmed && (
-                      <span className="bg-success text-success-foreground text-xs px-2 py-0.5 rounded-full shrink-0">
-                        Confirmado ✓
-                      </span>
-                    )}
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {session.transactions.length} transação{session.transactions.length > 1 ? 'ões' : ''}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 max-sm:w-full sm:shrink-0">
-                    <span className="text-xs text-muted-foreground">Banco:</span>
-                    <Select
-                      value={session.bankCode}
-                      onValueChange={(v) => handleBankSelect(sIdx, v)}
-                      disabled={session.isConfirmed}
-                    >
-                      <SelectTrigger className={`h-8 text-xs max-sm:min-w-0 max-sm:flex-1 sm:min-w-[180px] ${!hasBank && isPending ? 'border-warning border-2' : ''}`}>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {banks.map((b) => (
-                          <SelectItem key={b.id} value={b.bank_code}>
-                            <div className="flex items-center gap-2">
-                              <BankLogo code={b.bank_code} size="xs" />
-                              <span>{b.bank_name} ({b.bank_code})</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="+add">
-                          <div className="flex items-center gap-2 text-primary font-medium">
-                            <Plus className="w-4 h-4" />
-                            <span>Adicionar novo banco</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    {isPending && (
-                      <Button
-                        size="sm"
-                        disabled={!hasBank || isConfirming}
-                        onClick={() => confirmSession(sIdx)}
-                        className={hasBank ? 'bg-warning hover:bg-warning/90' : ''}
-                      >
-                        {isConfirming ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <CheckCircle className="w-4 h-4" />
-                        )}
-                        <span className="ml-1">Confirmar</span>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Inline Add Bank */}
-                {addingBankSessionIdx === sIdx && (
-                  <div className="px-4 py-3 bg-white border-b border-border">
-                    <div className="flex items-end gap-3 max-w-lg flex-wrap">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Código</Label>
-                        <Input
-                          placeholder="Ex: 260"
-                          value={newBankCode}
-                          onChange={e => setNewBankCode(e.target.value)}
-                          className="h-8 text-sm w-24"
-                        />
-                      </div>
-                      <div className="flex-1 space-y-1 min-w-[150px]">
-                        <Label className="text-xs">Nome</Label>
-                        <Input
-                          placeholder="Ex: Nubank"
-                          value={newBankName}
-                          onChange={e => setNewBankName(e.target.value)}
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      <Button size="sm" variant="outline" onClick={cancelAddBank}>
-                        Cancelar
-                      </Button>
-                      <Button size="sm" onClick={() => handleAddBank(sIdx)}>
-                        <Plus className="w-4 h-4 mr-1" /> Adicionar
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Session Table */}
-                {!session.isConfirmed && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50 border-b border-border">
-                        <tr>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Data</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Descrição</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Valor</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tipo</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Parcelas</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Pagto</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Nat.</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Categoria</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Subcategoria</th>
-                          <th className="px-3 py-2 w-10"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {session.transactions.map((trans, rIdx) => {
-                          const key = rowKey(sIdx, rIdx)
-                          const catObj = categoryOptions?.options.find(c => c.id === trans.category_id)
-                          const subs = catObj?.subcategories || []
-                          const filteredCats = categoryOptions?.options.filter(
-                            c => !trans.type || !c.type || c.type === trans.type
-                          ) || []
-
-                          return (
-                            <tr key={rIdx} className="hover:bg-muted/30">
-                              <td className="px-3 py-2 text-xs whitespace-nowrap">{trans.date}</td>
-                              <td className="px-3 py-2 min-w-[140px]">
-                                <input
-                                  type="text"
-                                  value={trans.description}
-                                  onChange={(e) => updateTransaction(sIdx, rIdx, { description: e.target.value })}
-                                  className="w-full text-xs bg-transparent border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
-                                />
-                              </td>
-                              <td className={`px-3 py-2 text-xs font-medium whitespace-nowrap ${
-                                trans.type === 'income' ? 'text-success' : 'text-destructive'
-                              }`}>
-                                {trans.type === 'expense' ? '-' : ''}{formatCurrency(trans.amount)}
-                              </td>
-                              <td className="px-3 py-2">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                                  trans.type === 'income'
-                                    ? 'bg-success/15 text-success'
-                                    : 'bg-destructive/15 text-destructive'
-                                }`}>
-                                  {trans.type === 'income' ? 'Entrada' : 'Saída'}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap">
-                                <div className="flex items-center gap-1">
-                                  <Switch
-                                    id={`parcelado-${key}`}
-                                    checked={installmentMap[key] || false}
-                                    onCheckedChange={(checked) => {
-                                      setInstallmentMap(prev => ({ ...prev, [key]: checked }))
-                                      if (checked && !totalInstallmentsMap[key]) {
-                                        setTotalInstallmentsMap(prev => ({ ...prev, [key]: 2 }))
-                                      }
-                                    }}
-                                    className="scale-75"
-                                  />
-                                  {installmentMap[key] && (
-                                    <Input
-                                      type="number"
-                                      min="2"
-                                      value={totalInstallmentsMap[key] || 2}
-                                      onChange={e => setTotalInstallmentsMap(prev => ({ ...prev, [key]: parseInt(e.target.value) || 2 }))}
-                                      className="h-7 w-14 text-xs"
-                                    />
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-3 py-2 min-w-[120px]">
-                                <Select
-                                  value={showNewPaymentMethod[key] ? 'outros' : trans.payment_method}
-                                  onValueChange={(v) => handlePaymentMethodChange(sIdx, rIdx, v)}
-                                >
-                                  <SelectTrigger className="h-7 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                                    <SelectItem value="pix">PIX</SelectItem>
-                                    <SelectItem value="debito">Débito</SelectItem>
-                                    <SelectItem value="credito">Crédito</SelectItem>
-                                    <SelectItem value="transferencia">Transferência</SelectItem>
-                                    <SelectItem value="boleto">Boleto</SelectItem>
-                                    <SelectItem value="outros">Outros...</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                {showNewPaymentMethod[key] && (
-                                  <Input
-                                    placeholder="Nova forma de pagamento"
-                                    value={newPaymentMethodName[key] || ''}
-                                    onChange={e => {
-                                      setNewPaymentMethodName(prev => ({ ...prev, [key]: e.target.value }))
-                                      updateTransaction(sIdx, rIdx, { payment_method: e.target.value })
-                                    }}
-                                    className="h-7 text-xs mt-1"
-                                  />
-                                )}
-                              </td>
-                              <td className="px-3 py-2">
-                                <div className="flex items-center gap-1">
-                                  <span className={`text-[10px] font-medium ${trans.entity_type === 'business' ? 'text-muted-foreground' : 'text-foreground'}`}>PF</span>
-                                  <Switch
-                                    checked={trans.entity_type === 'business'}
-                                    onCheckedChange={(checked) => handleEntityTypeChange(sIdx, rIdx, checked ? 'business' : 'individual')}
-                                    className="scale-75"
-                                  />
-                                  <span className={`text-[10px] font-medium ${trans.entity_type === 'business' ? 'text-foreground' : 'text-muted-foreground'}`}>PJ</span>
-                                </div>
-                              </td>
-                              <td className="px-3 py-2 min-w-[130px]">
-                                <Select
-                                  value={showNewCategory[key] ? 'outros' : (trans.category_id ? String(trans.category_id) : '')}
-                                  onValueChange={(v) => handleCategoryChange(sIdx, rIdx, v)}
-                                >
-                                  <SelectTrigger className="h-7 text-xs">
-                                    <SelectValue placeholder="Selecione..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {filteredCats.map(cat => (
-                                      <SelectItem key={cat.id} value={String(cat.id)}>
-                                        {cat.name}
-                                      </SelectItem>
-                                    ))}
-                                    <SelectItem value="outros">Outros...</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                {showNewCategory[key] && (
-                                  <Input
-                                    placeholder="Nova categoria"
-                                    value={newCategoryName[key] || ''}
-                                    onChange={e => {
-                                      setNewCategoryName(prev => ({ ...prev, [key]: e.target.value }))
-                                      updateTransaction(sIdx, rIdx, { category_id: undefined })
-                                    }}
-                                    className="h-7 text-xs mt-1"
-                                  />
-                                )}
-                              </td>
-                              <td className="px-3 py-2 min-w-[130px]">
-                                {catObj ? (
-                                  <>
-                                    <Select
-                                      value={showNewSubcategory[key] ? 'outros' : (trans.subcategory_id ? String(trans.subcategory_id) : '')}
-                                      onValueChange={(v) => handleSubcategoryChange(sIdx, rIdx, v)}
-                                    >
-                                      <SelectTrigger className="h-7 text-xs">
-                                        <SelectValue placeholder="Selecione..." />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {subs.map(sub => (
-                                          <SelectItem key={sub.id} value={String(sub.id)}>
-                                            {sub.name}
-                                          </SelectItem>
-                                        ))}
-                                        <SelectItem value="outros">Outros...</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                    {showNewSubcategory[key] && (
-                                      <Input
-                                        placeholder="Nova subcategoria"
-                                        value={newSubcategoryName[key] || ''}
-                                        onChange={e => {
-                                          setNewSubcategoryName(prev => ({ ...prev, [key]: e.target.value }))
-                                          updateTransaction(sIdx, rIdx, { subcategory_id: undefined })
-                                        }}
-                                        className="h-7 text-xs mt-1"
-                                      />
-                                    )}
-                                  </>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">-</span>
-                                )}
-                              </td>
-                              <td className="px-1 py-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                                  onClick={() => deleteTransaction(sIdx, rIdx)}
-                                  title="Remover transação"
-                                  aria-label="Remover transação"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Session validation warnings */}
-                {isPending && session.transactions.some(t => !t.category_id) && (
-                  <div className="px-4 py-2 flex items-center gap-2 text-warning bg-warning/5 border-t border-border">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span className="text-xs">
-                      {session.transactions.filter(t => !t.category_id).length} transação(ões) sem categoria
-                    </span>
-                  </div>
-                )}
-              </div>
-            )
-          })}
+          {sessions.map((session, sIdx) => (
+            <ExtractSessionCard
+              key={sIdx}
+              session={session}
+              banks={banks}
+              categoryOptions={categoryOptions}
+              drafts={drafts}
+              isConfirming={confirmation.isConfirming}
+              isAddingBank={addingBankSessionIdx === sIdx}
+              rowActions={(rIdx) => rowActions(sIdx, rIdx)}
+              onBankSelect={(value) => handleBankSelect(sIdx, value)}
+              onAddBank={(code, name) => handleAddBank(sIdx, code, name)}
+              onCancelAddBank={() => setAddingBankSessionIdx(null)}
+              onConfirm={() => confirmation.confirmSession(sIdx)}
+            />
+          ))}
         </div>
 
-        {/* Bottom confirm bar */}
-        {pendingCount > 0 && (
-          <div className="sticky bottom-0 mt-6 bg-card border border-border rounded-lg p-4 flex justify-between items-center shadow-lg">
-            <span className="text-sm text-muted-foreground">
-              {pendingCount} sessão(ões) pendente(s) — {totals.total - sessions.filter(s => s.isConfirmed).reduce((sum, s) => sum + s.transactions.length, 0)} transações
-            </span>
-            <Button
-              onClick={confirmAll}
-              disabled={isConfirming}
-              className="bg-gradient-primary"
-            >
-              {isConfirming ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              {isConfirming ? 'Importando...' : `Confirmar Tudo (${pendingCount})`}
-            </Button>
-          </div>
+        {pendingSessions > 0 && (
+          <ExtractConfirmBar
+            pendingSessions={pendingSessions}
+            pendingTransactions={summary.pendingTransactions}
+            isConfirming={confirmation.isConfirming}
+            onConfirmAll={confirmation.confirmAll}
+          />
         )}
-
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default BankExtract
+export default BankExtract;

@@ -180,7 +180,7 @@ financas_app/
 │       │   │
 │       │   ├── components/
 │       │   │   ├── ErrorBoundary.tsx             # Barreira de erro por rota (fallback + retry; crash não derruba o app)
-│       │   │   ├── ui/                         # shadcn-ui primitives + compostos (button, dialog, card, responsive-modal, confirm-dialog, bank-logo, bank-select, bank-search, currency-input, stat-card, empty-state, page-header, segmented-control, chip-group, etc.); smoke tests Vitest colocados (*.test.tsx ao lado). Obs: carousel.tsx e command.tsx REMOVIDOS (não usados; deps embla-carousel-react/cmdk removidas)
+│       │   │   ├── ui/                         # shadcn-ui primitives + compostos (button, dialog, card, responsive-modal, confirm-dialog, bank-logo, bank-select, bank-search, currency-input, stat-card, empty-state, page-header, segmented-control, chip-group, etc.); smoke tests Vitest colocados (*.test.tsx ao lado). Só componentes saem dos `.tsx`: `button-variants.ts`, `badge-variants.ts`, `toggle-variants.ts`, `navigation-menu-style.ts`, `form-field-context.ts` e `sidebar-context.ts` guardam variantes, contextos e hooks (regra `react-refresh/only-export-components`). Obs: carousel.tsx e command.tsx REMOVIDOS (não usados; deps embla-carousel-react/cmdk removidas)
 │       │   │   │
 │       │   │   ├── charts/                     # Componentes de gráficos D3
 │       │   │   │   ├── D3BarChart.tsx           # Gráfico de barras anual (income/expenses/investment por mês)
@@ -204,16 +204,15 @@ financas_app/
 │       │   │   │   ├── AddRecurrentBillDialog.tsx    # Modal para criar conta recorrente
 │       │   │   │   ├── EditRecurrentBillDialog.tsx   # Modal para editar conta recorrente
 │       │   │   │   ├── BankBreakdownModal.tsx        # Modal de detalhamento por banco
-│       │   │   │   ├── ExtratoDialog.tsx             # Modal de seleção de extrato para importar
 │       │   │   │   ├── ExtratoUploadModal.tsx        # Modal de upload de extrato bancário (CSV/OFX)
 │       │   │   │   └── PluggyInfoDialog.tsx          # Modal de informações da integração Pluggy
 │       │   │   │
 │       │   │   ├── dashboards/                 # Componentes de dashboard
-│       │   │   │   ├── FinancialDashboard.tsx   # Dashboard financeiro: orçamento, gráfico flip, categorias; cartão com barra de % (>=80 warning, estourado destructive + badge "Estourando")
+│       │   │   │   ├── FinancialDashboard.tsx   # Dashboard financeiro: orçamento, gráfico flip (diário a partir de daily_totals), categorias; cartão com barra de % (>=80 warning, estourado destructive + badge "Estourando")
 │       │   │   │   ├── ChartAnchors.tsx         # Âncoras de navegação que rolam até cada gráfico/seção do dashboard
 │       │   │   │   ├── ChartAnchors.test.tsx    # Testes das âncoras (render, scrollIntoView, seção inexistente)
-│       │   │   │   ├── PaymentKpiCards.tsx      # Cards Pix/Crédito/Débito/Parcelas: carrossel snap no mobile, grid de 4 colunas no md+; detalhe por banco (useBanks, erro com toast)
-│       │   │   │   ├── PaymentKpiCards.test.tsx # Testes dos KPIs (totais, carrossel, detalhe por banco, erro de bancos)
+│       │   │   │   ├── PaymentKpiCards.tsx      # Cards Pix/Crédito/Débito/Parcelas: carrossel snap no mobile, grid de 4 colunas no md+; detalhe por banco; lê só os agregados do statement (expenses_by_payment_method/expenses_by_bank/installments_due), sem linhas
+│       │   │   │   ├── PaymentKpiCards.test.tsx # Testes dos KPIs (totais, carrossel, detalhe por banco vindo do servidor, parcelas, estouro do limite)
 │       │   │   │   ├── FixedVariableCard.tsx    # Card Gastos Fixos vs Variáveis (extraído do FinancialDashboard)
 │       │   │   │   ├── FinancialMobile.tsx      # /financial abaixo de md: mês no topo, chips de seção, KPIs, gráfico de 6 meses, lançamentos por dia, categorias
 │       │   │   │   ├── OverviewDashboard.tsx    # Dashboard geral da página inicial: indicadores, progresso mês, cartão (badge "Estourando" e tone 80/100), status limites, parcelas, recorrentes, metas/compras (admin); dados via useOverviewQuery (react-query)
@@ -221,6 +220,24 @@ financas_app/
 │       │   │   │   ├── OverviewMobile.tsx       # Início no mobile (cards do mock): Ambos/PF/PJ, saldo do mês, progresso + cartão, perto do limite, a pagar, parcelas, metas/compras (admin) com "Ver tudo"
 │       │   │   │   ├── OverviewMobile.test.tsx  # Testes do layout mobile (hero, perto do limite, listas limitadas a 3, admin, segmentado)
 │       │   │   │   └── FinancialDashboard.test.tsx # Testes de rolagem dos boxes (100vh→130vh; Entradas/Gastos rolam quando estouram o teto) + badge "Estourando" do cartão
+│       │   │   │
+│       │   │   ├── extract/                    # Importação de extrato bancário (usados por pages/BankExtract.tsx)
+│       │   │   │   ├── ExtractUploadStep.tsx       # Passo 1: cabeçalho com Voltar + área de soltar/escolher CSV/OFX/QFX
+│       │   │   │   ├── ExtractReviewHeader.tsx     # Título, contagem, Cancelar e Confirmar Tudo
+│       │   │   │   ├── ExtractSummaryCards.tsx     # Cards de totais (quantidade e valores de entradas/saídas)
+│       │   │   │   ├── ExtractDuplicatesSection.tsx # Duplicatas detectadas: manter existente ou substituir
+│       │   │   │   ├── ExtractSessionCard.tsx      # Um arquivo: cabeçalho (banco + Confirmar), formulário de banco, tabela e aviso de categoria
+│       │   │   │   ├── ExtractSessionHeader.tsx    # Nome do arquivo, contagem, seletor de banco e Confirmar
+│       │   │   │   ├── ExtractAddBankForm.tsx      # Formulário inline (código + nome) para cadastrar banco
+│       │   │   │   ├── ExtractTransactionsTable.tsx # Linhas da sessão: tabela densa do md em diante (rola no próprio contêiner) ou cards no mobile
+│       │   │   │   ├── ExtractTransactionCards.tsx # Layout mobile (abaixo de md): um card por linha, campos empilhados, controles de 44 px
+│       │   │   │   ├── ExtractRowFields.tsx        # Campos da linha (parcelas, pagamento, PF/PJ, categoria, subcategoria) nos tamanhos compact (tabela) e touch (card)
+│       │   │   │   ├── ExtractTypeBadge.tsx        # Selo Entrada/Saída
+│       │   │   │   ├── ExtractConfirmBar.tsx       # Barra fixa no rodapé: pendências + Confirmar Tudo
+│       │   │   │   ├── useExtractReview.ts         # Estado da revisão (sessões + rascunhos por linha) e as edições de cada linha
+│       │   │   │   ├── useExtractDuplicates.ts     # Checagem de duplicatas (backend), manter/substituir
+│       │   │   │   ├── useExtractUpload.ts         # Envio dos arquivos e progresso
+│       │   │   │   └── useExtractConfirmation.ts   # Validação e importação por sessão ou de todas (invalida os dados de lançamentos)
 │       │   │   │
 │       │   │   ├── investments/                # Componentes de investimentos
 │       │   │   │   └── InvestmentTable.tsx       # Tabela de investimentos com CRUD (add/edit/delete)
@@ -235,6 +252,7 @@ financas_app/
 │   │   │               │   ├── MobileTabBar.tsx          # Barra de abas inferior (Início, Financeiro, +, Limites, Mais): ≥44px, safe-area, aria-current
 │   │   │               │   ├── MobileTabBar.test.tsx     # Testes da barra de abas
 │   │   │               │   ├── MobileTopBar.tsx          # Barra superior mobile (logo/título, slot de mês `MobileTopBarSlot`, sino)
+│   │   │               │   ├── mobileTopBarContext.ts    # MobileTopBarSlotContext (nó do slot de mês)
 │   │   │               │   ├── MonthStepper.tsx          # Seletor de mês compacto (‹ nov 2026 ›) para o slot da barra superior; addMonths/YearMonth (+ teste)
 │   │   │               │   ├── navigation.ts             # Abas, grupo "Mais", títulos por rota, isTabActive/getRouteTitle
 │   │   │               │   ├── navigation.test.ts        # Testes de navigation.ts
@@ -268,8 +286,8 @@ financas_app/
 │       │   │   ├── recorrentes/                  # Feature compartilhada de contas recorrentes
 │       │   │   │   └── RecurringBillsTable.tsx    # Tabela única usada por /recorrentes e aba Limites (helpers currentInstallment/isEndingSoon exportados); virtualizada (useVirtualizer, sticky header)
 │       │   │   │
-│       │   │   ├── TransactionList.tsx          # Extrato paginado no servidor (useInfiniteQuery + "Carregar mais", busca com debounce, filtros período/PF-PJ); virtualizado (useVirtualizer); estados vazio/erro/carregando
-│       │   │   ├── TransactionList.test.tsx     # Testes do extrato paginado (carregar mais, filtros no servidor, busca debounced, vazio, erro/tentar de novo)
+│       │   │   ├── TransactionList.tsx          # Extrato paginado no servidor (useInfiniteQuery + "Carregar mais", busca com debounce, filtros período/PF-PJ); virtualizado (useVirtualizer); estados vazio/erro/carregando; botão "Extrato" (importar) só para admin
+│       │   │   ├── TransactionList.test.tsx     # Testes do extrato paginado (carregar mais, filtros no servidor, busca debounced, vazio, erro/tentar de novo, botão Extrato só para admin)
 
 │       │   │   ├── TransactionListMobile.tsx    # Lançamentos no mobile: Extrato (admin), busca + PF/PJ, linhas por dia, folha de detalhe (Editar/Excluir com confirmação)
 │       │   │   ├── TransactionListMobile.test.tsx # Testes da lista mobile (agrupamento, valor com sinal, sem lixeira na linha, confirmação de exclusão)
@@ -300,8 +318,8 @@ financas_app/
 │       │   │   ├── Investments.tsx             # Página de investimentos (placeholder)
 │       │   │   ├── Limits.tsx                  # Página de limites: tabs por role no desktop; chips (Categorias/Recorrentes/Metas/Compras) + PF/PJ segmentado no mobile
 │       │   │   ├── Limits.test.tsx             # Testes das abas por role (user: sem Metas/Compras)
-│       │   │   ├── RecurrentBills.tsx          # Página de contas recorrentes: lista + CRUD
-│       │   │   ├── BankExtract.tsx             # Página de extrato bancário: upload + preview + confirmação
+│       │   │   ├── RecurrentBills.tsx          # Página de contas recorrentes: lista (react-query) + CRUD que invalida contas e lançamentos (+ RecurrentBills.test.tsx)
+│       │   │   ├── BankExtract.tsx             # Página de extrato bancário (orquestra os hooks e subcomponentes de components/extract); categorias/bancos via react-query (+ BankExtract.test.tsx)
 │       │   │   ├── Settings.tsx                # Página de configurações: perfil + bancos + Pluggy
 │       │   │   ├── Login.tsx                   # Login email/senha (Supabase) — teste ao lado
 │       │   │   ├── Login.test.tsx              # Testes do formulário de login
@@ -349,16 +367,20 @@ financas_app/
 │       │   │   ├── useDebouncedValue.ts        # useDebouncedValue(value, ms) — usado na busca do extrato (+ teste ao lado)
 │       │   │   └── queries/                    # Hooks react-query (um por domínio); a chave vem de lib/queryKeys
 │       │   │       ├── useTransactionQueries.ts # useTransactionsInfinite (cursor), useYearInvestments, useTransactionMutations, invalidateTransactionData (+ teste)
-│       │   │       ├── useFinancialQueries.ts   # Extrato do período, rendimento anual, categorias, geração de recorrentes (admin)
+│       │   │       ├── useFinancialQueries.ts   # Extrato do período, rendimento anual, categorias, useCategoryOptions (selects da importação), geração de recorrentes (admin)
 │       │   │       ├── useOverviewQuery.ts      # Overview do mês (GET /dashboard/overview)
 │       │   │       ├── useLimitsQueries.ts      # Limites, gastos do mês, recorrentes, metas, compras + invalidateDomain
-│       │   │       ├── useSettingsQueries.ts    # Perfil e bancos (compartilhados com o extrato)
+│       │   │       ├── useRecurringQueries.ts   # invalidateRecurringData: atualiza as contas recorrentes e os lançamentos que elas geram/cancelam (+ teste)
+│       │   │       ├── useSettingsQueries.ts    # Perfil, bancos e useAddBank (compartilhados com o extrato)
 │       │   │       └── useErrorToast.ts         # Toast pt-BR quando uma query falha
 │       │   │
 │       │   ├── contexts/                       # React contexts
-│       │   │   ├── SidebarContext.tsx           # SidebarContext — estado open/toggle da sidebar
-│       │   │   ├── AuthContext.tsx              # AuthProvider/useSession — sessão Supabase (session/user/loading) + teste
-│       │   │   ├── RoleContext.tsx              # RoleProvider/useRole — deriva isAdmin de profile.role ('admin'/'user'); refetch quando o usuário autenticado troca (evita role stale após logout/login)
+│       │   │   ├── SidebarContext.ts            # SidebarContext + useSidebar — estado open/toggle da sidebar
+│       │   │   ├── SidebarProvider.tsx          # SidebarProvider (componente)
+│       │   │   ├── AuthContext.ts               # AuthContext + useSession — sessão Supabase (session/user/loading)
+│       │   │   ├── AuthProvider.tsx             # AuthProvider (componente): getSession + onAuthStateChange
+│       │   │   ├── RoleContext.ts               # RoleContext + useRole
+│       │   │   ├── RoleProvider.tsx             # RoleProvider — deriva isAdmin de profile.role ('admin'/'user'); refetch quando o usuário autenticado troca (evita role stale após logout/login)
 │       │   │   ├── AuthContext.test.tsx         # Testes do AuthContext (mock do Supabase)
 │       │   │   └── RoleContext.test.tsx         # Testes do RoleContext (refetch ao trocar de conta; admin/user paths)
 │       │   │
@@ -370,6 +392,11 @@ financas_app/
 │       │       ├── utils.ts                    # cn() — merge de classes Tailwind (shadcn)
 │       │       ├── format.ts                   # formatCurrency/formatDate/formatPercent (fonte única de formatação)
 │       │   │       ├── transactionGroups.ts        # Agrupa lançamentos por dia ("Hoje · 14 nov") e formata valor com sinal (+ teste)
+│       │   │       ├── extractReview.ts            # Regras puras da revisão do extrato: rascunhos por linha (chaveados por rowId), validação, payload de confirmação, totais, duplicatas, contagem (+ teste)
+│       │   │       ├── pluggySync.ts               # formatSyncSummary: mensagem pt-BR da sincronização Pluggy com os totais já existentes e vinculados (+ teste)
+│       │   │       ├── bankLogo.ts                 # URL do logo, iniciais e paleta do fallback dos bancos (+ teste)
+│       │   │       ├── recurringBills.ts           # currentInstallment e isEndingSoon das contas recorrentes (+ teste)
+│       │   │       ├── statementAggregates.ts      # Funções puras sobre os agregados do /dashboard/statement: gráfico diário (buildDailyData), total por forma de pagamento, itens por banco, parcelas (+ teste)
 │       │   │       ├── months.ts                   # YearMonth, addMonths, toYearMonth, SHORT_MONTHS (+ teste)
 │       │   │       ├── recentMonths.ts             # Janela dos últimos 6 meses a partir dos payloads anuais (+ teste)
 │       │   │       ├── transactionLabels.ts        # Rótulos pt-BR de forma de pagamento, categoria automática e tipo (+ teste)

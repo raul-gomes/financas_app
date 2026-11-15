@@ -42,12 +42,20 @@ export class FinancialService {
     return entityType;
   }
 
+  /**
+   * Scope sent to the dashboard endpoints: "all" (Ambos) asks for both natures; without a
+   * scope they keep the backend's default, individual.
+   */
+  private static dashboardScope(entityType?: string): string {
+    if (entityType === 'all') return 'all';
+    return FinancialService.mapEntityType(entityType) ?? 'individual';
+  }
+
   static async getFinancialSummary(dateRange: { from: Date; to: Date }, entityType?: string): Promise<FinancialSummary> {
-    const mapped = FinancialService.mapEntityType(entityType);
     const params = new URLSearchParams({
       start_date: dateRange.from.toLocaleDateString('pt-BR'),
       end_date: dateRange.to.toLocaleDateString('pt-BR'),
-      entity_type: mapped || 'individual'
+      entity_type: FinancialService.dashboardScope(entityType)
     });
     const res = await apiFetch(`/dashboard/statement?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar extrato financeiro`);
@@ -55,10 +63,9 @@ export class FinancialService {
   }
 
   static async getYearlyPerformance(year: number, entityType?: string): Promise<YearlyPerformance> {
-    const mapped = FinancialService.mapEntityType(entityType);
     const params = new URLSearchParams({
       year: year.toString(),
-      ...(mapped ? { entity_type: mapped } : {})
+      entity_type: FinancialService.dashboardScope(entityType),
     });
     const res = await apiFetch(`/dashboard/period-income?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar rendimento anual`);
@@ -66,12 +73,11 @@ export class FinancialService {
   }
 
   static async getCategoryBreakdown(dateRange: { from: Date; to: Date }, entityType?: string, type: string = 'expense'): Promise<CategoryBreakdown> {
-    const mapped = FinancialService.mapEntityType(entityType);
     const params = new URLSearchParams({
       start_date: dateRange.from.toLocaleDateString('pt-BR'),
       end_date: dateRange.to.toLocaleDateString('pt-BR'),
       type: type,
-      entity_type: mapped || 'individual'
+      entity_type: FinancialService.dashboardScope(entityType)
     });
     const res = await apiFetch(`/dashboard/expenses-by-category?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar gastos por categoria`);
@@ -79,11 +85,10 @@ export class FinancialService {
   }
 
   static async getCategoryIncome(dateRange: { from: Date; to: Date }, entityType?: string): Promise<IncomeBySubcategoria> {
-    const mapped = FinancialService.mapEntityType(entityType);
     const params = new URLSearchParams({
       start_date: dateRange.from.toLocaleDateString('pt-BR'),
       end_date: dateRange.to.toLocaleDateString('pt-BR'),
-      entity_type: mapped || 'individual'
+      entity_type: FinancialService.dashboardScope(entityType)
     });
     const res = await apiFetch(`/dashboard/income-by-category?${params}`);
     if (!res.ok) throw new Error(`Erro ${res.status} ao buscar entradas por subcategoria`);

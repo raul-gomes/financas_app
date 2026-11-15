@@ -24,7 +24,6 @@ from app.schemas.dashboard import (
     TotalBanco,
     TotalDiario,
     TotalFormaPagamento,
-    TransacaoExtrato,
 )
 from app.schemas.transaction import NaturezaTransacao
 
@@ -239,15 +238,8 @@ class DashboardRepository:
         end_date_str: str,
         user_id: int,
     ) -> ExtratoResponse:
-        # Rows for the list (contract: the statement carries the period's transactions) ...
-        stmt = self._scope_transactions(
-            select(TransactionORM), start_date, end_date, entity_type, user_id
-        )
-        stmt = stmt.order_by(TransactionORM.transaction_date.desc(), TransactionORM.id.desc())
-        result = await self.db.execute(stmt)
-        transacoes = result.unique().scalars().all()
-
-        # ... but every total is aggregated in SQL (1 query), not summed over the rows.
+        # Every total is aggregated in SQL (1 query); the period's rows are served by the
+        # paginated transactions list, never by the statement.
         is_expense = TransactionORM.type == "expense"
         totals_stmt = self._scope_transactions(
             select(
@@ -273,28 +265,6 @@ class DashboardRepository:
         total_invested = float(totals.invested)
         fixed_expenses = float(totals.fixed)
         variable_expenses = float(totals.variable)
-
-        txs = [
-            TransacaoExtrato(
-                id=t.id,
-                type=t.type,
-                amount=t.amount,
-                description=t.description,
-                category_id=t.category_id,
-                subcategory_id=t.subcategory_id,
-                category_name=t.category.name if t.category else "",
-                subcategory_name=t.subcategory.name if t.subcategory else "",
-                payment_method=t.payment_method,
-                installment_number=t.installment_number,
-                total_installments=t.total_installments,
-                is_installment=t.is_installment,
-                entity_type=t.entity_type,
-                transaction_date=t.transaction_date,
-                recurring_account_id=t.recurring_account_id,
-                bank_code=t.bank_code,
-            )
-            for t in transacoes
-        ]
 
         # Single query to fetch all needed category limits (avoids N+1)
         # Busca: Mensal PF, Mensal PJ, Limite Cartao Credito
@@ -336,7 +306,6 @@ class DashboardRepository:
             end_date=end_date_str,
             monthly_goal=monthly_goal,
             total_invested=total_invested,
-            transactions=txs,
             credit_card_limit=credit_card_limit,
             fixed_expenses=fixed_expenses,
             variable_expenses=variable_expenses,

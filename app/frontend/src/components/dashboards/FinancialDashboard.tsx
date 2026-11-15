@@ -5,11 +5,12 @@ import { IncomeChart } from '@/components/charts/IncomeChart';
 import { CategoryBreakdownSection } from '@/components/CategoryBreakdownSection';
 import { PaymentKpiCards } from '@/components/dashboards/PaymentKpiCards';
 import { FixedVariableCard } from '@/components/dashboards/FixedVariableCard';
+import { buildDailyData, EMPTY_STATEMENT_AGGREGATES } from '@/lib/statementAggregates';
 import {
   YearlyData,
   DailyData,
   SelectedMonth,
-  Transaction,
+  StatementAggregates,
   CategoryBreakdown,
   IncomeBySubcategoria,
 } from '@/types/financial';
@@ -20,7 +21,8 @@ interface FinancialDashboardProps {
   monthlyGoal: number;
   currentMonthExpenses: number;
   dateRange: { from: Date; to: Date };
-  transactions: Transaction[];
+  /** Server-side aggregates of the period (null while the statement loads). */
+  statement: StatementAggregates | null;
   selectedMonth: SelectedMonth | null;
   highlightedMonth?: SelectedMonth | null;
   incomeBreakdown: IncomeBySubcategoria | null;
@@ -40,7 +42,7 @@ export function FinancialDashboard({
   monthlyGoal,
   currentMonthExpenses,
   dateRange,
-  transactions,
+  statement,
   selectedMonth,
   highlightedMonth,
   incomeBreakdown,
@@ -64,34 +66,23 @@ export function FinancialDashboard({
     }
   };
 
-  // Compute daily data from transactions for the selected month
-  const dailyData: DailyData[] = useMemo(() => {
-    if (!selectedMonth) return [];
-    const daysInMonth = new Date(selectedMonth.year, selectedMonth.index + 1, 0).getDate();
-    const days: DailyData[] = Array.from({ length: daysInMonth }, (_, i) => ({
-      day: i + 1,
-      income: 0,
-      expenses: 0,
-      investment: 0,
-    }));
+  const aggregates = statement ?? EMPTY_STATEMENT_AGGREGATES;
 
-    transactions.forEach((t) => {
-      const date = new Date(t.transaction_date);
-      if (date.getMonth() === selectedMonth.index && date.getFullYear() === selectedMonth.year) {
-        const dayIdx = date.getDate() - 1;
-        if (t.type === 'income') days[dayIdx].income += t.amount;
-        else if (t.type === 'expense') days[dayIdx].expenses += t.amount;
-        else if (t.type === 'investment') days[dayIdx].investment += t.amount;
-      }
-    });
-
-    return days;
-  }, [transactions, selectedMonth]);
+  // Daily chart of the selected month, from the server's daily totals
+  const dailyData: DailyData[] = useMemo(
+    () => (selectedMonth ? buildDailyData(aggregates.daily_totals, selectedMonth) : []),
+    [aggregates.daily_totals, selectedMonth],
+  );
 
   return (
     <div className="flex flex-col h-full gap-4 overflow-y-auto lg:overflow-hidden">
       {/* Métricas principais: carrossel no mobile, 4 colunas no desktop */}
-      <PaymentKpiCards transactions={transactions} creditCardLimit={creditCardLimit} />
+      <PaymentKpiCards
+        expensesByPaymentMethod={aggregates.expenses_by_payment_method}
+        expensesByBank={aggregates.expenses_by_bank}
+        installmentsDue={aggregates.installments_due}
+        creditCardLimit={creditCardLimit}
+      />
 
       {/* Grafico de Barras - Rendimento Anual / Diario */}
       <div id="dashboard-ancora-rendimento" className="animate-slide-up shadow-card border-none rounded-lg bg-card flex-shrink-0" style={{ animationDelay: '400ms' }}>

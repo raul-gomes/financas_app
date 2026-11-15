@@ -6,6 +6,8 @@ export type UploadResponse = z.infer<typeof uploadResponseSchema>;
 export type ConfirmResponse = z.infer<typeof confirmResponseSchema>;
 
 export interface ParsedTransaction {
+  /** Stable id of the row in the review (assigned at parse time; edits and drafts follow it). */
+  rowId: string;
   date: string;
   description: string;
   amount: number;

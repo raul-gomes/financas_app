@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
-import { AuthProvider, useSession } from '@/contexts/AuthContext';
+import { useSession } from '@/contexts/AuthContext';
+import { AuthProvider } from '@/contexts/AuthProvider';
 import { AuthGuard } from './AuthGuard';
 
 const mockGetSession = vi.fn();

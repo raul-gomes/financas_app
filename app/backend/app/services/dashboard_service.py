@@ -55,7 +55,7 @@ class DashboardService:
         start_label: str,
         end_label: str,
     ) -> ExtratoResponse:
-        """Financial statement (totals, goal, limits and rows) for the period."""
+        """Financial statement (totals, goal, limits and chart aggregates) for the period."""
         return await self.dashboard.extrato_financeiro(
             start, end, entity_type, start_label, end_label, self.user.id
         )

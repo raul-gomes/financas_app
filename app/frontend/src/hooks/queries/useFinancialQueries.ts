@@ -7,7 +7,8 @@ import type { YearMonth } from '@/lib/months';
 import { buildRecentMonths, MOBILE_CHART_MONTHS, recentMonthYears } from '@/lib/recentMonths';
 
 /**
- * Statement of the period (totals, goal, limits and the period's transactions).
+ * Statement of the period (totals, goal, limits and the chart aggregates; the rows come
+ * from the paginated transactions list).
  * Keeps the previous period's data on screen while the next one loads
  * (`isPlaceholderData` tells them apart).
  */
@@ -51,6 +52,15 @@ export function useCategoryIncome(range: DateRangeInput, entityType: string, ena
     queryKey: queryKeys.financial.categoryIncome(range, entityType),
     queryFn: () => FinancialService.getCategoryIncome(range, entityType),
     placeholderData: keepPreviousData,
+    enabled,
+  });
+}
+
+/** Categories with their subcategories (options of the review selects), optionally by type. */
+export function useCategoryOptions(entityType: string, type?: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.financial.categoryOptions(entityType, type),
+    queryFn: () => FinancialService.getCategorySubcategories(entityType, type),
     enabled,
   });
 }

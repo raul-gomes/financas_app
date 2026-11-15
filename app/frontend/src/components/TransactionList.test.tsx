@@ -23,8 +23,10 @@ vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: mockToast }),
 }));
 
+const mockIsAdmin = vi.fn(() => false);
+
 vi.mock('@/contexts/RoleContext', () => ({
-  useRole: () => ({ isAdmin: false }),
+  useRole: () => ({ isAdmin: mockIsAdmin() }),
 }));
 
 vi.mock('react-router', () => ({
@@ -38,7 +40,7 @@ vi.mock('@/components/dialogs/EditTransactionDialog', () => ({
   EditTransactionDialog: () => null,
 }));
 vi.mock('@/components/dialogs/ExtratoUploadModal', () => ({
-  ExtratoUploadModal: () => null,
+  ExtratoUploadModal: ({ open }: { open: boolean }) => (open ? <div>modal-importar-extrato</div> : null),
 }));
 
 function tx(id: number, overrides: Partial<Transaction> = {}): Transaction {
@@ -79,7 +81,30 @@ const baseProps = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockIsAdmin.mockReturnValue(false);
   mockListBanks.mockResolvedValue([]);
+});
+
+describe('TransactionList - Extrato action', () => {
+  it('hides the Extrato button from non-admins (the import is admin only)', async () => {
+    mockGetTransactionsPage.mockResolvedValue(page([1], null, 1));
+    renderWithQuery(<TransactionList {...baseProps} />);
+    await waitFor(() => expect(screen.getByText('Compra 1')).toBeTruthy());
+
+    expect(screen.queryByRole('button', { name: /Extrato/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Nova/ })).toBeTruthy();
+  });
+
+  it('shows the Extrato button to admins and opens the import modal', async () => {
+    mockIsAdmin.mockReturnValue(true);
+    mockGetTransactionsPage.mockResolvedValue(page([1], null, 1));
+    renderWithQuery(<TransactionList {...baseProps} />);
+    await waitFor(() => expect(screen.getByText('Compra 1')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: /Extrato/ }));
+
+    expect(screen.getByText('modal-importar-extrato')).toBeTruthy();
+  });
 });
 
 describe('TransactionList (paginated)', () => {

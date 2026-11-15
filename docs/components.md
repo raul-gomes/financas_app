@@ -86,6 +86,11 @@ Categorias principais:
 
 Merge de classes sempre com `cn()` (`@/lib/utils`) — permite override limpo pelo chamador.
 
+Arquivos `.tsx` exportam **só componentes** (regra `react-refresh/only-export-components`, lint com 0 warnings). Variantes e helpers ficam ao lado, em `.ts`:
+`buttonVariants` em `ui/button-variants`, `badgeVariants` em `ui/badge-variants`, `toggleVariants` em `ui/toggle-variants`, `navigationMenuTriggerStyle` em `ui/navigation-menu-style`,
+`useFormField` em `ui/form-field-context`, `useSidebar` em `ui/sidebar-context`, helpers dos logos de banco em `lib/bankLogo`. Contextos seguem o mesmo padrão
+(`contexts/RoleContext.ts` + `RoleProvider.tsx`, idem Auth e Sidebar; `useRole`/`useSession`/`useSidebar` continuam importáveis de `@/contexts/<Nome>Context`).
+
 ---
 
 ## 4. Componentes Compostos do Projeto
@@ -473,7 +478,7 @@ Fileira de chips que **rola na horizontal** (nunca quebra nem estoura a tela): f
 ### 8.6 `/financial` no mobile
 
 `FinancialMobile` (`dashboards/`) monta a página abaixo de `md` na ordem do mock: seletor de mês no `MobileTopBarSlot`, chips de seção (`ChartAnchors`, rolam na horizontal),
-`PaymentKpiCards` (carrossel com snap), `MonthlyBarsChart` (6 meses, legenda embaixo, toque lê o valor) e `TransactionListMobile`
+`PaymentKpiCards` (carrossel com snap; lê os agregados do `/dashboard/statement`, nunca linhas de transação), `MonthlyBarsChart` (6 meses, legenda embaixo, toque lê o valor) e `TransactionListMobile`
 (lançamentos agrupados por dia; tocar na linha abre `TransactionDetailSheet` com Editar/Excluir; a lixeira não aparece na linha), depois `FixedVariableCard` e as categorias.
 O desktop segue com `FinancialDashboard` + `TransactionList` (os dois usam `PaymentKpiCards`, `FixedVariableCard` e o hook `useTransactionList`).
 `useRecentMonths` (em `useFinancialQueries`) lê o ano do mês final e, se a janela cruza o ano, o anterior.
@@ -505,6 +510,14 @@ Lógica pura e testada em `transactions/transactionFormModel.ts`.
 O `+` da barra de abas (`AppLayout`) não remonta mais a página: `onAddTransaction` só chama `queryClient.invalidateQueries()` e as telas em react-query atualizam sozinhas,
 mantendo mês, PF/PJ e filtros. O `main` não usa mais `overflow-x-clip` no mobile: nenhuma página pode ser mais larga que a tela (conteúdo largo rola dentro do próprio contêiner, ex.: tabelas do extrato bancário).
 O header desktop mostra, só para admin, os links **Recorrentes** e **Extrato bancário** (ícones até `lg`, ícone + texto a partir de `lg`).
+
+### 8.12 Importação de extrato (`components/extract/`) e `lib/extractReview.ts`
+
+`pages/BankExtract.tsx` (antes ~1100 linhas) só orquestra: `ExtractUploadStep` (soltar/escolher arquivos), `ExtractReviewHeader`, `ExtractSummaryCards`, `ExtractDuplicatesSection`,
+um `ExtractSessionCard` por arquivo (`ExtractSessionHeader` com banco + Confirmar, `ExtractAddBankForm`, `ExtractTransactionsTable` com `ExtractRowCells`) e `ExtractConfirmBar`.
+O estado e as ações ficam em hooks (`useExtractReview`, `useExtractDuplicates`, `useExtractUpload`, `useExtractConfirmation`) e as regras puras (rascunho por linha, validação, payload,
+totais, duplicatas) em `lib/extractReview.ts`, com testes unitários. Linhas da revisão: tabela densa do `md` em diante (rola dentro do próprio contêiner, `overflow-x-auto`) e, abaixo de `md`, um card por linha (`ExtractTransactionCards`) com os mesmos campos (`ExtractRowFields`, tamanho `touch`) em alvos de 44 px (`h-11`), sem rolagem horizontal. Cada linha tem um `rowId` estável e os rascunhos são chaveados por ele.
+O `ExtratoDialog` (modal que duplicava essa lógica e não era montado em nenhuma tela) foi removido; o fluxo é `ExtratoUploadModal` -> `/extrato-bancario`.
 
 ### 8.11 `PageHeader`: título escondido no mobile
 

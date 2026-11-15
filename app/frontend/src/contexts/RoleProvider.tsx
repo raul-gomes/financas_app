@@ -1,13 +1,7 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { SettingsService, Profile } from '@/services/settingsService';
 import { useSession } from '@/contexts/AuthContext';
-
-interface RoleContextType {
-  isAdmin: boolean;
-  loading: boolean;
-}
-
-const RoleContext = createContext<RoleContextType | null>(null);
+import { RoleContext } from '@/contexts/RoleContext';
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -53,10 +47,4 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       {children}
     </RoleContext.Provider>
   );
-}
-
-export function useRole() {
-  const ctx = useContext(RoleContext);
-  if (!ctx) throw new Error('useRole must be used within a RoleProvider');
-  return ctx;
 }

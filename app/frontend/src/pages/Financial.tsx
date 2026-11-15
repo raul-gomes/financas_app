@@ -70,7 +70,6 @@ const Financial = () => {
   const categoryBreakdown = categoriesQuery.data ?? null;
   const incomeBreakdown = incomesQuery.data ?? null;
   const yearTransactions = useMemo(() => yearInvestmentsQuery.data ?? [], [yearInvestmentsQuery.data]);
-  const transactions = useMemo(() => financialSummary?.transactions ?? [], [financialSummary]);
 
   // If a month was requested, activate the flip once that month's data (not the previous
   // period's placeholder) has loaded
@@ -94,10 +93,7 @@ const Financial = () => {
   // Monthly balance (investimentos contam como saída)
   const monthlyBalance: MonthlyBalance = useMemo(() => {
     if (!financialSummary) return { income: 0, expenses: 0, balance: 0 };
-    const investmentTotal = financialSummary.transactions
-      .filter(t => t.type === 'investment')
-      .reduce((sum, t) => sum + t.amount, 0);
-    const totalExpenses = financialSummary.total_expenses + investmentTotal;
+    const totalExpenses = financialSummary.total_expenses + financialSummary.total_invested;
     return {
       income: financialSummary.total_income,
       expenses: totalExpenses,
@@ -203,24 +199,6 @@ const Financial = () => {
     requestedMonthRef.current = null;
   }, [selectedMonth]);
 
-  // Filter and sort transactions
-  const filteredTransactions = useMemo(
-    () =>
-      selectedEntityType === 'all'
-        ? transactions
-        : transactions.filter(t =>
-            normalizeEntityType(t.entity_type) === normalizeEntityType(selectedEntityType)
-          ),
-    [transactions, selectedEntityType]
-  );
-  const sortedTransactions = useMemo(
-    () =>
-      [...filteredTransactions].sort(
-        (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
-      ),
-    [filteredTransactions]
-  );
-
   const currentPeriodExpenses = monthlyBalance.expenses;
   const sidebar = useSidebar();
 
@@ -241,7 +219,7 @@ const Financial = () => {
           entityType={selectedEntityType}
           onEntityTypeChange={setSelectedEntityType}
           dateRange={selectedDateRange}
-          transactions={sortedTransactions}
+          statement={financialSummary}
           creditCardLimit={financialSummary?.credit_card_limit || 0}
           fixedExpenses={financialSummary?.fixed_expenses || 0}
           variableExpenses={financialSummary?.variable_expenses || 0}
@@ -337,7 +315,7 @@ const Financial = () => {
                   monthlyGoal={financialSummary?.monthly_goal || 0}
                   currentMonthExpenses={currentPeriodExpenses}
                   dateRange={selectedDateRange}
-                  transactions={sortedTransactions}
+                  statement={financialSummary}
                   selectedMonth={selectedMonth}
                   highlightedMonth={highlightedMonth}
                   incomeBreakdown={incomeBreakdown}

@@ -157,10 +157,10 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 ### 2.6 Dashboard (`/dashboard`)
 
 #### Extrato Financeiro (`/statement`)
-- Período + `entity_type` (individual/business/all)
-- Retorna: `total_income`, `total_expenses`, `monthly_goal`, `credit_card_limit`, `total_invested`, `fixed_expenses` (com `recurring_account_id`), `variable_expenses`, lista de transações
+- Período + `entity_type` (individual/business/all; `all` = Ambos soma PF e PJ nos totais, gráficos, rendimento anual e categorias)
+- Retorna: `total_income`, `total_expenses`, `monthly_goal`, `credit_card_limit`, `total_invested`, `fixed_expenses` (com `recurring_account_id`), `variable_expenses` (sem lista de transações: as linhas do período vêm de `GET /transacoes/paginated`)
 - **Agregados para os gráficos (calculados no SQL, nunca somando as linhas):** `daily_totals` (entradas/saídas/investimentos por dia, só dias com dados, `YYYY-MM-DD`), `expenses_by_payment_method` (saídas por forma de pagamento), `expenses_by_bank` (saídas por forma de pagamento e banco; `bank_name` vem dos bancos do próprio usuário, senão o código) e `installments_due` (parcelas a pagar das saídas parceladas: `(total_installments - installment_number) x amount`, quantidade de parcelas e de transações, e o detalhe por banco; sem banco = "Sem banco")
-- **`transactions` (lista de todas as linhas do período) está DEPRECADA:** continua na resposta só porque o frontend ainda lê (gráfico diário, totais por forma de pagamento/banco, parcelas e lista de investimentos). Próximo passo: o frontend passar a ler os agregados acima (e `total_invested`); depois remover `transactions` da resposta (a lista de lançamentos já pagina em `GET /transacoes/paginated`)
+- **`transactions` foi removida da resposta:** o frontend lê só os agregados acima e `total_invested`; a lista de lançamentos pagina em `GET /transacoes/paginated`. O statement roda em no máximo 4 queries (totais, limites, agregados dos gráficos, nomes dos bancos), qualquer que seja o volume
 - **Meta mensal:** Categoria "Mensal PF" (PF) ou "Mensal PJ" (PJ) → coluna `limit`
 - **Limite cartão:** Categoria "Limite Cartao Credito" (por entity_type) → fallback 0
 

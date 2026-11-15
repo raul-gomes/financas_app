@@ -41,6 +41,7 @@ vi.mock('@/services/recurringAccountService', () => ({
 }));
 
 interface TransactionListProps {
+  monthlyBalance: { income: number; expenses: number; balance: number };
   onDeleteTransaction: (id: number) => Promise<void>;
   selectedEntityType: string;
   onEntityTypeChange: (type: 'all' | 'pf' | 'pj') => void;
@@ -51,6 +52,7 @@ vi.mock('@/components/TransactionList', () => ({
     <div>
       <span>Extrato Financeiro</span>
       <span data-testid="entity">{props.selectedEntityType}</span>
+      <span data-testid="balance">{JSON.stringify(props.monthlyBalance)}</span>
       <button onClick={() => props.onEntityTypeChange('pj')}>pj</button>
       <button onClick={() => props.onDeleteTransaction(5)}>delete-5</button>
     </div>
@@ -85,9 +87,13 @@ vi.mock('@/components/layout/SidebarPanel', () => ({
 
 function summary(monthlyGoal = 1000) {
   return {
-    transactions: [],
     total_income: 0,
     total_expenses: 0,
+    total_invested: 0,
+    daily_totals: [],
+    expenses_by_payment_method: [],
+    expenses_by_bank: [],
+    installments_due: { remaining_amount: 0, remaining_installments: 0, transactions: 0, by_bank: [] },
     monthly_goal: monthlyGoal,
     credit_card_limit: 0,
     fixed_expenses: 0,
@@ -135,6 +141,20 @@ describe('Financial page - dados com react-query', () => {
     expect(mockIncome).toHaveBeenCalledTimes(1);
     expect(mockYearInvestments).toHaveBeenCalledTimes(1);
     expect(mockGenerate).not.toHaveBeenCalled();
+  });
+
+  it('conta os investimentos do período (total_invested) como saída no saldo', async () => {
+    mockSummary.mockResolvedValue({ ...summary(), total_income: 1000, total_expenses: 300, total_invested: 200 });
+
+    renderWithQuery(<Financial />);
+
+    await waitFor(() =>
+      expect(JSON.parse(screen.getByTestId('balance').textContent ?? '{}')).toEqual({
+        income: 1000,
+        expenses: 500,
+        balance: 500,
+      }),
+    );
   });
 
   it('soma os investimentos do ano por mês nos dados anuais', async () => {

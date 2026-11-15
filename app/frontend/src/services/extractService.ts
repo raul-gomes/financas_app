@@ -1,6 +1,7 @@
 import { apiFetch } from '@/lib/api';
 import { parseResponse } from '@/lib/parse';
 import { uploadResponseSchema, confirmResponseSchema } from '@/schemas/extract';
+import { nextRowId } from '@/lib/extractReview';
 import {
   UploadResponse,
   ConfirmPayload,
@@ -31,6 +32,7 @@ export class ExtractoService {
           isConfirmed: false,
           transactions: response.transactions.map(t => ({
             ...t,
+            rowId: nextRowId(),
             category_id: undefined,
             subcategory_id: undefined,
             payment_method: t.payment_method || 'pix',

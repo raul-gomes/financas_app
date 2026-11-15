@@ -1,26 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { bankInitials, BankLogo, bankLogoUrl } from './bank-logo';
-
-describe('bankLogoUrl', () => {
-  it('normaliza código com padStart de 3 dígitos', () => {
-    expect(bankLogoUrl('77')).toMatch(/\/077\.png$/);
-    expect(bankLogoUrl('260')).toMatch(/\/260\.png$/);
-  });
-});
-
-describe('bankInitials', () => {
-  it('usa as duas primeiras palavras removendo S.A.', () => {
-    expect(bankInitials('Banco do Brasil')).toBe('BD');
-    expect(bankInitials('NU PAGAMENTOS S.A.')).toBe('NP');
-    expect(bankInitials('Itaú Unibanco S.A.')).toBe('IU');
-  });
-
-  it('usa as duas primeiras letras para nome de palavra única', () => {
-    expect(bankInitials('Nubank')).toBe('NU');
-    expect(bankInitials('Inter')).toBe('IN');
-  });
-});
+import { BankLogo } from './bank-logo';
+import { bankLogoUrl } from '@/lib/bankLogo';
 
 describe('BankLogo', () => {
   it('renderiza img com a URL do CDN quando há código', () => {

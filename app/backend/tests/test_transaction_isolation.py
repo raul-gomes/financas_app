@@ -62,13 +62,16 @@ class TestTransacaoIsolamento:
         assert resp.json()["results"][0]["has_duplicate"] is False
 
     async def test_user2_nao_ve_transacao_no_extrato(self, clients_ctrl):
-        tx1_id = await _criar_transacao(clients_ctrl, 1, "CategoriaUser1f")
+        await _criar_transacao(clients_ctrl, 1, "CategoriaUser1f")
         clients_ctrl.switch(2)
         resp = await clients_ctrl.get(
             "/dashboard/statement?start_date=01/01/2026&end_date=31/01/2026&entity_type=individual"
         )
         assert resp.status_code == 200
-        assert all(t["id"] != tx1_id for t in resp.json()["transactions"])
+        statement = resp.json()
+        assert statement["total_expenses"] == 0
+        assert statement["daily_totals"] == []
+        assert statement["expenses_by_payment_method"] == []
 
     async def test_user2_nao_ve_transacao_no_export_csv(self, clients_ctrl):
         await _criar_transacao(clients_ctrl, 1, "CategoriaUser1g")

@@ -23,6 +23,12 @@ function D3BarChartBase({
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width, height });
+  // The latest click handler is read through a ref, so a new callback identity from the parent
+  // (it is recreated on every render) does not redraw the whole chart.
+  const onBarClickRef = useRef(onBarClick);
+  useEffect(() => {
+    onBarClickRef.current = onBarClick;
+  }, [onBarClick]);
 
   // ResizeObserver to make the chart responsive
   useEffect(() => {
@@ -267,9 +273,7 @@ function D3BarChartBase({
           tooltip.style('visibility', 'hidden');
         })
         .on('click', function(event, d) {
-          if (onBarClick) {
-            onBarClick(d.month);
-          }
+          onBarClickRef.current?.(d.month);
         });
 
     // Cleanup function

@@ -240,9 +240,7 @@ async def test_statement_totals_match_reference(seeded, scope):
     variable = sum(t.amount for t in rows if t.type == "expense" and t.recurring_account_id is None)
     assert statement.fixed_expenses == pytest.approx(fixed)
     assert statement.variable_expenses == pytest.approx(variable)
-    assert len(statement.transactions) == len(rows)
-    ordered = [(t.transaction_date, t.id) for t in statement.transactions]
-    assert ordered == sorted(ordered, reverse=True)
+    assert not hasattr(statement, "transactions")
 
 
 @pytest.mark.asyncio
@@ -253,7 +251,7 @@ async def test_statement_with_no_rows_has_zero_totals(seeded):
         datetime(2020, 1, 1), datetime(2020, 1, 31), "all", "01/01/2020", "31/01/2020", USER
     )
 
-    assert statement.transactions == []
+    assert statement.daily_totals == []
     assert statement.total_income == 0
     assert statement.total_expenses == 0
     assert statement.fixed_expenses == 0
@@ -353,7 +351,7 @@ class _QueryCounter:
 
 # Upper bounds of statements per call; the data volume must not change them.
 OVERVIEW_MAX_QUERIES = 7  # was 13 before the SQL aggregation
-STATEMENT_MAX_QUERIES = 5  # rows + totals + limits + chart aggregates + bank names
+STATEMENT_MAX_QUERIES = 4  # totals + limits + chart aggregates + bank names
 BREAKDOWN_MAX_QUERIES = 1
 
 

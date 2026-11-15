@@ -32,6 +32,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { useRole } from '@/contexts/RoleContext';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/format';
+import { formatSyncSummary } from '@/lib/pluggySync';
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -181,8 +182,9 @@ const Settings = () => {
     setSyncResult(null);
     try {
       const result = await SettingsService.syncPluggy();
-      setSyncResult(result);
-      toast({ title: 'Sucesso', description: result.message });
+      const summary = formatSyncSummary(result);
+      setSyncResult({ ...result, message: summary });
+      toast({ title: 'Sucesso', description: summary });
     } catch {
       toast({ title: 'Erro', description: 'Falha ao sincronizar.', variant: 'destructive' });
     } finally {

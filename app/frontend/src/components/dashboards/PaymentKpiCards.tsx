@@ -3,10 +3,13 @@ import { Banknote, CreditCard, Receipt, Send, type LucideIcon } from 'lucide-rea
 import { Card } from '@/components/ui/card';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { BankBreakdownModal, type BankBreakdownItem } from '@/components/dialogs/BankBreakdownModal';
-import { useBanks } from '@/hooks/queries/useSettingsQueries';
-import { useErrorToast } from '@/hooks/queries/useErrorToast';
 import { formatCurrency } from '@/lib/format';
-import type { Transaction } from '@/types/financial';
+import { bankItemsForMethod, installmentBankItems, methodTotal } from '@/lib/statementAggregates';
+import type {
+  StatementBankTotal,
+  StatementInstallmentsDue,
+  StatementPaymentMethodTotal,
+} from '@/types/financial';
 
 type KpiTheme = 'primary' | 'success' | 'destructive' | 'warning';
 
@@ -32,71 +35,39 @@ interface BreakdownState {
 }
 
 interface PaymentKpiCardsProps {
-  /** Transactions of the selected period. */
-  transactions: Transaction[];
+  /** Expenses of the period per payment method (`expenses_by_payment_method`). */
+  expensesByPaymentMethod: StatementPaymentMethodTotal[];
+  /** Expenses of the period per payment method and bank (`expenses_by_bank`). */
+  expensesByBank: StatementBankTotal[];
+  /** Installments still to pay (`installments_due`). */
+  installmentsDue: StatementInstallmentsDue;
   /** Credit card limit; 0 hides the usage bar. */
   creditCardLimit: number;
-}
-
-/** Remaining value of an installment purchase (installments still to pay times the amount). */
-function remainingInstallmentValue(t: Transaction): number {
-  return ((t.total_installments ?? 1) - (t.installment_number ?? 1)) * t.amount;
 }
 
 /**
  * The four payment KPI cards of the financial dashboard (Pix, credit, debit and
  * installments). On mobile they form a horizontal snap carousel; from `md` on, a
- * 4-column grid. Tapping a card opens the per-bank breakdown.
+ * 4-column grid. Tapping a card opens the per-bank breakdown. Every number comes
+ * from the statement's server-side aggregates (no transaction rows in the client).
  */
-export function PaymentKpiCards({ transactions, creditCardLimit }: PaymentKpiCardsProps) {
+export function PaymentKpiCards({
+  expensesByPaymentMethod,
+  expensesByBank,
+  installmentsDue,
+  creditCardLimit,
+}: PaymentKpiCardsProps) {
   const [breakdown, setBreakdown] = useState<BreakdownState | null>(null);
-  const { data: banks = [], isError: banksFailed } = useBanks();
-  useErrorToast(banksFailed, 'Falha ao carregar os bancos.');
 
-  const bankName = (code: string): string => banks.find((b) => b.bank_code === code)?.bank_name || code;
+  const pixTotal = methodTotal(expensesByPaymentMethod, 'pix');
+  const creditTotal = methodTotal(expensesByPaymentMethod, 'credit');
+  const debitTotal = methodTotal(expensesByPaymentMethod, 'debit');
+  const installmentsTotal = installmentsDue.remaining_amount;
+  const installmentCount = installmentsDue.remaining_installments;
+  const installmentTransactions = installmentsDue.transactions;
 
-  const expensesBy = (method: string) =>
-    transactions.filter((t) => t.type === 'expense' && t.payment_method === method);
-  const sum = (list: Transaction[], valueOf: (t: Transaction) => number = (t) => t.amount) =>
-    list.reduce((total, t) => total + valueOf(t), 0);
-
-  const bankItems = (list: Transaction[]): BankBreakdownItem[] => {
-    const groups = new Map<string, number>();
-    for (const t of list) {
-      if (t.bank_code) groups.set(t.bank_code, (groups.get(t.bank_code) ?? 0) + t.amount);
-    }
-    return Array.from(groups.entries()).map(([code, amount]) => ({
-      bank_code: code,
-      bank_name: bankName(code),
-      amount,
-    }));
-  };
-
-  const pix = expensesBy('pix');
-  const credit = expensesBy('credit');
-  const debit = expensesBy('debit');
-  const installments = transactions.filter((t) => t.type === 'expense' && t.is_installment === true);
-  const pixTotal = sum(pix);
-  const creditTotal = sum(credit);
-  const debitTotal = sum(debit);
-  const installmentsTotal = sum(installments, remainingInstallmentValue);
-  const installmentCount = installments.reduce(
-    (count, t) => count + ((t.total_installments ?? 1) - (t.installment_number ?? 1)),
-    0,
-  );
-
-  const installmentItems = (): BankBreakdownItem[] => {
-    const groups = new Map<string, number>();
-    for (const t of installments) {
-      const code = t.bank_code || 'sem-banco';
-      groups.set(code, (groups.get(code) ?? 0) + remainingInstallmentValue(t));
-    }
-    return Array.from(groups.entries()).map(([code, amount]) => ({
-      bank_code: code === 'sem-banco' ? '' : code,
-      bank_name: code === 'sem-banco' ? 'Sem banco' : bankName(code),
-      amount,
-    }));
-  };
+  const bankItems = (method: string): BankBreakdownItem[] => bankItemsForMethod(expensesByBank, method);
+  const installmentItems = (): BankBreakdownItem[] => installmentBankItems(installmentsDue);
 
   const open = (state: Omit<BreakdownState, 'items'> & { items: BankBreakdownItem[] }) => {
     if (state.items.length > 0) setBreakdown(state);
@@ -164,7 +135,7 @@ export function PaymentKpiCards({ transactions, creditCardLimit }: PaymentKpiCar
           value: pixTotal,
           icon: Send,
           theme: 'primary',
-          onOpen: () => open({ title: 'Pix', total: pixTotal, icon: Send, theme: 'primary', items: bankItems(pix) }),
+          onOpen: () => open({ title: 'Pix', total: pixTotal, icon: Send, theme: 'primary', items: bankItems('pix') }),
         })}
         {renderCard(1, {
           label: 'Cartão de Crédito',
@@ -172,7 +143,7 @@ export function PaymentKpiCards({ transactions, creditCardLimit }: PaymentKpiCar
           icon: CreditCard,
           theme: 'success',
           onOpen: () =>
-            open({ title: 'Cartão de Crédito', total: creditTotal, icon: CreditCard, theme: 'success', items: bankItems(credit) }),
+            open({ title: 'Cartão de Crédito', total: creditTotal, icon: CreditCard, theme: 'success', items: bankItems('credit') }),
           footer:
             creditCardLimit > 0 ? (
               <div className="mt-2">
@@ -204,7 +175,7 @@ export function PaymentKpiCards({ transactions, creditCardLimit }: PaymentKpiCar
           icon: Banknote,
           theme: 'destructive',
           onOpen: () =>
-            open({ title: 'Cartão de Débito', total: debitTotal, icon: Banknote, theme: 'destructive', items: bankItems(debit) }),
+            open({ title: 'Cartão de Débito', total: debitTotal, icon: Banknote, theme: 'destructive', items: bankItems('debit') }),
         })}
         {renderCard(3, {
           label: 'Parcelas a Pagar',
@@ -216,8 +187,8 @@ export function PaymentKpiCards({ transactions, creditCardLimit }: PaymentKpiCar
           footer:
             installmentCount > 0 ? (
               <p className="text-xs text-muted-foreground mt-1">
-                {installmentCount} parcela{installmentCount !== 1 ? 's' : ''} · {installments.length} transação
-                {installments.length !== 1 ? 'ões' : ''}
+                {installmentCount} parcela{installmentCount !== 1 ? 's' : ''} · {installmentTransactions}{' '}
+                {installmentTransactions === 1 ? 'transação' : 'transações'}
               </p>
             ) : undefined,
         })}
