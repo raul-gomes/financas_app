@@ -283,8 +283,8 @@ financas_app/
 │       │   │   ├── recorrentes/                  # Feature compartilhada de contas recorrentes
 │       │   │   │   └── RecurringBillsTable.tsx    # Tabela única usada por /recorrentes e aba Limites (helpers currentInstallment/isEndingSoon exportados); virtualizada (useVirtualizer, sticky header)
 │       │   │   │
-│       │   │   ├── TransactionList.tsx          # Extrato paginado no servidor (useInfiniteQuery + "Carregar mais", busca com debounce, filtros período/PF-PJ); virtualizado (useVirtualizer); estados vazio/erro/carregando
-│       │   │   ├── TransactionList.test.tsx     # Testes do extrato paginado (carregar mais, filtros no servidor, busca debounced, vazio, erro/tentar de novo)
+│       │   │   ├── TransactionList.tsx          # Extrato paginado no servidor (useInfiniteQuery + "Carregar mais", busca com debounce, filtros período/PF-PJ); virtualizado (useVirtualizer); estados vazio/erro/carregando; botão "Extrato" (importar) só para admin
+│       │   │   ├── TransactionList.test.tsx     # Testes do extrato paginado (carregar mais, filtros no servidor, busca debounced, vazio, erro/tentar de novo, botão Extrato só para admin)
 
 │       │   │   ├── TransactionListMobile.tsx    # Lançamentos no mobile: Extrato (admin), busca + PF/PJ, linhas por dia, folha de detalhe (Editar/Excluir com confirmação)
 │       │   │   ├── TransactionListMobile.test.tsx # Testes da lista mobile (agrupamento, valor com sinal, sem lixeira na linha, confirmação de exclusão)
