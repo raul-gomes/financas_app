@@ -63,6 +63,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 - Força `entity_type=PF`, categoria "Importado"/sub "Pluggy" (auto-criadas)
 - Descrição truncada a 255 chars
 - **Dedupe exato pelo id do provedor:** cada linha guarda `external_id` (id da transação no Pluggy) e `external_source="pluggy"`. Re-sincronizar pula as linhas cujo id o usuário já tem (e repetições do mesmo id no mesmo lote); a resposta traz `skipped`. Índice único parcial `(user_id, external_source, external_id)` garante isso no banco. Duas compras reais do mesmo valor no mesmo dia (ids diferentes) são importadas e **não** são sinalizadas
+- **Adoção de linhas antigas (pré-id):** antes de inserir uma linha com id novo, procura uma linha do mesmo usuário sem id do provedor, mesmo dia, mesmo valor e mesma descrição (a que a importação antiga gravou); a de menor id recebe o `external_id`/`external_source` em vez de um insert (conta em `skipped` e em `linked`). Com várias candidatas, vincula uma por id recebido, em ordem de id; as que sobrarem são inseridas. Assim o primeiro re-sync após o deploy não duplica o histórico
 - **Aviso de possível duplicata** (só reporta, não resolve): vale apenas para linhas importadas **sem** id do provedor; procura outra transação do mesmo usuário com a mesma data e valor (a linha do lote é identificada pelo id, não pela descrição)
 
 ---

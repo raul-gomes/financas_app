@@ -133,7 +133,7 @@ class PluggySyncService:
         finally:
             await pluggy.close()
 
-        rows, skipped = await self._drop_already_imported(rows)
+        rows, skipped, linked = await self._drop_already_imported(rows)
         created_rows, _errors = await self.transactions.create_batch_returning_rows(
             rows, self.user.id
         )
@@ -144,16 +144,20 @@ class PluggySyncService:
             "message": f"{created} transações importadas de {len(accounts)} contas.",
             "imported": created,
             "skipped": skipped,
+            "linked": linked,
             "accounts": len(accounts),
             "duplicates": duplicates,
         }
 
     async def _drop_already_imported(
         self, rows: list[dict[str, Any]]
-    ) -> tuple[list[dict[str, Any]], int]:
-        """Removes rows whose provider id the user already has (or repeats in this payload).
+    ) -> tuple[list[dict[str, Any]], int, int]:
+        """Removes rows already stored: by provider id, or by adopting a legacy row.
 
-        Rows without a provider id are always kept. Returns (rows to import, skipped count).
+        A row whose provider id is new first looks for a legacy row of the user (imported
+        before ids were stored: no provider id, same day, amount and description); the
+        lowest-id match gets the provider id instead of a new insert. Rows without a provider
+        id are always kept. Returns (rows to import, skipped count incl. linked, linked count).
         """
         known = await self.transactions.existing_external_ids(
             self.user.id,
@@ -161,14 +165,27 @@ class PluggySyncService:
             [row["external_id"] for row in rows if row["external_id"]],
         )
         kept: list[dict[str, Any]] = []
+        linked = 0
         for row in rows:
             external_id = row["external_id"]
             if external_id and external_id in known:
                 continue
             if external_id:
                 known.add(external_id)
+                legacy = await self.transactions.first_unlinked_match(
+                    self.user.id,
+                    datetime.strptime(row["date"], STATEMENT_DATE_FORMAT).date(),
+                    row["amount"],
+                    row["description"],
+                )
+                if legacy is not None:
+                    legacy.external_id = external_id
+                    legacy.external_source = PLUGGY_SOURCE
+                    await self.uow.session.flush()
+                    linked += 1
+                    continue
             kept.append(row)
-        return kept, len(rows) - len(kept)
+        return kept, len(rows) - len(kept), linked
 
     @staticmethod
     def _to_import_row(tx: dict[str, Any], account: dict[str, Any]) -> dict[str, Any]:

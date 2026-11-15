@@ -396,3 +396,116 @@ async def test_the_database_rejects_a_repeated_provider_id_for_the_same_user(
 
     with pytest.raises(IntegrityError):
         await async_session.flush()
+
+
+async def _legacy_row(session, user_id: int, description: str, day: datetime, amount: float = 30.0):
+    """A row as the pre-provider-id import wrote it: no external id, midnight date."""
+    category = (
+        (await session.execute(select(CategoryORM).where(CategoryORM.user_id == user_id)))
+        .unique()
+        .scalar_one_or_none()
+    )
+    if category is None:
+        category = CategoryORM(name="Importado", entity_type="individual", limit=0, user_id=user_id)
+        category.subcategories = [SubcategoryORM(name="Pluggy")]
+        session.add(category)
+        await session.flush()
+    row = TransactionORM(
+        amount=amount,
+        description=description,
+        transaction_date=day,
+        type="expense",
+        entity_type="individual",
+        payment_method="pix",
+        category_id=category.id,
+        subcategory_id=(
+            await session.execute(
+                select(SubcategoryORM.id).where(SubcategoryORM.category_id == category.id)
+            )
+        ).scalar_one(),
+        user_id=user_id,
+    )
+    session.add(row)
+    await session.commit()
+    return row
+
+
+async def _all_rows(session) -> list[TransactionORM]:
+    result = await session.execute(select(TransactionORM).order_by(TransactionORM.id))
+    return list(result.unique().scalars())
+
+
+@pytest.mark.asyncio
+async def test_a_legacy_row_is_linked_to_the_provider_id_not_duplicated(
+    async_session, make_uow, evaluations
+):
+    service, _ = await _service_with_key(make_uow)
+    legacy = await _legacy_row(async_session, 1, "Coffee", datetime(2026, 2, 1))
+    FakePluggy.payload = [_same_day_purchase("ptx-a")]
+
+    result = await service.sync()
+
+    assert (result["imported"], result["skipped"], result["linked"]) == (0, 1, 1)
+    rows = await _all_rows(async_session)
+    assert [(r.id, r.external_source, r.external_id) for r in rows] == [
+        (legacy.id, "pluggy", "ptx-a")
+    ]
+
+
+@pytest.mark.asyncio
+async def test_two_legacy_same_day_same_amount_rows_link_to_two_incoming_ids(
+    async_session, make_uow, evaluations
+):
+    service, uow = await _service_with_key(make_uow)
+    first = await _legacy_row(async_session, 1, "Coffee", datetime(2026, 2, 1))
+    second = await _legacy_row(async_session, 1, "Coffee", datetime(2026, 2, 1))
+    FakePluggy.payload = [_same_day_purchase("ptx-a"), _same_day_purchase("ptx-b")]
+
+    result = await service.sync()
+    await uow.commit()
+
+    assert (result["imported"], result["linked"]) == (0, 2)
+    rows = await _all_rows(async_session)
+    assert [(r.id, r.external_id) for r in rows] == [(first.id, "ptx-a"), (second.id, "ptx-b")]
+
+
+@pytest.mark.asyncio
+async def test_a_third_incoming_id_is_inserted_when_only_two_legacy_rows_exist(
+    async_session, make_uow, evaluations
+):
+    service, _ = await _service_with_key(make_uow)
+    await _legacy_row(async_session, 1, "Coffee", datetime(2026, 2, 1))
+    await _legacy_row(async_session, 1, "Coffee", datetime(2026, 2, 1))
+    FakePluggy.payload = [_same_day_purchase(f"ptx-{n}") for n in "abc"]
+
+    result = await service.sync()
+
+    assert (result["imported"], result["linked"]) == (1, 2)
+    assert len(await _all_rows(async_session)) == 3
+
+
+@pytest.mark.asyncio
+async def test_a_legacy_row_with_another_description_is_not_linked(
+    async_session, make_uow, evaluations
+):
+    service, _ = await _service_with_key(make_uow)
+    await _legacy_row(async_session, 1, "Bakery", datetime(2026, 2, 1))
+    FakePluggy.payload = [_same_day_purchase("ptx-a")]
+
+    result = await service.sync()
+
+    assert (result["imported"], result["linked"]) == (1, 0)
+    assert len(await _all_rows(async_session)) == 2
+
+
+@pytest.mark.asyncio
+async def test_legacy_rows_of_another_user_are_never_linked(async_session, make_uow, evaluations):
+    service, _ = await _service_with_key(make_uow, 1)
+    await make_uow(2)
+    theirs = await _legacy_row(async_session, 2, "Coffee", datetime(2026, 2, 1))
+    FakePluggy.payload = [_same_day_purchase("ptx-a")]
+
+    result = await service.sync()
+
+    assert (result["imported"], result["linked"]) == (1, 0)
+    assert (await async_session.get(TransactionORM, theirs.id)).external_id is None
