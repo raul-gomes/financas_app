@@ -11,6 +11,13 @@ from app.core.database import get_session
 from app.db.models.category import CategoryORM, SubcategoryORM
 from app.db.models.transaction import TransactionORM
 from app.logger import log_database_operation
+from app.schemas.transaction import TipoPagamento
+
+# Special categories whose "spent" is not their own rows but the month of their nature:
+# the monthly budget compares with every expense, the card limit with the credit ones.
+MONTHLY_BUDGET_NAMES = {"mensal pf", "mensal pj"}
+CARD_LIMIT_NAME = "limite cartao credito"
+CREDIT_PAYMENT = TipoPagamento.CREDITO.value
 
 
 class LimitsRepository:
@@ -58,6 +65,24 @@ class LimitsRepository:
         log.info(f"{len(formatted_data)} categorias recuperadas para limites")
         return formatted_data
 
+    @staticmethod
+    def _special_spent(
+        category: CategoryORM, nature_spent: dict[str, tuple[float, float]]
+    ) -> float | None:
+        """Spent of a monthly-budget or card-limit category; None for a regular category.
+
+        The monthly budget ("Mensal PF/PJ") is compared with every expense of its nature in
+        the month and the card limit with the expenses paid on credit. Their own rows are
+        never counted, so the month totals keep counting each expense once.
+        """
+        name = category.name.strip().lower()
+        total, credit = nature_spent.get(category.entity_type, (0.0, 0.0))
+        if name in MONTHLY_BUDGET_NAMES:
+            return total
+        if name == CARD_LIMIT_NAME:
+            return credit
+        return None
+
     async def get_limits_with_spending(
         self, year: int, month: int, user_id: int, entity_type: str | None = None
     ) -> dict[str, Any]:
@@ -90,29 +115,36 @@ class LimitsRepository:
         result = await self.db.execute(stmt)
         categorias = result.unique().scalars().all()
 
-        # Coleta IDs de subcategorias para query de gastos
-        subcategory_ids = []
-        for cat in categorias:
-            for sub in cat.subcategories:
-                subcategory_ids.append(sub.id)
-
-        # 2. Busca gastos agrupados por subcategoria (1 query)
-        spent_map = {}
-        if subcategory_ids:
-            spent_result = await self.db.execute(
-                select(
-                    TransactionORM.subcategory_id,
-                    func.coalesce(func.sum(TransactionORM.amount), 0).label("total"),
-                )
-                .where(
-                    TransactionORM.subcategory_id.in_(subcategory_ids),
-                    TransactionORM.transaction_date >= mes_inicio,
-                    TransactionORM.transaction_date < mes_fim,
-                    TransactionORM.type == "expense",
-                )
-                .group_by(TransactionORM.subcategory_id)
+        # 2. Month expenses of the user in ONE query, grouped by subcategory, nature and
+        #    credit: per-subcategory spent for the regular categories and per-nature totals
+        #    (all / on credit) for the monthly-budget and card-limit categories.
+        is_credit = TransactionORM.payment_method == CREDIT_PAYMENT
+        spent_rows = await self.db.execute(
+            select(
+                TransactionORM.subcategory_id,
+                TransactionORM.entity_type,
+                is_credit.label("is_credit"),
+                func.coalesce(func.sum(TransactionORM.amount), 0).label("total"),
             )
-            spent_map = {row.subcategory_id: float(row.total) for row in spent_result}
+            .where(
+                TransactionORM.user_id == user_id,
+                TransactionORM.transaction_date >= mes_inicio,
+                TransactionORM.transaction_date < mes_fim,
+                TransactionORM.type == "expense",
+            )
+            .group_by(TransactionORM.subcategory_id, TransactionORM.entity_type, is_credit)
+        )
+        spent_map: dict[int, float] = {}
+        nature_spent: dict[str, tuple[float, float]] = {}
+        for row in spent_rows:
+            amount = float(row.total)
+            if row.subcategory_id is not None:
+                spent_map[row.subcategory_id] = spent_map.get(row.subcategory_id, 0.0) + amount
+            total, credit = nature_spent.get(row.entity_type, (0.0, 0.0))
+            nature_spent[row.entity_type] = (
+                total + amount,
+                credit + (amount if row.is_credit else 0.0),
+            )
 
         # 3. Monta resposta
         categories_response = []
@@ -136,6 +168,12 @@ class LimitsRepository:
                     }
                 )
 
+            special_spent = self._special_spent(cat, nature_spent)
+            if special_spent is None:
+                total_spent += cat_spent
+            else:
+                cat_spent = special_spent
+
             cat_limit = cat.limit or 0.0
             cat_remaining = cat_limit - cat_spent
             cat_percent = (cat_spent / cat_limit * 100) if cat_limit > 0 else 0.0
@@ -154,7 +192,6 @@ class LimitsRepository:
             )
 
             total_limit += cat_limit
-            total_spent += cat_spent
 
         log.info(f"Limites com gastos calculados: {len(categories_response)} categorias")
 

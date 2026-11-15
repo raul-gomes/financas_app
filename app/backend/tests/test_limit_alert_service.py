@@ -172,3 +172,16 @@ async def test_trigger_commits_the_alerts_before_sending_emails(async_session, m
 
     assert len(criados) == 1
     assert durable_when_emailing == [1]
+
+
+@pytest.mark.asyncio
+async def test_monthly_budget_category_does_not_raise_category_alerts(async_session):
+    """The monthly budget ("Mensal PF") is compared with the whole month: it keeps not
+    raising category alerts (owner decision pending, regras_negocio 3.7 item 5)."""
+    await _seed_categoria_e_gasto(async_session, limit=0, spent=950)
+    async_session.add(CategoryORM(name="Mensal PF", entity_type="individual", limit=900, user_id=1))
+    await async_session.flush()
+
+    criados = await LimitAlertService(async_session).evaluate_limits(1, 2026, 9)
+
+    assert criados == []

@@ -259,3 +259,75 @@ async def test_with_spending_is_scoped_to_the_user(async_session, make_uow):
     assert (
         await async_session.execute(select(func.count()).select_from(CategoryORM))
     ).scalar_one() == 1
+
+
+async def _special_spending_setup(session) -> None:
+    """User 1: a regular PF category plus the monthly and card limit categories of PF and PJ,
+    expenses in March 2026 by nature and payment method, noise that must not count."""
+    food = CategoryORM(name="Food", entity_type="individual", limit=1000, user_id=1)
+    food.subcategories = [SubcategoryORM(name="Lunch")]
+    specials = [
+        CategoryORM(name="Mensal PF", entity_type="individual", limit=5000, user_id=1),
+        CategoryORM(name="Limite Cartao Credito", entity_type="individual", limit=3000, user_id=1),
+        CategoryORM(name="Mensal PJ", entity_type="business", limit=8000, user_id=1),
+        CategoryORM(name="Limite Cartao Credito", entity_type="business", limit=9000, user_id=1),
+    ]
+    foreign = CategoryORM(name="Food", entity_type="individual", limit=1000, user_id=2)
+    foreign.subcategories = [SubcategoryORM(name="Lunch")]
+    session.add_all([food, foreign, *specials])
+    await session.flush()
+
+    def txn(user_id, category, amount, kind, nature, method, when=NOW):
+        return TransactionORM(
+            amount=amount,
+            description="x",
+            transaction_date=when,
+            type=kind,
+            entity_type=nature,
+            payment_method=method,
+            category_id=category.id,
+            subcategory_id=category.subcategories[0].id,
+            user_id=user_id,
+        )
+
+    session.add_all(
+        [
+            txn(1, food, 100, "expense", "individual", "pix"),
+            txn(1, food, 40, "expense", "individual", "credit"),
+            txn(1, food, 70, "expense", "business", "credit"),
+            txn(1, food, 500, "investment", "individual", "transfer"),
+            txn(1, food, 900, "income", "individual", "transfer"),
+            txn(1, food, 33, "expense", "individual", "credit", datetime(2026, 2, 27)),
+            txn(2, foreign, 999, "expense", "individual", "credit"),
+        ]
+    )
+    await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_with_spending_fills_the_monthly_and_card_limits_by_nature(async_session, make_uow):
+    await _special_spending_setup(async_session)
+    service, _ = await _service(make_uow, 1)
+
+    data = await service.with_spending(2026, 3, None)
+
+    spent = {(c["category_name"], c["entity_type"]): c["spent"] for c in data["categories"]}
+    assert spent[("Mensal PF", "individual")] == 140.0
+    assert spent[("Limite Cartao Credito", "individual")] == 40.0
+    assert spent[("Mensal PJ", "business")] == 70.0
+    assert spent[("Limite Cartao Credito", "business")] == 70.0
+    # The month totals still count each expense once (via its own category)
+    assert data["total_spent"] == 210.0
+
+
+@pytest.mark.asyncio
+async def test_with_spending_special_limits_report_remaining_and_percent(async_session, make_uow):
+    await _special_spending_setup(async_session)
+    service, _ = await _service(make_uow, 1)
+
+    data = await service.with_spending(2026, 3, "individual")
+
+    card = next(c for c in data["categories"] if c["category_name"] == "Limite Cartao Credito")
+    assert card["limit"] == 3000.0
+    assert card["remaining"] == 2960.0
+    assert all(c["entity_type"] == "individual" for c in data["categories"])

@@ -86,6 +86,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 #### Limites (`/limits`)
 - **Bulk update:** 3 listas — `new` (cria cat+subs), `modified` (atualiza cat + cria/atualiza subs), `deleted` (exclui categorias)
 - Usado para orçamento mensal por categoria
+- **`GET /limits/with-spending`:** `spent` de cada categoria = saídas do mês nas suas subcategorias. Exceções: **"Mensal PF/PJ"** recebe o total de saídas do mês da sua natureza e **"Limite Cartao Credito"** (PF/PJ) as saídas no crédito (`payment_method=credit`) da sua natureza; essas duas não entram em `total_spent` (cada saída conta uma vez). Uma consulta só para tudo (agrupada por subcategoria, natureza e crédito).
 
 ---
 
@@ -277,7 +278,7 @@ Descrevem lacunas; o código atual não decide por elas.
 2. O limiar de 100% deve contar como "estourado" (`exceeded`) ou só acima de 100%? Hoje só acima.
 3. Alertas de limite: novos limiares ou canais (push, e-mail por padrão)? O e-mail hoje é opt-in por variável de ambiente, não por usuário.
 4. O alerta de cartão considera só `payment_method=credit`; outros meios (débito virtual, parcelas futuras) entram?
-5. As categorias "Mensal PF"/"Mensal PJ" (meta mensal) geram alerta de categoria como as demais quando têm limite; é o desejado? Hoje só "Metas" e "Limite Cartao Credito" ficam de fora.
+5. As categorias "Mensal PF"/"Mensal PJ" (orçamento do mês) devem gerar alerta quando o total de saídas do mês passa de 80/90/100% do orçamento? Hoje **não geram** (ficam de fora junto com "Metas" e "Limite Cartao Credito"; antes o gasto delas vinha zerado e por isso nunca alertavam).
 6. Papel: existem outros além de `user`/`admin`? Convém restringir os valores no banco?
 7. Excluir uma conta recorrente apaga todas as transações vinculadas (inclusive as passadas): é o desejado?
 8. Produto: uso pessoal apenas ou também empresarial (PF/PJ)? (Nome decidido: **Placo**.)
