@@ -62,7 +62,8 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 - `bank_code` = 3 primeiros dígitos conta tipo BANK
 - Força `entity_type=PF`, categoria "Importado"/sub "Pluggy" (auto-criadas)
 - Descrição truncada a 255 chars
-- **Detecta duplicatas após importar** e apenas reporta (não resolve auto): para cada linha criada pelo próprio lote (identificada pelo id, não pela descrição), procura outra transação do mesmo usuário com a mesma data e valor. O id da transação do Pluggy não é guardado, então a descrição não entra na chave
+- **Dedupe exato pelo id do provedor:** cada linha guarda `external_id` (id da transação no Pluggy) e `external_source="pluggy"`. Re-sincronizar pula as linhas cujo id o usuário já tem (e repetições do mesmo id no mesmo lote); a resposta traz `skipped`. Índice único parcial `(user_id, external_source, external_id)` garante isso no banco. Duas compras reais do mesmo valor no mesmo dia (ids diferentes) são importadas e **não** são sinalizadas
+- **Aviso de possível duplicata** (só reporta, não resolve): vale apenas para linhas importadas **sem** id do provedor; procura outra transação do mesmo usuário com a mesma data e valor (a linha do lote é identificada pelo id, não pela descrição)
 
 ---
 
@@ -349,6 +350,7 @@ Descrevem lacunas; o código atual não decide por elas.
 | `c4d5e6f7a8b9` | `total_parcelas` em contas_recorrentes |
 | `d5e6f7a8b9c0` | Tabelas `users` + `user_banks` |
 | `e6f7a8b9c0d1` | `bank_code` em transacoes |
+| `c5d6e7f8a9b0` | `external_id`/`external_source` em transacoes (+ índice único parcial por usuário) |
 | `f7a8b9c0d1e2` | `valor_alvo` em subcategorias + `shopping_items` |
 | `a1b2c3d4e5f7` | `pluggy_api_key` em users |
 | `b1c2d3e4f5f6` | `concluida`/`data_conclusao` em subcategorias/shopping |
@@ -376,7 +378,7 @@ Descrevem lacunas; o código atual não decide por elas.
 2. **Export routes:** Usam `Session` direta (sem repository) — quebra padrão
 3. **Código morto (frontend):** `getAllTransactions`, `resolveDuplicates`, `GET /recurring-accounts/{id}`, `POST /shopping/generate-recurring` não chamados
 4. **Multi-user concluído (Etapa 4–9):** autenticação via Supabase JWT + isolamento por `user_id` + roles. Todo novo cadastro nasce `role='user'` (admin só por promoção manual). Rotas `pluggy/export/shopping/goals/extract` e `recurring-accounts/generate` são **admin-only**; `recurring-accounts` (CRUD) é liberado para `role='user'` por decisão de produto (403 p/ `role='user'` no resto)
-5. **Pluggy sync:** Detecta duplicatas mas não resolve; força `entity_type=PF` e categorias fixas
+5. **Pluggy sync:** Dedupe exato pelo id do provedor (aviso de duplicata só para linhas sem id); força `entity_type=PF` e categorias fixas
 6. **N+1 evitado:** Repositories usam `selectinload` e `GROUP BY` para agregações
 7. **Qualidade backend:** ruff (lint + format), pytest, `alembic check`, bandit e pip-audit rodam no CI
 

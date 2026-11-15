@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 
 from app.core.crypto import encrypt_secret
 from app.core.errors import ServerConfigError, ValidationError
@@ -15,8 +16,14 @@ from app.services import pluggy_sync_service as module
 from app.services.pluggy_sync_service import FALLBACK_DESCRIPTION, PluggySyncService
 
 PLUGGY_PAYLOAD = [
-    {"amount": -50.0, "type": "DEBIT", "date": "2026-01-10T00:00:00Z", "description": "Market"},
-    {"amount": 200.0, "type": "CREDIT", "date": "2026-01-11T00:00:00Z"},
+    {
+        "id": "ptx-1",
+        "amount": -50.0,
+        "type": "DEBIT",
+        "date": "2026-01-10T00:00:00Z",
+        "description": "Market",
+    },
+    {"id": "ptx-2", "amount": 200.0, "type": "CREDIT", "date": "2026-01-11T00:00:00Z"},
 ]
 
 
@@ -24,6 +31,7 @@ class FakePluggy:
     """Stand-in for the HTTP client: one bank account with two transactions."""
 
     closed = False
+    payload: list[dict] = PLUGGY_PAYLOAD
 
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -33,7 +41,7 @@ class FakePluggy:
         return [{"id": "acc-1", "name": "Conta", "type": "BANK", "number": "341999"}]
 
     async def fetch_transactions(self, account_id: str) -> list[dict]:
-        return PLUGGY_PAYLOAD
+        return FakePluggy.payload
 
     async def fetch_items(self) -> list:
         return [
@@ -52,6 +60,7 @@ class FakePluggy:
 @pytest.fixture(autouse=True)
 def fake_pluggy(monkeypatch):
     monkeypatch.setattr(module, "PluggyService", FakePluggy)
+    monkeypatch.setattr(FakePluggy, "payload", PLUGGY_PAYLOAD)
 
 
 @pytest.fixture
@@ -77,6 +86,11 @@ async def _service_with_key(make_uow, user_id: int = 1, key: str | None = "good-
     await uow.session.commit()
     user = await uow.session.get(UserORM, user_id)
     return PluggySyncService(uow, user), uow
+
+
+def _without_provider_ids() -> list[dict]:
+    """The default payload with no provider ids (the only rows still checked for duplicates)."""
+    return [{k: v for k, v in tx.items() if k != "id"} for tx in PLUGGY_PAYLOAD]
 
 
 async def _count(session, model) -> int:
@@ -129,6 +143,7 @@ async def test_sync_flags_duplicates_of_the_users_own_transactions_only(
     async_session, make_uow, evaluations
 ):
     service, _ = await _service_with_key(make_uow)
+    FakePluggy.payload = _without_provider_ids()
     await make_uow(2)  # the other user exists, with their own matching transaction
     category = CategoryORM(name="Any", entity_type="individual", limit=0, user_id=1)
     category.subcategories = [SubcategoryORM(name="Any")]
@@ -169,6 +184,7 @@ async def test_sync_flags_duplicates_for_imports_that_carry_a_description(
 ):
     """Regression (Q12 d): rows are found by the ids of the batch, not by description."""
     service, _ = await _service_with_key(make_uow)
+    FakePluggy.payload = _without_provider_ids()
     category = CategoryORM(name="Any", entity_type="individual", limit=0, user_id=1)
     category.subcategories = [SubcategoryORM(name="Any")]
     async_session.add(category)
@@ -239,3 +255,144 @@ async def test_an_undecryptable_stored_key_is_a_server_error_without_key_materia
         await service.sync()
 
     assert "not-a-valid-ciphertext" not in exc.value.message
+
+
+def _same_day_purchase(provider_id: str | None) -> dict:
+    row = {
+        "amount": -30.0,
+        "type": "DEBIT",
+        "date": "2026-02-01T00:00:00Z",
+        "description": "Coffee",
+    }
+    if provider_id is not None:
+        row["id"] = provider_id
+    return row
+
+
+@pytest.mark.asyncio
+async def test_sync_stores_the_provider_transaction_id(async_session, make_uow, evaluations):
+    service, _ = await _service_with_key(make_uow)
+
+    await service.sync()
+
+    rows = (
+        await async_session.execute(select(TransactionORM).order_by(TransactionORM.id))
+    ).unique()
+    assert [(t.external_source, t.external_id) for t in rows.scalars()] == [
+        ("pluggy", "ptx-1"),
+        ("pluggy", "ptx-2"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_resync_is_idempotent_and_reports_the_skipped_rows(
+    async_session, make_uow, evaluations
+):
+    service, uow = await _service_with_key(make_uow)
+    await service.sync()
+    await uow.commit()
+
+    second = await service.sync()
+
+    assert (second["imported"], second["skipped"], second["duplicates"]) == (0, 2, [])
+    assert await _count(async_session, TransactionORM) == 2
+
+
+@pytest.mark.asyncio
+async def test_resync_imports_only_the_new_provider_ids(async_session, make_uow, evaluations):
+    service, uow = await _service_with_key(make_uow)
+    await service.sync()
+    await uow.commit()
+    new_row = {**_same_day_purchase("ptx-3"), "date": "2026-03-01T00:00:00Z"}
+    FakePluggy.payload = [*PLUGGY_PAYLOAD, new_row]
+
+    result = await service.sync()
+
+    assert (result["imported"], result["skipped"]) == (1, 2)
+    assert await _count(async_session, TransactionORM) == 3
+
+
+@pytest.mark.asyncio
+async def test_two_legit_same_day_same_amount_purchases_are_both_imported_and_not_flagged(
+    async_session, make_uow, evaluations
+):
+    service, _ = await _service_with_key(make_uow)
+    FakePluggy.payload = [_same_day_purchase("ptx-a"), _same_day_purchase("ptx-b")]
+
+    result = await service.sync()
+
+    assert (result["imported"], result["skipped"], result["duplicates"]) == (2, 0, [])
+
+
+@pytest.mark.asyncio
+async def test_a_repeated_provider_id_inside_one_payload_is_imported_once(
+    async_session, make_uow, evaluations
+):
+    service, _ = await _service_with_key(make_uow)
+    FakePluggy.payload = [_same_day_purchase("ptx-a"), _same_day_purchase("ptx-a")]
+
+    result = await service.sync()
+
+    assert (result["imported"], result["skipped"]) == (1, 1)
+
+
+@pytest.mark.asyncio
+async def test_rows_without_a_provider_id_are_imported_and_keep_the_duplicate_warning(
+    async_session, make_uow, evaluations
+):
+    service, uow = await _service_with_key(make_uow)
+    FakePluggy.payload = [_same_day_purchase(None)]
+    await service.sync()
+    await uow.commit()
+
+    second = await service.sync()
+
+    assert (second["imported"], second["skipped"]) == (1, 0)
+    assert len(second["duplicates"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_the_same_provider_id_is_not_a_duplicate_across_users(
+    async_session, make_uow, evaluations
+):
+    first, uow1 = await _service_with_key(make_uow, 1)
+    second, _ = await _service_with_key(make_uow, 2)
+    await first.sync()
+    await uow1.commit()
+
+    result = await second.sync()
+
+    assert (result["imported"], result["skipped"]) == (2, 0)
+    assert await _count(async_session, TransactionORM) == 4
+
+
+@pytest.mark.asyncio
+async def test_the_database_rejects_a_repeated_provider_id_for_the_same_user(
+    async_session, make_uow, evaluations
+):
+    service, uow = await _service_with_key(make_uow)
+    await service.sync()
+    await uow.commit()
+    row = (
+        (await async_session.execute(select(TransactionORM).order_by(TransactionORM.id)))
+        .unique()
+        .scalars()
+        .first()
+    )
+    clone = TransactionORM(
+        amount=1.0,
+        description="clone",
+        transaction_date=datetime(2026, 1, 1),
+        type="expense",
+        entity_type="individual",
+        payment_method="pix",
+        category_id=row.category_id,
+        subcategory_id=row.subcategory_id,
+        user_id=1,
+        external_source="pluggy",
+        external_id=row.external_id,
+    )
+    async_session.add(clone)
+
+    with pytest.raises(IntegrityError):
+        await async_session.flush()

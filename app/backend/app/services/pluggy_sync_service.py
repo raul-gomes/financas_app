@@ -30,6 +30,7 @@ BANK_CODE_LENGTH = 3
 STATEMENT_DATE_FORMAT = "%d/%m/%Y"
 PLUGGY_DEBIT = "DEBIT"
 BANK_ACCOUNT_TYPE = "BANK"
+PLUGGY_SOURCE = "pluggy"
 
 KEY_NOT_CONFIGURED_WITH_HINT = (
     "API Key do Meu Pluggy não configurada. Vá em Configurações para adicionar."
@@ -132,6 +133,7 @@ class PluggySyncService:
         finally:
             await pluggy.close()
 
+        rows, skipped = await self._drop_already_imported(rows)
         created_rows, _errors = await self.transactions.create_batch_returning_rows(
             rows, self.user.id
         )
@@ -141,9 +143,32 @@ class PluggySyncService:
         return {
             "message": f"{created} transações importadas de {len(accounts)} contas.",
             "imported": created,
+            "skipped": skipped,
             "accounts": len(accounts),
             "duplicates": duplicates,
         }
+
+    async def _drop_already_imported(
+        self, rows: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Removes rows whose provider id the user already has (or repeats in this payload).
+
+        Rows without a provider id are always kept. Returns (rows to import, skipped count).
+        """
+        known = await self.transactions.existing_external_ids(
+            self.user.id,
+            PLUGGY_SOURCE,
+            [row["external_id"] for row in rows if row["external_id"]],
+        )
+        kept: list[dict[str, Any]] = []
+        for row in rows:
+            external_id = row["external_id"]
+            if external_id and external_id in known:
+                continue
+            if external_id:
+                known.add(external_id)
+            kept.append(row)
+        return kept, len(rows) - len(kept)
 
     @staticmethod
     def _to_import_row(tx: dict[str, Any], account: dict[str, Any]) -> dict[str, Any]:
@@ -158,7 +183,10 @@ class PluggySyncService:
         bank_code = None
         if account.get("type") == BANK_ACCOUNT_TYPE:
             bank_code = str(account.get("number", ""))[:BANK_CODE_LENGTH]
+        external_id = tx.get("id")
         return {
+            "external_id": str(external_id) if external_id else None,
+            "external_source": PLUGGY_SOURCE if external_id else None,
             "date": tx_date.strftime(STATEMENT_DATE_FORMAT),
             "description": tx.get("description", tx.get("descriptionRaw", FALLBACK_DESCRIPTION))[
                 :DESCRIPTION_MAX_LENGTH
@@ -179,11 +207,15 @@ class PluggySyncService:
     async def _find_duplicates(self, recent: list[TransactionORM]) -> list[dict[str, Any]]:
         """Flags rows created by this import that share date and amount with an older one.
 
-        Pluggy's transaction id is not stored, so the key is the user's date + amount; the
-        rows of the batch are identified by their ids, not by description.
+        Only rows without a provider id are checked: a row with a provider id is already
+        deduplicated exactly (two real purchases of the same value on the same day are not
+        duplicates). The key is the user's date + amount; the rows of the batch are identified
+        by their ids, not by description.
         """
         groups: dict[tuple, list[TransactionORM]] = {}
         for tx in recent:
+            if tx.external_id is not None:
+                continue
             groups.setdefault((tx.transaction_date.date(), tx.amount), []).append(tx)
 
         duplicates: list[dict[str, Any]] = []

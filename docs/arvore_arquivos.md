@@ -90,7 +90,7 @@ financas_app/
 │   │   │       ├── settings_service.py         # SettingsService: perfil (nome, chave Pluggy cifrada), bancos e assign_random_banks do usuário; NotFoundError/ValidationError; só flush
 │   │   │       ├── recurring_account_service.py # RecurringAccountService: contas recorrentes do usuário (CRUD, renew, generate); resolve/cria categoria e subcategoria por nome; avalia limites após o commit; só flush
 │   │   │       ├── extract_service.py          # ExtractService: parse_upload (CSV/OFX por extensão ou conteúdo) e confirm (importação em lote, só flush; limites avaliados após o commit no mês mais antigo)
-│   │   │       ├── pluggy_sync_service.py      # PluggySyncService: contas, validar chave e sync do Pluggy do usuário (chave decifrada do usuário autenticado), detecção de duplicatas; limites após o commit; pluggy_client_for
+│   │   │       ├── pluggy_sync_service.py      # PluggySyncService: contas, validar chave e sync do Pluggy do usuário (chave decifrada do usuário autenticado), dedupe pelo id do provedor (external_id) e aviso de duplicata só p/ linhas sem id; limites após o commit; pluggy_client_for
 │   │   │       ├── notification_service.py     # NotificationService: alertas de limite do usuário (list_notifications, mark_read, mark_all_read); só altera linhas carregadas, commit da unit of work
 │   │   │       ├── export_service.py           # ExportService: CSV/OFX das transações do usuário no período (leitura; relógio injetável) → ExportFile
 │   │   │       ├── dashboard_service.py        # DashboardService: overview e dashboard financeiro (leitura); metas/compras só para admin decididas pelo role do token

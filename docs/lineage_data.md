@@ -3,7 +3,7 @@
 > Documento de linhagem (lineage) dos dados: origem, transformações, armazenamento e consumo.
 >
 > **Última atualização:** 2026-11-14
-> **Head do Alembic:** `b3c4d5e6f7a8` (28 migrações)
+> **Head do Alembic:** `c5d6e7f8a9b0` (29 migrações)
 >
 > ⚠️ **Manutenção obrigatória**: qualquer alteração em models (`app/db/models/`), migrações
 > (`app/db/migrations/versions/`), repositories ou rotas que mude o fluxo de dados deve
@@ -75,6 +75,8 @@ acessível a qualquer role autenticada. `require_role(*roles)` está pronto p/ m
 | `entity_type` | String | ✗ | — | `individual` (PF) \| `business` (PJ) |
 | `payment_method` | String | ✗ | — | ex: pix, credito, debito |
 | `bank_code` | String | ✓ | NULL | 3 primeiros dígitos do banco (Pluggy) |
+| `external_id` | String(64) | ✓ | NULL | id da transação no provedor (Pluggy); NULL em lançamento manual/extrato |
+| `external_source` | String(16) | ✓ | NULL | origem do `external_id` (`pluggy`) |
 | `category_id` | FK → `categorias.id` | ✗ | — | |
 | `subcategory_id` | FK → `subcategorias.id` | ✗ | — | |
 | `recurring_account_id` | FK → `recurring_accounts.id` | ✓ | NULL | index — marca despesa fixa |
@@ -355,7 +357,8 @@ Cadeia linear (root → head):
 | 25 | `c9d0e1f2a3b4` | add users.supabase_id | Coluna `supabase_id` String(64) nullable + índice único `ix_users_supabase_id`; identidade pelo `sub` em vez do e-mail (S4) |
 | 26 | `b8c9d0e1f2a3` | encrypt_pluggy_api_key (S2) | Só dados: cifra com Fernet os `users.pluggy_api_key` em texto puro (idempotente: pula valores `gAAAAA…`; exige `PLUGGY_KEY_ENCRYPTION_KEYS` só se houver o que cifrar); downgrade decifra. Sem mudança de tipo (VARCHAR sem limite). Também: `c9d0e1f2a3b4` ganhou id próprio (antes duplicava `a7b8c9d0e1f2`, e o Alembic via dois heads) |
 | 27 | `a2b3c4d5e6f7` | align_indexes_with_models | Renomeia `ix_contas_recorrentes_group_id`/`_id` e `ix_transacoes_conta_recorrente_id` para os nomes dos models; remove o duplicado `idx_transacoes_group`. Os índices compostos passaram a ser declarados nos models (`alembic check` zerado) |
-| 28 | `b3c4d5e6f7a8` | drop_users_password_hash (**HEAD**) | Remove `users.password_hash` (legado, nunca lido); o downgrade recria a coluna nullable (S8) |
+| 28 | `b3c4d5e6f7a8` | drop_users_password_hash | Remove `users.password_hash` (legado, nunca lido); o downgrade recria a coluna nullable (S8) |
+| 29 | `c5d6e7f8a9b0` | add_external_id_to_transacoes (**HEAD**) | `transacoes.external_id` (String 64) e `external_source` (String 16), ambos NULL; índice único parcial `uq_transacoes_user_external` em `(user_id, external_source, external_id)` onde `external_id IS NOT NULL` (dedupe do sync Pluggy) |
 
 ---
 
