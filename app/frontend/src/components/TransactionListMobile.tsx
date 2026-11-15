@@ -17,6 +17,7 @@ import type { Transaction } from '@/types/financial';
 type EntityScope = 'all' | 'pf' | 'pj';
 
 const ENTITY_OPTIONS = [
+  { value: 'all', label: 'Ambos' },
   { value: 'pf', label: 'PF' },
   { value: 'pj', label: 'PJ' },
 ] as const;
@@ -77,7 +78,7 @@ export function TransactionListMobile({
         <SegmentedControl
           aria-label="Tipo de conta"
           options={ENTITY_OPTIONS}
-          value={selectedEntityType === 'pj' ? 'pj' : 'pf'}
+          value={selectedEntityType}
           onChange={onEntityTypeChange}
           className="shrink-0"
         />

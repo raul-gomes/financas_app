@@ -174,6 +174,14 @@ describe('TransactionListMobile', () => {
     expect(baseProps.onEntityTypeChange).toHaveBeenCalledWith('pj');
   });
 
+  it('offers Ambos (both natures) and marks it when selected', async () => {
+    renderWithQuery(<TransactionListMobile {...baseProps} selectedEntityType="all" />);
+    await waitFor(() => expect(screen.getByText('Salário')).toBeTruthy());
+    expect(screen.getByRole('radio', { name: 'Ambos' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByRole('radio', { name: 'PF' }));
+    expect(baseProps.onEntityTypeChange).toHaveBeenCalledWith('pf');
+  });
+
   it('offers the statement import only to admins', async () => {
     renderWithQuery(<TransactionListMobile {...baseProps} />);
     await waitFor(() => expect(screen.getByText('Salário')).toBeTruthy());

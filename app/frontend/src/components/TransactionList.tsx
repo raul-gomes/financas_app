@@ -26,14 +26,23 @@ import { useRole } from '@/contexts/RoleContext';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
+type EntityScope = 'all' | 'pf' | 'pj';
+
+/** PF/PJ scope options of the statement header; "Ambos" shows both natures. */
+const ENTITY_OPTIONS: ReadonlyArray<{ value: EntityScope; label: string }> = [
+  { value: 'all', label: 'Ambos' },
+  { value: 'pf', label: 'PF' },
+  { value: 'pj', label: 'PJ' },
+];
+
 interface TransactionListProps {
   monthlyBalance: MonthlyBalance;
   onAddTransaction: (transaction: Transaction) => void;
   onEditTransaction: (id: number, transaction: Partial<Transaction>) => void;
   onDeleteTransaction: (id: number) => void;
   dateRange: { from: Date; to: Date };
-  selectedEntityType: 'all' | 'pf' | 'pj';
-  onEntityTypeChange: (type: 'all' | 'pf' | 'pj') => void;
+  selectedEntityType: EntityScope;
+  onEntityTypeChange: (type: EntityScope) => void;
 }
 
 export function TransactionList({
@@ -128,29 +137,23 @@ export function TransactionList({
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">Extrato Financeiro</h2>
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-muted rounded-lg p-1">
-            <button
-              onClick={() => onEntityTypeChange('pf')}
-              className={cn(
-                'px-3 py-1 text-xs font-medium rounded-md transition-colors',
-                selectedEntityType === 'pf' ?
-                  'bg-card text-foreground shadow-sm' :
-                  'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              PF
-            </button>
-            <button
-              onClick={() => onEntityTypeChange('pj')}
-              className={cn(
-                'px-3 py-1 text-xs font-medium rounded-md transition-colors',
-                selectedEntityType === 'pj' ?
-                  'bg-card text-foreground shadow-sm' :
-                  'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              PJ
-            </button>
+          <div className="flex items-center bg-muted rounded-lg p-1" role="group" aria-label="Tipo de conta">
+            {ENTITY_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={selectedEntityType === option.value}
+                onClick={() => onEntityTypeChange(option.value)}
+                className={cn(
+                  'px-3 py-1 text-xs font-medium rounded-md transition-colors',
+                  selectedEntityType === option.value
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
           <AddTransactionDialog
             isOpen={isDialogOpen}

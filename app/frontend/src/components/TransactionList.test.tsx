@@ -137,6 +137,17 @@ describe('TransactionList (paginated)', () => {
     expect(cursor).toBeNull();
   });
 
+  it('offers Ambos and switches the scope to both natures', async () => {
+    mockGetTransactionsPage.mockResolvedValue(page([1], null, 1));
+    renderWithQuery(<TransactionList {...baseProps} />);
+
+    const both = await screen.findByRole('button', { name: 'Ambos' });
+    expect(both.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('button', { name: 'PF' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(both);
+    expect(baseProps.onEntityTypeChange).toHaveBeenCalledWith('all');
+  });
+
   it('searches on the server, once, after the user stops typing', async () => {
     mockGetTransactionsPage.mockResolvedValue(page([1], null, 1));
     renderWithQuery(<TransactionList {...baseProps} />);
