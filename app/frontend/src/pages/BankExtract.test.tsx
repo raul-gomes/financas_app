@@ -186,6 +186,7 @@ describe('BankExtract - review', () => {
 
     expect(await screen.findByText('Revisar Extrato')).toBeInTheDocument();
     expect(screen.getByText('1 arquivo — 2 transações')).toBeInTheDocument();
+    expect(screen.getByText('2 transações')).toBeInTheDocument();
     expect(screen.getByText('Total').nextElementSibling?.textContent).toBe('2');
     expect(screen.getByText('Entradas').nextElementSibling?.textContent).toBe('1');
     expect(screen.getByText('Saídas').nextElementSibling?.textContent).toBe('1');
@@ -199,6 +200,7 @@ describe('BankExtract - review', () => {
 
     expect(screen.queryByDisplayValue('Mercado do bairro')).toBeNull();
     expect(screen.getByText('1 arquivo — 1 transações')).toBeInTheDocument();
+    expect(screen.getByText('1 transação')).toBeInTheDocument();
   });
 
   it('lists the duplicates found at the top and drops them from the session', async () => {

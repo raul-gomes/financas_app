@@ -506,6 +506,14 @@ O `+` da barra de abas (`AppLayout`) não remonta mais a página: `onAddTransact
 mantendo mês, PF/PJ e filtros. O `main` não usa mais `overflow-x-clip` no mobile: nenhuma página pode ser mais larga que a tela (conteúdo largo rola dentro do próprio contêiner, ex.: tabelas do extrato bancário).
 O header desktop mostra, só para admin, os links **Recorrentes** e **Extrato bancário** (ícones até `lg`, ícone + texto a partir de `lg`).
 
+### 8.12 Importação de extrato (`components/extract/`) e `lib/extractReview.ts`
+
+`pages/BankExtract.tsx` (antes ~1100 linhas) só orquestra: `ExtractUploadStep` (soltar/escolher arquivos), `ExtractReviewHeader`, `ExtractSummaryCards`, `ExtractDuplicatesSection`,
+um `ExtractSessionCard` por arquivo (`ExtractSessionHeader` com banco + Confirmar, `ExtractAddBankForm`, `ExtractTransactionsTable` com `ExtractRowCells`) e `ExtractConfirmBar`.
+O estado e as ações ficam em hooks (`useExtractReview`, `useExtractDuplicates`, `useExtractUpload`, `useExtractConfirmation`) e as regras puras (rascunho por linha, validação, payload,
+totais, duplicatas) em `lib/extractReview.ts`, com testes unitários. Layout inalterado: a tabela de linhas rola dentro do próprio contêiner (`overflow-x-auto`), então a página não passa da largura da tela.
+O `ExtratoDialog` (modal que duplicava essa lógica e não era montado em nenhuma tela) foi removido; o fluxo é `ExtratoUploadModal` -> `/extrato-bancario`.
+
 ### 8.11 `PageHeader`: título escondido no mobile
 
 `PageHeader` ganhou `hideTitleOnMobile`: esconde ícone, título e descrição abaixo de `md` (a barra superior do app já mostra o título da página) e mantém a `action`; sem `action`, esconde o cabeçalho inteiro.

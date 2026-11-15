@@ -203,7 +203,6 @@ financas_app/
 │       │   │   │   ├── AddRecurrentBillDialog.tsx    # Modal para criar conta recorrente
 │       │   │   │   ├── EditRecurrentBillDialog.tsx   # Modal para editar conta recorrente
 │       │   │   │   ├── BankBreakdownModal.tsx        # Modal de detalhamento por banco
-│       │   │   │   ├── ExtratoDialog.tsx             # Modal de seleção de extrato para importar
 │       │   │   │   ├── ExtratoUploadModal.tsx        # Modal de upload de extrato bancário (CSV/OFX)
 │       │   │   │   └── PluggyInfoDialog.tsx          # Modal de informações da integração Pluggy
 │       │   │   │
@@ -220,6 +219,23 @@ financas_app/
 │       │   │   │   ├── OverviewMobile.tsx       # Início no mobile (cards do mock): Ambos/PF/PJ, saldo do mês, progresso + cartão, perto do limite, a pagar, parcelas, metas/compras (admin) com "Ver tudo"
 │       │   │   │   ├── OverviewMobile.test.tsx  # Testes do layout mobile (hero, perto do limite, listas limitadas a 3, admin, segmentado)
 │       │   │   │   └── FinancialDashboard.test.tsx # Testes de rolagem dos boxes (100vh→130vh; Entradas/Gastos rolam quando estouram o teto) + badge "Estourando" do cartão
+│       │   │   │
+│       │   │   ├── extract/                    # Importação de extrato bancário (usados por pages/BankExtract.tsx)
+│       │   │   │   ├── ExtractUploadStep.tsx       # Passo 1: cabeçalho com Voltar + área de soltar/escolher CSV/OFX/QFX
+│       │   │   │   ├── ExtractReviewHeader.tsx     # Título, contagem, Cancelar e Confirmar Tudo
+│       │   │   │   ├── ExtractSummaryCards.tsx     # Cards de totais (quantidade e valores de entradas/saídas)
+│       │   │   │   ├── ExtractDuplicatesSection.tsx # Duplicatas detectadas: manter existente ou substituir
+│       │   │   │   ├── ExtractSessionCard.tsx      # Um arquivo: cabeçalho (banco + Confirmar), formulário de banco, tabela e aviso de categoria
+│       │   │   │   ├── ExtractSessionHeader.tsx    # Nome do arquivo, contagem, seletor de banco e Confirmar
+│       │   │   │   ├── ExtractAddBankForm.tsx      # Formulário inline (código + nome) para cadastrar banco
+│       │   │   │   ├── ExtractTransactionsTable.tsx # Tabela editável das linhas (rola dentro do próprio contêiner no mobile)
+│       │   │   │   ├── ExtractRowCells.tsx         # Células da linha: parcelas, pagamento, PF/PJ, categoria, subcategoria
+│       │   │   │   ├── ExtractTypeBadge.tsx        # Selo Entrada/Saída
+│       │   │   │   ├── ExtractConfirmBar.tsx       # Barra fixa no rodapé: pendências + Confirmar Tudo
+│       │   │   │   ├── useExtractReview.ts         # Estado da revisão (sessões + rascunhos por linha) e as edições de cada linha
+│       │   │   │   ├── useExtractDuplicates.ts     # Checagem de duplicatas (backend), manter/substituir
+│       │   │   │   ├── useExtractUpload.ts         # Envio dos arquivos e progresso
+│       │   │   │   └── useExtractConfirmation.ts   # Validação e importação por sessão ou de todas (invalida os dados de lançamentos)
 │       │   │   │
 │       │   │   ├── investments/                # Componentes de investimentos
 │       │   │   │   └── InvestmentTable.tsx       # Tabela de investimentos com CRUD (add/edit/delete)
@@ -300,7 +316,7 @@ financas_app/
 │       │   │   ├── Limits.tsx                  # Página de limites: tabs por role no desktop; chips (Categorias/Recorrentes/Metas/Compras) + PF/PJ segmentado no mobile
 │       │   │   ├── Limits.test.tsx             # Testes das abas por role (user: sem Metas/Compras)
 │       │   │   ├── RecurrentBills.tsx          # Página de contas recorrentes: lista (react-query) + CRUD que invalida contas e lançamentos (+ RecurrentBills.test.tsx)
-│       │   │   ├── BankExtract.tsx             # Página de extrato bancário: upload + preview + confirmação; categorias/bancos via react-query (+ BankExtract.test.tsx)
+│       │   │   ├── BankExtract.tsx             # Página de extrato bancário (orquestra os hooks e subcomponentes de components/extract); categorias/bancos via react-query (+ BankExtract.test.tsx)
 │       │   │   ├── Settings.tsx                # Página de configurações: perfil + bancos + Pluggy
 │       │   │   ├── Login.tsx                   # Login email/senha (Supabase) — teste ao lado
 │       │   │   ├── Login.test.tsx              # Testes do formulário de login
@@ -352,7 +368,7 @@ financas_app/
 │       │   │       ├── useOverviewQuery.ts      # Overview do mês (GET /dashboard/overview)
 │       │   │       ├── useLimitsQueries.ts      # Limites, gastos do mês, recorrentes, metas, compras + invalidateDomain
 │       │   │       ├── useRecurringQueries.ts   # invalidateRecurringData: atualiza as contas recorrentes e os lançamentos que elas geram/cancelam (+ teste)
-│       │   │       ├── useSettingsQueries.ts    # Perfil e bancos (compartilhados com o extrato)
+│       │   │       ├── useSettingsQueries.ts    # Perfil, bancos e useAddBank (compartilhados com o extrato)
 │       │   │       └── useErrorToast.ts         # Toast pt-BR quando uma query falha
 │       │   │
 │       │   ├── contexts/                       # React contexts
@@ -370,6 +386,7 @@ financas_app/
 │       │       ├── utils.ts                    # cn() — merge de classes Tailwind (shadcn)
 │       │       ├── format.ts                   # formatCurrency/formatDate/formatPercent (fonte única de formatação)
 │       │   │       ├── transactionGroups.ts        # Agrupa lançamentos por dia ("Hoje · 14 nov") e formata valor com sinal (+ teste)
+│       │   │       ├── extractReview.ts            # Regras puras da revisão do extrato: rascunhos por linha, validação, payload de confirmação, totais, duplicatas, contagem (+ teste)
 │       │   │       ├── statementAggregates.ts      # Funções puras sobre os agregados do /dashboard/statement: gráfico diário (buildDailyData), total por forma de pagamento, itens por banco, parcelas (+ teste)
 │       │   │       ├── months.ts                   # YearMonth, addMonths, toYearMonth, SHORT_MONTHS (+ teste)
 │       │   │       ├── recentMonths.ts             # Janela dos últimos 6 meses a partir dos payloads anuais (+ teste)
