@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithQuery } from '@/test/queryWrapper';
 import { FinancialDashboard } from './FinancialDashboard';
 import { Transaction } from '@/types/financial';
 
@@ -30,14 +31,14 @@ const baseProps = {
 
 describe('FinancialDashboard - rolagem dos boxes', () => {
   it('os boxes "Entradas por Período" e "Gastos por Categoria" rolam individualmente', () => {
-    render(<FinancialDashboard {...baseProps} />);
+    renderWithQuery(<FinancialDashboard {...baseProps} />);
 
     expect(screen.getByTestId('income-box').className).toContain('lg:overflow-y-auto');
     expect(screen.getByTestId('category-box').className).toContain('lg:overflow-y-auto');
   });
 
   it('o dashboard como um todo não acumula rolagem no desktop', () => {
-    const { container } = render(<FinancialDashboard {...baseProps} />);
+    const { container } = renderWithQuery(<FinancialDashboard {...baseProps} />);
     const root = container.firstChild as HTMLElement;
 
     expect(root.className).toContain('lg:overflow-hidden');
@@ -45,7 +46,7 @@ describe('FinancialDashboard - rolagem dos boxes', () => {
   });
 
   it('a linha de categorias ocupa o espaço restante e pode encolher', () => {
-    render(<FinancialDashboard {...baseProps} />);
+    renderWithQuery(<FinancialDashboard {...baseProps} />);
 
     const row = document.getElementById('dashboard-ancora-categorias');
     expect(row).not.toBeNull();
@@ -73,7 +74,7 @@ describe('FinancialDashboard - rolagem dos boxes', () => {
       bank_code: null,
     });
 
-    render(<FinancialDashboard {...baseProps} transactions={[tx(1200)]} creditCardLimit={1000} />);
+    renderWithQuery(<FinancialDashboard {...baseProps} transactions={[tx(1200)]} creditCardLimit={1000} />);
 
     expect((await screen.findByText('Estourando')).textContent).toContain('Estourando');
   });

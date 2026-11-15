@@ -112,8 +112,9 @@ const RecurrentBills = () => {
         <PageHeader
           title="Contas Recorrentes"
           description="Gerencie suas despesas mensais fixas — cada conta gera 12 parcelas automaticamente"
+          hideTitleOnMobile
           action={
-            <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-primary">
+            <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-primary max-md:w-full">
               <Plus className="w-4 h-4 mr-2" />
               Nova Conta Recorrente
             </Button>

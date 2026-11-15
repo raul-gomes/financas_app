@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { renderWithQuery } from '@/test/queryWrapper';
 import { OverviewDashboard } from './OverviewDashboard';
 import { OverviewResponse } from '@/types/overview';
@@ -204,5 +205,25 @@ describe('OverviewDashboard', () => {
     await waitFor(() => expect(mockGetOverview).toHaveBeenCalledTimes(2));
     const [year, month] = mockGetOverview.mock.calls[1] as [number, number];
     expect(year * 12 + month).toBe(firstYear * 12 + firstMonth - 1);
+  });
+});
+
+describe('OverviewDashboard no celular', () => {
+  const originalWidth = window.innerWidth;
+  afterEach(() => {
+    window.innerWidth = originalWidth;
+  });
+
+  it('usa o layout de cards: saldo do mês em destaque e sem os indicadores do desktop', async () => {
+    window.innerWidth = 390;
+    renderWithQuery(
+      <MemoryRouter>
+        <OverviewDashboard />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('hero-balance')).toBeTruthy());
+    expect(screen.queryByLabelText('Mês anterior')).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Ambos' })).toBeTruthy();
   });
 });

@@ -91,12 +91,12 @@ export const RecorrentesTab = ({ entityTypeFilter = 'all' }: RecorrentesTabProps
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 className="text-xl font-bold">Contas Recorrentes</h2>
                     <p className="text-muted-foreground text-sm">Gerencie suas despesas mensais fixas — cada conta gera 12 parcelas</p>
                 </div>
-                <Button onClick={() => setFormMode({ type: 'create' })} className="bg-gradient-primary">
+                <Button onClick={() => setFormMode({ type: 'create' })} className="bg-gradient-primary max-sm:w-full">
                     <PlusCircle className="w-4 h-4 mr-2" />Nova Conta Recorrente
                 </Button>
             </div>

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { renderWithQuery } from '@/test/queryWrapper';
 import { AddTransactionDialog } from './AddTransactionDialog';
 
 const mockGetCategorySubcategories = vi.fn();
@@ -76,7 +77,7 @@ beforeEach(() => {
 });
 
 async function renderAndFillBaseForm() {
-  render(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
+  renderWithQuery(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
   await waitFor(() => {
     expect(screen.getByText('Selecione uma categoria')).toBeTruthy();
   });
@@ -103,7 +104,7 @@ describe('AddTransactionDialog', () => {
       thresholds_hit: [80, 90, 100],
     });
 
-    render(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
+    renderWithQuery(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText('Selecione uma categoria')).toBeTruthy();
@@ -141,7 +142,7 @@ describe('AddTransactionDialog', () => {
       });
     });
 
-    render(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
+    renderWithQuery(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText('Selecione uma categoria')).toBeTruthy();
@@ -178,7 +179,7 @@ describe('AddTransactionDialog', () => {
       thresholds_hit: [],
     });
 
-    render(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
+    renderWithQuery(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText('Selecione uma categoria')).toBeTruthy();
@@ -197,7 +198,7 @@ describe('AddTransactionDialog', () => {
   });
 
   it('renderiza o formulário todo em português', async () => {
-    render(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
+    renderWithQuery(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText('Nova Transação')).toBeTruthy();
@@ -218,7 +219,7 @@ describe('AddTransactionDialog', () => {
   });
 
   it('mascara a data no formato dd/mm/yyyy', async () => {
-    render(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
+    renderWithQuery(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
 
     const dateInput = screen.getByLabelText('Data') as HTMLInputElement;
 
@@ -255,7 +256,7 @@ describe('AddTransactionDialog', () => {
     ]);
     mockAddBank.mockResolvedValue({ id: 3, bank_code: '260', bank_name: 'NU PAGAMENTOS S.A. - NUBANK', created_at: '' });
 
-    render(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
+    renderWithQuery(<AddTransactionDialog isOpen onClose={vi.fn()} onAddTransaction={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText('Selecione um banco')).toBeTruthy();

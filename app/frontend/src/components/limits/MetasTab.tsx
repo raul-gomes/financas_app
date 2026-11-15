@@ -130,7 +130,7 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-end gap-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
                         <div className="flex-1 space-y-2">
                             <Label>Nome da Meta</Label>
                             <Input
@@ -139,7 +139,7 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                                 onChange={e => setFormNome(e.target.value)}
                             />
                         </div>
-                        <div className="w-40 space-y-2">
+                        <div className="w-full space-y-2 sm:w-40">
                             <Label>Valor Alvo (R$)</Label>
                             <Input
                                 type="number"
@@ -150,8 +150,8 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                                 onChange={e => setFormValor(e.target.value)}
                             />
                         </div>
-                        <Button onClick={handleCreate} disabled={!formNome.trim() || !formValor}>
-                            <PlusCircle className="h-4 w-4 mr-2" />Create Meta
+                        <Button onClick={handleCreate} disabled={!formNome.trim() || !formValor} className="max-sm:w-full">
+                            <PlusCircle className="h-4 w-4 mr-2" />Criar meta
                         </Button>
                     </div>
                 </CardContent>
@@ -190,12 +190,12 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
                             {ativasFiltradas.map(meta => (
                                 <div key={meta.id} className="border rounded-lg p-4">
                                     {editingMeta?.id === meta.id ? (
-                                        <div className="flex items-end gap-3">
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                                             <div className="flex-1 space-y-1">
                                                 <Label className="text-xs">Nome</Label>
                                                 <Input value={editNome} onChange={e => setEditNome(e.target.value)} />
                                             </div>
-                                            <div className="w-36 space-y-1">
+                                            <div className="w-full space-y-1 sm:w-36">
                                                 <Label className="text-xs">Valor Alvo</Label>
                                                 <Input type="number" min="0" step="0.01" value={editValor} onChange={e => setEditValor(e.target.value)} />
                                             </div>

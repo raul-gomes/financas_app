@@ -437,3 +437,76 @@ Este arquivo **deve ser atualizado** quando:
 3. Novo token de cor/gradiente/sombra ⇒ registrar na seção 2.
 4. Padrão novo consolidado (ex.: forma canônica de montar formulários) ⇒ documentar na seção 5.
 5. Formatação de moeda/data/porcentagem ⇒ sempre importar de `@/lib/format` (§4.8).
+
+---
+
+## 8. Mobile (fase 2): primitivos de página
+
+Abaixo de `md` (< 768 px) as páginas usam estes primitivos; no desktop o visual segue o de antes.
+Todo alvo de toque tem **>= 44 px** no mobile.
+
+### 8.1 `SegmentedControl` (`ui/segmented-control.tsx`)
+
+Seletor segmentado (`role="radiogroup"`, setas movem a seleção) para PF/PJ, Ambos/PF/PJ, Entrada/Saída.
+**Props**: `options: {value, label, selectedClassName?}[]`, `value`, `onChange`, `aria-label` (obrigatório),
+`size?: 'md' | 'compact'` (compact = visual pequeno do desktop), `fill?` (opções dividem a largura), `className?`.
+
+### 8.2 `ChipGroup` (`ui/chip-group.tsx`)
+
+Fileira de chips que **rola na horizontal** (nunca quebra nem estoura a tela): filtros, forma de pagamento, seções.
+`variant="radio"` (escolha de formulário) ou `variant="tabs"` (`tablist`, troca de seção). **Props**: `options`, `value`, `onChange`, `aria-label`, `variant?`, `className?`.
+
+### 8.3 `MonthStepper` (`layout/MonthStepper.tsx`)
+
+"‹ nov 2026 ›" para o slot da barra superior (`MobileTopBarSlot`). Exporta `addMonths(ym, delta)` e o tipo `YearMonth` (`month` 1-12).
+
+### 8.4 `lib/transactionGroups.ts`
+
+`groupTransactionsByDay(lista, agora)` (grupos por dia, ordem preservada), `formatDayHeading(data, agora)`
+("Hoje · 14 nov", "Ontem · 13 nov", "12 nov", ano só se diferente) e `signedAmount(t)` ("+R$ 10,00" / "−R$ 10,00" com sinal de menos real).
+
+### 8.5 Alvos de toque (>= 44 px abaixo de `md`)
+
+`Button` (`default`/`sm`/`icon`) vira `h-11` no mobile; `Input`, `SelectTrigger` e `CurrencyInput` ficam com `h-12` (48 px, campos de formulário);
+`Checkbox`, `Switch` e `RadioGroupItem` ganham uma área de toque estendida (pseudo-elemento) de 44 px. No desktop nada muda.
+
+### 8.6 `/financial` no mobile
+
+`FinancialMobile` (`dashboards/`) monta a página abaixo de `md` na ordem do mock: seletor de mês no `MobileTopBarSlot`, chips de seção (`ChartAnchors`, rolam na horizontal),
+`PaymentKpiCards` (carrossel com snap), `MonthlyBarsChart` (6 meses, legenda embaixo, toque lê o valor) e `TransactionListMobile`
+(lançamentos agrupados por dia; tocar na linha abre `TransactionDetailSheet` com Editar/Excluir; a lixeira não aparece na linha), depois `FixedVariableCard` e as categorias.
+O desktop segue com `FinancialDashboard` + `TransactionList` (os dois usam `PaymentKpiCards`, `FixedVariableCard` e o hook `useTransactionList`).
+`useRecentMonths` (em `useFinancialQueries`) lê o ano do mês final e, se a janela cruza o ano, o anterior.
+
+### 8.7 Início (`/`) no mobile
+
+`OverviewDashboard` escolhe `OverviewMobile` abaixo de `md` (o desktop não muda): controle segmentado Ambos/PF/PJ, cartão de destaque "Saldo do mês" com entradas e saídas,
+progresso do mês com o uso do cartão, "Perto do limite" (3 piores categorias, link "Ver limites" para `/limits`), "A pagar este mês", "Parcelas do mês" e, para admin, "Metas" e "Compras".
+Listas longas mostram 3 itens e o botão "Ver tudo"/"Ver menos". O seletor de mês (`MonthStepper`) vai para o `MobileTopBarSlot`; o `h1` da página some no mobile (a barra superior já tem o título).
+
+### 8.8 Limites (`/limits`) no mobile
+
+`Limits` troca as abas por `ChipGroup variant="tabs"` (Categorias, Recorrentes; Metas e Compras só para admin) e põe PF/PJ num `SegmentedControl`.
+Na aba Categorias, `LimitsCards` mostra um card por limite (mensal, cartão e categorias): barra de progresso e "Restam R$ X" ou "Passou R$ X do limite" —
+os números vêm do backend (`/limits/with-spending`), sem recalcular no cliente. Tocar no card abre `LimitEditSheet` (nome em largura total, valor com `inputMode="decimal"`,
+subcategorias, excluir com confirmação); o "+" da barra superior cria uma categoria. Salvar grava só aquela categoria. O estado editável e o salvar ficam em `useLimitsDraft`
+(compartilhado com a tabela do desktop); a lógica pura está em `limitsModel.ts`.
+
+### 8.9 Formulário de transação (criar e editar unificados)
+
+`AddTransactionDialog` e `EditTransactionDialog` deixaram de duplicar campos (Q6): ambos usam `useTransactionForm` (estado, categorias por PF/PJ + tipo, bancos via `useBanks`, risco de limite)
+e `TransactionFormFields`, que escolhe o layout por largura. O **desktop** manteve o visual de antes (radios + switch PF/PJ, grids de 2 colunas). No **mobile** (bottom sheet) o formulário segue o mock:
+tipo em `SegmentedControl` (Saída/Entrada/Investimento), valor grande e centralizado com `inputMode="decimal"`, campos de 48 px, categoria e data lado a lado, chips (`ChipGroup`) para forma de pagamento e PF/PJ,
+"Parcelado" como linha com switch e botão **Salvar** em largura total no rodapé. O Editar agora tem os mesmos campos mascarados do Add (valor com `CurrencyInput`, data `dd/mm/aaaa`) e os textos em português.
+Lógica pura e testada em `transactions/transactionFormModel.ts`.
+
+### 8.10 Layout: nova transação sem remontar a página e links de admin
+
+O `+` da barra de abas (`AppLayout`) não remonta mais a página: `onAddTransaction` só chama `queryClient.invalidateQueries()` e as telas em react-query atualizam sozinhas,
+mantendo mês, PF/PJ e filtros. O `main` não usa mais `overflow-x-clip` no mobile: nenhuma página pode ser mais larga que a tela (conteúdo largo rola dentro do próprio contêiner, ex.: tabelas do extrato bancário).
+O header desktop mostra, só para admin, os links **Recorrentes** e **Extrato bancário** (ícones até `lg`, ícone + texto a partir de `lg`).
+
+### 8.11 `PageHeader`: título escondido no mobile
+
+`PageHeader` ganhou `hideTitleOnMobile`: esconde ícone, título e descrição abaixo de `md` (a barra superior do app já mostra o título da página) e mantém a `action`; sem `action`, esconde o cabeçalho inteiro.
+Usado em `/investments`, `/configuracoes` e `/recorrentes`; `BankExtract` e `Limits` fazem o mesmo com `max-md:hidden` nos seus `h1`.

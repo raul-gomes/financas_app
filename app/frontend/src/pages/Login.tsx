@@ -79,13 +79,13 @@ export default function Login() {
           </form>
           <div className="mt-4 space-y-2 text-center text-sm">
             <div>
-              <Link to="/esqueci-senha" className="text-primary underline-offset-4 hover:underline">
+              <Link to="/esqueci-senha" className="inline-flex max-md:min-h-[44px] max-md:min-w-[44px] items-center text-primary underline-offset-4 hover:underline">
                 Esqueci minha senha
               </Link>
             </div>
             <div className="text-muted-foreground">
               Não tem conta?{' '}
-              <Link to="/cadastro" className="text-primary underline-offset-4 hover:underline">
+              <Link to="/cadastro" className="inline-flex max-md:min-h-[44px] max-md:min-w-[44px] items-center text-primary underline-offset-4 hover:underline">
                 Novo cadastro
               </Link>
             </div>

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithQuery } from '@/test/queryWrapper';
 import { LimitsTab } from './LimitsTab';
@@ -112,3 +112,58 @@ describe('LimitsTab', () => {
     );
   });
 });
+
+describe('LimitsTab - limites de cartão PF e PJ', () => {
+  it('mostra o limite do cartão de cada escopo mesmo quando o PJ vem primeiro na lista', async () => {
+    mockGetLimits.mockResolvedValue([
+      { id: 26, name: 'Limite Cartao Credito', entity_type: 'business', limit: 30000, subcategories: [] },
+      { id: 25, name: 'Limite Cartao Credito', entity_type: 'individual', limit: 15000, subcategories: [] },
+      { id: 23, name: 'Mensal PF', entity_type: 'individual', limit: 6000, subcategories: [] },
+      { id: 24, name: 'Mensal PJ', entity_type: 'business', limit: 12000, subcategories: [] },
+    ]);
+    renderWithQuery(<LimitsTab />);
+
+    await waitFor(() => expect(screen.getByDisplayValue('30000')).toBeTruthy());
+    expect(screen.getByDisplayValue('15000')).toBeTruthy();
+  });
+});
+
+describe('LimitsTab no celular', () => {
+  const originalWidth = window.innerWidth;
+  beforeEach(() => {
+    window.innerWidth = 390;
+  });
+  afterEach(() => {
+    window.innerWidth = originalWidth;
+  });
+
+  it('mostra um card por categoria com o que resta ou o que passou do limite', async () => {
+    renderWithQuery(<LimitsTab entityTypeFilter="pf" />);
+
+    await waitFor(() => expect(screen.getByText('Compras')).toBeTruthy());
+    expect(screen.getAllByText('Restam R$ 100,00')).toHaveLength(2);
+    expect(screen.getByText('Passou R$ 200,00 do limite')).toBeTruthy();
+    // no desktop table fields and no fixed-width inputs on the page
+    expect(screen.queryByDisplayValue('500')).toBeNull();
+  });
+
+  it('toca no card, edita o limite na folha e salva só essa categoria', async () => {
+    renderWithQuery(<LimitsTab entityTypeFilter="pf" />);
+    await waitFor(() => expect(screen.getByText('Alimentacao')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: /Alimentacao/ }));
+    const limit = await screen.findByLabelText('Limite mensal');
+    expect(limit.getAttribute('inputmode')).toBe('decimal');
+    fireEvent.focus(limit);
+    fireEvent.change(limit, { target: { value: '1000' } });
+    fireEvent.blur(limit);
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(() => expect(mockSaveLimits).toHaveBeenCalledTimes(1));
+    const payload = mockSaveLimits.mock.calls[0][0];
+    expect(payload.modified).toHaveLength(1);
+    expect(payload.modified[0]).toMatchObject({ id: 1, category_name: 'Alimentacao', limit: 1000 });
+    expect(payload.new).toEqual([]);
+  });
+});
+

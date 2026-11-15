@@ -124,4 +124,15 @@ describe('BankSelect', () => {
     expect(screen.queryByPlaceholderText('Ex: 260')).not.toBeInTheDocument();
     expect(onValueChange).not.toHaveBeenCalled();
   });
+
+  it('registra e avisa quando os bancos não carregam (sem engolir o erro)', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const failure = new Error('banks down');
+    mockedService.listBanks.mockRejectedValue(failure);
+
+    render(<BankSelect value={undefined} onValueChange={() => {}} />);
+
+    await waitFor(() => expect(logged).toHaveBeenCalledWith('Falha ao carregar os bancos:', failure));
+    logged.mockRestore();
+  });
 });

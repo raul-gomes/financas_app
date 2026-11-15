@@ -45,7 +45,7 @@ export default function ForgotPassword() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Link to="/login" className="text-primary underline-offset-4 hover:underline">
+            <Link to="/login" className="inline-flex max-md:min-h-[44px] max-md:min-w-[44px] items-center text-primary underline-offset-4 hover:underline">
               Voltar para o login
             </Link>
           </CardContent>
@@ -88,7 +88,7 @@ export default function ForgotPassword() {
           </form>
           <div className="mt-4 text-center text-sm text-muted-foreground">
             Lembrou a senha?{' '}
-            <Link to="/login" className="text-primary underline-offset-4 hover:underline">
+            <Link to="/login" className="inline-flex max-md:min-h-[44px] max-md:min-w-[44px] items-center text-primary underline-offset-4 hover:underline">
               Entrar
             </Link>
           </div>

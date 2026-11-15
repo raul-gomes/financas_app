@@ -88,7 +88,7 @@ describe('MetasTab', () => {
 
     fireEvent.change(screen.getByPlaceholderText('Ex: Viagem Europa'), { target: { value: 'Casa' } });
     fireEvent.change(screen.getByPlaceholderText('30000'), { target: { value: '5000' } });
-    fireEvent.click(screen.getByRole('button', { name: /Create Meta/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Criar meta/ }));
 
     await waitFor(() => expect(mockMetasCreate).toHaveBeenCalled());
     expect(mockMetasCreate.mock.calls[0][0]).toMatchObject({

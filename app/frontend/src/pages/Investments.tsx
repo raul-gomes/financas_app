@@ -7,7 +7,7 @@ const Investments = () => {
     <div className="min-h-screen bg-gradient-subtle px-4 sm:px-6 lg:px-8 py-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <PageHeader icon={TrendingUp} title="Investimentos" description="Acompanhe seus ativos e carteira de investimentos" className="mb-8" />
+        <PageHeader icon={TrendingUp} title="Investimentos" description="Acompanhe seus ativos e carteira de investimentos" className="mb-8" hideTitleOnMobile />
 
         {/* Under construction card */}
         <Card className="shadow-card border-none">

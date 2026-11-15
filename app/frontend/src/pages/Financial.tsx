@@ -3,6 +3,8 @@ import { TransactionList } from '@/components/TransactionList';
 import { FinancialDashboard } from '@/components/dashboards/FinancialDashboard';
 import { ChartAnchors } from '@/components/dashboards/ChartAnchors';
 import { SidebarPanel } from '@/components/layout/SidebarPanel';
+import { FinancialMobile } from '@/components/dashboards/FinancialMobile';
+import { toYearMonth, type YearMonth } from '@/lib/months';
 import { Transaction, MonthlyBalance, YearlyData, SelectedMonth } from '@/types/financial';
 import {
   useCategoryBreakdown,
@@ -50,7 +52,8 @@ const Financial = () => {
   // bills, then the dashboards load (the transactions list pages itself in TransactionList).
   const { isSettled: recurringReady } = useRecurringGeneration(selectedDateRange, isAdmin);
   const summaryQuery = useFinancialSummary(selectedDateRange, selectedEntityType, recurringReady);
-  const yearlyQuery = useYearlyPerformance(currentYear, selectedEntityType, recurringReady);
+  // The 12-month chart and its investment bars are desktop only (mobile shows 6 months)
+  const yearlyQuery = useYearlyPerformance(currentYear, selectedEntityType, recurringReady && !isMobile);
   const categoriesQuery = useCategoryBreakdown(
     selectedDateRange,
     selectedEntityType,
@@ -59,7 +62,7 @@ const Financial = () => {
   );
   const incomesQuery = useCategoryIncome(selectedDateRange, selectedEntityType, recurringReady);
   // Always fetch full-year investments for the yearly chart
-  const yearInvestmentsQuery = useYearInvestments(currentYear, selectedEntityType, recurringReady);
+  const yearInvestmentsQuery = useYearInvestments(currentYear, selectedEntityType, recurringReady && !isMobile);
   const { updateTransaction, deleteTransaction, onTransactionCreated } = useTransactionMutations();
 
   const financialSummary = summaryQuery.data ?? null;
@@ -220,6 +223,36 @@ const Financial = () => {
 
   const currentPeriodExpenses = monthlyBalance.expenses;
   const sidebar = useSidebar();
+
+  // Mobile: the month stepper in the top bar replaces the range picker
+  const fromTime = selectedDateRange.from.getTime();
+  const mobileMonth = useMemo(() => toYearMonth(new Date(fromTime)), [fromTime]);
+  const handleMobileMonthChange = useCallback((ym: YearMonth) => {
+    const from = new Date(ym.year, ym.month - 1, 1);
+    setSelectedDateRange({ from, to: endOfMonth(from) });
+  }, []);
+
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle">
+        <FinancialMobile
+          month={mobileMonth}
+          onMonthChange={handleMobileMonthChange}
+          entityType={selectedEntityType}
+          onEntityTypeChange={setSelectedEntityType}
+          dateRange={selectedDateRange}
+          transactions={sortedTransactions}
+          creditCardLimit={financialSummary?.credit_card_limit || 0}
+          fixedExpenses={financialSummary?.fixed_expenses || 0}
+          variableExpenses={financialSummary?.variable_expenses || 0}
+          incomeBreakdown={incomeBreakdown}
+          categoryBreakdown={categoryBreakdown}
+          onEditTransaction={handleEditTransaction}
+          onDeleteTransaction={handleDeleteTransaction}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">

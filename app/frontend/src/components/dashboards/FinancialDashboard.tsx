@@ -1,10 +1,10 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { FlippableChart } from '@/components/charts/FlippableChart';
 import { IncomeChart } from '@/components/charts/IncomeChart';
 import { CategoryBreakdownSection } from '@/components/CategoryBreakdownSection';
-import { AnimatedNumber } from '@/components/AnimatedNumber';
-import { Send, CreditCard, Banknote, Receipt, type LucideIcon } from 'lucide-react';
+import { PaymentKpiCards } from '@/components/dashboards/PaymentKpiCards';
+import { FixedVariableCard } from '@/components/dashboards/FixedVariableCard';
 import {
   YearlyData,
   DailyData,
@@ -13,9 +13,6 @@ import {
   CategoryBreakdown,
   IncomeBySubcategoria,
 } from '@/types/financial';
-import { SettingsService, UserBank } from '@/services/settingsService';
-import { BankBreakdownModal, BankBreakdownItem } from '@/components/dialogs/BankBreakdownModal';
-import { formatCurrency } from '@/lib/format';
 
 interface FinancialDashboardProps {
   yearlyData: YearlyData[];
@@ -56,41 +53,6 @@ export function FinancialDashboard({
   fixedExpenses = 0,
   variableExpenses = 0,
 }: FinancialDashboardProps) {
-  const [banks, setBanks] = useState<UserBank[]>([]);
-  const [breakdownModal, setBreakdownModal] = useState<{
-    open: boolean;
-    title: string;
-    total: number;
-    items: BankBreakdownItem[];
-    icon: LucideIcon;
-    theme: 'primary' | 'success' | 'destructive' | 'warning';
-  } | null>(null);
-
-  useEffect(() => {
-    SettingsService.listBanks().then(setBanks).catch(() => {});
-  }, []);
-
-  const getBankName = (bankCode: string | null): string => {
-    if (!bankCode) return '';
-    return banks.find(b => b.bank_code === bankCode)?.bank_name || bankCode;
-  };
-
-  const buildBankBreakdown = (
-    filterFn: (t: Transaction) => boolean,
-    valueFn: (t: Transaction) => number = t => t.amount,
-  ): BankBreakdownItem[] => {
-    const groups = new Map<string, number>();
-    transactions.filter(filterFn).forEach((t) => {
-      if (!t.bank_code) return;
-      groups.set(t.bank_code, (groups.get(t.bank_code) || 0) + valueFn(t));
-    });
-    return Array.from(groups.entries()).map(([code, amount]) => ({
-      bank_code: code,
-      bank_name: getBankName(code),
-      amount,
-    }));
-  };
-
   const handleBarClick = (month: string, year?: number) => {
     const monthIndexMap: Record<string, number> = {
       'Jan': 0, 'Fev': 1, 'Mar': 2, 'Abr': 3, 'Mai': 4, 'Jun': 5,
@@ -126,207 +88,10 @@ export function FinancialDashboard({
     return days;
   }, [transactions, selectedMonth]);
 
-  const pixTotal = transactions
-    .filter(t => t.type === 'expense' && t.payment_method === 'pix')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const creditTotal = transactions
-    .filter(t => t.type === 'expense' && t.payment_method === 'credit')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const debitTotal = transactions
-    .filter(t => t.type === 'expense' && t.payment_method === 'debit')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  // Parcelas a Pagar — apenas saídas marcadas como parceladas
-  const installmentItems = transactions.filter(
-    t => t.type === 'expense' && t.is_installment === true
-  );
-  const totalParcelasRestantes = installmentItems.reduce(
-    (sum, t) => sum + ((t.total_installments ?? 1) - (t.installment_number ?? 1)) * t.amount, 0
-  );
-  const countParcelasRestantes = installmentItems.reduce(
-    (sum, t) => sum + ((t.total_installments ?? 1) - (t.installment_number ?? 1)), 0
-  );
-
   return (
     <div className="flex flex-col h-full gap-4 overflow-y-auto lg:overflow-hidden">
-      {/* Métricas Principais - 4 cards uniformes */}
-      <div id="dashboard-ancora-metricas" className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-shrink-0">
-        {/* Pix Card */}
-        <div
-          className="animate-slide-up h-full flex flex-col cursor-pointer"
-          style={{ animationDelay: '0ms' }}
-          onClick={() => {
-            const items = buildBankBreakdown(t => t.type === 'expense' && t.payment_method === 'pix');
-            if (items.length > 0) {
-              setBreakdownModal({
-                open: true,
-                title: 'Pix',
-                total: pixTotal,
-                icon: Send,
-                theme: 'primary',
-                items,
-              });
-            }
-          }}
-        >
-          <Card className="shadow-card border-none bg-primary/10 h-full hover:brightness-95 transition-all flex flex-col">
-            <div className="p-4 flex flex-col h-full justify-between">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Pix</p>
-                  <p className="text-xl font-bold text-foreground">
-                    <AnimatedNumber value={pixTotal} withDelay={100} />
-                  </p>
-                </div>
-                <Send className="h-6 w-6 text-primary/70" />
-              </div>
-              <div className="h-4" /> {/* spacer for uniform height */}
-            </div>
-          </Card>
-        </div>
-
-        {/* Cartão de Crédito Card */}
-        <div
-          className="animate-slide-up h-full flex flex-col cursor-pointer"
-          style={{ animationDelay: '100ms' }}
-          onClick={() => {
-            const items = buildBankBreakdown(t => t.type === 'expense' && t.payment_method === 'credit');
-            if (items.length > 0) {
-              setBreakdownModal({
-                open: true,
-                title: 'Cartão de Crédito',
-                total: creditTotal,
-                icon: CreditCard,
-                theme: 'success',
-                items,
-              });
-            }
-          }}
-        >
-          <Card className="shadow-card border-none bg-success/10 h-full hover:brightness-95 transition-all flex flex-col">
-            <div className="p-4 flex flex-col h-full justify-between">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Cartão de Crédito</p>
-                  <p className="text-xl font-bold text-foreground">
-                    <AnimatedNumber value={creditTotal} withDelay={250} />
-                  </p>
-                </div>
-                <CreditCard className="h-6 w-6 text-success/70" />
-              </div>
-              {creditCardLimit > 0 && (
-                <div className="mt-2">
-                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                    <span className="flex items-center gap-2">
-                      {(creditTotal / creditCardLimit * 100).toFixed(0)}% usado
-                      {creditTotal > creditCardLimit && (
-                        <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-destructive">Estourando</span>
-                      )}
-                    </span>
-                    <span>Limite: {formatCurrency(creditCardLimit)}</span>
-                  </div>
-                  <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ease-out ${
-                        creditTotal > creditCardLimit
-                          ? 'bg-destructive'
-                          : creditTotal > creditCardLimit * 0.8
-                          ? 'bg-warning'
-                          : 'bg-success'
-                      }`}
-                      style={{ width: `${Math.min(100, (creditTotal / creditCardLimit) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Cartão de Débito Card */}
-        <div
-          className="animate-slide-up h-full flex flex-col cursor-pointer"
-          style={{ animationDelay: '200ms' }}
-          onClick={() => {
-            const items = buildBankBreakdown(t => t.type === 'expense' && t.payment_method === 'debit');
-            if (items.length > 0) {
-              setBreakdownModal({
-                open: true,
-                title: 'Cartão de Débito',
-                total: debitTotal,
-                icon: Banknote,
-                theme: 'destructive',
-                items,
-              });
-            }
-          }}
-        >
-          <Card className="shadow-card border-none bg-destructive/10 h-full hover:brightness-95 transition-all flex flex-col">
-            <div className="p-4 flex flex-col h-full justify-between">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Cartão de Débito</p>
-                  <p className="text-xl font-bold text-foreground">
-                    <AnimatedNumber value={debitTotal} withDelay={400} />
-                  </p>
-                </div>
-                <Banknote className="h-6 w-6 text-destructive/70" />
-              </div>
-              <div className="h-4" /> {/* spacer for uniform height */}
-            </div>
-          </Card>
-        </div>
-
-        {/* Parcelas a Pagar */}
-        <div
-          className="animate-slide-up h-full flex flex-col cursor-pointer"
-          style={{ animationDelay: '300ms' }}
-          onClick={() => {
-            const groups = new Map<string, number>();
-            installmentItems.forEach(t => {
-              const amt = ((t.total_installments ?? 1) - (t.installment_number ?? 1)) * t.amount;
-              const code = t.bank_code || 'sem-banco';
-              groups.set(code, (groups.get(code) || 0) + amt);
-            });
-            const items = Array.from(groups.entries()).map(([code, amt]) => ({
-              bank_code: code === 'sem-banco' ? '' : code,
-              bank_name: code === 'sem-banco' ? 'Sem banco' : getBankName(code),
-              amount: amt,
-            }));
-            if (items.length > 0) {
-              setBreakdownModal({
-                open: true,
-                title: 'Parcelas a Pagar',
-                total: totalParcelasRestantes,
-                icon: Receipt,
-                theme: 'warning',
-                items,
-              });
-            }
-          }}
-        >
-          <Card className="shadow-card border-none bg-warning/10 h-full hover:brightness-95 transition-all flex flex-col">
-            <div className="p-4 flex flex-col h-full justify-between">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Parcelas a Pagar</p>
-                  <p className="text-xl font-bold text-foreground">
-                    <AnimatedNumber value={totalParcelasRestantes} withDelay={550} />
-                  </p>
-                  {countParcelasRestantes > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {countParcelasRestantes} parcela{countParcelasRestantes !== 1 ? 's' : ''} · {installmentItems.length} transação{installmentItems.length !== 1 ? 'ões' : ''}
-                    </p>
-                  )}
-                </div>
-                <Receipt className="h-6 w-6 text-warning/70" />
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
+      {/* Métricas principais: carrossel no mobile, 4 colunas no desktop */}
+      <PaymentKpiCards transactions={transactions} creditCardLimit={creditCardLimit} />
 
       {/* Grafico de Barras - Rendimento Anual / Diario */}
       <div id="dashboard-ancora-rendimento" className="animate-slide-up shadow-card border-none rounded-lg bg-card flex-shrink-0" style={{ animationDelay: '400ms' }}>
@@ -347,37 +112,7 @@ export function FinancialDashboard({
 
       {/* Gastos Fixos vs Variáveis — logo abaixo do gráfico */}
       <div id="dashboard-ancora-fixos-variaveis" className="animate-slide-up" style={{ animationDelay: '600ms' }}>
-        <Card className="shadow-card border-none flex-shrink-0">
-        <div className="p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-3">Gastos Fixos vs Variáveis</h3>
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span className="text-success font-medium">Fixos: {formatCurrency(fixedExpenses)}</span>
-                <span className="text-warning font-medium">Variáveis: {formatCurrency(variableExpenses)}</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-3 flex overflow-hidden">
-                <div
-                  className="bg-success transition-all duration-700 ease-out"
-                  style={{
-                    width: `${fixedExpenses + variableExpenses > 0
-                      ? (fixedExpenses / (fixedExpenses + variableExpenses)) * 100
-                      : 0}%`
-                  }}
-                />
-                <div
-                  className="bg-warning transition-all duration-700 ease-out"
-                  style={{
-                    width: `${fixedExpenses + variableExpenses > 0
-                      ? (variableExpenses / (fixedExpenses + variableExpenses)) * 100
-                      : 0}%`
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
+        <FixedVariableCard fixedExpenses={fixedExpenses} variableExpenses={variableExpenses} />
       </div>
 
       {/* Income + Category charts in a 2-column grid */}
@@ -392,19 +127,6 @@ export function FinancialDashboard({
           categoryBreakdown={categoryBreakdown}
         />
       </div>
-
-      {/* Bank Breakdown Modal */}
-      {breakdownModal && (
-        <BankBreakdownModal
-          open={breakdownModal.open}
-          onClose={() => setBreakdownModal(null)}
-          title={breakdownModal.title}
-          total={breakdownModal.total}
-          icon={breakdownModal.icon}
-          theme={breakdownModal.theme}
-          items={breakdownModal.items}
-        />
-      )}
     </div>
   );
 }

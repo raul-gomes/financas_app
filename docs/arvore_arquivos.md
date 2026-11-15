@@ -179,7 +179,7 @@ financas_app/
 │       │   │
 │       │   ├── components/
 │       │   │   ├── ErrorBoundary.tsx             # Barreira de erro por rota (fallback + retry; crash não derruba o app)
-│       │   │   ├── ui/                         # shadcn-ui primitives + compostos (button, dialog, card, responsive-modal, confirm-dialog, bank-logo, bank-select, bank-search, currency-input, stat-card, empty-state, page-header, etc.); smoke tests Vitest colocados (*.test.tsx ao lado). Obs: carousel.tsx e command.tsx REMOVIDOS (não usados; deps embla-carousel-react/cmdk removidas)
+│       │   │   ├── ui/                         # shadcn-ui primitives + compostos (button, dialog, card, responsive-modal, confirm-dialog, bank-logo, bank-select, bank-search, currency-input, stat-card, empty-state, page-header, segmented-control, chip-group, etc.); smoke tests Vitest colocados (*.test.tsx ao lado). Obs: carousel.tsx e command.tsx REMOVIDOS (não usados; deps embla-carousel-react/cmdk removidas)
 │       │   │   │
 │       │   │   ├── charts/                     # Componentes de gráficos D3
 │       │   │   │   ├── D3BarChart.tsx           # Gráfico de barras anual (income/expenses/investment por mês)
@@ -188,13 +188,15 @@ financas_app/
 │       │   │   │   ├── D3LineChart.tsx          # Gráfico de linha (evolução temporal)
 │       │   │   │   ├── D3PieChart.tsx           # Gráfico de pizza (proporção por categoria)
 │       │   │   │   ├── FlippableChart.tsx       # Container 3D flip: frente (anual) + verso (diário)
-│       │   │   │   └── IncomeChart.tsx          # Gráfico de entradas por subcategoria
+│       │   │   │   ├── IncomeChart.tsx          # Gráfico de entradas por subcategoria
+│       │   │   │   └── MonthlyBarsChart.tsx     # Barras agrupadas entradas × saídas (6 meses, mobile): legenda embaixo, toque lê o valor (+ teste)
 │       │   │   │
 │       │   │   ├── dialogs/                    # Componentes de modal/diálogo
 │       │   │   ├── dialogs/                    # Componentes de modal/diálogo
-│       │   │   │   ├── AddTransactionDialog.tsx      # Modal "Nova Transação" (pt-BR): máscara de moeda, data dd/mm/yyyy, banco novo em linha inteira (ícone via BankLogo CDN GitHub + fallback de iniciais coloridas, igual ao Settings) + aviso de % projetada do limite com cores 80/90/100 ao digitar valor + categoria, via /limits/risk-check?amount=
+│       │   │   │   ├── AddTransactionDialog.tsx      # Modal "Nova Transação" (bottom sheet no mobile): fluxo de criar (validação, checagem de duplicidade, API); os campos vêm do formulário compartilhado (components/transactions)
 │       │   │   │   ├── AddTransactionDialog.test.tsx # Testes do aviso de limite estourado, tradução pt-BR, máscara de data dd/mm/yyyy, payload ISO e banco em linha inteira
-│       │   │   │   ├── EditTransactionDialog.tsx     # Modal para editar transação existente
+│       │   │   │   ├── TransactionDialogsMobile.test.tsx # Testes do formulário no celular (segmentado, chips, Salvar em largura total) e do Editar
+│       │   │   │   ├── EditTransactionDialog.tsx     # Modal "Editar Transação": mesmo formulário do Add, começando pelos valores da transação
 │       │   │   │   ├── DuplicateDialog.tsx           # Modal de detecção/resolução de duplicatas
 │       │   │   │   ├── AddInvestmentDialog.tsx       # Modal para adicionar investimento
 │       │   │   │   ├── EditInvestmentDialog.tsx      # Modal para editar investimento
@@ -209,8 +211,14 @@ financas_app/
 │       │   │   │   ├── FinancialDashboard.tsx   # Dashboard financeiro: orçamento, gráfico flip, categorias; cartão com barra de % (>=80 warning, estourado destructive + badge "Estourando")
 │       │   │   │   ├── ChartAnchors.tsx         # Âncoras de navegação que rolam até cada gráfico/seção do dashboard
 │       │   │   │   ├── ChartAnchors.test.tsx    # Testes das âncoras (render, scrollIntoView, seção inexistente)
+│       │   │   │   ├── PaymentKpiCards.tsx      # Cards Pix/Crédito/Débito/Parcelas: carrossel snap no mobile, grid de 4 colunas no md+; detalhe por banco (useBanks, erro com toast)
+│       │   │   │   ├── PaymentKpiCards.test.tsx # Testes dos KPIs (totais, carrossel, detalhe por banco, erro de bancos)
+│       │   │   │   ├── FixedVariableCard.tsx    # Card Gastos Fixos vs Variáveis (extraído do FinancialDashboard)
+│       │   │   │   ├── FinancialMobile.tsx      # /financial abaixo de md: mês no topo, chips de seção, KPIs, gráfico de 6 meses, lançamentos por dia, categorias
 │       │   │   │   ├── OverviewDashboard.tsx    # Dashboard geral da página inicial: indicadores, progresso mês, cartão (badge "Estourando" e tone 80/100), status limites, parcelas, recorrentes, metas/compras (admin); dados via useOverviewQuery (react-query)
 │       │   │   │   ├── OverviewDashboard.test.tsx # Testes do dashboard geral (render, refetch por entidade, cache ao voltar de filtro, esqueleto/erro, isAdmin, badge cartão estourando)
+│       │   │   │   ├── OverviewMobile.tsx       # Início no mobile (cards do mock): Ambos/PF/PJ, saldo do mês, progresso + cartão, perto do limite, a pagar, parcelas, metas/compras (admin) com "Ver tudo"
+│       │   │   │   ├── OverviewMobile.test.tsx  # Testes do layout mobile (hero, perto do limite, listas limitadas a 3, admin, segmentado)
 │       │   │   │   └── FinancialDashboard.test.tsx # Testes de rolagem dos boxes (100vh→130vh; Entradas/Gastos rolam quando estouram o teto) + badge "Estourando" do cartão
 │       │   │   │
 │       │   │   ├── investments/                # Componentes de investimentos
@@ -221,10 +229,12 @@ financas_app/
 │       │   │   │   └── Logo.test.tsx             # Testes do logo (wordmark, aria, tamanhos, sem cor fixa)
 │       │   │   │
 │       │   │   ├── layout/                     # Componentes de layout
-│   │   │               │   ├── AppLayout.tsx             # Layout principal: header desktop (md+), barra superior e de abas mobile, `+` global (AddTransactionDialog), conteúdo com padding para a barra
+│   │   │               │   ├── AppLayout.tsx             # Layout principal: header desktop (md+, com links de Recorrentes e Extrato bancário para admin), barra superior e de abas mobile, `+` global (AddTransactionDialog; a página não remonta, o cache é invalidado), conteúdo com padding para a barra
+│   │   │               │   ├── AppLayout.test.tsx        # Testes: + não remonta a página e invalida o cache; links de admin no header desktop
 │   │   │               │   ├── MobileTabBar.tsx          # Barra de abas inferior (Início, Financeiro, +, Limites, Mais): ≥44px, safe-area, aria-current
 │   │   │               │   ├── MobileTabBar.test.tsx     # Testes da barra de abas
 │   │   │               │   ├── MobileTopBar.tsx          # Barra superior mobile (logo/título, slot de mês `MobileTopBarSlot`, sino)
+│   │   │               │   ├── MonthStepper.tsx          # Seletor de mês compacto (‹ nov 2026 ›) para o slot da barra superior; addMonths/YearMonth (+ teste)
 │   │   │               │   ├── navigation.ts             # Abas, grupo "Mais", títulos por rota, isTabActive/getRouteTitle
 │   │   │               │   ├── navigation.test.ts        # Testes de navigation.ts
 │   │   │               │   ├── SidebarPanel.tsx          # Sidebar colapsável: tabs de metas, compras, resumo
@@ -240,8 +250,15 @@ financas_app/
 │   │   │               │   └── AuthGuard.test.tsx       # Testes do guard (redireciona sem sessão, renderiza com sessão)
 │       │   │   │
 │       │   │   ├── limits/                     # Componentes da feature de limites
-│       │   │   │   ├── LimitsTab.tsx             # Aba de gerenciamento de limites por categoria; aviso de % pré-save (banner colorido 80/90/100) e toast antes de persistir
+│       │   │   │   ├── LimitsTab.tsx             # Aba de limites por categoria: tabela no desktop, cards (LimitsCards) no mobile; aviso de % pré-save (banner colorido 80/90/100) e toast antes de persistir
 │       │   │   │   ├── LimitsTab.test.tsx        # Testes do aviso pré-save (cores por threshold, some ao aumentar limite, toast no save)
+│       │   │   │   ├── limitsModel.ts            # Modelo editável dos limites (Category, transformCategory, buildLimitsPayload, limitAlertFor, limitStatus) — funções puras
+│       │   │   │   ├── limitsModel.test.ts       # Testes do modelo (payload novo/modificado/duplicado, alerta 80/90/100, status Restam/Passou)
+│       │   │   │   ├── useLimitsDraft.ts         # Rascunho editável dos limites (react-query + ações + salvar) compartilhado por desktop e mobile
+│       │   │   │   ├── LimitAlertBanner.tsx      # Banner de % de uso pré-save (data-testid limit-alert-*)
+│       │   │   │   ├── LimitsCards.tsx           # Aba Categorias no mobile: um card por limite (barra, "Restam R$ X"/"Passou R$ X do limite"), + no topo cria
+│       │   │   │   ├── LimitEditSheet.tsx        # Folha de edição de um limite: nome, valor com teclado decimal, subcategorias, excluir com confirmação
+│       │   │   │   ├── LimitEditSheet.test.tsx   # Testes da folha de edição
 │       │   │   │   ├── RecorrentesTab.tsx        # Aba de contas recorrentes
 │       │   │   │   ├── MetasTab.tsx              # Aba de metas financeiras
 │       │   │   │   ├── ComprasTab.tsx            # Aba de lista de compras
@@ -252,6 +269,21 @@ financas_app/
 │       │   │   │
 │       │   │   ├── TransactionList.tsx          # Extrato paginado no servidor (useInfiniteQuery + "Carregar mais", busca com debounce, filtros período/PF-PJ); virtualizado (useVirtualizer); estados vazio/erro/carregando
 │       │   │   ├── TransactionList.test.tsx     # Testes do extrato paginado (carregar mais, filtros no servidor, busca debounced, vazio, erro/tentar de novo)
+
+│       │   │   ├── TransactionListMobile.tsx    # Lançamentos no mobile: Extrato (admin), busca + PF/PJ, linhas por dia, folha de detalhe (Editar/Excluir com confirmação)
+│       │   │   ├── TransactionListMobile.test.tsx # Testes da lista mobile (agrupamento, valor com sinal, sem lixeira na linha, confirmação de exclusão)
+│       │   │   ├── transactions/               # Peças da lista de lançamentos
+│       │   │   │   ├── TransactionRowMobile.tsx   # Linha: ícone, descrição (2 linhas), categoria · pagamento, valor com sinal e cor
+│       │   │   │   ├── TransactionDetailSheet.tsx # Folha de detalhe com Editar/Excluir (confirma antes de excluir)
+│       │   │   │   └── transactionTone.ts         # Tokens de cor por tipo (income/expense/investment)
+│       │   │   │   ├── transactionFormModel.ts    # Valores do formulário, máscara de data, valores iniciais (vazio/da transação), valor da parcela — funções puras
+│       │   │   │   ├── transactionFormModel.test.ts # Testes do modelo do formulário
+│       │   │   │   ├── useTransactionForm.ts      # Estado e carga de dados do formulário (categorias por PF/PJ e tipo, bancos, risco de limite) para criar e editar
+│       │   │   │   ├── TransactionFormFields.tsx  # Escolhe o layout: folha mobile ou diálogo desktop
+│       │   │   │   ├── TransactionFieldsDesktop.tsx # Layout do desktop (radios + switch PF/PJ, grids de 2 colunas)
+│       │   │   │   ├── TransactionFieldsMobile.tsx  # Layout do mobile: Saída/Entrada/Investimento segmentado, valor grande, categoria + data lado a lado, chips de pagamento e PF/PJ
+│       │   │   │   ├── TransactionSelects.tsx     # Campos de categoria, subcategoria e banco (com "Outra"/novo banco), usados pelos dois layouts
+│       │   │   │   └── CategoryRiskBanner.tsx     # Aviso não bloqueante de % projetada do limite (80/90/100)
 │       │   │   ├── CategoryBreakdownSection.tsx # Seção de breakdown de gastos por categoria
 │       │   │   ├── ComprasList.tsx              # Lista de compras do mês com checkbox e CRUD (useShoppingItems + invalidação)
 │       │   │   ├── MetasList.tsx                # Lista de metas com progresso e ações (useGoalsProgress + invalidação)
@@ -265,7 +297,7 @@ financas_app/
 │       │   │   ├── Financial.test.tsx          # Testes da página (altura, queries por bloco, PF/PJ, geração de recorrentes antes dos dados, virada de mês, exclusão recarrega)
 │       │   │   ├── Settings.test.tsx           # Testes das Configurações (perfil/bancos em cache, remover banco, salvar nome, toast de erro)
 │       │   │   ├── Investments.tsx             # Página de investimentos (placeholder)
-│       │   │   ├── Limits.tsx                  # Página de limites: tabs por role (admin: Limites/Recorrentes/Metas/Compras; user: Limites/Recorrentes)
+│       │   │   ├── Limits.tsx                  # Página de limites: tabs por role no desktop; chips (Categorias/Recorrentes/Metas/Compras) + PF/PJ segmentado no mobile
 │       │   │   ├── Limits.test.tsx             # Testes das abas por role (user: sem Metas/Compras)
 │       │   │   ├── RecurrentBills.tsx          # Página de contas recorrentes: lista + CRUD
 │       │   │   ├── BankExtract.tsx             # Página de extrato bancário: upload + preview + confirmação
@@ -310,6 +342,7 @@ financas_app/
 │       │   │
 │       │   ├── hooks/                          # Custom React hooks
 │       │   │   ├── use-mobile.tsx              # useIsMobile() — detecção de viewport mobile
+│       │   │   ├── useTransactionList.ts       # Dados da lista de lançamentos (paginada, busca com debounce, nomes de bancos) para desktop e mobile
 │       │   │   ├── use-toast.ts                # useToast() — sistema de notificações toast
 │       │   │   ├── useLimitAlerts.ts           # useLimitAlerts() — poll de /notifications a cada 30s (+ listagem inicial)
 │       │   │   ├── useDebouncedValue.ts        # useDebouncedValue(value, ms) — usado na busca do extrato (+ teste ao lado)
@@ -335,6 +368,11 @@ financas_app/
 │       │   └── lib/                            # Utilitários
 │       │       ├── utils.ts                    # cn() — merge de classes Tailwind (shadcn)
 │       │       ├── format.ts                   # formatCurrency/formatDate/formatPercent (fonte única de formatação)
+│       │   │       ├── transactionGroups.ts        # Agrupa lançamentos por dia ("Hoje · 14 nov") e formata valor com sinal (+ teste)
+│       │   │       ├── months.ts                   # YearMonth, addMonths, toYearMonth, SHORT_MONTHS (+ teste)
+│       │   │       ├── recentMonths.ts             # Janela dos últimos 6 meses a partir dos payloads anuais (+ teste)
+│       │   │       ├── transactionLabels.ts        # Rótulos pt-BR de forma de pagamento, categoria automática e tipo (+ teste)
+│       │   │       ├── reportLoadError.ts          # reportLoadError(toast, "os bancos", erro): log + toast pt-BR para carga em segundo plano que falhou (+ teste)
 │       │       ├── format.test.ts              # Testes unitários da formatação (BRL/USD, datas, %)
 │       │       ├── format.escape.test.ts       # escapeHtml() para tooltips D3
 │       │       ├── supabase.ts                 # Cliente @supabase/supabase-js (VITE_SUPABASE_URL/ANON_KEY)
