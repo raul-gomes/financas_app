@@ -512,6 +512,41 @@ class TransacaoRepository:
         result = await self.db.execute(stmt)
         return list(result.unique().scalars().all())
 
+    async def existing_external_ids(
+        self, user_id: int, source: str, external_ids: list[str]
+    ) -> set[str]:
+        """Provider ids (of ``source``) the user already has among ``external_ids``."""
+        if not external_ids:
+            return set()
+        stmt = select(TransactionORM.external_id).where(
+            TransactionORM.user_id == user_id,
+            TransactionORM.external_source == source,
+            TransactionORM.external_id.in_(external_ids),
+        )
+        return set((await self.db.execute(stmt)).scalars().all())
+
+    async def first_unlinked_match(
+        self, user_id: int, transaction_date: date, amount: float, description: str
+    ) -> TransactionORM | None:
+        """Oldest (lowest id) row of the user with no provider id and the same day, amount
+        and description; used to adopt rows imported before provider ids were stored."""
+        start = datetime.combine(transaction_date, time.min)
+        end = datetime.combine(transaction_date, time.max)
+        stmt = (
+            select(TransactionORM)
+            .where(
+                TransactionORM.user_id == user_id,
+                TransactionORM.external_id.is_(None),
+                TransactionORM.transaction_date >= start,
+                TransactionORM.transaction_date <= end,
+                TransactionORM.amount == amount,
+                TransactionORM.description == description,
+            )
+            .order_by(TransactionORM.id)
+            .limit(1)
+        )
+        return (await self.db.execute(stmt)).unique().scalars().first()
+
     async def assign_random_banks(self, bank_codes: list[str], user_id: int) -> int:
         """Atribui um bank_code aleatório às transações sem bank_code usando SQL direto.
 
@@ -684,6 +719,8 @@ class TransacaoRepository:
                         category_id=cat.id,
                         subcategory_id=sub.id if sub else None,
                         bank_code=t.get("bank_code"),
+                        external_id=t.get("external_id"),
+                        external_source=t.get("external_source"),
                         group_id=group_id,
                         is_installment=is_installment,
                         user_id=user_id,

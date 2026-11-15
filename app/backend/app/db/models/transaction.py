@@ -10,10 +10,14 @@ from sqlalchemy import (
     Integer,
     String,
     func,
+    text,
 )
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
+
+EXTERNAL_ID_MAX_LENGTH = 64
+EXTERNAL_SOURCE_MAX_LENGTH = 16
 
 
 class TransactionORM(Base):
@@ -24,6 +28,16 @@ class TransactionORM(Base):
         Index("idx_transacoes_recurring", "recurring_account_id", "transaction_date"),
         Index("idx_transacoes_subcat_date", "subcategory_id", "transaction_date"),
         Index("idx_transacoes_type_date", "type", "transaction_date"),
+        # Provider dedupe: one row per (user, source, provider id); manual rows have no id.
+        Index(
+            "uq_transacoes_user_external",
+            "user_id",
+            "external_source",
+            "external_id",
+            unique=True,
+            postgresql_where=text("external_id IS NOT NULL"),
+            sqlite_where=text("external_id IS NOT NULL"),
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -40,6 +54,9 @@ class TransactionORM(Base):
     entity_type = Column(String, nullable=False)
     payment_method = Column(String, nullable=False)
     bank_code = Column(String, nullable=True)
+    # Provider transaction id (e.g. Pluggy) and its source; NULL for manual/extract rows.
+    external_id = Column(String(EXTERNAL_ID_MAX_LENGTH), nullable=True)
+    external_source = Column(String(EXTERNAL_SOURCE_MAX_LENGTH), nullable=True)
     category_id = Column(Integer, ForeignKey("categorias.id"), nullable=False)
     subcategory_id = Column(Integer, ForeignKey("subcategorias.id"), nullable=False)
     recurring_account_id = Column(

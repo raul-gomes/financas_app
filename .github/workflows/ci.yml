@@ -46,7 +46,7 @@ jobs:
         run: npm run check:bundle
 
   backend:
-    name: Backend (ruff, pytest, alembic check, bandit, pip-audit)
+    name: Backend (ruff, pytest, postgres tests, alembic check, bandit, pip-audit)
     runs-on: ubuntu-latest
     # Throwaway Postgres for the migration check (CI-only credentials, never reused).
     services:
@@ -97,6 +97,15 @@ jobs:
         run: |
           uv run alembic upgrade head
           uv run alembic check
+
+      # PostgreSQL-only paths (advisory lock, savepoints, partial unique index, bulk insert).
+      # The fixture drops and rebuilds the schema of the throwaway service database, then runs
+      # `alembic upgrade head` itself.
+      - name: Postgres integration tests
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          TEST_POSTGRES_URL: "postgresql+asyncpg://ci:ci-throwaway@localhost:5432/ci"
+        run: uv run pytest -q -m postgres
 
       # SAST: blocks on medium+ severity. A `# nosec` needs a written reason on the same line.
       - name: SAST (bandit)
