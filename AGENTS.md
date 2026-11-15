@@ -1,5 +1,16 @@
 # AGENTS.md — financas_app
 
+## General practices live in the second brain
+
+Cross-project rules (TDD, security, CI quality, API contract/BFF, code language,
+git flow, living docs) are **not repeated here**. Read
+`~/HD_Repos/cerebro/20_Praticas/Praticas-Essenciais.md` (mandatory summary) and the
+topic notes in `~/HD_Repos/cerebro/20_Praticas/` — mainly `TDD-e-Testes.md`,
+`Seguranca.md` and `Contrato-de-API.md`. Step-by-step guides:
+`~/HD_Repos/cerebro/30_Playbooks/`. No access to that path? Same vault at the
+private repo `github.com/raul-gomes/cerebro`. **This file only holds what is
+specific to this project and wins on conflict.**
+
 ## Folder Structure
 
 > For the complete file tree with function descriptions, see: `docs/arvore_arquivos.md`
@@ -134,34 +145,11 @@ Server data goes through `@tanstack/react-query`, not `useEffect` + `useState`:
 
 List endpoints return a page DTO written by hand with `items`, `total`, `limit`, `has_more`, `next_cursor`. Ordering must be total and stable (e.g. `transaction_date desc, id desc`) and the page size capped by a named constant (`TRANSACTIONS_MAX_PAGE_SIZE`). Reference: `GET /transacoes/paginated` (keyset cursor; its `search` also matches a pt-BR amount and the name of the user's own banks, see `docs/regras_negocio.md` 2.1).
 
-## Development Rules
+## Development Rules (project specifics)
 
 - **Commit messages are written in English** (Conventional Commits, e.g. `fix(frontend): ...`).
-
-### TDD (Test-Driven Development) — MANDATORY
-
-Every new feature or bug fix MUST follow the TDD cycle:
-
-1. **RED**: Write failing tests first that describe the expected behavior
-2. **GREEN**: Write the minimum code to make the tests pass
-3. **REFACTOR**: Clean up the code while keeping tests green
-
-- Backend tests: `tests/` (pytest + pytest-asyncio, SQLite in-memory via `conftest.py`) — run with `uv run pytest`
-- Frontend tests: Vitest + Testing Library (jsdom) já configurados — coloque `*.test.tsx`/`*.test.ts` ao lado do componente/serviço e rode com `npm run test` (ou via container); valide tipos com `npm run typecheck` (`tsc -b --noEmit`)
-- Never deliver a feature without tests covering its core behavior (happy path + edge cases + error handling)
-- When fixing a bug, first write a test that reproduces it, then apply the fix
-
-### Security Best Practices — PRIORITY
-
-Always prioritize security when writing code:
-
-- **Never commit secrets** (keys, passwords, tokens) — use `.env` / env vars only
-- **Validate all external input** with Pydantic schemas on every endpoint (never trust raw request data)
-- **Use parameterized queries** via SQLAlchemy ORM — never build SQL by string concatenation
-- **Hash passwords** with bcrypt (see `settings_routes.py`); never store or log plain secrets (e.g., `pluggy_api_key`)
-- **Sanitize file uploads** (extract CSV/OFX): enforce size limits, parse defensively, never execute content
-- Keep dependencies updated and avoid introducing packages with known vulnerabilities (`npm audit` / `uv lock`)
-- Apply least privilege: only expose what is necessary through nginx; backend/DB stay internal
+- **TDD** (rule in `cerebro/20_Praticas/TDD-e-Testes.md`): backend tests in `tests/` (pytest + pytest-asyncio, SQLite in-memory via `conftest.py`) — `uv run pytest`; frontend `*.test.tsx`/`*.test.ts` next to the component/service with Vitest + Testing Library (jsdom) — `npm run test` (or in the container); types with `npm run typecheck` (`tsc -b --noEmit`).
+- **Security** (rule in `cerebro/20_Praticas/Seguranca.md`): authentication is Supabase (the app stores no passwords); the Pluggy key is encrypted at rest (`app/core/crypto.py`) and never logged; extract uploads (CSV/OFX) with size limits and defensive parsing; only nginx exposed.
 
 ## Important Quirks
 
@@ -180,51 +168,16 @@ Set in `.env` at repo root (copy from `.env.example`):
 POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
 ```
 
-## API Design Philosophy — Backend for Frontend (BFF) — MANDATORY
+## API — Backend for Frontend (MANDATORY)
 
-**Princípio:** A API deve retornar payloads **prontos para consumo** pelo frontend/mobile, eliminando transformações, agregações ou múltiplas chamadas no cliente.
+The rule (one call per screen, derived values and SQL aggregation in the backend,
+response schema = screen contract, checklist) is in
+`~/HD_Repos/cerebro/20_Praticas/Contrato-de-API.md`. In this project, computed
+fields live in the Pydantic schema via `@model_validator(mode='before')` with a
+comment naming the screen that reads them (`# Frontend usa: is_ending_soon para badge "Acabando"`),
+and repositories return aggregated DTOs.
 
-### Regras Obrigatórias
-
-1. **Uma chamada = uma tela/feature**
-   - Endpoints agregam dados necessários para uma view completa
-   - Ex: `GET /dashboard/statement` retorna totais, metas, limites, transações — **zero joins no frontend**
-
-2. **Cálculos e derivados no backend**
-   - `% progresso`, `remaining`, `is_ending_soon`, `current_installment`, `percent_used` — computados no repository/schema
-   - Frontend **nunca** calcula: `progress = (current/target)*100`, `remaining = limit - spent`
-
-3. **Formatação padronizada na resposta**
-   - Datas: `DD/MM/YYYY` (string) ou ISO 8601
-   - Valores: `float` com 2 casas decimais
-   - Enums: `income`/`expense`/`investment`, `individual`/`business` — frontend só renderiza
-
-4. **Endpoints compostos para dashboards/listas complexas**
-   - `GET /limits/with-spending?year=2024&month=8` → limites + gastos + % em 1 request
-   - `GET /goals?include_progress=true&month=8` → metas + progresso embutido
-   - Evitar: frontend fazer `fetch(goals)` + `fetch(progress)` e cruzar em memória
-
-5. **Schemas de resposta (Pydantic) = contrato da tela**
-   - `ResponseModel` inclui **todos** campos que o frontend precisa
-   - Campos computados via `@model_validator(mode='before')` no schema
-   - Documentar no schema: `# Frontend usa: is_ending_soon para badge "Acabando"`
-
-6. **Repository methods retornam DTOs agregados**
-   - `DashboardRepository.extrato_financeiro()` → `ExtratoResponse` (não lista crua de ORM)
-   - `LimitsRepository.get_limits_with_spending()` → dict pronto para `LimitsWithSpendingResponse`
-   - Queries com `GROUP BY`, `SUM`, `JOIN` no SQL — não em Python loop
-
-### Checklist ao criar/modificar endpoint
-
-- [ ] Uma tela/feature = 1 endpoint (ou 1 composto + 1 de detalhe)
-- [ ] Zero lógica de negócio no frontend (cálculos, formatação, ordenação, filtros derivados)
-- [ ] Response schema inclui campos computados (`progress`, `remaining`, `percent`, `is_ending_soon`)
-- [ ] Repository faz agregação SQL (1 query) — não N+1 nem Python loop
-- [ ] Datas/valores/enums formatados no backend
-- [ ] Paginação/metadados (`total`, `page`, `has_more`) em listas
-- [ ] Erros padronizados: `{code, message, field?}`
-
-### Exemplos no Projeto (seguir este padrão)
+### Examples in this project (follow this pattern)
 
 | Endpoint | Entrega Pronta | Evita no Frontend |
 |----------|----------------|-------------------|
