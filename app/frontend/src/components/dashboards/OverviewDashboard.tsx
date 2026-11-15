@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ArrowDownCircle, ArrowUpCircle, Coins, CreditCard, Target, ShoppingCart, Receipt, CalendarClock, TrendingDown, TrendingUp } from 'lucide-react';
 import { useOverviewQuery, type OverviewEntityType } from '@/hooks/queries/useOverviewQuery';
 import { formatCurrency } from '@/lib/format';
+import { paymentMethodLabel } from '@/lib/transactionLabels';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileTopBarSlot } from '@/components/layout/MobileTopBar';
@@ -239,7 +240,7 @@ export function OverviewDashboard({ isAdmin = false }: OverviewDashboardProps) {
                   <div>
                     <p className="text-sm font-medium">{p.description}</p>
                     <p className="text-xs text-muted-foreground">
-                      {p.payment_method} · {p.installment_number}/{p.total_installments}
+                      {paymentMethodLabel(p.payment_method)} · {p.installment_number}/{p.total_installments}
                     </p>
                   </div>
                   <span className="text-sm font-semibold">{formatCurrency(p.amount)}</span>

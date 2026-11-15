@@ -118,6 +118,15 @@ describe('OverviewDashboard - valid HTML', () => {
   });
 });
 
+describe('OverviewDashboard - installments of the month', () => {
+  it('shows the payment method in pt-BR, not the stored value', async () => {
+    renderWithQuery(<OverviewDashboard />);
+
+    expect(await screen.findByText(/Crédito · 1\/10/)).toBeTruthy();
+    expect(screen.queryByText(/credit · 1\/10/)).toBeNull();
+  });
+});
+
 describe('OverviewDashboard', () => {
   it('renderiza indicadores principais, progresso do mês e cartão', async () => {
     renderWithQuery(<OverviewDashboard />);
