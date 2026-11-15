@@ -163,7 +163,7 @@ financas_app/
 │   │   │
 │   │   ├── scripts/
 │   │   │   ├── __init__.py                      # Pacote de scripts utilitários
-│   │   │   └── seed.py                          # Popula o banco com dados de demonstração (usuário, bancos, categorias incl. especiais de limite, recorrentes, transações 2025-2026, metas, compras)
+│   │   │   └── seed.py                          # Dados fictícios de demonstração (destrutivo): `build_demo_data` (testável, determinístico) + CLI assíncrono; últimos 18 meses até hoje, recorrentes no group_id da conta
 │   │   │
 │   │   ├── Dockerfile                          # Build multi-stage: uv + Python 3.12 Alpine
 │   │   ├── alembic.ini                         # Config do Alembic (URL default SQLite — sobrescrever com DATABASE_URL)
