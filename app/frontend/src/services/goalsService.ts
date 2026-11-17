@@ -3,6 +3,12 @@ import { parseResponse } from '@/lib/parse';
 import { metaSchema, metaListSchema, metaProgressoListSchema } from '@/schemas/goals';
 import type { Meta, MetaCreate, MetaUpdate, MetaProgresso } from '@/types/goals';
 
+const HTTP_CONFLICT = 409;
+const GOAL_DELETE_CONFLICT_FALLBACK = 'Meta possui lançamentos vinculados';
+
+/** The server refused to delete a goal (it has contributions); the message is user-facing. */
+export class GoalDeleteRefusedError extends Error {}
+
 export const MetasService = {
   async list(entityType?: string): Promise<Meta[]> {
     let url = `/goals/`;
@@ -34,6 +40,11 @@ export const MetasService = {
 
   async delete(id: number): Promise<Meta> {
     const res = await apiFetch(`/goals/${id}`, { method: 'DELETE' });
+    if (res.status === HTTP_CONFLICT) {
+      // A goal with contributions is refused; the server says why (shown to the user as is)
+      const body = (await res.json().catch(() => null)) as { detail?: unknown } | null;
+      throw new GoalDeleteRefusedError(typeof body?.detail === 'string' ? body.detail : GOAL_DELETE_CONFLICT_FALLBACK);
+    }
     if (!res.ok) throw new Error(`Erro ${res.status} ao excluir meta`);
     return parseResponse(res, metaSchema, 'excluir meta');
   },

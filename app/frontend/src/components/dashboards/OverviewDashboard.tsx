@@ -147,8 +147,8 @@ export function OverviewDashboard({ isAdmin = false }: OverviewDashboardProps) {
         <StatCard
           icon={ArrowDownCircle}
           label="Saídas"
-          value={formatCurrency(totals.total_expenses)}
-          hint={`Até hoje: ${formatCurrency(mp.expenses_up_to_today)}`}
+          value={formatCurrency(totals.total_outflows)}
+          hint={`Até hoje: ${formatCurrency(mp.outflows_up_to_today)}`}
           tone="destructive"
         />
         <StatCard

@@ -171,10 +171,13 @@ async def test_overview_totals_progress_and_credit_card_match_reference(seeded, 
 
     income = _sum(rows, type="income")
     expense = _sum(rows, type="expense")
+    invested = _sum(rows, type="investment")
     assert overview.totals.total_income == pytest.approx(round(income, 2))
     assert overview.totals.total_expenses == pytest.approx(round(expense, 2))
-    assert overview.totals.total_invested == pytest.approx(round(_sum(rows, type="investment"), 2))
-    assert overview.totals.balance == pytest.approx(round(income - expense, 2))
+    assert overview.totals.total_invested == pytest.approx(round(invested, 2))
+    # Saídas = despesas + investimentos; saldo = entradas - saídas
+    assert overview.totals.total_outflows == pytest.approx(round(expense + invested, 2))
+    assert overview.totals.balance == pytest.approx(round(income - expense - invested, 2))
 
     upto = [t for t in rows if t.transaction_date <= datetime(YEAR, MONTH, TODAY.day, 23, 59, 59)]
     progress = overview.month_progress
@@ -182,9 +185,9 @@ async def test_overview_totals_progress_and_credit_card_match_reference(seeded, 
     assert progress.days_in_month == 31
     assert progress.income_up_to_today == pytest.approx(round(_sum(upto, type="income"), 2))
     assert progress.expenses_up_to_today == pytest.approx(round(_sum(upto, type="expense"), 2))
-    assert progress.balance == pytest.approx(
-        round(_sum(upto, type="income") - _sum(upto, type="expense"), 2)
-    )
+    outflows_upto = _sum(upto, type="expense") + _sum(upto, type="investment")
+    assert progress.outflows_up_to_today == pytest.approx(round(outflows_upto, 2))
+    assert progress.balance == pytest.approx(round(_sum(upto, type="income") - outflows_upto, 2))
 
     used = _sum(rows, type="expense", payment_method="credit")
     limit = 2000.0 if scope in ("all", "individual") else 0.0

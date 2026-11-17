@@ -107,3 +107,20 @@ describe('RecurrentBills page - react-query', () => {
     expect(await screen.findByText('Nenhuma conta recorrente cadastrada.')).toBeInTheDocument();
   });
 });
+
+describe('RecurrentBills PF/PJ filter', () => {
+  it('lists both natures by default and filters by PF or PJ', async () => {
+    renderWithQuery(<RecurrentBills />);
+    await waitFor(() => expect(mockGetAll).toHaveBeenCalledWith(undefined));
+
+    fireEvent.click(screen.getByRole('radio', { name: 'PJ' }));
+    await waitFor(() => expect(mockGetAll).toHaveBeenCalledWith('business'));
+
+    fireEvent.click(screen.getByRole('radio', { name: 'PF' }));
+    await waitFor(() => expect(mockGetAll).toHaveBeenCalledWith('individual'));
+
+    // Back to both natures (cached list, so no new request is required)
+    fireEvent.click(screen.getByRole('radio', { name: 'Ambos' }));
+    expect(screen.getByRole('radio', { name: 'Ambos' })).toHaveAttribute('aria-checked', 'true');
+  });
+});

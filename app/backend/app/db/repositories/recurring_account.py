@@ -17,6 +17,22 @@ from app.schemas.recurring_account import (
     ContaRecorrenteUpdate,
 )
 
+# Account fields copied to its installments from the current month on when edited.
+PROPAGATED_FIELDS = (
+    "amount",
+    "description",
+    "category_id",
+    "subcategory_id",
+    "entity_type",
+    "payment_method",
+    "bank_code",
+)
+
+
+def _current_month_start() -> datetime:
+    """First instant of the current month: installments from here on are "future"."""
+    return datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
 
 class ContaRecorrenteRepository:
     """Contas recorrentes e suas parcelas. Só faz flush: o commit é da unit of work do request."""
@@ -126,6 +142,12 @@ class ContaRecorrenteRepository:
         for field, val in data.items():
             orm_field = field_map.get(field, field)
             setattr(conta, orm_field, val)
+
+        # Edited fields apply to the installments from the current month on; past ones keep theirs
+        propagated = {field: data[field] for field in PROPAGATED_FIELDS if field in data}
+        new_due_day = data.get("due_day")
+        if (propagated or new_due_day) and data.get("active") is not False:
+            await self._update_future_transactions(conta, propagated, new_due_day)
 
         # If deactivating, cancel future transactions
         if was_active and data.get("active") is False:
@@ -266,13 +288,34 @@ class ContaRecorrenteRepository:
 
     # ── Helpers ───────────────────────────────────────────
 
-    async def _cancel_future_transactions(self, conta: RecurringAccountORM) -> int:
-        """Delete all future transactions for this recurring account."""
-        now = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    async def _update_future_transactions(
+        self, conta: RecurringAccountORM, changes: dict, due_day: int | None = None
+    ) -> None:
+        """Applies the account's edits to its installments from the current month on.
 
+        A new ``due_day`` moves each of those installments to that day of its own month,
+        capped at the month's last day (same rule as generation).
+        """
         stmt = select(TransactionORM).where(
             TransactionORM.recurring_account_id == conta.id,
-            TransactionORM.transaction_date >= now,
+            TransactionORM.transaction_date >= _current_month_start(),
+        )
+        futures = list((await self.db.execute(stmt)).unique().scalars().all())
+        for transaction in futures:
+            for field, value in changes.items():
+                setattr(transaction, field, value)
+            if due_day:
+                current = transaction.transaction_date
+                last_day = calendar.monthrange(current.year, current.month)[1]
+                transaction.transaction_date = current.replace(day=min(due_day, last_day))
+        if futures:
+            await self.db.flush()
+
+    async def _cancel_future_transactions(self, conta: RecurringAccountORM) -> int:
+        """Delete all future transactions for this recurring account."""
+        stmt = select(TransactionORM).where(
+            TransactionORM.recurring_account_id == conta.id,
+            TransactionORM.transaction_date >= _current_month_start(),
         )
         result = await self.db.execute(stmt)
         futures = list(result.unique().scalars().all())

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ApiSchemaError } from '@/lib/parse';
 import { FinancialService } from './financialService';
-import { MetasService } from './goalsService';
+import { GoalDeleteRefusedError, MetasService } from './goalsService';
 import { NotificationService } from './notificationService';
 import { OverviewService } from './overviewService';
 import { ContaRecorrenteService } from './recurringAccountService';
@@ -230,6 +230,25 @@ describe('MetasService boundary', () => {
   });
 });
 
+describe('MetasService.delete refusal', () => {
+  it('surfaces the server reason when a goal with contributions cannot be deleted (409)', async () => {
+    mockApiFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: async () => ({ detail: 'Meta possui lançamentos vinculados' }),
+      text: async () => '',
+    });
+    const refusal = MetasService.delete(1);
+    await expect(refusal).rejects.toBeInstanceOf(GoalDeleteRefusedError);
+    await expect(refusal).rejects.toThrow('Meta possui lançamentos vinculados');
+  });
+
+  it('keeps the generic message for other failures', async () => {
+    mockApiFetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}), text: async () => '' });
+    await expect(MetasService.delete(1)).rejects.toThrow('Erro 500 ao excluir meta');
+  });
+});
+
 describe('NotificationService boundary', () => {
   const item = {
     id: 1, category_id: 1, category_name: 'A', scope: 'category', month: '2026-05', threshold: 80,
@@ -262,9 +281,9 @@ describe('OverviewService boundary', () => {
   const overview: OverviewResponse = {
     reference_month: '05/2026',
     entity_type: 'all',
-    totals: { total_income: 1, total_expenses: 1, total_invested: 0, balance: 0 },
+    totals: { total_income: 1, total_expenses: 1, total_invested: 0, total_outflows: 1, balance: 0 },
     month_progress: {
-      day: 1, days_in_month: 31, percent: 0.03, income_up_to_today: 0, expenses_up_to_today: 0, balance: 0,
+      day: 1, days_in_month: 31, percent: 0.03, income_up_to_today: 0, expenses_up_to_today: 0, outflows_up_to_today: 0, balance: 0,
     },
     credit_card: { limit: 10, used: 1, remaining: 9, percent_used: 10 },
     categories_status: [],

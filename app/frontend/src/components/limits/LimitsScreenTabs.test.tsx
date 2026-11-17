@@ -9,6 +9,7 @@ import { ComprasTab } from './ComprasTab';
 const mockGetAll = vi.fn();
 const mockMetasList = vi.fn();
 const mockMetasCreate = vi.fn();
+const mockMetasDelete = vi.fn();
 const mockShoppingList = vi.fn();
 const mockShoppingCreate = vi.fn();
 const mockToast = vi.fn();
@@ -24,11 +25,12 @@ vi.mock('@/services/recurringAccountService', () => ({
 }));
 
 vi.mock('@/services/goalsService', () => ({
+  GoalDeleteRefusedError: class GoalDeleteRefusedError extends Error {},
   MetasService: {
     list: (...args: unknown[]) => mockMetasList(...args),
     create: (...args: unknown[]) => mockMetasCreate(...args),
     update: vi.fn(),
-    delete: vi.fn(),
+    delete: (...args: unknown[]) => mockMetasDelete(...args),
     concluir: vi.fn(),
     reativar: vi.fn(),
   },
@@ -97,6 +99,26 @@ describe('MetasTab', () => {
       entity_type: 'individual',
     });
     await waitFor(() => expect(mockMetasList).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('MetasTab exclusão recusada', () => {
+  it('mostra o motivo quando a meta tem lançamentos', async () => {
+    mockMetasList.mockResolvedValue([
+      { id: 7, subcategory_name: 'Viagem', target_amount: 2000, category_id: 3, completed: false, completed_at: null },
+    ]);
+    const { GoalDeleteRefusedError } = await import('@/services/goalsService');
+    mockMetasDelete.mockRejectedValue(new GoalDeleteRefusedError('Meta possui lançamentos vinculados'));
+    renderWithQuery(<MetasTab entityTypeFilter="pf" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Excluir meta' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Excluir' }));
+
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ description: 'Meta possui lançamentos vinculados', variant: 'destructive' }),
+      ),
+    );
   });
 });
 

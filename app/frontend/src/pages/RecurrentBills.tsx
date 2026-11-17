@@ -16,10 +16,21 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { RecurringBillsTable } from '@/components/recorrentes/RecurringBillsTable';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+
+type Scope = 'all' | 'pf' | 'pj';
+
+const SCOPE_OPTIONS = [
+  { value: 'all', label: 'Ambos' },
+  { value: 'pf', label: 'PF' },
+  { value: 'pj', label: 'PJ' },
+] as const;
 
 const RecurrentBills = () => {
   const queryClient = useQueryClient();
-  const { data: contas = [], isError: loadFailed } = useRecurringAccounts(undefined);
+  // PF/PJ filter: the list and the summary cards follow it
+  const [scope, setScope] = useState<Scope>('all');
+  const { data: contas = [], isError: loadFailed } = useRecurringAccounts(scope);
   useErrorToast(loadFailed, 'Falha ao carregar contas recorrentes.');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -115,6 +126,10 @@ const RecurrentBills = () => {
             </Button>
           }
         />
+
+        <div className="mb-6 md:max-w-xs">
+          <SegmentedControl aria-label="Tipo de conta" options={SCOPE_OPTIONS} value={scope} onChange={setScope} fill />
+        </div>
 
         {contas.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

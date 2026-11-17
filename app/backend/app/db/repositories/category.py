@@ -16,6 +16,8 @@ from app.logger import log_database_operation
 from app.schemas.categories import CategoriaCreate, CategoriaUpdate
 
 HAS_TRANSACTIONS_MESSAGE = "Categoria possui transações vinculadas"
+# Category valid for both natures (PF and PJ).
+SHARED_ENTITY_TYPE = "all"
 
 
 class CategoriaRepository:
@@ -54,11 +56,19 @@ class CategoriaRepository:
         )
         return result.first() is not None
 
-    async def get_by_nome(self, nome: str, user_id: int) -> CategoryORM | None:
-        result = await self.db.execute(
-            select(self.model).where(self.model.name == nome, self.model.user_id == user_id)
-        )
-        return result.scalars().first()
+    async def get_by_nome_for_entity(
+        self, nome: str, entity_type: str, user_id: int
+    ) -> CategoryORM | None:
+        """Category with this name for a transaction of ``entity_type`` (PF/PJ).
+
+        Prefers the category of the same nature and falls back to one shared by both
+        (``all``); never borrows the category of the other nature.
+        """
+        entity_type = getattr(entity_type, "value", entity_type)  # accepts the enum or its value
+        same_nature = await self.get_by_nome_and_entity_type(nome, entity_type, user_id)
+        if same_nature is not None:
+            return same_nature
+        return await self.get_by_nome_and_entity_type(nome, SHARED_ENTITY_TYPE, user_id)
 
     async def get_by_nome_and_entity_type(
         self, nome: str, entity_type: str, user_id: int
@@ -158,6 +168,8 @@ class CategoriaRepository:
                     await self.db.execute(
                         select(self.model).where(
                             self.model.name == obj_in.category_name,
+                            # Names are unique per nature: PF and PJ may share one (same rule as create)
+                            self.model.entity_type == (obj_in.entity_type or categoria.entity_type),
                             self.model.id != id,
                             self.model.user_id == user_id,
                         )

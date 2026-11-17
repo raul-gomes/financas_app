@@ -34,14 +34,14 @@ financas_app/
 │   │   │   │   │   └── limit_alert.py          # LimitAlertORM (limit_alerts) — alertas de limite 80/90/100 + exceeded, scope category/credit_card, read_at/email_sent
 │   │   │   │   │
 │   │   │   │   ├── repositories/               # Camada de acesso a dados (queries SQL)
-│   │   │   │   │   ├── category.py             # CategoriaRepository: CRUD categorias + sincronização de subcategorias (só flush; erros de domínio)
+│   │   │   │   │   ├── category.py             # CategoriaRepository: CRUD categorias + sincronização de subcategorias; get_by_nome_for_entity (nome na natureza PF/PJ, senão 'all'); renomear só conflita na mesma natureza (só flush; erros de domínio)
 │   │   │   │   │   ├── subcategory.py          # SubcategoriaRepository: CRUD subcategorias, criação em lote (só flush)
 │   │   │   │   │   ├── transaction.py          # TransacaoRepository: CRUD (flush, sem commit) + parcelas + detecção de duplicatas + listagem paginada por cursor (list_page com busca por texto, valor pt-BR e nome do banco do usuário; TransactionCursor/Filters/Page) + importação de extrato em lote (create_batch_from_extract, insert em savepoint) + assign_random_banks
 │   │   │   │   │   ├── dashboard.py            # DashboardRepository: queries agregadas (gastos, rendimento, extrato com agregados dos gráficos numa query GROUP BY)
 │   │   │   │   │   ├── overview.py             # DashboardOverviewRepository: dashboard geral (totais, progresso mês e cartão numa única agregação SQL — MonthAggregates; status limites, parcelas, recorrentes; metas/compras só admin)
 │   │   │   │   │   ├── limits.py               # LimitsRepository: leitura de limites e gastos do mês (a atualização em lote é do LimitsService)
-│   │   │   │   │   ├── recurring_account.py    # ContaRecorrenteRepository: CRUD + geração de parcelas + renovação (só flush)
-│   │   │   │   │   ├── goal.py                 # MetaRepository: CRUD metas + cálculo de progresso baseado em transações
+│   │   │   │   │   ├── recurring_account.py    # ContaRecorrenteRepository: CRUD + geração de parcelas + renovação; edição propaga PROPAGATED_FIELDS e o novo due_day às parcelas do mês corrente em diante (_update_future_transactions) (só flush)
+│   │   │   │   │   ├── goal.py                 # MetaRepository: CRUD metas + cálculo de progresso baseado em transações; excluir meta com lançamentos → ConflictError
 │   │   │   │   │   ├── shopping.py             # ShoppingRepository: CRUD lista de compras + migração de itens não marcados
 │   │   │   │   │   ├── settings.py             # SettingsRepository: perfil do usuário + gerenciamento de bancos (só flush)
 │   │   │   │   │   ├── limit_alert.py          # LimitAlertRepository: CRUD alertas de limite (create, list_for_user com notificações, mark read/read-all)
@@ -89,7 +89,7 @@ financas_app/
 │   │   │       ├── shopping_service.py         # ShoppingService: lista de compras do usuário (list_month com rollover, create/update/delete, generate_recurring); NotFoundError; só flush
 │   │   │       ├── settings_service.py         # SettingsService: perfil (nome, chave Pluggy cifrada), bancos e assign_random_banks do usuário; NotFoundError/ValidationError; só flush
 │   │   │       ├── recurring_installments.py    # installment_state: regra única (função pura) de parcela atual, "acabando" (>= 10ª) e pode renovar (<= 2 restantes)
-│   │   │       ├── recurring_account_service.py # RecurringAccountService: contas recorrentes do usuário (CRUD, renew); resolve/cria categoria e subcategoria por nome; avalia limites após o commit; só flush
+│   │   │       ├── recurring_account_service.py # RecurringAccountService: contas recorrentes do usuário (CRUD, renew só com can_renew senão 409); resolve/cria categoria e subcategoria por nome na natureza da conta; avalia limites após o commit; só flush
 │   │   │       ├── extract_service.py          # ExtractService: parse_upload (CSV/OFX por extensão ou conteúdo) e confirm (importação em lote, só flush; limites avaliados após o commit no mês mais antigo)
 │   │   │       ├── pluggy_sync_service.py      # PluggySyncService: contas, validar chave e sync do Pluggy do usuário (chave decifrada do usuário autenticado), dedupe pelo id do provedor (external_id) e aviso de duplicata só p/ linhas sem id; limites após o commit; pluggy_client_for
 │   │   │       ├── notification_service.py     # NotificationService: alertas de limite do usuário (list_notifications, mark_read, mark_all_read); só altera linhas carregadas, commit da unit of work
@@ -141,6 +141,7 @@ financas_app/
 │   │   │   ├── test_goal_service.py            # GoalService: nada comitado antes do UoW, rollback desfaz a categoria "Metas", 409 em nome duplicado, isolamento entre usuários, concluir/reativar
 │   │   │   ├── test_shopping_service.py        # ShoppingService: nada comitado antes do UoW, rollback, isolamento entre usuários, completed_at ao marcar, rollover do mês
 │   │   │   ├── test_settings_service.py        # SettingsService: rollback, bancos isolados por usuário, chave Pluggy cifrada/removida, assign_random_banks só com os bancos do usuário
+│   │   │   ├── test_validation_findings.py # Regressões da validação PF/PJ de 2026-11-17: categoria por nome na natureza, renomear por natureza, meta com aporte 409, renovar só com can_renew, edição da recorrente propaga do mês corrente
 │   │   │   ├── test_recurring_account_service.py # RecurringAccountService: rollback desfaz conta+parcelas+categoria, nomes resolvidos, 422, isolamento, desativar cancela futuras, limites avaliados após commit
 │   │   │   ├── test_extract_service.py         # ExtractService: parse (extensão/conteúdo/OFX hostil), confirm só flush + rollback, limites após commit no mês mais antigo, falha do lote vira erro sem poluir a sessão
 │   │   │   ├── test_postgres_integration.py    # Marcador `postgres` (TEST_POSTGRES_URL; pulado sem ele): schema recriado + alembic upgrade head; parcelas em lote, advisory lock, savepoints (limites e lote de extrato), índice único parcial do id do provedor, paginação por cursor
@@ -281,7 +282,7 @@ financas_app/
 │       │   │   │   ├── LimitEditSheet.tsx        # Folha de edição de um limite: nome, valor com teclado decimal, subcategorias, excluir com confirmação
 │       │   │   │   ├── LimitEditSheet.test.tsx   # Testes da folha de edição
 │       │   │   │   ├── RecorrentesTab.tsx        # Aba de contas recorrentes
-│       │   │   │   ├── MetasTab.tsx              # Aba de metas financeiras
+│       │   │   │   ├── MetasTab.tsx              # Aba de metas financeiras (exclusão recusada mostra o motivo do servidor)
 │       │   │   │   ├── ComprasTab.tsx            # Aba de lista de compras
 │       │   │   │   └── ContaForm.tsx             # Formulário de criação/edição de conta recorrente
 │       │   │   │
@@ -320,7 +321,7 @@ financas_app/
 │       │   │   ├── Investments.tsx             # Página de investimentos (placeholder)
 │       │   │   ├── Limits.tsx                  # Página de limites: tabs por role no desktop; chips (Categorias/Recorrentes/Metas/Compras) + PF/PJ segmentado no mobile
 │       │   │   ├── Limits.test.tsx             # Testes das abas por role (user: sem Metas/Compras)
-│       │   │   ├── RecurrentBills.tsx          # Página de contas recorrentes: lista (react-query) + CRUD que invalida contas e lançamentos (+ RecurrentBills.test.tsx)
+│       │   │   ├── RecurrentBills.tsx          # Página de contas recorrentes: filtro Ambos/PF/PJ, lista (react-query) + CRUD que invalida contas e lançamentos (+ RecurrentBills.test.tsx)
 │       │   │   ├── BankExtract.tsx             # Página de extrato bancário (orquestra os hooks e subcomponentes de components/extract); categorias/bancos via react-query (+ BankExtract.test.tsx)
 │       │   │   ├── Settings.tsx                # Página de configurações: perfil + bancos + Pluggy
 │       │   │   ├── Login.tsx                   # Login email/senha (Supabase) — teste ao lado
@@ -334,7 +335,7 @@ financas_app/
 │       │   │   ├── financialService.ts          # Transações, dashboard, categorias, limites (getLimits/saveLimits/getLimitsWithSpending)
 │       │   │   ├── overviewService.ts            # Dashboard geral (OverviewDashboard) — GET /dashboard/overview
 │       │   │   ├── recurringAccountService.ts   # Contas recorrentes
-│       │   │   ├── goalsService.ts              # Metas financeiras
+│       │   │   ├── goalsService.ts              # Metas financeiras; GoalDeleteRefusedError quando o servidor recusa excluir (409)
 │       │   │   ├── shoppingService.ts           # Lista de compras
 │       │   │   ├── extractService.ts            # Upload e confirmação de extratos
 │       │   │   ├── settingsService.ts           # Perfil do usuário e bancos
