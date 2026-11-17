@@ -1,5 +1,6 @@
 """Regressions found in the 2026-11-17 end-to-end validation (PF/PJ)."""
 
+import calendar
 from datetime import datetime
 
 import pytest
@@ -247,3 +248,50 @@ async def test_editing_a_recurring_account_updates_installments_from_this_month_
         and r.description.startswith("Aluguel novo")
         for r in current_and_future
     )
+
+
+@pytest.mark.asyncio
+async def test_changing_the_due_day_moves_installments_from_this_month_on(client, async_session):
+    """A new due day moves current and future installments (capped at the month's last day); past ones stay."""
+    _cat, cat_id, sub_id = await create_categoria_with_sub(client, "Internet")
+    account = (
+        await client.post(
+            "/recurring-accounts/",
+            json={
+                "description": "Fibra",
+                "amount": 120.0,
+                "due_day": 5,
+                "category_id": cat_id,
+                "subcategory_id": sub_id,
+                "entity_type": "business",
+                "payment_method": "debit",
+                "start_date": _months_ago_first_day(2).isoformat(),
+            },
+        )
+    ).json()
+
+    response = await client.put(f"/recurring-accounts/{account['id']}", json={"due_day": 31})
+    assert response.status_code == 200
+    assert response.json()["due_day"] == 31
+
+    rows = (
+        (
+            await async_session.execute(
+                select(TransactionORM)
+                .where(TransactionORM.recurring_account_id == account["id"])
+                .order_by(TransactionORM.transaction_date)
+            )
+        )
+        .unique()
+        .scalars()
+        .all()
+    )
+    cutoff = _months_ago_first_day(0)
+    past = [r for r in rows if r.transaction_date < cutoff]
+    current_and_future = [r for r in rows if r.transaction_date >= cutoff]
+    assert [r.transaction_date.day for r in past] == [5, 5]
+    for row in current_and_future:
+        last_day = calendar.monthrange(row.transaction_date.year, row.transaction_date.month)[1]
+        assert row.transaction_date.day == last_day
+    months = [(r.transaction_date.year, r.transaction_date.month) for r in rows]
+    assert len(months) == len(set(months)) == 12

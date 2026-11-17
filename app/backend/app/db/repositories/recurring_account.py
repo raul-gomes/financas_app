@@ -145,8 +145,9 @@ class ContaRecorrenteRepository:
 
         # Edited fields apply to the installments from the current month on; past ones keep theirs
         propagated = {field: data[field] for field in PROPAGATED_FIELDS if field in data}
-        if propagated and data.get("active") is not False:
-            await self._update_future_transactions(conta, propagated)
+        new_due_day = data.get("due_day")
+        if (propagated or new_due_day) and data.get("active") is not False:
+            await self._update_future_transactions(conta, propagated, new_due_day)
 
         # If deactivating, cancel future transactions
         if was_active and data.get("active") is False:
@@ -287,8 +288,14 @@ class ContaRecorrenteRepository:
 
     # ── Helpers ───────────────────────────────────────────
 
-    async def _update_future_transactions(self, conta: RecurringAccountORM, changes: dict) -> None:
-        """Applies the account's edited fields to its installments from the current month on."""
+    async def _update_future_transactions(
+        self, conta: RecurringAccountORM, changes: dict, due_day: int | None = None
+    ) -> None:
+        """Applies the account's edits to its installments from the current month on.
+
+        A new ``due_day`` moves each of those installments to that day of its own month,
+        capped at the month's last day (same rule as generation).
+        """
         stmt = select(TransactionORM).where(
             TransactionORM.recurring_account_id == conta.id,
             TransactionORM.transaction_date >= _current_month_start(),
@@ -297,6 +304,10 @@ class ContaRecorrenteRepository:
         for transaction in futures:
             for field, value in changes.items():
                 setattr(transaction, field, value)
+            if due_day:
+                current = transaction.transaction_date
+                last_day = calendar.monthrange(current.year, current.month)[1]
+                transaction.transaction_date = current.replace(day=min(due_day, last_day))
         if futures:
             await self.db.flush()
 
