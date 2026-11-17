@@ -33,8 +33,8 @@ const category = (id: number, name: string, percent: number, status: 'ok' | 'war
 const DATA: OverviewResponse = {
   reference_month: '11/2026',
   entity_type: 'all',
-  totals: { total_income: 10120, total_expenses: 8879.5, total_invested: 200, balance: 1240.5 },
-  month_progress: { day: 14, days_in_month: 30, percent: 0.47, income_up_to_today: 5000, expenses_up_to_today: 900, balance: 1600 },
+  totals: { total_income: 10120, total_expenses: 8879.5, total_invested: 200, total_outflows: 9079.5, balance: 1040.5 },
+  month_progress: { day: 14, days_in_month: 30, percent: 0.47, income_up_to_today: 5000, expenses_up_to_today: 900, outflows_up_to_today: 1000, balance: 1500 },
   credit_card: { limit: 45000, used: 3200, remaining: 41800, percent_used: 7 },
   categories_status: [
     category(1, 'Financiamentos', 74, 'warning'),
@@ -90,9 +90,10 @@ describe('OverviewMobile', () => {
     renderMobile();
     const hero = screen.getByTestId('hero-balance');
     expect(hero.textContent).toContain('Saldo do mês');
-    expect(hero.textContent).toMatch(/R\$\s1\.240,50/);
+    expect(hero.textContent).toMatch(/R\$\s1\.040,50/);
     expect(hero.textContent).toMatch(/Entradas\s*R\$\s10\.120,00/);
-    expect(hero.textContent).toMatch(/Saídas\s*R\$\s8\.879,50/);
+    // Saídas = despesas + investimentos
+    expect(hero.textContent).toMatch(/Saídas\s*R\$\s9\.079,50/);
   });
 
   it('shows the month progress with the card usage', () => {

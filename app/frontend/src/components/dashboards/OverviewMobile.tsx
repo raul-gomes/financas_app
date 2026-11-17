@@ -110,7 +110,7 @@ export function OverviewMobile({ data, entityType, onEntityTypeChange, isAdmin }
           </div>
           <div className="rounded-xl bg-primary-foreground/15 px-2.5 py-2">
             <p className="text-xs opacity-85">Saídas</p>
-            <p className="text-sm font-bold">{formatCurrency(totals.total_expenses)}</p>
+            <p className="text-sm font-bold">{formatCurrency(totals.total_outflows)}</p>
           </div>
         </div>
       </Card>

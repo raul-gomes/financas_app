@@ -16,14 +16,15 @@ vi.mock('@/services/overviewService', () => ({
 const baseOverview: OverviewResponse = {
   reference_month: '09/2026',
   entity_type: 'all',
-  totals: { total_income: 5000, total_expenses: 3200, total_invested: 200, balance: 1800 },
+  totals: { total_income: 5000, total_expenses: 3200, total_invested: 200, total_outflows: 3400, balance: 1600 },
   month_progress: {
     day: 12,
     days_in_month: 30,
     percent: 0.4,
     income_up_to_today: 2500,
     expenses_up_to_today: 900,
-    balance: 1600,
+    outflows_up_to_today: 1100,
+    balance: 1400,
   },
   credit_card: { limit: 10000, used: 3000, remaining: 7000, percent_used: 30 },
   categories_status: [
@@ -113,8 +114,10 @@ describe('OverviewDashboard', () => {
     await waitFor(() => {
       expect(screen.getByText("Entradas")).toBeTruthy();
     });
-    expect(screen.getByText(/R\$\s3\.200,00/)).toBeTruthy();
-    expect(screen.getByText(/R\$\s1\.800,00/)).toBeTruthy();
+    // Saídas = despesas + investimentos; saldo = entradas - saídas
+    expect(screen.getByText(/R\$\s3\.400,00/)).toBeTruthy();
+    expect(screen.getByText(/Até hoje: R\$\s1\.100,00/)).toBeTruthy();
+    expect(screen.getAllByText(/R\$\s1\.600,00/).length).toBeGreaterThan(0);
     expect(screen.getAllByText('30%').length).toBeGreaterThan(0);
   });
 

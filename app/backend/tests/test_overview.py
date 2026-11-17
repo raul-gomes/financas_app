@@ -64,7 +64,26 @@ async def test_overview_totals_receitas_despesas_investimentos(client):
     assert data["totals"]["total_income"] == pytest.approx(3000.0)
     assert data["totals"]["total_expenses"] == pytest.approx(800.0)
     assert data["totals"]["total_invested"] == pytest.approx(200.0)
-    assert data["totals"]["balance"] == pytest.approx(2200.0)
+    # Saídas = despesas + investimentos (the investment category tells them apart)
+    assert data["totals"]["total_outflows"] == pytest.approx(1000.0)
+    assert data["totals"]["balance"] == pytest.approx(2000.0)
+
+
+@pytest.mark.asyncio
+async def test_overview_month_progress_counts_investments_as_outflows(client):
+    cat_id, sub_id = await _create_cat(client, "Alim", "individual", 1000.0)
+    await _add_tx(client, 3000.0, "income", "individual", sub_id, cat_id)
+    await _add_tx(client, 800.0, "expense", "individual", sub_id, cat_id)
+    await _add_tx(client, 200.0, "investment", "individual", sub_id, cat_id)
+
+    mp = (await client.get("/dashboard/overview?year=2026&month=9&entity_type=all")).json()[
+        "month_progress"
+    ]
+
+    # September 2026 is past: "up to today" covers the whole month
+    assert mp["expenses_up_to_today"] == pytest.approx(800.0)
+    assert mp["outflows_up_to_today"] == pytest.approx(1000.0)
+    assert mp["balance"] == pytest.approx(2000.0)
 
 
 @pytest.mark.asyncio

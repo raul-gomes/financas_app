@@ -281,9 +281,9 @@ describe('OverviewService boundary', () => {
   const overview: OverviewResponse = {
     reference_month: '05/2026',
     entity_type: 'all',
-    totals: { total_income: 1, total_expenses: 1, total_invested: 0, balance: 0 },
+    totals: { total_income: 1, total_expenses: 1, total_invested: 0, total_outflows: 1, balance: 0 },
     month_progress: {
-      day: 1, days_in_month: 31, percent: 0.03, income_up_to_today: 0, expenses_up_to_today: 0, balance: 0,
+      day: 1, days_in_month: 31, percent: 0.03, income_up_to_today: 0, expenses_up_to_today: 0, outflows_up_to_today: 0, balance: 0,
     },
     credit_card: { limit: 10, used: 1, remaining: 9, percent_used: 10 },
     categories_status: [],

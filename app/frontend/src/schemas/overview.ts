@@ -10,6 +10,8 @@ export const overviewResponseSchema = z.object({
     total_income: z.number(),
     total_expenses: z.number(),
     total_invested: z.number(),
+    /** Saídas: despesas + investimentos. */
+    total_outflows: z.number(),
     balance: z.number(),
   }),
   month_progress: z.object({
@@ -18,6 +20,7 @@ export const overviewResponseSchema = z.object({
     percent: z.number(),
     income_up_to_today: z.number(),
     expenses_up_to_today: z.number(),
+    outflows_up_to_today: z.number(),
     balance: z.number(),
   }),
   credit_card: z.object({

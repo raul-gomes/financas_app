@@ -8,9 +8,10 @@ class TotaisOverview(BaseModel):
     """Totais agregados do mês (Indicadores principais da tela)."""
 
     total_income: float = Field(..., description="Total de entradas no mês")
-    total_expenses: float = Field(..., description="Total de saídas no mês")
+    total_expenses: float = Field(..., description="Total de despesas no mês (sem investimentos)")
     total_invested: float = Field(..., description="Total investido no mês")
-    balance: float = Field(..., description="Saldo do mês (entradas - saídas)")
+    total_outflows: float = Field(..., description="Saídas do mês: despesas + investimentos")
+    balance: float = Field(..., description="Saldo do mês (entradas - saídas, com investimentos)")
 
 
 class MonthProgressOverview(BaseModel):
@@ -20,8 +21,11 @@ class MonthProgressOverview(BaseModel):
     days_in_month: int = Field(..., description="Total de dias do mês")
     percent: float = Field(..., description="Percentual de dias decorridos (0-1)")
     income_up_to_today: float = Field(..., description="Entradas até o dia atual")
-    expenses_up_to_today: float = Field(..., description="Saídas até o dia atual")
-    balance: float = Field(..., description="Saldo acumulado até o dia atual")
+    expenses_up_to_today: float = Field(..., description="Despesas até o dia atual")
+    outflows_up_to_today: float = Field(
+        ..., description="Saídas (despesas + investimentos) até o dia atual"
+    )
+    balance: float = Field(..., description="Saldo acumulado até o dia atual (entradas - saídas)")
 
 
 class CreditCardOverview(BaseModel):

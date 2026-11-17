@@ -43,6 +43,7 @@ class MonthAggregates:
     invested: float
     income_to_date: float
     expenses_to_date: float
+    invested_to_date: float
     credit_used: float
     credit_limit: float
 
@@ -163,6 +164,9 @@ class DashboardOverviewRepository:
             amount_where(TransactionORM.type == "investment").label("invested"),
             amount_where(is_income, until_cutoff).label("income_to_date"),
             amount_where(is_expense, until_cutoff).label("expenses_to_date"),
+            amount_where(TransactionORM.type == "investment", until_cutoff).label(
+                "invested_to_date"
+            ),
             amount_where(is_expense, TransactionORM.payment_method == "credit").label(
                 "credit_used"
             ),
@@ -183,18 +187,24 @@ class DashboardOverviewRepository:
             invested=float(row.invested),
             income_to_date=float(row.income_to_date),
             expenses_to_date=float(row.expenses_to_date),
+            invested_to_date=float(row.invested_to_date),
             credit_used=float(row.credit_used),
             credit_limit=float(row.credit_limit or 0),
         )
 
     @staticmethod
     def _totals(agg: MonthAggregates) -> TotaisOverview:
-        """Month totals (income, expenses, invested, balance) from the SQL aggregates."""
+        """Month totals from the SQL aggregates.
+
+        Saídas (outflows) = expenses + investments; the balance is income minus outflows.
+        """
+        outflows = agg.expenses + agg.invested
         return TotaisOverview(
             total_income=round(agg.income, 2),
             total_expenses=round(agg.expenses, 2),
             total_invested=round(agg.invested, 2),
-            balance=round(agg.income - agg.expenses, 2),
+            total_outflows=round(outflows, 2),
+            balance=round(agg.income - outflows, 2),
         )
 
     @staticmethod
@@ -208,7 +218,8 @@ class DashboardOverviewRepository:
             percent=round(day / days_in_month, 2),
             income_up_to_today=round(agg.income_to_date, 2),
             expenses_up_to_today=round(agg.expenses_to_date, 2),
-            balance=round(agg.income_to_date - agg.expenses_to_date, 2),
+            outflows_up_to_today=round(agg.expenses_to_date + agg.invested_to_date, 2),
+            balance=round(agg.income_to_date - agg.expenses_to_date - agg.invested_to_date, 2),
         )
 
     @staticmethod
