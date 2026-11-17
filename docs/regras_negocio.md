@@ -34,6 +34,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 #### Criação
 - **Obrigatórios:** `amount > 0`, `description`, `transaction_date`, `type` (income/expense/investment), `entity_type` (individual/business), `payment_method`
 - **Categoria/Subcategoria:** Aceita `category_id` OU `category_name` (auto-cria se não existir); idem para subcategoria
+- **Categoria por nome respeita a natureza:** `category_name` procura a categoria com esse nome **da natureza da transação** (PF ou PJ) e, se não houver, uma com `entity_type=all`; nunca usa a da outra natureza. Sem nenhuma, cria na natureza da transação. Vale também para contas recorrentes (na edição sem `entity_type`, usa a natureza da conta). Antes, uma saída PJ com o nome de uma categoria PF caía na categoria PF (corrigido em 2026-11-17)
 - **Parcelamento:** Se `total_installments > 1` → gera N transações com mesmo `group_id` (UUID), datas +1 mês (preserva dia, clamp no último dia do mês), descrição `"desc - parcela i/N"`, última parcela ajustada para compensar arredondamento
 - **group_id:** UUID único por grupo de parcelas (ou transação única)
 - **is_installment:** Boolean indicando se é parcela
@@ -72,6 +73,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 
 #### Unicidade
 - **Constraint:** `UNIQUE(name, entity_type)` — mesmo nome permitido para PF e PJ
+- **Renomear** (PUT `/categories/{id}` e `modified` de `PUT /limits`) só conflita com outra categoria **da mesma natureza** (antes conflitava com a de outra natureza)
 - **entity_type:** `individual` | `business`
 - **type:** `income` | `expense` | `investment` | `NULL` (categorias especiais: "Mensal PF", "Mensal PJ", "Limite Cartao Credito", "Metas")
 
@@ -109,7 +111,12 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 - **`can_renew`**: conta inativa, ou com no máximo 2 parcelas restantes (`CAN_RENEW_MAX_REMAINING`); caso contrário o botão Renovar fica desabilitado ("Ainda há parcelas restantes")
 - O frontend só lê `current_installment`, `is_ending_soon` e `can_renew` da API
 
+#### Edição (`PUT /{id}`)
+- Os campos `amount`, `description`, `category_id`, `subcategory_id`, `entity_type`, `payment_method` e `bank_code` editados valem para as parcelas **do mês corrente em diante** (data ≥ 1º dia do mês); as passadas ficam como estavam (decidido em 2026-11-17; antes a edição não mudava nenhuma parcela)
+- Mudar `due_day` ou `start_date` não move as parcelas já geradas
+
 #### Renovação (`POST /{id}/renew`)
+- **Só quando `can_renew`** (conta inativa ou com no máximo 2 parcelas restantes); senão 409 "Ainda há parcelas restantes" (antes só o botão ficava desativado e a API renovava)
 - Reativa conta (`active=true`)
 - Move `start_date` para mês atual (ou próximo se já tem parcela neste mês)
 - Gera +12 novas parcelas
@@ -131,7 +138,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 #### CRUD
 - `POST /goals` → cria subcategoria na cat "Metas" com `target_amount`
 - `PUT /goals/{id}` → atualiza nome e/ou `target_amount`
-- `DELETE /goals/{id}` → deleta subcategoria
+- `DELETE /goals/{id}` → deleta subcategoria; meta com lançamentos vinculados **não pode ser excluída** (409 "Meta possui lançamentos vinculados", nada é alterado; antes dava erro 500 no Postgres). A tela mostra esse motivo
 
 #### Status
 - `PUT /goals/{id}/complete` → `completed=true`, `completed_at=hoje`

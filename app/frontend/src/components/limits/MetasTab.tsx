@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Target, PlusCircle, Pencil, Trash2, CheckCircle2, Search, RotateCcw, Save } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { MetasService } from '@/services/goalsService'
+import { GoalDeleteRefusedError, MetasService } from '@/services/goalsService'
 import type { Meta } from '@/types/goals'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -77,8 +77,10 @@ export const MetasTab = ({ entityTypeFilter = 'all' }: MetasTabProps) => {
             await MetasService.delete(id)
             toast({ title: 'Sucesso', description: 'Meta excluída!' })
             loadMetas()
-        } catch {
-            toast({ title: 'Erro', description: 'Falha ao excluir meta.', variant: 'destructive' })
+        } catch (error) {
+            // A refusal (goal with contributions) carries the reason; anything else stays generic
+            const reason = error instanceof GoalDeleteRefusedError ? error.message : 'Falha ao excluir meta.'
+            toast({ title: 'Erro', description: reason, variant: 'destructive' })
         }
     }
 

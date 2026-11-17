@@ -217,7 +217,9 @@ class TransacaoRepository:
             if not categoria:
                 raise ValidationError("Categoria não encontrada")
         else:
-            categoria = await self.categoria_repo.get_by_nome(obj_in.category_name, user_id)
+            categoria = await self.categoria_repo.get_by_nome_for_entity(
+                obj_in.category_name, obj_in.entity_type, user_id
+            )
             if not categoria:
                 # Cria a categoria com o nome exato enviado e tipo = tipo da transação
                 categoria = await self.categoria_repo.create(
@@ -423,7 +425,9 @@ class TransacaoRepository:
                 if not categoria:
                     raise ValidationError("Categoria não encontrada")
             else:
-                categoria = await self.categoria_repo.get_by_nome(obj_in.category_name, user_id)
+                categoria = await self.categoria_repo.get_by_nome_for_entity(
+                    obj_in.category_name, obj_in.entity_type or trans.entity_type, user_id
+                )
                 if not categoria:
                     categoria = await self.categoria_repo.create(
                         user_id,

@@ -5,7 +5,7 @@ Layering (see AGENTS.md): route -> service -> repository. Every repository call 
 route returns, and the limit-alert evaluation runs after that commit.
 """
 
-from app.core.errors import NotFoundError, UnprocessableError
+from app.core.errors import ConflictError, NotFoundError, UnprocessableError
 from app.core.unit_of_work import UnitOfWork
 from app.db.models.recurring_account import RecurringAccountORM
 from app.db.models.user import UserORM
@@ -18,10 +18,13 @@ from app.schemas.recurring_account import (
     ContaRecorrenteUpdate,
 )
 from app.schemas.subcategory import SubcategoriaCreate
+from app.services.recurring_installments import installment_state
 
 NOT_FOUND_MESSAGE = "Conta recorrente nao encontrada"
 CATEGORY_REQUIRED_MESSAGE = "category_id or category_name is required"
 SUBCATEGORY_REQUIRED_MESSAGE = "subcategory_id or subcategory_name is required"
+# Same rule the UI shows on the disabled button (can_renew).
+RENEW_NOT_ALLOWED_MESSAGE = "Ainda há parcelas restantes"
 AUTO_CATEGORY_TYPE = "expense"
 
 
@@ -60,7 +63,19 @@ class RecurringAccountService:
         Deactivating the account cancels its future transactions.
         """
         if payload.category_name or payload.subcategory_name:
-            await self._resolve_category_and_subcategory(payload)
+            fallback_entity_type = None
+            if (
+                payload.category_id is None
+                and payload.category_name
+                and payload.entity_type is None
+            ):
+                # Looking the category up by name needs the account's nature (PF/PJ)
+                fallback_entity_type = self._found(
+                    await self.repo.get_by_id(account_id, self.user.id)
+                ).entity_type
+            await self._resolve_category_and_subcategory(
+                payload, fallback_entity_type=fallback_entity_type
+            )
         return self._found(await self.repo.update(account_id, payload, self.user.id))
 
     async def delete(self, account_id: int) -> RecurringAccountORM:
@@ -69,10 +84,18 @@ class RecurringAccountService:
 
     async def renew(self, account_id: int) -> RecurringAccountORM:
         """Reactivates one of the user's accounts and generates 12 more installments."""
+        account = self._found(await self.repo.get_by_id(account_id, self.user.id))
+        state = installment_state(
+            account.total_installments, account.remaining_installments, active=account.active
+        )
+        if not state.can_renew:
+            raise ConflictError(RENEW_NOT_ALLOWED_MESSAGE)
         return self._found(await self.repo.renew(account_id, self.user.id))
 
     async def _resolve_category_and_subcategory(
-        self, payload: ContaRecorrenteCreate | ContaRecorrenteUpdate
+        self,
+        payload: ContaRecorrenteCreate | ContaRecorrenteUpdate,
+        fallback_entity_type: str | None = None,
     ) -> None:
         """Fills ``category_id``/``subcategory_id`` from the names, creating what is missing.
 
@@ -84,13 +107,17 @@ class RecurringAccountService:
         if category_id is None:
             if not payload.category_name:
                 raise UnprocessableError(CATEGORY_REQUIRED_MESSAGE)
-            category = await self.categories.get_by_nome(payload.category_name, user_id)
+            # The account's nature (PF/PJ) picks the category, never the other nature's one
+            entity_type = payload.entity_type or fallback_entity_type
+            category = await self.categories.get_by_nome_for_entity(
+                payload.category_name, entity_type, user_id
+            )
             if category is None:
                 category = await self.categories.create(
                     user_id,
                     CategoriaCreate(
                         category_name=payload.category_name,
-                        entity_type=payload.entity_type,
+                        entity_type=entity_type,
                         limit=0,
                         type=AUTO_CATEGORY_TYPE,
                     ),

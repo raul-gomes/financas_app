@@ -8,7 +8,7 @@ consolidados no fim.
 ## Decisões do dono (antes de codar)
 - [x] Nome do produto: **Placo** (DECIDIDO). FEITO no frontend: logo, favicon, manifest, título, `package.json`. Falta renomear o repo/pastas e os nomes de container (`financas-*`), o README do frontend (ainda é o do Lovable) e o remetente/textos de e-mail no backend.
 - [x] **MVP = o produto do usuário comum** (transações, categorias, limites, dashboards, configurações). As rotas só de admin (metas, compras, recorrentes, extrato, Pluggy, investimentos, export) são **implementações em andamento**, fora do MVP. DECIDIDO 2026-11-14.
-- [ ] Uso pessoal apenas, ou também empresarial?
+- [x] Uso pessoal apenas, ou também empresarial? **Uso pessoal** no início (DECIDIDO 2026-11-17).
 - [ ] Onde roda a produção hoje? (Não há dados de produção, confirmado em 2026-11-15.)
 - [ ] **Pluggy** (alta): a integração atual não funciona contra a API real (chave por usuário em vez de `client_id`/`client_secret` + `POST /auth`; `GET /accounts` sem `itemId`; data em UTC; fatura contada em dobro; pendentes, atualizações e exclusões ignoradas; truncamento silencioso). Análise, decisões do dono e fases em `docs/analise-pluggy.md`.
 - [x] Git flow: `develop` criada a partir de `mvp` e virou a branch padrão; `feature/*` → `develop`; `main` só por release. FEITO 2026-11-14.
@@ -37,6 +37,13 @@ consolidados no fim.
 - [x] **B4** (baixa) FEITO: `DATABASE_URL` ausente falha na partida com `RuntimeError` citando a variável (`require_database_url`); `sync_engine` removido (sem uso); texto padrão do Pluggy virou "Sincronizado" (a busca ainda reconhece o texto antigo) e `datetime.now(UTC)` em `pluggy_routes.py`.
 - [x] **B5** (alta) Import de OFX voltava vazio para qualquer arquivo (`_clean_ofx_tags` quebrava o XML; `DTPOSTED` com hora e fuso era descartado; decimal com vírgula falhava). FEITO: SGML 1.x e XML 2.x testados.
 - [x] **B6** (alta) Lote por nome (sync Pluggy) estourava `UnboundLocalError` ou gravava a subcategoria errada (chaves de cache diferentes entre os passos). FEITO.
+
+## Validação ponta a ponta PF/PJ (2026-11-17)
+Ambiente descartável (Postgres + seed de 18 meses), API cruzada com SQL em 8 meses × Ambos/PF/PJ (0 divergências) e 90 passos de escrita por natureza.
+- [x] FEITO: saída PJ por nome de categoria PF caía na categoria PF; renomear categoria conflitava com a outra natureza; excluir meta com aporte dava 500 (agora 409 com motivo na tela); "Renovar" ignorava `can_renew` na API; editar recorrente não mudava as parcelas (agora vale do mês corrente em diante).
+- [ ] **Saldo do mês com duas regras** (decisão do dono): Visão Geral = entradas − despesas; Financeiro ("Saídas" e "Balanço Mensal") = entradas − despesas − investimentos (`pages/Financial.tsx`). Escolher uma.
+- [ ] **Tela de Investimentos** é só "Em construção" (decisão do dono: construir agora ou depois). Os investimentos já entram nos totais e nas metas.
+- [ ] Recorrentes no computador: lista única de PF e PJ, sem filtro nem coluna de natureza.
 
 ## Qualidade
 - [x] **Q15** (média) FEITO 2026-11-15: o backend é o único dono das parcelas das contas recorrentes (decisão do dono; sem dados em produção, sem compatibilidade). Removido `POST /recurring-accounts/generate` de ponta a ponta (rota, serviço, repositório, schemas, `ContaRecorrenteService.generate`, `useRecurringGeneration`, gate `recurringReady` em Financeiro/Visão Geral): criar/renovar a conta já insere todas as parcelas. Regra única do estado (`app/services/recurring_installments.py`): `is_ending_soon` = ativa e `current_installment >= 10` e restantes > 0; novo campo `can_renew` (inativa, ou no máximo 2 restantes). O frontend só lê `current_installment`/`is_ending_soon`/`can_renew` (apagado `lib/recurringBills.ts`). Mudança de comportamento: a Visão Geral marcava "Acabando" com 1-2 restantes; agora segue o texto da tela (a partir da 10ª de 12).

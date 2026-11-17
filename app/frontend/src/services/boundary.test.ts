@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ApiSchemaError } from '@/lib/parse';
 import { FinancialService } from './financialService';
-import { MetasService } from './goalsService';
+import { GoalDeleteRefusedError, MetasService } from './goalsService';
 import { NotificationService } from './notificationService';
 import { OverviewService } from './overviewService';
 import { ContaRecorrenteService } from './recurringAccountService';
@@ -227,6 +227,25 @@ describe('MetasService boundary', () => {
     await expect(MetasService.concluir(1)).rejects.toBeInstanceOf(ApiSchemaError);
     respondWith([{ ...progress, progress: null }]);
     await expect(MetasService.progresso(2026, 5)).rejects.toBeInstanceOf(ApiSchemaError);
+  });
+});
+
+describe('MetasService.delete refusal', () => {
+  it('surfaces the server reason when a goal with contributions cannot be deleted (409)', async () => {
+    mockApiFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: async () => ({ detail: 'Meta possui lançamentos vinculados' }),
+      text: async () => '',
+    });
+    const refusal = MetasService.delete(1);
+    await expect(refusal).rejects.toBeInstanceOf(GoalDeleteRefusedError);
+    await expect(refusal).rejects.toThrow('Meta possui lançamentos vinculados');
+  });
+
+  it('keeps the generic message for other failures', async () => {
+    mockApiFetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}), text: async () => '' });
+    await expect(MetasService.delete(1)).rejects.toThrow('Erro 500 ao excluir meta');
   });
 });
 

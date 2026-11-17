@@ -13,6 +13,8 @@ from app.db.models.transaction import TransactionORM
 from app.logger import log_database_operation
 from app.schemas.goals import MetaCreate, MetaUpdate
 
+GOAL_HAS_TRANSACTIONS_MESSAGE = "Meta possui lançamentos vinculados"
+
 METAS_CATEGORIA_NOME = "Metas"
 
 
@@ -153,6 +155,14 @@ class MetaRepository:
         if not meta or meta.target_amount is None:
             log.warning(f"Meta {meta_id} não encontrada")
             return None
+
+        has_contributions = (
+            await self.db.execute(
+                select(TransactionORM.id).where(TransactionORM.subcategory_id == meta.id).limit(1)
+            )
+        ).first()
+        if has_contributions:
+            raise ConflictError(GOAL_HAS_TRANSACTIONS_MESSAGE)
 
         await self.db.delete(meta)
         await self.db.flush()
