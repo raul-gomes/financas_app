@@ -41,9 +41,10 @@ consolidados no fim.
 ## Validação ponta a ponta PF/PJ (2026-11-17)
 Ambiente descartável (Postgres + seed de 18 meses), API cruzada com SQL em 8 meses × Ambos/PF/PJ (0 divergências) e 90 passos de escrita por natureza.
 - [x] FEITO: saída PJ por nome de categoria PF caía na categoria PF; renomear categoria conflitava com a outra natureza; excluir meta com aporte dava 500 (agora 409 com motivo na tela); "Renovar" ignorava `can_renew` na API; editar recorrente não mudava as parcelas (agora vale do mês corrente em diante).
-- [ ] **Saldo do mês com duas regras** (decisão do dono): Visão Geral = entradas − despesas; Financeiro ("Saídas" e "Balanço Mensal") = entradas − despesas − investimentos (`pages/Financial.tsx`). Escolher uma.
-- [ ] **Tela de Investimentos** é só "Em construção" (decisão do dono: construir agora ou depois). Os investimentos já entram nos totais e nas metas.
-- [ ] Recorrentes no computador: lista única de PF e PJ, sem filtro nem coluna de natureza.
+- [x] **Saldo do mês com duas regras**: DECIDIDO (2026-11-17) saídas = despesas + investimentos. FEITO: a Visão Geral (computador e celular) passou a usar `total_outflows` e o saldo entradas − saídas, como o Financeiro.
+- [ ] **Tela de Investimentos** é só "Em construção": fica para depois (decisão do dono, 2026-11-17). Os investimentos já entram nos totais e nas metas.
+- [x] FEITO: filtro Ambos/PF/PJ na página Recorrentes do computador (lista e cards de resumo).
+- [x] FEITO: mudar o vencimento de uma recorrente move as parcelas do mês corrente em diante.
 
 ## Qualidade
 - [x] **Q15** (média) FEITO 2026-11-15: o backend é o único dono das parcelas das contas recorrentes (decisão do dono; sem dados em produção, sem compatibilidade). Removido `POST /recurring-accounts/generate` de ponta a ponta (rota, serviço, repositório, schemas, `ContaRecorrenteService.generate`, `useRecurringGeneration`, gate `recurringReady` em Financeiro/Visão Geral): criar/renovar a conta já insere todas as parcelas. Regra única do estado (`app/services/recurring_installments.py`): `is_ending_soon` = ativa e `current_installment >= 10` e restantes > 0; novo campo `can_renew` (inativa, ou no máximo 2 restantes). O frontend só lê `current_installment`/`is_ending_soon`/`can_renew` (apagado `lib/recurringBills.ts`). Mudança de comportamento: a Visão Geral marcava "Acabando" com 1-2 restantes; agora segue o texto da tela (a partir da 10ª de 12).

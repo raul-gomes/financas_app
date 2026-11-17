@@ -40,7 +40,7 @@ financas_app/
 │   │   │   │   │   ├── dashboard.py            # DashboardRepository: queries agregadas (gastos, rendimento, extrato com agregados dos gráficos numa query GROUP BY)
 │   │   │   │   │   ├── overview.py             # DashboardOverviewRepository: dashboard geral (totais, progresso mês e cartão numa única agregação SQL — MonthAggregates; status limites, parcelas, recorrentes; metas/compras só admin)
 │   │   │   │   │   ├── limits.py               # LimitsRepository: leitura de limites e gastos do mês (a atualização em lote é do LimitsService)
-│   │   │   │   │   ├── recurring_account.py    # ContaRecorrenteRepository: CRUD + geração de parcelas + renovação; edição propaga PROPAGATED_FIELDS às parcelas do mês corrente em diante (_update_future_transactions) (só flush)
+│   │   │   │   │   ├── recurring_account.py    # ContaRecorrenteRepository: CRUD + geração de parcelas + renovação; edição propaga PROPAGATED_FIELDS e o novo due_day às parcelas do mês corrente em diante (_update_future_transactions) (só flush)
 │   │   │   │   │   ├── goal.py                 # MetaRepository: CRUD metas + cálculo de progresso baseado em transações; excluir meta com lançamentos → ConflictError
 │   │   │   │   │   ├── shopping.py             # ShoppingRepository: CRUD lista de compras + migração de itens não marcados
 │   │   │   │   │   ├── settings.py             # SettingsRepository: perfil do usuário + gerenciamento de bancos (só flush)
@@ -321,7 +321,7 @@ financas_app/
 │       │   │   ├── Investments.tsx             # Página de investimentos (placeholder)
 │       │   │   ├── Limits.tsx                  # Página de limites: tabs por role no desktop; chips (Categorias/Recorrentes/Metas/Compras) + PF/PJ segmentado no mobile
 │       │   │   ├── Limits.test.tsx             # Testes das abas por role (user: sem Metas/Compras)
-│       │   │   ├── RecurrentBills.tsx          # Página de contas recorrentes: lista (react-query) + CRUD que invalida contas e lançamentos (+ RecurrentBills.test.tsx)
+│       │   │   ├── RecurrentBills.tsx          # Página de contas recorrentes: filtro Ambos/PF/PJ, lista (react-query) + CRUD que invalida contas e lançamentos (+ RecurrentBills.test.tsx)
 │       │   │   ├── BankExtract.tsx             # Página de extrato bancário (orquestra os hooks e subcomponentes de components/extract); categorias/bancos via react-query (+ BankExtract.test.tsx)
 │       │   │   ├── Settings.tsx                # Página de configurações: perfil + bancos + Pluggy
 │       │   │   ├── Login.tsx                   # Login email/senha (Supabase) — teste ao lado

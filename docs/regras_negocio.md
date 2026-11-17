@@ -113,7 +113,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 
 #### Edição (`PUT /{id}`)
 - Os campos `amount`, `description`, `category_id`, `subcategory_id`, `entity_type`, `payment_method` e `bank_code` editados valem para as parcelas **do mês corrente em diante** (data ≥ 1º dia do mês); as passadas ficam como estavam (decidido em 2026-11-17; antes a edição não mudava nenhuma parcela)
-- Mudar `due_day` ou `start_date` não move as parcelas já geradas
+- Mudar `due_day` move as parcelas do mês corrente em diante para o novo dia de cada mês (limitado ao último dia, como na geração); as passadas ficam. Mudar `start_date` não move parcelas
 
 #### Renovação (`POST /{id}/renew`)
 - **Só quando `can_renew`** (conta inativa ou com no máximo 2 parcelas restantes); senão 409 "Ainda há parcelas restantes" (antes só o botão ficava desativado e a API renovava)
@@ -173,6 +173,7 @@ O **financas_app** é um sistema de gestão financeira pessoal/empresarial com:
 - Retorna: `total_income`, `total_expenses`, `monthly_goal`, `credit_card_limit`, `total_invested`, `fixed_expenses` (com `recurring_account_id`), `variable_expenses` (sem lista de transações: as linhas do período vêm de `GET /transacoes/paginated`)
 - **Agregados para os gráficos (calculados no SQL, nunca somando as linhas):** `daily_totals` (entradas/saídas/investimentos por dia, só dias com dados, `YYYY-MM-DD`), `expenses_by_payment_method` (saídas por forma de pagamento), `expenses_by_bank` (saídas por forma de pagamento e banco; `bank_name` vem dos bancos do próprio usuário, senão o código) e `installments_due` (parcelas a pagar das saídas parceladas: `(total_installments - installment_number) x amount`, quantidade de parcelas e de transações, e o detalhe por banco; sem banco = "Sem banco")
 - **`transactions` foi removida da resposta:** o frontend lê só os agregados acima e `total_invested`; a lista de lançamentos pagina em `GET /transacoes/paginated`. O statement roda em no máximo 4 queries (totais, limites, agregados dos gráficos, nomes dos bancos), qualquer que seja o volume
+- **Saídas = despesas + investimentos** (o investimento é separado das outras saídas pela categoria de investimento). Vale para o Financeiro (`Saídas` e `Balanço Mensal`) e para a Visão Geral (`total_outflows`, `outflows_up_to_today`; `balance` = entradas − saídas). `total_expenses` continua só despesas (base dos limites). Confirmado pelo dono em 2026-11-17
 - **Meta mensal:** Categoria "Mensal PF" (PF) ou "Mensal PJ" (PJ) → coluna `limit`
 - **Limite cartão:** Categoria "Limite Cartao Credito" (por entity_type) → fallback 0
 
