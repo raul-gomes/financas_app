@@ -94,6 +94,7 @@ def patch_secret():
     with (
         patch.object(Config, "SUPABASE_JWT_SECRET", TEST_SECRET),
         patch.object(Config, "SUPABASE_AUTH_URL", TEST_AUTH_URL),
+        patch.object(Config, "SUPABASE_JWT_ISSUER", ""),
     ):
         yield
 
@@ -359,3 +360,25 @@ async def test_unsigned_token_raises_401(mock_db_session):
 async def test_hs256_token_without_configured_secret_raises_401(mock_db_session):
     with patch.object(Config, "SUPABASE_JWT_SECRET", ""):
         await _assert_401(_hs256())
+
+
+# ── Issuer distinct from the JWKS URL (local Supabase seen from Docker) ──
+
+LOCAL_PUBLIC_ISSUER = "http://127.0.0.1:64321/auth/v1"
+
+
+@pytest.mark.asyncio
+async def test_configured_issuer_accepts_token_signed_with_it(mock_db_session):
+    token = _hs256(iss=LOCAL_PUBLIC_ISSUER)
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+
+    with patch.object(Config, "SUPABASE_JWT_ISSUER", LOCAL_PUBLIC_ISSUER):
+        result = await get_current_user(credentials=credentials, session=MagicMock())
+
+    assert result is not None
+
+
+@pytest.mark.asyncio
+async def test_configured_issuer_rejects_issuer_derived_from_auth_url(mock_db_session):
+    with patch.object(Config, "SUPABASE_JWT_ISSUER", LOCAL_PUBLIC_ISSUER):
+        await _assert_401(_hs256(iss=TEST_ISSUER))

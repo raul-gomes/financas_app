@@ -30,6 +30,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?set in .env}:${POSTGRES_PASSWORD:?set in .env}@db:5432/${POSTGRES_DB:?set in .env}
       SUPABASE_AUTH_URL: ${SUPABASE_AUTH_URL:-http://host.docker.internal:64321}
+      # Local Supabase signs tokens with its public address, not the one the API uses to reach it.
+      SUPABASE_JWT_ISSUER: ${SUPABASE_JWT_ISSUER:-http://127.0.0.1:64321/auth/v1}
       SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       ENVIRONMENT: ${ENVIRONMENT:-development}

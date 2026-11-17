@@ -37,6 +37,9 @@ class Config:
     DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "3600"))
     SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
     SUPABASE_AUTH_URL = os.getenv("SUPABASE_AUTH_URL", "")
+    # Issuer (`iss`) the tokens carry. Empty = derived from SUPABASE_AUTH_URL; set it when the
+    # API reaches Supabase through another address (local Supabase seen from Docker).
+    SUPABASE_JWT_ISSUER = os.getenv("SUPABASE_JWT_ISSUER", "")
     # Comma-separated Fernet keys: the first encrypts the Pluggy key at rest, all decrypt.
     # Validated at startup by `app.core.crypto.validate_encryption_keys`.
     PLUGGY_KEY_ENCRYPTION_KEYS = os.getenv("PLUGGY_KEY_ENCRYPTION_KEYS")

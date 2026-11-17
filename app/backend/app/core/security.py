@@ -29,7 +29,12 @@ HMAC_ALGORITHM = "HS256"
 
 
 def _expected_issuer() -> str | None:
-    """Issuer of the configured Supabase project, or None when no URL is set."""
+    """Issuer the tokens must carry: the explicit setting, else derived from the auth URL.
+
+    Returns None when neither is configured.
+    """
+    if Config.SUPABASE_JWT_ISSUER:
+        return Config.SUPABASE_JWT_ISSUER.rstrip("/")
     if not Config.SUPABASE_AUTH_URL:
         return None
     return f"{Config.SUPABASE_AUTH_URL.rstrip('/')}/auth/v1"
