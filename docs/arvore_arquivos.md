@@ -12,7 +12,7 @@ financas_app/
 │   │   │   │
 │   │   │   ├── core/
 │   │   │   │   ├── advisory_lock.py            # try_advisory_lock(engine, key): lock consultivo do Postgres em conexão dedicada (no-op em outros dialetos); LIMIT_ALERT_JOB_LOCK_KEY
-│   │   │   │   ├── config.py                   # Classe Config + require_database_url (falha na partida sem DATABASE_URL): carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL do .env
+│   │   │   │   ├── config.py                   # Classe Config + require_database_url (falha na partida sem DATABASE_URL): carrega DATABASE_URL, SUPABASE_JWT_SECRET, SUPABASE_AUTH_URL, SUPABASE_JWT_ISSUER (iss esperado; vazio = derivado da AUTH_URL) do .env
 │   │   │   │   ├── crypto.py                   # Cifra em repouso da chave Pluggy (Fernet/MultiFernet): encrypt_secret/decrypt_secret, validate_encryption_keys (falha na partida), SecretDecryptionError, helpers idempotentes p/ migration
 │   │   │   │   ├── database.py                 # Engine async SQLAlchemy, AsyncSessionLocal, get_session() dependency
 │   │   │   │   ├── br_number.py                # parse_br_amount: valor digitado em pt-BR → Decimal (None se não for valor); usado na busca de transações
