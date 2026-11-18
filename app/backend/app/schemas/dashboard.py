@@ -82,7 +82,8 @@ class ExtratoResponse(BaseModel):
 
 class MesRendimento(BaseModel):
     income: float = Field(..., description="Total de entradas no mês")
-    expense: float = Field(..., description="Total de saídas no mês")
+    expense: float = Field(..., description="Total de despesas no mês (base dos limites)")
+    outflows: float = Field(..., description="Total de saídas no mês: despesas + investimentos")
 
 
 class RendimentoPeriodoResponse(BaseModel):

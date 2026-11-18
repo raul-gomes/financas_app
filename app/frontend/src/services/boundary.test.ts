@@ -112,7 +112,7 @@ describe('FinancialService boundary', () => {
   });
 
   it('parses the yearly performance, category breakdown and income lists', async () => {
-    respondWith({ limit: 5, months: { janeiro: { income: 1, expense: 2 } } });
+    respondWith({ limit: 5, months: { janeiro: { income: 1, expense: 2, outflows: 3 } } });
     await expect(FinancialService.getYearlyPerformance(2026)).resolves.toMatchObject({ limit: 5 });
     respondWith({
       start_date: '01/05/2026',

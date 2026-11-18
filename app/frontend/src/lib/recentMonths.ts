@@ -3,17 +3,18 @@ import { addMonths, SHORT_MONTHS, type YearMonth } from '@/lib/months';
 /** Months shown by the mobile bar chart. */
 export const MOBILE_CHART_MONTHS = 6;
 
-/** Income/expense per month of one year, in calendar order (the `/dashboard/period-income` payload). */
+/** Income/expenses/outflows per month of one year, in calendar order (the `/dashboard/period-income` payload). */
 export interface YearPerformance {
   limit: number;
-  months: Record<string, { income: number; expense: number }>;
+  months: Record<string, { income: number; expense: number; outflows: number }>;
 }
 
 export interface RecentMonth extends YearMonth {
   /** Axis label, e.g. "nov". */
   label: string;
   income: number;
-  expenses: number;
+  /** Saídas: expenses + investments. */
+  outflows: number;
 }
 
 /** The `count` months ending at `end`, oldest first. */
@@ -31,7 +32,7 @@ export function recentMonthYears(end: YearMonth, count: number): number[] {
 }
 
 /**
- * Income and expenses of the last `count` months ending at `end`. Months come from the
+ * Income and outflows of the last `count` months ending at `end`. Months come from the
  * yearly payloads by calendar position; a year that has not loaded counts as zero.
  */
 export function buildRecentMonths(
@@ -46,7 +47,7 @@ export function buildRecentMonths(
       month,
       label: SHORT_MONTHS[month - 1],
       income: values?.income ?? 0,
-      expenses: values?.expense ?? 0,
+      outflows: values?.outflows ?? 0,
     };
   });
 }

@@ -104,7 +104,7 @@ function summary(monthlyGoal = 1000) {
 }
 
 const yearly = {
-  months: { janeiro: { income: 10, expense: 5 } },
+  months: { janeiro: { income: 10, expense: 5, outflows: 7 } },
 };
 
 beforeEach(() => {

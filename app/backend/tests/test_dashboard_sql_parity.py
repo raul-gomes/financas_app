@@ -334,6 +334,20 @@ async def test_period_income_matches_reference(seeded):
     assert result.limit == 3000.0
 
 
+@pytest.mark.asyncio
+async def test_period_income_outflows_add_investments_to_expenses(seeded):
+    rows = await _user_rows(seeded)
+    dashboard = DashboardRepository(seeded)
+
+    result = await dashboard.rendimento_por_periodo(YEAR, "individual", USER)
+
+    may = _in_scope([t for t in rows if t.entity_type == "individual"], "all")
+    expected = _sum(may, type="expense") + _sum(may, type="investment")
+    assert _sum(may, type="investment") > 0
+    assert result.months["may"].outflows == pytest.approx(round(expected, 2))
+    assert result.months["january"].outflows == 0
+
+
 class _QueryCounter:
     """Counts SQL statements sent to the engine while active."""
 

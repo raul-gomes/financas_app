@@ -4,7 +4,11 @@ import { buildRecentMonths, recentMonthYears } from './recentMonths';
 const months = (values: number[]) =>
   Object.fromEntries(
     ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'].map(
-      (name, idx) => [name, { income: values[idx] ?? 0, expense: (values[idx] ?? 0) / 2 }],
+      (name, idx) => [
+        name,
+        // Outflows = expenses + investments (10 invested every month).
+        { income: values[idx] ?? 0, expense: (values[idx] ?? 0) / 2, outflows: (values[idx] ?? 0) / 2 + 10 },
+      ],
     ),
   );
 
@@ -26,8 +30,8 @@ describe('buildRecentMonths', () => {
       2026: { limit: 0, months: months([100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]) },
     });
     expect(result.map((m) => m.label)).toEqual(['jun', 'jul', 'ago', 'set', 'out', 'nov']);
-    expect(result[0]).toMatchObject({ year: 2026, month: 6, income: 600, expenses: 300 });
-    expect(result[5]).toMatchObject({ year: 2026, month: 11, income: 1100, expenses: 550 });
+    expect(result[0]).toMatchObject({ year: 2026, month: 6, income: 600, outflows: 310 });
+    expect(result[5]).toMatchObject({ year: 2026, month: 11, income: 1100, outflows: 560 });
   });
 
   it('reads the previous year for months before January', () => {
@@ -49,6 +53,6 @@ describe('buildRecentMonths', () => {
 
   it('uses zero for months whose year has not loaded yet', () => {
     const result = buildRecentMonths({ year: 2026, month: 2 }, 6, { 2026: { limit: 0, months: months([10, 20]) } });
-    expect(result[0]).toMatchObject({ income: 0, expenses: 0 });
+    expect(result[0]).toMatchObject({ income: 0, outflows: 0 });
   });
 });
