@@ -17,14 +17,14 @@ function percentOf(value: number, max: number): number {
 }
 
 /**
- * Grouped bar chart (income x expenses) for the mobile financial page: plain
+ * Grouped bar chart (income x outflows) for the mobile financial page: plain
  * HTML bars, one tappable group per month. The legend sits below the chart and
  * tapping a group reads its values (the selected month defaults to the last one).
  */
 export function MonthlyBarsChart({ months }: MonthlyBarsChartProps) {
   const [selected, setSelected] = useState(months.length - 1);
   const current = months[Math.min(selected, months.length - 1)];
-  const max = Math.max(0, ...months.flatMap((m) => [m.income, m.expenses]));
+  const max = Math.max(0, ...months.flatMap((m) => [m.income, m.outflows]));
 
   return (
     <div>
@@ -38,7 +38,7 @@ export function MonthlyBarsChart({ months }: MonthlyBarsChartProps) {
           <button
             key={`${m.year}-${m.month}`}
             type="button"
-            aria-label={`${m.label}: entradas ${formatCurrency(m.income)}, saídas ${formatCurrency(m.expenses)}`}
+            aria-label={`${m.label}: entradas ${formatCurrency(m.income)}, saídas ${formatCurrency(m.outflows)}`}
             aria-pressed={index === selected}
             onClick={() => setSelected(index)}
             className={cn(
@@ -52,9 +52,9 @@ export function MonthlyBarsChart({ months }: MonthlyBarsChartProps) {
               style={{ height: `${percentOf(m.income, max)}%` }}
             />
             <span
-              data-testid={`bar-expenses-${m.year}-${m.month}`}
+              data-testid={`bar-outflows-${m.year}-${m.month}`}
               className="w-full max-w-[18px] rounded-t bg-destructive"
-              style={{ height: `${percentOf(m.expenses, max)}%` }}
+              style={{ height: `${percentOf(m.outflows, max)}%` }}
             />
           </button>
         ))}
@@ -84,7 +84,7 @@ export function MonthlyBarsChart({ months }: MonthlyBarsChartProps) {
         {' · '}
         <span className="text-success">Entradas {formatCurrency(current.income)}</span>
         {' · '}
-        <span className="text-destructive">Saídas {formatCurrency(current.expenses)}</span>
+        <span className="text-destructive">Saídas {formatCurrency(current.outflows)}</span>
       </p>
     </div>
   );

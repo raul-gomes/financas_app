@@ -171,7 +171,8 @@ class DashboardRepository:
 
     async def rendimento_por_periodo(
         self, ano: int, entity_type: str, user_id: int
-    ) -> dict[str, dict[str, float]]:
+    ) -> RendimentoPeriodoResponse:
+        """Income, expenses and outflows (expenses + investments) per month, plus the limit."""
 
         # Single query with GROUP BY month; a date range (not extract(year)) keeps it index-friendly
         stmt = select(
@@ -190,14 +191,23 @@ class DashboardRepository:
         result = await self.db.execute(stmt)
         rows = result.all()
 
-        meses_data: dict[str, dict[str, float]] = {}
-        for m in range(1, 13):
-            meses_data[calendar.month_name[m].lower()] = {"income": 0.0, "expense": 0.0}
-
+        totals: dict[str, dict[str, float]] = {
+            calendar.month_name[m].lower(): {"income": 0.0, "expense": 0.0, "investment": 0.0}
+            for m in range(1, 13)
+        }
         for row in rows:
-            mes_nome = calendar.month_name[int(row.mes)].lower()
-            if row.type in ("income", "expense"):
-                meses_data[mes_nome][row.type] = round(float(row.total), 2)
+            if row.type in ("income", "expense", "investment"):
+                totals[calendar.month_name[int(row.mes)].lower()][row.type] = float(row.total)
+
+        # Saídas = despesas + investimentos; `expense` alone stays the base for limits.
+        meses_data = {
+            name: {
+                "income": round(t["income"], 2),
+                "expense": round(t["expense"], 2),
+                "outflows": round(t["expense"] + t["investment"], 2),
+            }
+            for name, t in totals.items()
+        }
 
         mensal_cat = await self.db.execute(
             select(CategoryORM)

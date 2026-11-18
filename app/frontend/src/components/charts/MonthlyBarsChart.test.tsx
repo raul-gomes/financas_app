@@ -4,12 +4,12 @@ import { MonthlyBarsChart } from './MonthlyBarsChart';
 import type { RecentMonth } from '@/lib/recentMonths';
 
 const MONTHS: RecentMonth[] = [
-  { year: 2026, month: 6, label: 'jun', income: 1000, expenses: 500 },
-  { year: 2026, month: 7, label: 'jul', income: 2000, expenses: 1000 },
-  { year: 2026, month: 8, label: 'ago', income: 0, expenses: 0 },
-  { year: 2026, month: 9, label: 'set', income: 500, expenses: 250 },
-  { year: 2026, month: 10, label: 'out', income: 800, expenses: 400 },
-  { year: 2026, month: 11, label: 'nov', income: 1200, expenses: 600 },
+  { year: 2026, month: 6, label: 'jun', income: 1000, outflows: 500 },
+  { year: 2026, month: 7, label: 'jul', income: 2000, outflows: 1000 },
+  { year: 2026, month: 8, label: 'ago', income: 0, outflows: 0 },
+  { year: 2026, month: 9, label: 'set', income: 500, outflows: 250 },
+  { year: 2026, month: 10, label: 'out', income: 800, outflows: 400 },
+  { year: 2026, month: 11, label: 'nov', income: 1200, outflows: 600 },
 ];
 
 describe('MonthlyBarsChart', () => {
